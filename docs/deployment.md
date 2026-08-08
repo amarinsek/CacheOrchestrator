@@ -195,12 +195,121 @@ Each named instance maintains:
 
 This means two domains can safely map to **different Redis clusters** (e.g. GDPR isolation) without the last-registered L2 overwriting the first.
 
+---
+
+## Shared configuration across instances
+
+Cache settings that affect **shared** cache behaviour must be the **same** on every app instance that uses the same Output Cache store and/or Fusion L2/backplane. That includes at least:
+
+- `Cache:Namespace` and per-instance Fusion namespaces  
+- `Domains:*:Version` (generation stamp / key space)  
+- Domain TTLs, Client Cache Schedule, `FusionCacheInstance` mapping  
+- Redis connection targets (when using Redis)
+
+Hand-editing a different `appsettings.json` on each machine causes **desynchronization** (different Version → different keys; different TTLs → inconsistent behaviour). This is a general multi-instance configuration problem, not specific to CacheOrchestrator.
+
+### Prefer one source of truth
+
+| Approach | Role |
+|----------|------|
+| **Same deploy artifact** | Ship one production config (or env) with every instance of a release |
+| **Environment variables** | e.g. `Cache__Domains__catalog__Version=2026-09` set identically by the orchestrator |
+| **Central config** | Azure App Configuration, Consul, Kubernetes ConfigMap, etc. |
+| **Dedicated cache file** | e.g. `appsettings.cache.json` kept identical on every instance by cluster config management |
+
+Do **not** rely on operators SSH-editing per-server JSON for domain `Version` cutovers.
+
+### Do you need to re-register default JSON files?
+
+**No.** With `WebApplication.CreateBuilder(args)` (default host), ASP.NET Core **already** loads:
+
+- `appsettings.json`  
+- `appsettings.{Environment}.json`  
+- environment variables, command-line args, and user secrets (Development)
+
+You only **add** extra sources. Example — shared cache file with reload:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// Defaults (appsettings.json + environment-specific + env vars) are already registered.
+// Add a file that cluster config management keeps identical on every instance:
+builder.Configuration.AddJsonFile(
+    "appsettings.cache.json",
+    optional: true,
+    reloadOnChange: true);
+
+builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBackend());
+```
+
+`reloadOnChange: true` applies when the **local file on that machine** changes. CacheOrchestrator uses `IOptionsMonitor` and **clears** its in-process domain options cache so the next request rebuilds snapshots (new `Version`, TTLs, …).
+
+If your platform **restarts** processes on config change, reload is optional; the important part remains: **same content on all instances**.
+
+Later configuration sources override earlier ones. Environment variables (already added by `CreateBuilder`) can override JSON, e.g. `Cache__Domains__catalog__Version`.
+
+### Example: `appsettings.cache.json` (shared)
+
+Keep host-specific settings in `appsettings.json` / environment; put **cluster-wide cache policy** in a file (or ConfigMap) available to every instance:
+
+```json
+{
+  "Cache": {
+    "Namespace": "my-app",
+    "OutputCache": {
+      "Provider": "InMemory"
+    },
+    "FusionCacheInstances": {
+      "default": {
+        "Provider": "Redis"
+      }
+    },
+    "Redis": {
+      "Configuration": "redis-primary:6379"
+    },
+    "DomainDefaults": {
+      "ClientCacheability": "Public",
+      "ClientTtlMinSeconds": 60
+    },
+    "Domains": {
+      "catalog": {
+        "Version": "2026-08",
+        "ClientTtlSeconds": 3600,
+        "OutputCacheTtlSeconds": 3700,
+        "FusionCacheSoftTtlSeconds": 3800,
+        "ScheduledUpdateUtc": "2026-09-01T00:00:00Z"
+      },
+      "live-tracking": {
+        "Version": "1",
+        "ClientTtlSeconds": 5,
+        "OutputCacheTtlSeconds": 5,
+        "FusionCacheSoftTtlSeconds": 10
+      }
+    }
+  }
+}
+```
+
+**Cutover example:** change `"Version": "2026-08"` → `"2026-09"` **once** in the shared file / config system and roll it out to all instances (or let reload pick it up everywhere). Do not leave instance A on `2026-09` and B on `2026-08` for long.
+
+During a **rolling deploy**, a short mixed window is normal (some nodes already on the new Version). That is preferable to permanent per-machine drift.
+
+### What shared config does *not* replace
+
+| Concern | How it is handled |
+|---------|-------------------|
+| Shared HTTP / object data across nodes | Redis (or other L2) — topologies above |
+| L1 memory after invalidation | Redis **backplane** (Fusion) |
+| Browser caches near a data cutover | [Client Cache Schedule](client-cache-schedule.md) |
+| One product row changed under same Version | [Entity invalidation](invalidation.md) / [domain profiles](domain-profiles.md) |
+
 ## Related
 
-- [configuration.md](configuration.md) — namespaces, providers  
+- [configuration.md](configuration.md) — namespaces, providers, full schema  
 - [backends.md](backends.md) — Redis package and custom registrars  
 - [fusion-cache.md](fusion-cache.md)  
 - [invalidation.md](invalidation.md)  
 - [observability.md](observability.md)  
 - [faq.md](faq.md) — multi-instance and InMemory limitations  
-- [comparison.md](comparison.md) — when Redis OC alone is enough
+- [comparison.md](comparison.md) — when Redis OC alone is enough  
+- [domain-profiles.md](domain-profiles.md) — Version vs TTL cutovers  
