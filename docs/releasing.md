@@ -47,7 +47,18 @@ dotnet minver
    This triggers [`.github/workflows/publish.yml`](../.github/workflows/publish.yml):
    - test (unit net8/net10, integration + Testcontainers Redis)
    - `dotnet pack` → `.nupkg` + `.snupkg`
-   - push to nuget.org (`NUGET_API_KEY` secret)
+   - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1` — no long-lived API key in GitHub Secrets)
+
+### NuGet Trusted Publishing (what you configure on nuget.org)
+
+1. nuget.org → username → **Trusted Publishing** (not classic API Keys).
+2. Policy roughly:
+   - Repository Owner: `amarinsek` (GitHub user/org)
+   - Repository: `CacheOrchestrator`
+   - Workflow file: **`publish.yml`** only (not the full path)
+   - **Environment: leave empty** unless the workflow job sets `environment: …` (must match exactly)
+3. First successful publish within **7 days** “locks” the policy permanently (“Use within 7 day(s)…”).
+4. There is **no** secret string to copy into GitHub for this mode.
 
 7. Confirm on nuget.org: version, release notes, symbols.
 

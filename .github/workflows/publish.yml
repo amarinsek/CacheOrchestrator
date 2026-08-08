@@ -10,6 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
+    # Required for NuGet Trusted Publishing (OIDC → short-lived API key).
+    # No long-lived NUGET_API_KEY secret needed.
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
     # Full history helps SourceLink / MinVer embed accurate commit and version metadata.
     - uses: actions/checkout@v5
@@ -70,18 +76,24 @@ jobs:
         ls -la ./nupkg
         echo "Packed with MinVer-derived version (see nupkg file names)."
 
-    # Optional signing is documented in docs/releasing.md (not wired here):
-    # GitHub Actions forbids `if: secrets.*` expressions; enable signing later via a
-    # dedicated step + repository variable if you obtain a code-signing certificate.
+    # NuGet Trusted Publishing: exchange GitHub OIDC token for a temporary API key.
+    # Policy on nuget.org must match: owner, repo, workflow file publish.yml
+    # Prefer Environment empty on nuget.org unless this job sets environment: ...
+    - name: NuGet login (OIDC)
+      uses: NuGet/login@v1
+      id: nuget-login
+      with:
+        # nuget.org profile username (not email) — package owner in your Trusted Publishing policy
+        user: amarinsek
 
     - name: Push packages and symbols to NuGet
       run: |
-        # Requires repository secret: NUGET_API_KEY
+        # Temporary key from NuGet/login (valid ~1 hour, not stored in GitHub Secrets)
         dotnet nuget push ./nupkg/*.nupkg \
-          -k ${{ secrets.NUGET_API_KEY }} \
+          -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
           -s https://api.nuget.org/v3/index.json \
           --skip-duplicate
         dotnet nuget push ./nupkg/*.snupkg \
-          -k ${{ secrets.NUGET_API_KEY }} \
+          -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
           -s https://api.nuget.org/v3/index.json \
           --skip-duplicate
