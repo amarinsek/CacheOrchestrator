@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0-rc.1] - 2026-08-08
+## [1.0.0] - 2026-08-08
 
-Initial public release candidate.
+First stable release.
 
 **CacheOrchestrator** is domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
 
@@ -35,5 +35,5 @@ Initial public release candidate.
 - Fusion without a resolved domain runs the factory **uncached** (Warning + `result=unresolved`).
 - Default Fusion namespace for the `default` instance is `{Namespace}-fc` (no `-default` suffix).
 
-[Unreleased]: https://github.com/amarinsek/CacheOrchestrator/compare/v1.0.0-rc.1...HEAD
-[1.0.0-rc.1]: https://github.com/amarinsek/CacheOrchestrator/releases/tag/v1.0.0-rc.1
+[Unreleased]: https://github.com/amarinsek/CacheOrchestrator/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/amarinsek/CacheOrchestrator/releases/tag/v1.0.0

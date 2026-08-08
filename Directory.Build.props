@@ -10,8 +10,8 @@
 
     <!--
       Versioning: MinVer derives PackageVersion / Version from Git tags.
-      - Tag format: v1.0.0-rc.1  (prefix "v" is stripped)
-      - No matching tag yet: 1.0.0-rc.0.{height} (see MinVerMinimumMajorMinor)
+      - Tag format: v1.0.0  (prefix "v" is stripped)
+      - After v1.0.0, commits without a new tag become 1.0.1-rc.0.{height} (default pre-release)
       - Do NOT hardcode <Version> here — it would fight MinVer.
       Release process: CONTRIBUTING.md / docs/releasing.md
     -->

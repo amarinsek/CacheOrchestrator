@@ -8,17 +8,14 @@ Package version is **not** hardcoded. [MinVer](https://github.com/adamralph/minv
 
 | Situation | Resulting package version (typical) |
 |-----------|-------------------------------------|
-| Tag `v1.0.0-rc.1` on the commit you build | `1.0.0-rc.1` |
-| No `v*` tag yet, on main after N commits | `1.0.0-rc.0.N` (minimum major.minor = 1.0) |
-| Tag `v1.0.0` | `1.0.0` |
+| Tag `v1.0.0` on the commit you build | `1.0.0` |
+| Commits after `v1.0.0` without a new tag | `1.0.1-rc.0.N` |
+| Tag `v1.0.1` | `1.0.1` |
 
 Tag prefix is **`v`** (`MinVerTagPrefix` in `Directory.Build.props`).
 
 ```bash
-# Inspect calculated version (after restore)
 dotnet build src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -v:m
-# Or:
-dotnet minver
 ```
 
 **Requires full Git history** on CI (`fetch-depth: 0` — already set in workflows).
@@ -28,68 +25,52 @@ dotnet minver
 | File | Audience | Role |
 |------|----------|------|
 | [CHANGELOG.md](../CHANGELOG.md) | Humans / GitHub | Full history |
-| [PACKAGE_RELEASE_NOTES.md](../PACKAGE_RELEASE_NOTES.md) | nuget.org | Short notes for **this** version only (`PackageReleaseNotes`) |
+| [PACKAGE_RELEASE_NOTES.md](../PACKAGE_RELEASE_NOTES.md) | nuget.org | Short notes for **this** version only |
+
+## Package READMEs (NuGet vs GitHub)
+
+| Surface | File |
+|---------|------|
+| GitHub (full story, logo) | Root [README.md](../README.md) |
+| NuGet `CacheOrchestrator` | [src/CacheOrchestrator/README.md](../src/CacheOrchestrator/README.md) — short + links to GitHub |
+| NuGet `CacheOrchestrator.Redis` | [src/CacheOrchestrator.Redis/README.md](../src/CacheOrchestrator.Redis/README.md) — Redis-specific + links to GitHub |
+
+Do **not** pack the root README into the core package (HTML/logo does not render well on nuget.org).
 
 ## Checklist
 
 1. Merge all release work to `main`.
-2. Update **CHANGELOG.md** (`[Unreleased]` → `[x.y.z]` section).
-3. Rewrite **PACKAGE_RELEASE_NOTES.md** for this version (first RC: “Initial public release candidate…”).
-4. Commit on `main`.
-5. Create an **annotated tag** matching MinVer:
+2. Update **CHANGELOG.md** and **PACKAGE_RELEASE_NOTES.md**.
+3. Commit on `main`; wait for **Build and Test** to pass.
+4. Create an **annotated tag**:
 
    ```bash
-   git tag -a v1.0.0-rc.1 -m "CacheOrchestrator 1.0.0-rc.1"
-   git push origin v1.0.0-rc.1
+   git tag -a v1.0.0 -m "CacheOrchestrator 1.0.0"
+   git push origin v1.0.0
    ```
 
-6. Create a **GitHub Release** for that tag (UI or `gh release create`).  
+5. Create a **GitHub Release** for that tag (**not** marked pre-release for stable 1.0.0).  
    This triggers [`.github/workflows/publish.yml`](../.github/workflows/publish.yml):
    - test (unit net8/net10, integration + Testcontainers Redis)
    - `dotnet pack` → `.nupkg` + `.snupkg`
-   - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1` — no long-lived API key in GitHub Secrets)
+   - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)
 
-### NuGet Trusted Publishing (what you configure on nuget.org)
+6. Confirm nuget.org for both packages; optionally **unlist** old pre-release versions.
 
-1. nuget.org → username → **Trusted Publishing** (not classic API Keys).
-2. Policy roughly:
-   - Repository Owner: `amarinsek` (GitHub user/org)
-   - Repository: `CacheOrchestrator`
-   - Workflow file: **`publish.yml`** only (not the full path)
-   - **Environment: leave empty** unless the workflow job sets `environment: …` (must match exactly)
-3. First successful publish within **7 days** “locks” the policy permanently (“Use within 7 day(s)…”).
-4. There is **no** secret string to copy into GitHub for this mode.
+### NuGet Trusted Publishing
 
-7. Confirm on nuget.org: version, release notes, symbols.
+1. nuget.org → **Trusted Publishing**
+2. Policy: owner `amarinsek`, repo `CacheOrchestrator`, workflow **`publish.yml`**, **Environment empty**
+3. GitHub secret **`NUGET_USER`** = nuget.org username (`amarinsek`)
+4. First successful publish within 7 days fully activates a new policy
 
 ## Optional: package signing
 
-Signing is **not** required for open-source nuget.org publishing and is **not** enabled in
-`publish.yml` (GitHub Actions does not allow `if: secrets.*` conditions, and most OSS packages
-ship unsigned).
-
-If you later obtain a code-signing certificate, sign **locally** after pack (or add a dedicated
-workflow step that always runs only when you intentionally enable it via a repository **variable**,
-not via `if: secrets…`):
-
-```bash
-dotnet nuget sign ./nupkg/*.nupkg \
-  --certificate-path ./cert.pfx \
-  --certificate-password "$CERT_PASSWORD" \
-  --timestamper http://timestamp.digicert.com
-
-dotnet nuget sign ./nupkg/*.snupkg \
-  --certificate-path ./cert.pfx \
-  --certificate-password "$CERT_PASSWORD" \
-  --timestamper http://timestamp.digicert.com
-```
-
-Never commit certificate files or passwords.
+Not enabled in CI. See historical notes: sign locally with `dotnet nuget sign` if you have a certificate.
 
 ## Local pack smoke test
 
 ```bash
 dotnet pack src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -o ./nupkg
 dotnet pack src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj -c Release -o ./nupkg
-# Expect matching Version in both .nupkg names + .snupkg + <releaseNotes> in nuspec
 ```

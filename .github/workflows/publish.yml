@@ -70,7 +70,7 @@ jobs:
       run: |
         mkdir -p nupkg
         # Version comes from MinVer + Git tags (this workflow uses fetch-depth: 0).
-        # Create the GitHub Release from the version tag (e.g. v1.0.0-rc.1).
+        # Create the GitHub Release from the version tag (e.g. v1.0.0).
         dotnet pack src/CacheOrchestrator/CacheOrchestrator.csproj --configuration Release --output ./nupkg
         dotnet pack src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj --configuration Release --output ./nupkg
         ls -la ./nupkg

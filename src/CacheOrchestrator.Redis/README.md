@@ -1,12 +1,14 @@
 # CacheOrchestrator.Redis
 
-Redis backends for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
+Optional **Redis** backends for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
 
-Adds: ASP.NET Core Output Cache store, FusionCache L2 (`IDistributedCache`) + StackExchange.Redis backplane, and health probes.
+| | |
+|--|--|
+| **Provides** | Output Cache store, FusionCache L2 + backplane, Redis health probe |
+| **Requires** | `CacheOrchestrator` core package + `AddRedisBackend()` |
+| **Full docs** | **[GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)** · [backends.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/backends.md) |
 
-**All Redis connection settings live in this package** (not in the core `CacheOrchestrator` options types).
-
-Full docs and samples: [GitHub — CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator)
+This package owns Redis connection options (not the core package).
 
 ## Install
 
@@ -23,7 +25,7 @@ using CacheOrchestrator.Redis;
 
 builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 {
-    o.AddRedisBackend(); // optional: o.AddRedisBackend("MyCache") if config section is not "Cache"
+    o.AddRedisBackend();
 });
 ```
 
@@ -35,34 +37,22 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
     "Namespace": "my-app",
     "OutputCache": { "Provider": "Redis" },
     "FusionCacheInstances": {
-      "default": { "Provider": "Redis" },
-      "pii": {
-        "Provider": "Redis",
-        "Redis": { "Configuration": "secure-redis:6379" }
-      }
+      "default": { "Provider": "Redis" }
     },
     "Redis": {
-      "Configuration": "localhost:6379",
-      "ConnectTimeout": 5000,
-      "SyncTimeout": 5000,
-      "KeepAliveSeconds": 60
-    },
-    "Distributed": {
-      "SoftTimeoutSeconds": 1,
-      "HardTimeoutSeconds": 2,
-      "CircuitBreakerSeconds": 5
+      "Configuration": "localhost:6379"
     }
   }
 }
 ```
 
-### Connection resolution
-
-| Surface | Override section | Fallback |
-|---------|------------------|----------|
+| Surface | Override | Fallback |
+|---------|----------|----------|
 | Output Cache | `Cache:OutputCache:Redis` | `Cache:Redis` |
 | Fusion instance `{name}` | `Cache:FusionCacheInstances:{name}:Redis` | `Cache:Redis` |
 
-L2 soft/hard/circuit timeouts are **core** settings under `Cache:Distributed` (provider-agnostic).
+More (multi-instance, backplane, custom backends): [documentation on GitHub](https://github.com/amarinsek/CacheOrchestrator/tree/main/docs).
 
-See the main [documentation](https://github.com/amarinsek/CacheOrchestrator/tree/main/docs).
+## License
+
+MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)

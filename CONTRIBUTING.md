@@ -116,7 +116,7 @@ Packable projects inherit from `Directory.Build.props`:
 
 | Setting | Source |
 |---------|--------|
-| **Version** | **Git tags** via [MinVer](https://github.com/adamralph/minver) (`v1.0.0-rc.1` → `1.0.0-rc.1`) |
+| **Version** | **Git tags** via [MinVer](https://github.com/adamralph/minver) (`v1.0.0` → `1.0.0`) |
 | Authors, license, repo URL | `Directory.Build.props` |
 | Package **description** | each `.csproj` (`Description`) |
 | Package **readme** (NuGet UI) | `src/CacheOrchestrator/README.md` / `src/CacheOrchestrator.Redis/README.md` (`PackageReadmeFile`) — **not** the root GitHub README |
@@ -130,7 +130,7 @@ Full release procedure: **[docs/releasing.md](docs/releasing.md)**.
 
 1. Update **CHANGELOG.md** and **PACKAGE_RELEASE_NOTES.md**.
 2. Commit on `main`.
-3. Tag **`v{version}`** (e.g. `v1.0.0-rc.1`) and push the tag.
+3. Tag **`v{version}`** (e.g. `v1.0.0`) and push the tag.
 4. Publish **GitHub Release** for that tag → `publish.yml` packs and pushes to NuGet
    (Trusted Publishing / OIDC — configure policy on nuget.org; no `NUGET_API_KEY` secret required).
 5. Confirm nuget.org (version from tag, release notes, symbols).

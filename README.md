@@ -1,14 +1,10 @@
-<p align="center">
-  <img src="docs/assets/logo.png" width="250" alt="CacheOrchestrator Logo">
-</p>
+![CacheOrchestrator Logo](docs/assets/logo.png)
 
-<h1 align="center">CacheOrchestrator</h1>
+# CacheOrchestrator
 
-<p align="center">
-  <a href="https://www.nuget.org/packages/CacheOrchestrator/"><img src="https://img.shields.io/nuget/v/CacheOrchestrator.svg?style=flat-square" alt="NuGet"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT"></a>
-  <a href="https://github.com/amarinsek/CacheOrchestrator/actions"><img src="https://img.shields.io/github/actions/workflow/status/amarinsek/CacheOrchestrator/build.yml?branch=main&style=flat-square" alt="Build Status"></a>
-</p>
+[![NuGet](https://img.shields.io/nuget/v/CacheOrchestrator.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/amarinsek/CacheOrchestrator/build.yml?branch=main&style=flat-square)](https://github.com/amarinsek/CacheOrchestrator/actions)
 
 **CacheOrchestrator** is domain-based caching for ASP.NET Core: define rules once per domain in configuration, then apply them on endpoints with a single attribute or extension. It orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
 

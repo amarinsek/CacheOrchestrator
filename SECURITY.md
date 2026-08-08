@@ -4,10 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| `1.0.0-rc.x` | Yes (current pre-release) |
-| Older unpublished local builds | No |
-
-When a stable `1.0.0` ships, this table will list the actively maintained release lines.
+| `1.0.x` | Yes (current stable) |
+| Pre-release (`*-rc.*`, etc.) | No (use latest stable) |
 
 ## Reporting a vulnerability
 
