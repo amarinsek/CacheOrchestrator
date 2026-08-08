@@ -119,6 +119,7 @@ Packable projects inherit from `Directory.Build.props`:
 | **Version** | **Git tags** via [MinVer](https://github.com/adamralph/minver) (`v1.0.0-rc.1` → `1.0.0-rc.1`) |
 | Authors, license, repo URL | `Directory.Build.props` |
 | Package **description** | each `.csproj` (`Description`) |
+| Package **readme** (NuGet UI) | `src/CacheOrchestrator/README.md` / `src/CacheOrchestrator.Redis/README.md` (`PackageReadmeFile`) — **not** the root GitHub README |
 | Package **release notes** (NuGet UI) | **`PACKAGE_RELEASE_NOTES.md`** → `PackageReleaseNotes` |
 | SourceLink + **`.snupkg`** | `Directory.Build.props` + `Microsoft.SourceLink.GitHub` |
 

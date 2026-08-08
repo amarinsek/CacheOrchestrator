@@ -1,10 +1,12 @@
 # CacheOrchestrator.Redis
 
-Redis backends for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/) — domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
+Redis backends for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
 
-This package adds: ASP.NET Core Output Cache store, FusionCache L2 (`IDistributedCache`) + StackExchange.Redis backplane, and health probes.
+Adds: ASP.NET Core Output Cache store, FusionCache L2 (`IDistributedCache`) + StackExchange.Redis backplane, and health probes.
 
 **All Redis connection settings live in this package** (not in the core `CacheOrchestrator` options types).
+
+Full docs and samples: [GitHub — CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator)
 
 ## Install
 
