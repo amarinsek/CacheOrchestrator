@@ -1,0 +1,207 @@
+using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.Invalidation;
+using CacheOrchestrator.OutputCache;
+using Microsoft.AspNetCore.Builder;
+using System.Diagnostics;
+using System.Text.Json;
+
+namespace CacheOrchestrator.Sample.Endpoints;
+
+/// <summary>Options for a single demo data endpoint loaded from configuration.</summary>
+public sealed class DemoEndpointConfig
+{
+    public string Path { get; set; } = "/api/unknown";
+    public string Domain { get; set; } = "default";
+    public int DelayMs { get; set; } = 50;
+    public string Label { get; set; } = "";
+}
+
+public static class DemoEndpoints
+{
+    /// <summary>
+    /// Registers data endpoints dynamically from configuration (Demo:Endpoints[]).
+    /// Each endpoint simulates an async data fetch and is cached with the configured domain.
+    /// </summary>
+    public static void MapDemoDataEndpoints(this WebApplication app, IConfiguration config)
+    {
+        var entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
+
+        foreach (var entry in entries)
+        {
+            var path = entry.Path;
+            var domain = entry.Domain;
+            var delayMs = entry.DelayMs;
+
+            app.MapGet(path, async (HttpContext http, IDomainFusionCache cache) =>
+            {
+                var sw = Stopwatch.StartNew();
+                var data = await cache.GetOrSetAsync(http, async _ =>
+                {
+                    await Task.Delay(delayMs);
+                    return new
+                    {
+                        path,
+                        domain,
+                        generatedAt = DateTimeOffset.UtcNow
+                    };
+                });
+                sw.Stop();
+                http.Response.Headers["X-Demo-Elapsed-Ms"] = sw.ElapsedMilliseconds.ToString();
+                return Results.Json(data);
+            }).CacheOutputWithDomain(domain);
+        }
+    }
+
+    /// <summary>Studio control APIs for the demo UI.</summary>
+    public static void MapDemoStudioEndpoints(this WebApplication app)
+    {
+        app.MapGet("/api/demo/endpoints", (IConfiguration config, CacheOrchestrator.Configuration.IDomainCacheOptionsProvider provider) =>
+        {
+            var entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
+            return Results.Json(entries.Select(e =>
+            {
+                var opts = provider.GetOrCreateDomainOptions(e.Domain);
+                var fcName = opts.FusionCacheInstanceName ?? "default";
+                var fcProvider = config[$"Cache:FusionCacheInstances:{fcName}:Provider"] ?? "InMemory";
+                var ocProvider = config["Cache:OutputCache:Provider"] ?? "InMemory";
+                
+                return new
+                {
+                    url = e.Path,
+                    domain = e.Domain,
+                    label = string.IsNullOrWhiteSpace(e.Label) ? e.Path : e.Label,
+                    backend = $"{ocProvider} / {fcProvider}"
+                };
+            }));
+        });
+
+        // Returns the raw appsettings.json content for the JSON editor.
+        app.MapGet("/api/demo/appsettings", (IWebHostEnvironment env) =>
+        {
+            var path = Path.Combine(env.ContentRootPath, "appsettings.json");
+            var content = File.ReadAllText(path);
+            return Results.Text(content, "application/json");
+        });
+
+        // Saves the appsettings.json from the JSON editor. Validates JSON first.
+        // ASP.NET Core IOptionsMonitor file watcher picks up the change automatically.
+        app.MapPut("/api/demo/appsettings", async (
+            HttpRequest request,
+            IWebHostEnvironment env,
+            ICacheOrchestratorInvalidator inv,
+            IConfiguration config) =>
+        {
+            using var reader = new StreamReader(request.Body);
+            var raw = await reader.ReadToEndAsync();
+
+            // Validate JSON before saving
+            try
+            {
+                JsonDocument.Parse(raw);
+            }
+            catch (JsonException ex)
+            {
+                return Results.Problem(
+                    title: "Invalid JSON",
+                    detail: ex.Message,
+                    statusCode: 400);
+            }
+
+            var path = Path.Combine(env.ContentRootPath, "appsettings.json");
+
+            // Write with pretty formatting to keep the file human-readable
+            try
+            {
+                var doc = JsonDocument.Parse(raw);
+                var formatted = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(path, formatted);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(
+                    title: "Failed to save appsettings.json",
+                    detail: ex.Message,
+                    statusCode: 500);
+            }
+
+            // Invalidate all known domains so server cache picks up new TTLs immediately.
+            var entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
+            var domains = entries.Select(e => e.Domain).Distinct(StringComparer.OrdinalIgnoreCase);
+            foreach (var domain in domains)
+            {
+                try { await inv.InvalidateDomainAsync(domain); } catch { /* best effort */ }
+            }
+
+            return Results.Ok(new { saved = true, at = DateTimeOffset.UtcNow });
+        });
+
+        app.MapPost("/api/demo/invalidate/{domain}", async (string domain, ICacheOrchestratorInvalidator inv) =>
+        {
+            await inv.InvalidateDomainAsync(domain);
+            return Results.Ok(new { invalidated = domain, at = DateTimeOffset.UtcNow });
+        });
+
+        // --- Dynamic CRUD demo (entity invalidation under a stable Version) ---
+        // In-memory "DB" for the playground only.
+        var productStore = new System.Collections.Concurrent.ConcurrentDictionary<string, ProductRecord>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["42"] = new ProductRecord("42", "Demo Widget", 10.00m, DateTimeOffset.UtcNow),
+            ["7"] = new ProductRecord("7", "Sample Gadget", 19.50m, DateTimeOffset.UtcNow)
+        };
+
+        app.MapGet("/api/crud/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache) =>
+        {
+            var product = await cache.GetOrSetAsync(http, "product-crud", id, async ct =>
+            {
+                await Task.Delay(40, ct);
+                if (!productStore.TryGetValue(id, out var row))
+                    return null;
+                return new
+                {
+                    row.Id,
+                    row.Name,
+                    row.Price,
+                    row.UpdatedAt,
+                    loadedAt = DateTimeOffset.UtcNow
+                };
+            });
+
+            return product is null ? Results.NotFound() : Results.Json(product);
+        }).CacheOutputWithDomain("product-crud", resourceRouteKey: "id");
+
+        app.MapPut("/api/crud/products/{id}", async (
+            string id,
+            ProductUpdateDto body,
+            ICacheOrchestratorInvalidator inv) =>
+        {
+            var updated = new ProductRecord(
+                id,
+                string.IsNullOrWhiteSpace(body.Name) ? $"Product {id}" : body.Name!,
+                body.Price,
+                DateTimeOffset.UtcNow);
+
+            productStore[id] = updated;
+
+            // Same Version — only this entity is purged from OC + FC.
+            await inv.InvalidateEntityAsync("product-crud", id);
+            return Results.Json(new
+            {
+                saved = true,
+                product = updated,
+                invalidatedEntity = id,
+                tip = "GET /api/crud/products/" + id + " again — should be MISS then new price"
+            });
+        });
+
+        app.MapGet("/api/crud/products", () =>
+            Results.Json(productStore.Values.OrderBy(p => p.Id)));
+    }
+
+    private sealed record ProductRecord(string Id, string Name, decimal Price, DateTimeOffset UpdatedAt);
+
+    private sealed class ProductUpdateDto
+    {
+        public string? Name { get; set; }
+        public decimal Price { get; set; }
+    }
+}

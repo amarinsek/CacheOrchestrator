@@ -1,0 +1,51 @@
+<Project>
+  <PropertyGroup>
+    <Authors>Ales Marinsek</Authors>
+    <Company>Ales Marinsek</Company>
+    <Copyright>Copyright © 2026 Ales Marinsek</Copyright>
+    <RepositoryUrl>https://github.com/amarinsek/CacheOrchestrator</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/amarinsek/CacheOrchestrator</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+    <!--
+      Versioning: MinVer derives PackageVersion / Version from Git tags.
+      - Tag format: v1.0.0-rc.1  (prefix "v" is stripped)
+      - No matching tag yet: 1.0.0-rc.0.{height} (see MinVerMinimumMajorMinor)
+      - Do NOT hardcode <Version> here — it would fight MinVer.
+      Release process: CONTRIBUTING.md / docs/releasing.md
+    -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerMinimumMajorMinor>1.0</MinVerMinimumMajorMinor>
+    <MinVerDefaultPreReleaseIdentifiers>rc.0</MinVerDefaultPreReleaseIdentifiers>
+
+    <!--
+      NuGet "Release Notes" tab: content is read from PACKAGE_RELEASE_NOTES.md
+      (repo root, next to this file). Update that file before each release — see CONTRIBUTING.md.
+      Both CacheOrchestrator and CacheOrchestrator.Redis inherit the same notes.
+    -->
+    <PackageReleaseNotes>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)PACKAGE_RELEASE_NOTES.md').Trim())</PackageReleaseNotes>
+
+    <!--
+      SourceLink + symbols (NuGet snupkg):
+      - PublishRepositoryUrl: <repository> in the nupkg nuspec
+      - EmbedUntrackedSources: include generated sources in PDB when needed
+      - IncludeSymbols + snupkg: separate symbol package for nuget.org / debuggers
+    -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <DebugType>portable</DebugType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Deterministic builds + correct SourceLink paths on GitHub Actions -->
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+    <PackageReference Include="MinVer" Version="6.0.0" PrivateAssets="All" />
+  </ItemGroup>
+</Project>

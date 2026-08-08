@@ -1,0 +1,209 @@
+<p align="center">
+  <img src="docs/assets/logo.png" width="250" alt="CacheOrchestrator Logo">
+</p>
+
+<h1 align="center">CacheOrchestrator</h1>
+
+<p align="center">
+  <a href="https://www.nuget.org/packages/CacheOrchestrator/"><img src="https://img.shields.io/nuget/v/CacheOrchestrator.svg?style=flat-square" alt="NuGet"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT"></a>
+  <a href="https://github.com/amarinsek/CacheOrchestrator/actions"><img src="https://img.shields.io/github/actions/workflow/status/amarinsek/CacheOrchestrator/build.yml?branch=main&style=flat-square" alt="Build Status"></a>
+</p>
+
+**CacheOrchestrator** is domain-based caching for ASP.NET Core: define rules once per domain in configuration, then apply them on endpoints with a single attribute or extension. It orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
+
+No more scattering TTLs, headers, and backend settings across every controller.
+
+| | |
+|--|--|
+| **Target** | .NET 8 and .NET 10 |
+| **Try now** | [`samples/CacheOrchestrator.Minimal`](samples/CacheOrchestrator.Minimal) — zero typing, InMemory only |
+| **Explore** | [`samples/CacheOrchestrator.Sample`](samples/CacheOrchestrator.Sample) — interactive playground |
+
+---
+
+## Why domains?
+
+Different data needs different caching — not one global policy:
+
+| Domain example | How often it changes | Cache style |
+|----------------|----------------------|-------------|
+| Satellite imagery | ~ yearly | Very long server + client TTL |
+| OSM / map tiles | ~ monthly | Long TTL + **scheduled** client ramp-down before cutover |
+| Live tracking | seconds | Short TTL |
+
+Declare a domain once, apply it with `.CacheOutputWithDomain("…")` or `[CacheDomain("…")]`.
+
+---
+
+## Try it in one minute
+
+Nothing to type into a new project — run the sample:
+
+```bash
+dotnet run --project samples/CacheOrchestrator.Minimal
+```
+
+Then (second terminal):
+
+```bash
+curl -i http://localhost:5290/hello
+curl -i http://localhost:5290/hello
+```
+
+| Request | What you should see |
+|---------|---------------------|
+| 1st | `X-Cache: … output=miss` (~200 ms simulated work) |
+| 2nd | `X-Cache: … output=hit` (served from Output Cache) |
+
+Use **curl** or DevTools → **Disable cache** so the browser does not hide server-side hits.
+
+→ Details: [samples/CacheOrchestrator.Minimal/README.md](samples/CacheOrchestrator.Minimal/README.md)
+
+---
+
+## Install
+
+```bash
+dotnet add package CacheOrchestrator
+
+# Optional — Redis Output Cache store + FusionCache L2 / backplane:
+dotnet add package CacheOrchestrator.Redis
+```
+
+---
+
+## Minimal setup (copy into your app)
+
+InMemory only — no Redis required.
+
+### 1. `appsettings.json`
+
+```json
+{
+  "Cache": {
+    "Namespace": "my-app",
+    "OutputCache": { "Provider": "InMemory" },
+    "FusionCacheInstances": {
+      "default": { "Provider": "InMemory" }
+    },
+    "Domains": {
+      "catalog": {
+        "Version": "1",
+        "ClientCacheability": "Public",
+        "ClientTtlSeconds": 60,
+        "OutputCacheTtlSeconds": 120,
+        "FusionCacheSoftTtlSeconds": 300
+      }
+    }
+  }
+}
+```
+
+### 2. `Program.cs`
+
+```csharp
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.OutputCache;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddCacheOrchestrator(builder.Configuration);
+
+var app = builder.Build();
+app.UseCacheOrchestrator(); // after routing middleware is configured
+
+app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
+{
+    var data = await cache.GetOrSetAsync(http, async ct =>
+    {
+        // Load from DB / service
+        return await LoadProductsAsync(ct);
+    });
+    return Results.Json(data);
+})
+.CacheOutputWithDomain("catalog");
+
+app.Run();
+```
+
+That is the happy path: **domain in config + one endpoint decoration + `GetOrSetAsync`**.
+
+**MVC / controllers:** put `[CacheDomain("catalog")]` on the controller or action and inject `IDomainFusionCache` the same way.
+
+**Redis later:** install `CacheOrchestrator.Redis`, call `o.AddRedisBackend()`, set `"Provider": "Redis"` — see [docs/backends.md](docs/backends.md).
+
+**More walkthrough:** [docs/getting-started.md](docs/getting-started.md)
+
+---
+
+## What you get (feature overview)
+
+Everything below is available without opening other pages first. Links go deeper when you need them.
+
+### Core
+
+| Capability | What it does |
+|------------|----------------|
+| **Domains** | Named packages of rules (TTL, Version, client headers, Fusion instance). Applied via `.CacheOutputWithDomain` / `[CacheDomain]`. [output-cache](docs/output-cache.md) |
+| **Output Cache (L0)** | Full HTTP GET/HEAD response caching (ASP.NET Core). |
+| **FusionCache (L1/L2)** | Application object cache via `IDomainFusionCache` — memory ± optional distributed. [fusion-cache](docs/fusion-cache.md) |
+| **Client `Cache-Control`** | Browser/CDN `max-age` / public / private / no-store from domain settings. |
+| **Version stamp** | Change `Version` in config → new key space; old entries age out. [invalidation](docs/invalidation.md) |
+| **Invalidation API** | `ICacheOrchestratorInvalidator` — domain, entity, or tags. Structured results + optional observers. |
+| **`X-Cache` header** | Diagnostic header (`domain`, `output`, `data`, `phase`, …). Toggle with `EmitDiagnosticsHeaders` (default on). [observability](docs/observability.md) |
+| **Metrics & tracing** | Meter / activity source `CacheOrchestrator` (independent of response headers). |
+| **Health checks** | `AddHealthChecks().AddCacheOrchestrator()` — backend probes (e.g. Redis ping). |
+
+### Advanced
+
+| Capability | What it does |
+|------------|----------------|
+| **Client Cache Schedule** | Near a planned cutover (`ScheduledUpdateUtc`), client `max-age` ramps from long → short (Calm / Approaching / Hold). Server TTLs unchanged. [client-cache-schedule](docs/client-cache-schedule.md) |
+| **Snapshot vs dynamic domains** | OSM-style generation stamps vs CRUD + per-entity invalidation. [domain-profiles](docs/domain-profiles.md) |
+| **ETag modes** | `Version` (generation), `Resource` (per URL/id), or `None`. |
+| **Entity / resource id** | `GetOrSetAsync(http, domain, resourceId, …)` + `InvalidateEntityAsync`. |
+| **Auth controls** | Default: skip Output Cache for authenticated / `Authorization`. Opt-in with `BypassWhenAuthenticated` + `VaryOutputCacheByUser`. |
+| **Named Fusion instances** | Map domains to separate Redis clusters (e.g. PII vs catalog). [deployment](docs/deployment.md) |
+| **Redis package** | `CacheOrchestrator.Redis` — OC store + keyed L2 + backplane. Not in core. |
+| **Custom backends** | `ICacheBackendRegistrar` / `AddBackend` — not a drop-in `"Provider": "SqlServer"` without your registrar. [backends](docs/backends.md) · [comparison](docs/comparison.md) |
+| **Fail-safe / soft-hard TTL** | Fusion fail-safe, soft/hard duration, jitter, eager refresh, factory timeouts — domain-configured. |
+| **Tracking query strip** | `utm_*`, `gclid`, … ignored in cache keys so campaigns do not fragment the cache. |
+| **Multi-instance deployment** | InMemory vs Redis topologies, mixed backends, backplane notes. [deployment](docs/deployment.md) |
+| **Pluggable invalidation observers** | Hook audit/webhooks on successful invalidations. |
+
+---
+
+## Documentation
+
+Start here, then go deep only when you need to:
+
+| | Doc |
+|--|-----|
+| **Start** | [docs/getting-started.md](docs/getting-started.md) · [docs/README.md](docs/README.md) (full index) |
+| **Try** | [Minimal sample](samples/CacheOrchestrator.Minimal) · [Playground sample](samples/CacheOrchestrator.Sample) |
+| **Gotchas** | [docs/faq.md](docs/faq.md) · [docs/comparison.md](docs/comparison.md) |
+
+| Topic | Doc |
+|-------|-----|
+| Domain profiles (snapshot / CRUD) | [docs/domain-profiles.md](docs/domain-profiles.md) |
+| Client Cache Schedule | [docs/client-cache-schedule.md](docs/client-cache-schedule.md) |
+| Configuration reference | [docs/configuration.md](docs/configuration.md) |
+| Output Cache | [docs/output-cache.md](docs/output-cache.md) |
+| FusionCache | [docs/fusion-cache.md](docs/fusion-cache.md) |
+| Invalidation | [docs/invalidation.md](docs/invalidation.md) |
+| Backends | [docs/backends.md](docs/backends.md) |
+| Observability | [docs/observability.md](docs/observability.md) |
+| Deployment | [docs/deployment.md](docs/deployment.md) |
+| Architecture | [docs/architecture.md](docs/architecture.md) |
+| Benchmarks | [docs/benchmarks/results.md](docs/benchmarks/results.md) |
+
+**API reference:** XML docs ship with the NuGet packages ([CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/), [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/)). DocFX site planned post-1.0.
+
+| Project | |
+|---------|--|
+| [CHANGELOG.md](CHANGELOG.md) | Releases |
+| [docs/releasing.md](docs/releasing.md) | Version tags (MinVer), NuGet publish |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, PRs, community expectations |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting |
+| [LICENSE.md](LICENSE.md) | MIT |

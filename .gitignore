@@ -1,0 +1,16 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+artifacts/
+appsettings.*.local.json
+.env
+
+# Local machine outputs (traces, bench artifacts, scratch)
+_local/
+nupkg/
+*.nupkg
+*.snupkg
+samples/**/smoke.run.log

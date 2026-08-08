@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+		<PackageId>CacheOrchestrator</PackageId>
+		<!-- Canonical short description — keep in sync with root README / NuGet / GitHub About -->
+		<Description>Domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model. Redis backends: install CacheOrchestrator.Redis.</Description>
+		<PackageTags>cache;caching;domain;outputcache;fusioncache;httpcache;aspnetcore;performance</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>logo-small.png</PackageIcon>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+		<None Include="..\..\docs\assets\logo-small.png" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<!-- Core packages only (no Redis). Redis backends: CacheOrchestrator.Redis. -->
+	<ItemGroup>
+		<PackageReference Include="ZiggyCreatures.FusionCache" Version="2.6.0" />
+		<PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.6.0" />
+		<PackageReference Include="System.IO.Hashing" Version="10.0.10" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="CacheOrchestrator.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Benchmarks" />
+	</ItemGroup>
+</Project>

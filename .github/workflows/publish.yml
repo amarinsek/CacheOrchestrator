@@ -1,0 +1,87 @@
+name: Publish to NuGet
+
+# Runs ONLY when a GitHub Release is published (not on every push/PR).
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+    # Full history helps SourceLink / MinVer embed accurate commit and version metadata.
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: |
+          8.0.x
+          10.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore CacheOrchestrator.slnx
+
+    - name: Build
+      run: dotnet build CacheOrchestrator.slnx --no-restore --configuration Release
+
+    # Same coverage as build.yml: unit tests on net8 + net10; integration on net10.
+    - name: Unit tests (net8.0)
+      run: >
+        dotnet test tests/CacheOrchestrator.UnitTests/CacheOrchestrator.UnitTests.csproj
+        --no-build --configuration Release --framework net8.0
+        --verbosity normal
+
+    - name: Unit tests (net10.0)
+      run: >
+        dotnet test tests/CacheOrchestrator.UnitTests/CacheOrchestrator.UnitTests.csproj
+        --no-build --configuration Release --framework net10.0
+        --verbosity normal
+
+    - name: Verify Docker (Testcontainers)
+      run: |
+        docker version
+        docker info
+
+    - name: Integration tests (net10.0 + Redis Testcontainers)
+      timeout-minutes: 20
+      run: >
+        dotnet test tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj
+        --no-build --configuration Release --framework net10.0
+        --verbosity normal
+
+    - name: Minimal sample smoke
+      timeout-minutes: 5
+      run: |
+        chmod +x samples/CacheOrchestrator.Minimal/smoke.sh
+        bash samples/CacheOrchestrator.Minimal/smoke.sh
+
+    - name: Pack (nupkg + snupkg)
+      run: |
+        mkdir -p nupkg
+        # Version comes from MinVer + Git tags (this workflow uses fetch-depth: 0).
+        # Create the GitHub Release from the version tag (e.g. v1.0.0-rc.1).
+        dotnet pack src/CacheOrchestrator/CacheOrchestrator.csproj --configuration Release --output ./nupkg
+        dotnet pack src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj --configuration Release --output ./nupkg
+        ls -la ./nupkg
+        echo "Packed with MinVer-derived version (see nupkg file names)."
+
+    # Optional signing is documented in docs/releasing.md (not wired here):
+    # GitHub Actions forbids `if: secrets.*` expressions; enable signing later via a
+    # dedicated step + repository variable if you obtain a code-signing certificate.
+
+    - name: Push packages and symbols to NuGet
+      run: |
+        # Requires repository secret: NUGET_API_KEY
+        dotnet nuget push ./nupkg/*.nupkg \
+          -k ${{ secrets.NUGET_API_KEY }} \
+          -s https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+        dotnet nuget push ./nupkg/*.snupkg \
+          -k ${{ secrets.NUGET_API_KEY }} \
+          -s https://api.nuget.org/v3/index.json \
+          --skip-duplicate

@@ -1,0 +1,183 @@
+using ZiggyCreatures.Caching.Fusion;
+
+namespace CacheOrchestrator.Configuration;
+
+/// <summary>
+/// Resolved, effective cache settings for a single domain (immutable snapshot).
+/// </summary>
+public sealed class DomainCacheOptions
+{
+    /// <summary>
+    /// Lazily built, shared <see cref="FusionCacheEntryOptions"/> for this domain snapshot.
+    /// Safe to reuse across concurrent GetOrSet calls (same domain options instance).
+    /// </summary>
+    private FusionCacheEntryOptions? _fusionEntryOptions;
+
+    /// <summary>Normalized domain name.</summary>
+    public string Domain { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Name of the FusionCache instance that handles this domain.
+    /// Matches a key in <see cref="CacheOrchestratorOptions.FusionCacheInstances"/>.
+    /// </summary>
+    public string FusionCacheInstanceName { get; init; } = "default";
+
+    /// <summary>Whether Output Cache is enabled for this domain.</summary>
+    public bool OutputCacheEnabled { get; init; }
+
+    /// <summary>Whether FusionCache is enabled for this domain.</summary>
+    public bool FusionCacheEnabled { get; init; }
+
+    /// <summary>
+    /// When <see langword="true"/> (default), authenticated requests and requests with an
+    /// <c>Authorization</c> header skip Output Cache and get client <c>no-store</c> (blocked).
+    /// Set to <see langword="false"/> to allow caching for authenticated traffic (see also
+    /// <see cref="VaryOutputCacheByUser"/>).
+    /// </summary>
+    public bool BypassWhenAuthenticated { get; init; } = true;
+
+    /// <summary>
+    /// When caching is allowed for authenticated requests (<see cref="BypassWhenAuthenticated"/> is
+    /// <see langword="false"/>), include a per-user key in the Output Cache vary rules so users do not
+    /// share each other's cached responses. Default: <see langword="true"/>.
+    /// Set to <see langword="false"/> for shared public content that only happens to carry an API key.
+    /// </summary>
+    public bool VaryOutputCacheByUser { get; init; } = true;
+
+    /// <summary>Version token (e.g. "v1", "2026-08") used for bulk invalidation and ETag generation.</summary>
+    public string Version { get; init; } = "1";
+
+    /// <summary>Hex representation of the XxHash3 of the Version string. Used for cache keys.</summary>
+    public string VersionHex { get; init; } = string.Empty;
+
+    /// <summary>
+    /// How the Output Cache policy sets the HTTP <c>ETag</c> header.
+    /// Default: <see cref="ETagMode.Version"/> (domain generation stamp).
+    /// </summary>
+    public ETagMode ETagMode { get; init; } = ETagMode.Version;
+
+    /// <summary>
+    /// Precomputed weak ETag for <see cref="ETagMode.Version"/> (XxHash3 of Version).
+    /// Ignored when <see cref="ETagMode"/> is <see cref="ETagMode.None"/> or <see cref="ETagMode.Resource"/>.
+    /// </summary>
+    public Microsoft.Extensions.Primitives.StringValues ETag { get; init; }
+
+    /// <summary>HTTP status codes that may be stored in Output Cache.</summary>
+    public int[] CacheableStatusCodes { get; init; } = [200];
+
+    /// <summary>Preferred Accept-Encoding values for normalization (or null to skip).</summary>
+    public string[]? EncodingNormalizationList { get; init; } = ["br", "gzip"];
+
+    /// <summary>Client cache mode. Default: Public.</summary>
+    public ClientCacheability ClientCacheability { get; init; }
+
+    /// <summary>Desired max-age far from update (seconds). Default: 3600.</summary>
+    public int ClientTtlSeconds { get; init; }
+
+    /// <summary>Floor max-age near/at update (seconds). Default: 60.</summary>
+    public int ClientTtlMinSeconds { get; init; }
+
+    /// <summary>Next planned content cutover (UTC). Null = always use ClientTtlSeconds.</summary>
+    public DateTimeOffset? ScheduledUpdateUtc { get; init; }
+
+    /// <summary>Append must-revalidate when max-age is at or below min (optional). Default: false.</summary>
+    public bool ClientMustRevalidateNearUpdate { get; init; }
+
+    /// <summary>Output Cache entry duration.</summary>
+    public TimeSpan OutputTtl { get; init; }
+
+    /// <summary>FusionCache soft (logical) duration.</summary>
+    public TimeSpan FusionCacheSoftTtl { get; init; }
+
+    /// <summary>FusionCache hard (absolute) duration cap for soft TTL.</summary>
+    public TimeSpan FusionCacheHardTtl { get; init; }
+
+    /// <summary>FusionCache fail-safe max duration when serving stale data.</summary>
+    public TimeSpan FusionCacheFailSafe { get; init; }
+
+    /// <summary>Key prefix / namespace for Output Cache.</summary>
+    public string OutputCacheNamespace { get; init; } = string.Empty;
+
+    /// <summary>Key prefix / namespace for FusionCache.</summary>
+    public string FusionCacheNamespace { get; init; } = string.Empty;
+
+    /// <summary>Eager refresh threshold ratio (0–1 exclusive), or 0 to disable.</summary>
+    public double FusionCacheEagerRefreshRatio { get; init; }
+
+    /// <summary>Max jitter added to FusionCache duration (seconds).</summary>
+    public int FusionCacheJitterSeconds { get; init; }
+
+    /// <summary>Factory soft timeout (seconds).</summary>
+    public int FusionCacheFactorySoftTimeoutSeconds { get; init; }
+
+    /// <summary>Factory hard timeout (seconds).</summary>
+    public int FusionCacheFactoryHardTimeoutSeconds { get; init; }
+
+    /// <summary>Optional max item size for memory cache (bytes); 0 = unlimited.</summary>
+    public int FusionCacheMaxItemBytes { get; init; }
+
+    /// <summary>When true, skip FusionCache if the request has Cache-Control: no-store.</summary>
+    public bool FusionCacheRespectNoStore { get; init; }
+
+    /// <summary>Allow background distributed cache operations.</summary>
+    public bool FusionCacheAllowBackgroundDistributed { get; init; }
+
+    /// <summary>Allow background backplane operations.</summary>
+    public bool FusionCacheAllowBackgroundBackplane { get; init; }
+
+    /// <summary>Include Accept-Encoding in the FusionCache key.</summary>
+    public bool FusionCacheVaryOnEncoding { get; init; }
+
+    /// <summary>Include scheme/host in the FusionCache key.</summary>
+    public bool FusionCacheVaryOnPublicAddress { get; init; }
+
+    /// <summary>
+    /// Returns a cached <see cref="FusionCacheEntryOptions"/> built from this domain snapshot.
+    /// Created once per options instance (domains are process-level snapshots).
+    /// </summary>
+    internal FusionCacheEntryOptions GetFusionEntryOptions()
+    {
+        FusionCacheEntryOptions? cached = _fusionEntryOptions;
+        if (cached is not null)
+            return cached;
+
+        // Soft duration; cap by hard TTL when hard is shorter (defensive).
+        TimeSpan duration = FusionCacheSoftTtl;
+        if (FusionCacheHardTtl > TimeSpan.Zero && duration > FusionCacheHardTtl)
+            duration = FusionCacheHardTtl;
+
+        // Fail-safe must be explicitly enabled; FailSafeMaxDuration alone is ignored by FusionCache.
+        bool failSafeEnabled = FusionCacheFailSafe > TimeSpan.Zero;
+
+        FusionCacheEntryOptions o = new()
+        {
+            Duration = duration,
+            JitterMaxDuration = TimeSpan.FromSeconds(Math.Max(0, FusionCacheJitterSeconds)),
+            IsFailSafeEnabled = failSafeEnabled,
+            FailSafeMaxDuration = FusionCacheFailSafe,
+            AllowBackgroundDistributedCacheOperations = FusionCacheAllowBackgroundDistributed,
+            AllowBackgroundBackplaneOperations = FusionCacheAllowBackgroundBackplane,
+        };
+
+        if (FusionCacheEagerRefreshRatio is > 0 and < 1)
+            o.EagerRefreshThreshold = (float)FusionCacheEagerRefreshRatio;
+
+        if (FusionCacheMaxItemBytes > 0)
+            o.Size = FusionCacheMaxItemBytes;
+
+        TimeSpan soft = TimeSpan.FromSeconds(Math.Max(0, FusionCacheFactorySoftTimeoutSeconds));
+        TimeSpan hard = TimeSpan.FromSeconds(Math.Max(0, FusionCacheFactoryHardTimeoutSeconds));
+
+        if (hard <= TimeSpan.Zero)
+            hard = TimeSpan.FromSeconds(5);
+
+        if (soft <= TimeSpan.Zero || soft >= hard)
+            soft = TimeSpan.FromMilliseconds(Math.Max(100, hard.TotalMilliseconds * 0.2));
+
+        o.FactorySoftTimeout = soft;
+        o.FactoryHardTimeout = hard;
+
+        // First writer wins under race; both instances are equivalent for a frozen snapshot.
+        return _fusionEntryOptions ??= o;
+    }
+}

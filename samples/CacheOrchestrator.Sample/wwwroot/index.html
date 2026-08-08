@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CacheOrchestrator Sample</title>
+    <meta name="description" content="CacheOrchestrator playground — inspect cache headers, edit domain settings via JSON, and invalidate cache." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+
+    <!-- CodeMirror 6 via CDN (JSON editor) -->
+    <script type="importmap">
+    {
+      "imports": {
+        "codemirror": "https://esm.sh/codemirror@6.0.1",
+        "@codemirror/state": "https://esm.sh/@codemirror/state@6.4.1",  
+        "@codemirror/view": "https://esm.sh/@codemirror/view@6.34.2",
+        "@codemirror/lang-json": "https://esm.sh/@codemirror/lang-json@6.0.1",
+        "@codemirror/theme-one-dark": "https://esm.sh/@codemirror/theme-one-dark@6.1.2"
+      }
+    }
+    </script>
+</head>
+<body>
+    <div class="page">
+        <header class="header">
+            <div class="header-brand">
+                <img src="/logo.png" alt="CacheOrchestrator logo" class="logo" />
+                <div>
+                    <p class="eyebrow">CacheOrchestrator</p>
+                    <h1>Sample Playground</h1>
+                    <p class="subtitle">Inspect cache headers · Edit domain settings · Invalidate cache</p>
+                </div>
+            </div>
+            <div class="header-meta">
+                <button id="btnEditSettings" class="btn accent" title="Edit appsettings.json">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    appsettings.json
+                </button>
+            </div>
+        </header>
+
+        <section class="card playground-card">
+            <h2>Playground</h2>
+            <div class="playground-controls">
+                <div class="control-row">
+                    <label class="control-label">
+                        Endpoint
+                        <select id="endpoint"></select>
+                    </label>
+                    <label class="control-label">
+                        Extra query params
+                        <input id="extraQuery" type="text" placeholder="page=2&amp;sort=name" />
+                    </label>
+                </div>
+                <div class="control-row checks-and-buttons">
+                    <div class="checks">
+                        <label class="check"><input type="checkbox" id="utm" /> Append utm_source=demo</label>
+                        <label class="check"><input type="checkbox" id="nostore" /> Send Cache-Control: no-store</label>
+                    </div>
+                    <div class="btn-group">
+                        <p class="domain-hint">Domain: <strong id="domainName">—</strong> <span id="domainBackend" class="status-pill" style="margin-left:8px; padding:3px 8px; font-size:10px;">…</span></p>
+                        <button id="btnOnce" class="btn">Fetch once</button>
+                        <button id="btnTwice" class="btn primary">Fetch twice</button>
+                        <button id="btnInvalidate" class="btn danger">Invalidate</button>
+                        <button id="btnClear" class="btn ghost">Clear log</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card responses-card">
+            <div class="row between">
+                <h2>Responses</h2>
+                <span class="hint" id="logHint"></span>
+            </div>
+            <div id="log" class="log"></div>
+        </section>
+    </div>
+
+    <!-- JSON Editor Modal -->
+    <div id="editorOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Edit appsettings.json">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title">appsettings.json</h2>
+                    <p class="hint">Changes are saved to disk. ASP.NET Core reloads configuration automatically. All cached domains are invalidated on save.</p>
+                </div>
+                <button id="btnCloseEditor" class="btn ghost icon-btn" aria-label="Close">✕</button>
+            </div>
+            <div id="editorMount" class="editor-mount"></div>
+            <div id="editorError" class="editor-error hidden"></div>
+            <div class="modal-footer">
+                <button id="btnSaveSettings" class="btn primary">Save &amp; reload config</button>
+                <button id="btnCancelEditor" class="btn ghost">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+</body>
+</html>
