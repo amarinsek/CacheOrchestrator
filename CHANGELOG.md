@@ -9,10 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- Getting started, configuration reference, domain profiles, Client Cache Schedule, FAQ, comparison, architecture, observability, releasing
 - **Deployment** — multi-instance topologies; **shared configuration** across instances (`appsettings.cache.json` / ConfigMap pattern; do not hand-edit per machine)
 - **Invalidation** — multi-instance behaviour (local vs Redis backplane); **Version** cutover via shared config; full **fan-out sample** with `ICacheInvalidationObserver` + message bus (loop-safe)
-- Separate **NuGet package READMEs** (`src/CacheOrchestrator/README.md`, `src/CacheOrchestrator.Redis/README.md`) with links to the full GitHub README (avoids HTML/logo issues on nuget.org)
 
 ## [1.0.0] - 2026-08-08
 
@@ -33,6 +31,7 @@ First stable release.
 - **Pluggable backends** — `ICacheBackendRegistrar` / `AddBackend`
 - **Observability** — `X-Cache` (toggle with `EmitDiagnosticsHeaders`, default on), metrics, activities, health checks
 - **Samples** — Minimal (1-minute InMemory) and interactive playground
+- **Docs** — getting started, configuration, domain profiles, Client Cache Schedule, FAQ, comparison, releasing
 - **Quality** — unit tests (net8 + net10), integration tests (net10 + Testcontainers Redis), Minimal sample CI smoke, SourceLink + snupkg, MinVer (`v*` tags), custom-backend E2E, config-reload snapshot tests, Fusion fail-safe STALE integration tests
 
 
