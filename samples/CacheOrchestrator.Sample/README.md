@@ -1,7 +1,5 @@
 # CacheOrchestrator Sample Playground
 
-[CacheOrchestrator](../..) is domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
-
 Interactive playground for **TTL, Client Cache Schedule, Redis, multi-instance, and CRUD** — after you already know the happy path.
 
 > New to CacheOrchestrator? Start with the **[Minimal sample](../CacheOrchestrator.Minimal)** first.  

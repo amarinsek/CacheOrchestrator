@@ -1,7 +1,5 @@
 # CacheOrchestrator Minimal sample
 
-[CacheOrchestrator](../..) is domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
-
 This sample: one endpoint, InMemory only, no Redis. **Goal:** see a cache **MISS** then **HIT** in under a minute.
 
 ## Run
