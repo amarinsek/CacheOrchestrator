@@ -1,13 +1,14 @@
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Jobs;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.FusionCache;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Routing.Patterns;
 
 namespace CacheOrchestrator.Benchmarks.Benchmarks;
 
 [MemoryDiagnoser]
-[SimpleJob(RuntimeMoniker.Net10_0, warmupCount: 1, iterationCount: 3, launchCount: 1)]
+[ShortJob]
 public class DomainKeyGeneratorBenchmarks
 {
     private DefaultDomainKeyGenerator _generator = null!;
@@ -17,6 +18,8 @@ public class DomainKeyGeneratorBenchmarks
     private DefaultHttpContext _withTracking = null!;
     private DefaultHttpContext _varyEncoding = null!;
     private DefaultHttpContext _varyHost = null!;
+    private DefaultHttpContext _resourceId = null!;
+    private DefaultHttpContext _routeEndpoint = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -27,6 +30,7 @@ public class DomainKeyGeneratorBenchmarks
         {
             Domain = "catalog",
             Version = "1",
+            VersionHex = "01",
             OutputCacheEnabled = true,
             FusionCacheEnabled = true,
             ClientCacheability = ClientCacheability.Public,
@@ -49,6 +53,20 @@ public class DomainKeyGeneratorBenchmarks
         _withTracking = CreateHttp("/api/catalog", "?page=1&utm_source=google&fbclid=abc123");
         _varyEncoding = CreateHttp("/api/catalog", acceptEncoding: "gzip, deflate, br");
         _varyHost = CreateHttp("/api/catalog", host: "cdn.example.com", scheme: "https");
+
+        _resourceId = CreateHttp("/api/products/42");
+        _resourceId.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
+
+        _routeEndpoint = CreateHttp("/api/products/42");
+        RoutePattern pattern = RoutePatternFactory.Parse("/api/products/{id}");
+        var endpoint = new RouteEndpoint(
+            _ => Task.CompletedTask,
+            pattern,
+            order: 0,
+            new EndpointMetadataCollection(),
+            displayName: "products");
+        _routeEndpoint.SetEndpoint(endpoint);
+        _routeEndpoint.Request.RouteValues["id"] = "42";
     }
 
     [Benchmark(Baseline = true)]
@@ -71,6 +89,14 @@ public class DomainKeyGeneratorBenchmarks
     public string WithHostAndScheme()
         => _generator.Generate(_options, _varyHost);
 
+    [Benchmark]
+    public string WithResourceId()
+        => _generator.Generate(_options, _resourceId);
+
+    [Benchmark]
+    public string WithRouteEndpointAndParam()
+        => _generator.Generate(_options, _routeEndpoint);
+
     private static DefaultHttpContext CreateHttp(
         string path,
         string? query = null,
@@ -90,7 +116,6 @@ public class DomainKeyGeneratorBenchmarks
         if (!string.IsNullOrEmpty(acceptEncoding))
             http.Request.Headers.AcceptEncoding = acceptEncoding;
 
-        // No RouteEndpoint -> falls through to path branch of generator (typical Minimal API without pattern in tests)
         return http;
     }
 }

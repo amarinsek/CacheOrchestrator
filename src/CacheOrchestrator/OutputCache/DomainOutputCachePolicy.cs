@@ -443,7 +443,8 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     /// <summary>
     /// Filters tracking query keys without LINQ (hot path on every cacheable request).
     /// </summary>
-    private static StringValues CollectNonTrackingQueryKeys(IQueryCollection query)
+    /// <summary>Exposed as <see langword="internal"/> for micro-benchmarks (query-key hot path).</summary>
+    internal static StringValues CollectNonTrackingQueryKeys(IQueryCollection query)
     {
         int count = query.Count;
         if (count == 0)

@@ -4,7 +4,7 @@ using CacheOrchestrator.Configuration;
 namespace CacheOrchestrator.Benchmarks.Benchmarks;
 
 [MemoryDiagnoser]
-[SimpleJob(warmupCount: 1, iterationCount: 3, launchCount: 1)]
+[ShortJob]
 public class NormalizeDomainBenchmarks
 {
     private const string Clean = "catalog";
@@ -12,6 +12,8 @@ public class NormalizeDomainBenchmarks
     private const string Dirty = "  Catalog--Name!!  ";
     private const string WithAllowedExtras = "tenant@org:maps_osm";
     private const string EmptyLike = "   ---   ";
+    private const string ResourceId = "Product-42";
+    private const string ResourceIdDirty = "  ID::99!!  ";
 
     [Benchmark(Baseline = true)]
     public string Clean_Input()
@@ -32,4 +34,12 @@ public class NormalizeDomainBenchmarks
     [Benchmark]
     public string Empty_After_Normalize()
         => DomainName.Normalize(EmptyLike);
+
+    [Benchmark]
+    public string NormalizeResourceId_Clean()
+        => DomainName.NormalizeResourceId(ResourceId);
+
+    [Benchmark]
+    public string NormalizeResourceId_Dirty()
+        => DomainName.NormalizeResourceId(ResourceIdDirty);
 }
