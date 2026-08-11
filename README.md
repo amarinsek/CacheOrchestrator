@@ -33,7 +33,7 @@ In practice, real-world applications require diverse combinations of these layer
 | --- | --- | --- |
 | Satellite imagery | ~ Yearly | Very long server + client TTL (Output Cache + L1 InMemory) |
 | OSM map tiles | ~ Monthly | Long TTL + scheduled client ramp-down before cutover (Output Cache + L1 InMemory)|
-| Floating Car Data (FCD) | ~ Minutes | Short TTL + + L1 InMemory + Distributed L2 Redis + Backplane (multi-instance sync across replicas) |
+| Floating Car Data (FCD) | ~ Minutes | Short TTL + L1 InMemory + Distributed L2 Redis + Backplane (multi-instance sync across replicas) |
 | Live vehicle tracking | ~ Seconds | Short TTL + FusionCache L1 with Lock & Fail-Safe (anti-stampede / request collapsing) |
 
 
