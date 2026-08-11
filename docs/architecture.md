@@ -8,7 +8,7 @@ It is a **configuration-driven orchestration layer** on top of:
 
 1. **ASP.NET Core Output Caching** — store full GET/HEAD responses  
 2. **ZiggyCreatures FusionCache** — hybrid L1 (memory) + optional L2 (Redis) for application objects (with full support for **multiple named instances** for isolation)  
-3. **Client Cache-Control** — browser/CDN headers (including optional Client Cache Schedule)
+3. **Client Cache-Control (CC)** — browser/CDN headers (including optional Client Cache Schedule)
 
 Both systems share the idea of a **domain**: a named group of data (`products`, `reports`, …) with its own TTLs, flags, and version stamp.
 

@@ -55,7 +55,7 @@ app.MapGet("/tiles/...", async (IFusionCache fc) => { /* manual keys */ })
 
 ## vs Redis Output Cache alone
 
-ASP.NET Core can store Output Cache entries in Redis (shared HTTP responses across instances). That is **only L0**.
+ASP.NET Core can store Output Cache entries in Redis (shared HTTP responses across instances). That is **only Output Cache (OC)**.
 
 | Need | Redis OC alone | CacheOrchestrator |
 |------|----------------|-------------------|
@@ -66,7 +66,7 @@ ASP.NET Core can store Output Cache entries in Redis (shared HTTP responses acro
 | Browser schedule to cutover | Manual headers | Client Cache Schedule |
 | Entity-level purge after CRUD | Manual tags | `InvalidateEntityAsync` |
 
-Hybrid is common: **Output Cache InMemory** (fast L0) + **Fusion Redis** (shared objects + backplane). See [deployment.md](deployment.md).
+Hybrid is common: **Output Cache InMemory** (fast OC) + **Fusion Redis** (shared objects + backplane). See [deployment.md](deployment.md).
 
 ---
 

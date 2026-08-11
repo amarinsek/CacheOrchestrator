@@ -6,27 +6,35 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/amarinsek/CacheOrchestrator/build.yml?branch=main&style=flat-square)](https://github.com/amarinsek/CacheOrchestrator/actions)
 
-**CacheOrchestrator** is domain-based caching for ASP.NET Core: define rules once per domain in configuration, then apply them on endpoints with a single attribute or extension. It orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
+**CacheOrchestrator** is domain-based caching for ASP.NET Core: define rules once per domain in configuration, then apply them on endpoints with a single attribute or extension. It orchestrates Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) under the same model.
+![Cache topology](docs/assets/drawing01.png)
 
-No more scattering TTLs, headers, and backend settings across every controller.
+Understanding the role of each layer in this pipeline is crucial for maximum performance and system health:
+- Proper CC management prevents unnecessary requests to the backend.
+- Proper OC management enables lightning-fast responses from the backend.
+- Proper L1/L2 management avoids costly factory runs.
+
+In practice, real-world applications require diverse combinations of these layers. An architecture might range from a simple in-memory OC to complex distributed topologies combining OC with L1/L2 data caches and Redis backplanes. Furthermore, managing varying Time-To-Live (TTL) and data lifecycle policies across all these layers for different service/data needs adds significant complexity.
+
+**CacheOrchestrator**  simplifies this. It provides a domain-based approach that allows you to define your entire multi-layer cache structure and its specific properties purely through configuration. You can then effortlessly apply these sophisticated caching strategies directly to your ASP.NET Core endpoints or controllers.
 
 | | |
 |--|--|
 | **Target** | .NET 8 and .NET 10 |
-| **Try now** | [`samples/CacheOrchestrator.Minimal`](samples/CacheOrchestrator.Minimal) — zero typing, InMemory only |
+| **Try now** | [`samples/CacheOrchestrator.Minimal`](samples/CacheOrchestrator.Minimal) — zero boilerplate, InMemory only |
 | **Explore** | [`samples/CacheOrchestrator.Sample`](samples/CacheOrchestrator.Sample) — interactive playground |
 
 ---
 
 ## Why domains?
 
-Different data needs different caching — not one global policy:
+Different data requires different caching topologies and settings — not one global policy:
 
 | Domain example | How often it changes | Cache style |
 |----------------|----------------------|-------------|
-| Satellite imagery | ~ yearly | Very long server + client TTL |
-| OSM / map tiles | ~ monthly | Long TTL + **scheduled** client ramp-down before cutover |
-| Live tracking | seconds | Short TTL |
+| Satellite imagery | ~ Yearly | Very long server + client TTL |
+| OSM / map tiles | ~ Monthly | Long TTL + **scheduled** client ramp-down before cutover |
+| Live tracking | ~ Seconds | Short TTL |
 
 Declare a domain once, apply it with `.CacheOutputWithDomain("…")` or `[CacheDomain("…")]`.
 
@@ -142,7 +150,7 @@ Everything below is available without opening other pages first. Links go deeper
 | Capability | What it does |
 |------------|----------------|
 | **Domains** | Named packages of rules (TTL, Version, client headers, Fusion instance). Applied via `.CacheOutputWithDomain` / `[CacheDomain]`. [output-cache](docs/output-cache.md) |
-| **Output Cache (L0)** | Full HTTP GET/HEAD response caching (ASP.NET Core). |
+| **Output Cache (OC)** | Full HTTP GET/HEAD response caching (ASP.NET Core). |
 | **FusionCache (L1/L2)** | Application object cache via `IDomainFusionCache` — memory ± optional distributed. [fusion-cache](docs/fusion-cache.md) |
 | **Client `Cache-Control`** | Browser/CDN `max-age` / public / private / no-store from domain settings. |
 | **Version stamp** | Change `Version` in config → new key space; old entries age out. [invalidation](docs/invalidation.md) |

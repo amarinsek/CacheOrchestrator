@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **Deployment** — multi-instance topologies; **shared configuration** across instances (`appsettings.cache.json` / ConfigMap pattern; do not hand-edit per machine)
-- **Invalidation** — multi-instance behaviour (local vs Redis backplane); **Version** cutover via shared config; full **fan-out sample** with `ICacheInvalidationObserver` + message bus (loop-safe)
+- Polished the main **README.md**, sample docs, and fixed minor typos
+- **Deployment.md** — multi-instance topologies; shared configuration across instances (`appsettings.cache.json` / ConfigMap pattern; do not hand-edit per machine)
+- **Invalidation.md** — multi-instance behaviour (local vs Redis backplane); Version cutover via shared config; full fan-out sample with `ICacheInvalidationObserver` + message bus (loop-safe)
 
 ## [1.0.0] - 2026-08-08
 

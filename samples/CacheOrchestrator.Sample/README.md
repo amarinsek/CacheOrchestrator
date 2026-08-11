@@ -4,26 +4,23 @@
 
 Interactive playground for **TTL, Client Cache Schedule, Redis, multi-instance, and CRUD** — after you already know the happy path.
 
-> **New to the library?** Start with the **[Minimal sample](../CacheOrchestrator.Minimal)** first  
-> (`dotnet run --project samples/CacheOrchestrator.Minimal` → `curl` twice → see `X-Cache` miss then hit).  
-> Come back here when you want to experiment.
+> New to CacheOrchestrator? Start with the **[Minimal sample](../CacheOrchestrator.Minimal)** first.  
 
 This project shows the core value proposition: **configuring multi-tier caching without polluting endpoint code**.
+
+![Sample screenshot](../../docs/assets/sample-playground.png)
 
 ## Getting Started
 
 1. Ensure you have the .NET SDK installed.
-2. Run the project from this directory:
-   ```bash
-   dotnet run
-   ```
-   Or from the repo root:
+2. Run the project from the repository root:
+
    ```bash
    dotnet run --project samples/CacheOrchestrator.Sample
    ```
 3. Open your browser to the printed URL (default **http://localhost:5289**).
 
-*Note: For the best experience, keep your terminal visible for logs, and open DevTools → Network with **Disable cache** so you can observe server-side OC/FC hits (not only the browser cache).*
+> *Note: Keep your terminal visible for logs, and open DevTools → Network with **Disable cache** so you can observe server-side Open cache and Fusion Cache hits (not only the browser cache).*
 
 ## Core Concepts in this Sample
 
@@ -65,7 +62,7 @@ Watch the UI tags when you fetch an endpoint:
 When you fetch data, you will see a badge indicating where the response came from. `CacheOrchestrator` implements a powerful multi-tier caching architecture, and the UI makes this visible:
 
 - **`BROWSER-CACHE`**: The request never even hit the network! The browser served it directly from its local disk or memory cache.
-- **`OC-HIT`**: The request reached the server, but was intercepted immediately by the ASP.NET Core Output Cache (L0). The application code and database were bypassed entirely.
+- **`OC-HIT`**: The request reached the server, but was intercepted immediately by the ASP.NET Core Output Cache. The application code and database were bypassed entirely.
 - **`OC-MISS` `FC-HIT`**: The Output Cache missed (or expired), so the request reached the application layer. However, `FusionCache` (L1/L2) still had the data in memory/Redis! The application returned the cached data without hitting the database.
 - **`MISS`**: Both Output Cache and FusionCache missed. The application had to fetch the data from the underlying data store.
 
@@ -100,15 +97,15 @@ Try:
 
 ```bash
 # 1) Load product (MISS, then HIT)
-curl -i http://localhost:5xxx/api/crud/products/42
+curl -i http://localhost:5289/api/crud/products/42
 
 # 2) Update price under the same Version
-curl -i -X PUT http://localhost:5xxx/api/crud/products/42 ^
-  -H "Content-Type: application/json" ^
+curl -i -X PUT http://localhost:5289/api/crud/products/42 \
+  -H "Content-Type: application/json" \
   -d "{\"name\":\"Demo Widget\",\"price\":12.5}"
 
 # 3) Load again — should miss cache and show price 12.5
-curl -i http://localhost:5xxx/api/crud/products/42
+curl -i http://localhost:5289/api/crud/products/42
 ```
 
 Background: [docs/domain-profiles.md](../../docs/domain-profiles.md).
@@ -138,6 +135,7 @@ If you want to see how `CacheOrchestrator` behaves in a distributed setup:
      "Redis": {
        "Configuration": "localhost:6379"
      },
+    }
    ```
 4. Click **Save & reload config**.
 
