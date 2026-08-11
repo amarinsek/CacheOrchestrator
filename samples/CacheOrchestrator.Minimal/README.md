@@ -45,6 +45,6 @@ curl -i http://localhost:5290/hello
 
 | Next step | Where |
 | --- | --- |
-| Day-1 walkthrough | [docs/getting-started.md](https://www.google.com/search?q=../../docs/getting-started.md) |
-| Interactive playground (TTL, schedule, Redis, CRUD) | [../CacheOrchestrator.Sample](https://www.google.com/search?q=../CacheOrchestrator.Sample) |
-| Full docs | [docs/README.md](https://www.google.com/search?q=../../docs/README.md) |
+| Day-1 walkthrough | [docs/getting-started.md](../../docs/getting-started.md) |
+| Interactive playground (TTL, schedule, Redis, CRUD) | [../CacheOrchestrator.Sample](../CacheOrchestrator.Sample) |
+| Full docs | [docs/README.md](../../docs/README.md) |
