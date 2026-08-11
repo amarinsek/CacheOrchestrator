@@ -367,10 +367,12 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             HttpHelper.ApplyNoCache(response);
             client = ClientCacheClass.Blocked;
         }
-        else if (forcedClient == ClientCacheClass.NoStore)
+        else if (forcedClient is ClientCacheClass.NoStore or ClientCacheClass.Blocked)
         {
+            // Auth / no-store request paths pass forceClient so client headers stay non-cacheable
+            // even when the response status would otherwise allow a public/private max-age.
             HttpHelper.ApplyNoCache(response);
-            client = ClientCacheClass.NoStore;
+            client = forcedClient.Value;
         }
         else if (IsCacheableStatusCode(sc, config.CacheableStatusCodes) ||
                  sc == StatusCodes.Status304NotModified)

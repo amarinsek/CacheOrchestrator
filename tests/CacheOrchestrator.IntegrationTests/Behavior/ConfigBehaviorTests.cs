@@ -1,6 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -9,13 +10,148 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.IntegrationTests.Behavior;
 
 public class ConfigBehaviorTests
 {
     // -------------------------------------------------------------------------
-    // Version � changing version forces new Fusion cache key (MISS)
+    // Version cutover (HTTP / Output Cache): v1 miss → hit → reload v2 → miss
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Live domain Version change on a running host must change the Output Cache key
+    /// (<c>data-version</c> vary) so the next request is an OC miss, not a stale v1 hit.
+    /// </summary>
+    [Fact]
+    public async Task Version_Change_OnRunningHost_ForcesOutputCacheMiss()
+    {
+        string domain = "ver-oc-" + Guid.NewGuid().ToString("N");
+        int handlerCalls = 0;
+
+        var initial = new Dictionary<string, string?>
+        {
+            ["Cache:OutputCache:Provider"] = "InMemory",
+            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:EmitDiagnosticsHeaders"] = "true",
+            [$"Cache:Domains:{domain}:Version"] = "v1",
+            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
+        };
+
+        var reloadSource = new ReloadableMemoryConfigurationSource(initial);
+        IConfigurationRoot config = new ConfigurationBuilder()
+            .Add(reloadSource)
+            .Build();
+
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = Environments.Development
+        });
+        builder.WebHost.UseTestServer();
+        builder.Logging.ClearProviders();
+        builder.Services.AddCacheOrchestrator(config);
+
+        WebApplication app = builder.Build();
+        app.UseRouting();
+        app.UseCacheOrchestrator();
+
+        app.MapGet("/ver", () =>
+        {
+            Interlocked.Increment(ref handlerCalls);
+            return Results.Text("body-v1-generation");
+        })
+        .CacheOutputWithDomain(domain);
+
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        HttpClient client = app.GetTestClient();
+
+        try
+        {
+            // --- Generation v1: miss then hit ---
+            HttpResponseMessage r1 = await client.GetAsync("/ver", TestContext.Current.CancellationToken);
+            r1.IsSuccessStatusCode.Should().BeTrue();
+            (await r1.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be("body-v1-generation");
+            GetXCache(r1).Should().Contain("output=miss");
+            GetXCache(r1).Should().Contain("version=v1");
+            Volatile.Read(ref handlerCalls).Should().Be(1);
+
+            HttpResponseMessage r2 = await client.GetAsync("/ver", TestContext.Current.CancellationToken);
+            r2.IsSuccessStatusCode.Should().BeTrue();
+            GetXCache(r2).Should().Contain("output=hit");
+            GetXCache(r2).Should().Contain("version=v1");
+            Volatile.Read(ref handlerCalls).Should().Be(1, "Output Cache hit must not re-run the endpoint");
+
+            // --- Live config reload: Version v1 → v2 (same process, IOptionsMonitor path) ---
+            reloadSource.Provider.Should().NotBeNull();
+            reloadSource.Provider!.SetAndReload($"Cache:Domains:{domain}:Version", "v2");
+
+            await WaitForDomainVersionAsync(app.Services, domain, expectedVersion: "v2");
+
+            // --- Generation v2: must miss (new data-version vary key), then hit ---
+            HttpResponseMessage r3 = await client.GetAsync("/ver", TestContext.Current.CancellationToken);
+            r3.IsSuccessStatusCode.Should().BeTrue();
+            GetXCache(r3).Should().Contain("output=miss",
+                "Version bump must change OC key so the v1 entry is not served");
+            GetXCache(r3).Should().Contain("version=v2");
+            Volatile.Read(ref handlerCalls).Should().Be(2, "OC miss after Version cutover must execute the endpoint again");
+
+            HttpResponseMessage r4 = await client.GetAsync("/ver", TestContext.Current.CancellationToken);
+            r4.IsSuccessStatusCode.Should().BeTrue();
+            GetXCache(r4).Should().Contain("output=hit");
+            GetXCache(r4).Should().Contain("version=v2");
+            Volatile.Read(ref handlerCalls).Should().Be(2);
+        }
+        finally
+        {
+            await app.StopAsync(TestContext.Current.CancellationToken);
+            await app.DisposeAsync();
+        }
+    }
+
+    private static string GetXCache(HttpResponseMessage response) =>
+        response.Headers.TryGetValues("X-Cache", out IEnumerable<string>? values)
+            ? string.Join(",", values)
+            : string.Empty;
+
+    /// <summary>
+    /// Options reload is token-driven; poll until the domain snapshot reflects the new Version
+    /// (or fail fast if the monitor never updates).
+    /// </summary>
+    private static async Task WaitForDomainVersionAsync(
+        IServiceProvider services,
+        string domain,
+        string expectedVersion)
+    {
+        IDomainCacheOptionsProvider domains = services.GetRequiredService<IDomainCacheOptionsProvider>();
+        IOptionsMonitor<CacheOrchestratorOptions> monitor =
+            services.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>();
+
+        // Touch CurrentValue so bound options re-evaluate against the reloaded configuration.
+        _ = monitor.CurrentValue;
+
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            DomainCacheOptions snap = domains.GetOrCreateDomainOptions(domain);
+            if (string.Equals(snap.Version, expectedVersion, StringComparison.Ordinal))
+                return;
+
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+            _ = monitor.CurrentValue;
+        }
+
+        DomainCacheOptions final = domains.GetOrCreateDomainOptions(domain);
+        final.Version.Should().Be(expectedVersion,
+            "IOptionsMonitor / DomainCacheOptionsProvider must pick up reloaded Version before asserting OC behaviour");
+    }
+
+    // -------------------------------------------------------------------------
+    // Version — changing version forces new Fusion cache key (MISS)
     // -------------------------------------------------------------------------
 
     [Fact]
@@ -130,7 +266,7 @@ public class ConfigBehaviorTests
     }
 
     // -------------------------------------------------------------------------
-    // RespectNoStore � Fusion skips cache when request has Cache-Control: no-store
+    // RespectNoStore � Fusion skips cache when request has Cache-Control: no-store
     // -------------------------------------------------------------------------
 
     [Fact]
