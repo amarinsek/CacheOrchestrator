@@ -7,6 +7,7 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/amarinsek/CacheOrchestrator/build.yml?branch=main&style=flat-square)](https://github.com/amarinsek/CacheOrchestrator/actions)
 
 **CacheOrchestrator** is domain-based caching for ASP.NET Core: define rules once per domain in configuration, then apply them on endpoints with a single attribute or extension. It orchestrates Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) under the same model.
+
 ![Cache topology](docs/assets/drawing01.png)
 
 Understanding the role of each layer in this pipeline is crucial for maximum performance and system health:
@@ -28,13 +29,13 @@ In practice, real-world applications require diverse combinations of these layer
 
 ## Why domains?
 
-Different data requires different caching topologies and settings — not one global policy:
+| Domain example | How often it changes | Cache style & Topology |
+| --- | --- | --- |
+| Satellite imagery | ~ Yearly | Very long server + client TTL (Output Cache + L1 InMemory) |
+| OSM map tiles | ~ Monthly | Long TTL + scheduled client ramp-down before cutover (Output Cache + L1 InMemory)|
+| Floating Car Data (FCD) | ~ Minutes | Short TTL + + L1 InMemory + Distributed L2 Redis + Backplane (multi-instance sync across replicas) |
+| Live vehicle tracking | ~ Seconds | Short TTL + FusionCache L1 with Lock & Fail-Safe (anti-stampede / request collapsing) |
 
-| Domain example | How often it changes | Cache style |
-|----------------|----------------------|-------------|
-| Satellite imagery | ~ Yearly | Very long server + client TTL |
-| OSM / map tiles | ~ Monthly | Long TTL + **scheduled** client ramp-down before cutover |
-| Live tracking | ~ Seconds | Short TTL |
 
 Declare a domain once, apply it with `.CacheOutputWithDomain("…")` or `[CacheDomain("…")]`.
 
@@ -60,7 +61,6 @@ curl -i http://localhost:5290/hello
 | 1st | `X-Cache: … output=miss` (~200 ms simulated work) |
 | 2nd | `X-Cache: … output=hit` (served from Output Cache) |
 
-Use **curl** or DevTools → **Disable cache** so the browser does not hide server-side hits.
 
 → Details: [samples/CacheOrchestrator.Minimal/README.md](samples/CacheOrchestrator.Minimal/README.md)
 
