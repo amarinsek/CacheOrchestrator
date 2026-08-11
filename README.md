@@ -195,6 +195,7 @@ Start here, then go deep only when you need to:
 | Configuration reference | [docs/configuration.md](docs/configuration.md) |
 | Output Cache | [docs/output-cache.md](docs/output-cache.md) |
 | FusionCache | [docs/fusion-cache.md](docs/fusion-cache.md) |
+| Cache keys | [docs/cache-keys.md](docs/cache-keys.md) |
 | Invalidation | [docs/invalidation.md](docs/invalidation.md) |
 | Backends | [docs/backends.md](docs/backends.md) |
 | Observability | [docs/observability.md](docs/observability.md) |

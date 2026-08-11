@@ -31,6 +31,7 @@ Root overview (also lists every advanced feature): [../README.md](../README.md)
 | [configuration.md](configuration.md) | Full `appsettings` schema and defaults |
 | [output-cache.md](output-cache.md) | HTTP policies, auth flags, Minimal API & MVC |
 | [fusion-cache.md](fusion-cache.md) | `IDomainFusionCache`, keys, fail-safe, resource id |
+| [cache-keys.md](cache-keys.md) | FC/OC key identity, Namespace, why domain differs |
 | [invalidation.md](invalidation.md) | Version, domain/entity tags, invalidator API |
 | [backends.md](backends.md) | InMemory, Redis package, custom registrars |
 | [observability.md](observability.md) | `X-Cache`, `EmitDiagnosticsHeaders`, metrics, health |

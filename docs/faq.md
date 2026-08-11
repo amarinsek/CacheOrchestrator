@@ -164,6 +164,7 @@ See [observability.md](observability.md).
 
 ## Related
 
+- [cache-keys.md](cache-keys.md) — FC/OC keys, Namespace, domain in key  
 - [comparison.md](comparison.md) — when to use this vs hand-rolled cache  
 - [architecture.md](architecture.md) — layers and public API surface  
 - [configuration.md](configuration.md) — full settings reference  

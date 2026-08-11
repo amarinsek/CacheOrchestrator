@@ -388,6 +388,7 @@ builder.Services.AddSingleton<ClusterInvalidationConsumer>();
 
 ## Related
 
+- [cache-keys.md](cache-keys.md) — keys vs tags, Version in key material  
 - [domain-profiles.md](domain-profiles.md) — Snapshot vs Dynamic + config recipes  
 - [deployment.md](deployment.md) — multi-instance topologies + shared configuration  
 - [configuration.md](configuration.md)  

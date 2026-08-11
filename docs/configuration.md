@@ -168,6 +168,7 @@ See **[domain-profiles.md](domain-profiles.md)** for full **osm-tiles** (snapsho
 
 ## Related
 
+- [cache-keys.md](cache-keys.md) — Namespace and key composition  
 - [architecture.md](architecture.md)  
 - [domain-profiles.md](domain-profiles.md)  
 - [invalidation.md](invalidation.md)  

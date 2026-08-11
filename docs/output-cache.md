@@ -85,7 +85,7 @@ app.MapGet(...).CacheOutputWithDomainAttribute();
 | Response has `Set-Cookie` / response `Authorization` | No store; client blocked |
 | Logged-in user + domain `ClientCacheability: Public` | Client header forced to **private** |
 
-**Vary:** host, query keys (tracking params stripped), optional `Accept-Encoding`, `data-version` from `Version`, and when auth is allowed through with `VaryOutputCacheByUser: true`, **`auth-user`** (name / `sub` / hash of Authorization).
+**Vary:** host, query keys (tracking params stripped), optional `Accept-Encoding`, `data-version` from `Version`, and when auth is allowed through with `VaryOutputCacheByUser: true`, **`auth-user`** (name / `sub` / hash of Authorization).  
 
 ### Authenticated caching (optional)
 
@@ -141,6 +141,7 @@ On response start the policy sets:
 
 ## Related
 
+- [cache-keys.md](cache-keys.md) — OC key material, Namespace, domain vs tags  
 - [configuration.md](configuration.md)  
 - [invalidation.md](invalidation.md)  
 - [observability.md](observability.md)  

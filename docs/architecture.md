@@ -98,7 +98,7 @@ Prefer **interfaces + DI entry points** over concrete services. Implementations 
 6. FusionCache L1 → L2 → factory with soft/hard factory timeouts, fail-safe, jitter.  
 7. Disposition (`Hit` / `Miss` / `Stale` / …) stored for `X-Cache`.  
 
-See [fusion-cache.md](fusion-cache.md) for resolution order and the Fusion-only scenario.
+See [fusion-cache.md](fusion-cache.md) for resolution order and the Fusion-only scenario.  
 
 ## Backends
 
@@ -116,6 +116,7 @@ Output and Fusion providers can differ (e.g. OC in-memory, FC Redis).
 
 ## Related
 
+- [cache-keys.md](cache-keys.md)  
 - [configuration.md](configuration.md)  
 - [output-cache.md](output-cache.md)  
 - [fusion-cache.md](fusion-cache.md)  

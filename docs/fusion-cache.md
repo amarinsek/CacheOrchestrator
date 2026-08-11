@@ -171,6 +171,7 @@ Resiliency (stampede protection, fail-safe stale serve) is provided by FusionCac
 
 ## Related
 
+- [cache-keys.md](cache-keys.md) — key composition and Namespace  
 - [configuration.md](configuration.md)  
 - [invalidation.md](invalidation.md)  
 - [architecture.md](architecture.md)  
