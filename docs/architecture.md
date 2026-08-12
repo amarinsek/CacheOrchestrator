@@ -52,9 +52,19 @@ Both systems share the idea of a **domain**: a named group of data (`products`, 
 | `FusionCache/` | `IDomainFusionCache`, key generator, service |
 | `Backends/` | InMemory / Redis registration strategy (`ICacheBackendRegistrar`) |
 | `Invalidation/` | Tag-based eviction across OC + FC |
+| `Cluster/` | Command bus contracts, Null bus/membership, InstanceId, handler (HTTP in Bus package) |
+| `Admin/` | Local Admin API (feature-flagged) |
 | `Diagnostics/` | Metrics, activities, health probes |
-| `DependencyInjection/` | `AddCacheOrchestrator`, `UseCacheOrchestrator` |
+| `DependencyInjection/` | `AddCacheOrchestrator`, `UseCacheOrchestrator`, `MapCacheOrchestratorAdmin` |
 | `Utilities/` | Domain templates, HTTP helpers |
+
+Companion packages:
+
+| Project | Role |
+|---------|------|
+| `CacheOrchestrator.Redis` | Redis OC store + Fusion L2 + backplane |
+| `CacheOrchestrator.Bus` | HTTP cluster command bus + Static / ServiceDiscovery membership |
+| `CacheOrchestrator.Admin` | Admin App host (fan-out UI; not a NuGet package) |
 
 Interfaces live **next to** their implementations (no separate `Abstractions` assembly/folder).
 
@@ -68,8 +78,10 @@ Prefer **interfaces + DI entry points** over concrete services. Implementations 
 | `IDomainFusionCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainFusionCacheService` |
 | `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainName`, options types | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator` |
 | `ICacheOrchestratorInvalidator`, `CacheInvalidationResult`, `ICacheInvalidationObserver`, `CacheTags` | `CacheOrchestratorInvalidator` |
+| `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records | Null implementations / `DefaultClusterCommandHandler` |
 | `ICacheBackendRegistrar`, `InMemoryCacheBackendRegistrar` | — |
 | Redis: `AddRedisBackend` / `RedisCacheBackendRegistrar` (**CacheOrchestrator.Redis**) | `RedisCacheHealthProbe` |
+| Bus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` / `HttpClusterCommandBus` (**CacheOrchestrator.Bus**) | `ClusterEndpointAuth` |
 | `DomainOutputCachePolicy`, `[CacheDomain]`, endpoint extensions | `CacheDomainConvention` |
 | Health: `AddCacheOrchestrator()`, `ICacheOrchestratorHealthProbe` | `CacheOrchestratorHealthCheck` |
 | Meter/activity **names** (`CacheOrchestrator`) | `CacheOrchestratorMetrics.Record*` |
@@ -116,6 +128,7 @@ Output and Fusion providers can differ (e.g. OC in-memory, FC Redis).
 
 ## Related
 
+- [cluster-bus.md](cluster-bus.md)  
 - [cache-keys.md](cache-keys.md)  
 - [configuration.md](configuration.md)  
 - [output-cache.md](output-cache.md)  

@@ -32,12 +32,13 @@ Root overview (also lists every advanced feature): [../README.md](../README.md)
 | [output-cache.md](output-cache.md) | HTTP policies, auth flags, Minimal API & MVC |
 | [fusion-cache.md](fusion-cache.md) | `IDomainFusionCache`, keys, fail-safe, resource id |
 | [cache-keys.md](cache-keys.md) | FC/OC key identity, Namespace, why domain differs |
-| [invalidation.md](invalidation.md) | Version, domain/entity tags, invalidator API |
+| [invalidation.md](invalidation.md) | Version, domain/entity tags, invalidator API, multi-instance strategies |
+| [cluster-bus.md](cluster-bus.md) | Optional `CacheOrchestrator.Bus` — HTTP command bus, membership, Admin distribute |
 | [backends.md](backends.md) | InMemory, Redis package, custom registrars |
 | [observability.md](observability.md) | `X-Cache`, `EmitDiagnosticsHeaders`, metrics, health |
 | [admin.md](admin.md) | Local Admin API + Admin App fan-out SPA |
 | [admin-hints.md](admin-hints.md) | Recommendation hints: formulas, catalogue, how to add |
-| [deployment.md](deployment.md) | Multi-instance, Redis, backplane |
+| [deployment.md](deployment.md) | Multi-instance, Redis, backplane, optional Bus |
 | [architecture.md](architecture.md) | Layers, request flow, public API surface |
 | [benchmarks/results.md](benchmarks/results.md) | How to run BDN + hot-path notes |
 
@@ -61,6 +62,8 @@ Root overview (also lists every advanced feature): [../README.md](../README.md)
 | `IDomainFusionCache` | `CacheOrchestrator.FusionCache` |
 | `IDomainCacheOptionsProvider` / `DomainName` | `CacheOrchestrator.Configuration` |
 | `ICacheOrchestratorInvalidator` / `ICacheInvalidationObserver` | `CacheOrchestrator.Invalidation` |
+| `IClusterCommandBus` / `IClusterMembership` / `IInstanceIdProvider` | `CacheOrchestrator.Cluster` |
+| `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.Bus` |
 | `AddCacheOrchestrator` (health) | `CacheOrchestrator.Diagnostics` |
 
 Concrete service classes are **internal** (see [architecture.md — Public API surface](architecture.md#public-api-surface-10-stability)).

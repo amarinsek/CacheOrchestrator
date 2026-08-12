@@ -12,6 +12,18 @@ dotnet add package CacheOrchestrator.Redis
 services.AddCacheOrchestrator(configuration, o => o.AddRedisBackend());
 ```
 
+**Cluster bus package** (optional): multi-instance **InMemory** invalidation / runtime Version-TTL without Redis backplane — see [cluster-bus.md](cluster-bus.md).
+
+```bash
+dotnet add package CacheOrchestrator.Bus
+```
+
+```csharp
+services.AddCacheOrchestrator(configuration, o => o.AddHttpClusterBus());
+// …
+app.MapCacheOrchestratorHttpBus();
+```
+
 ---
 
 ## Single instance (in-memory only)
@@ -113,11 +125,20 @@ Possible when Redis is not available, at the cost of stale L1 data across instan
 |----------|-----------|
 | Request hits Instance A | A serves from its own L1 |
 | Request hits Instance B | B serves from its own L1 (may be stale) |
-| `InvalidateDomainAsync` on A | Only A's cache cleared; B unaffected |
-| Output Cache | Each instance stores its own copy; no cross-sharing |
+| `InvalidateDomainAsync` on A | Only A's cache cleared; B unaffected **unless** [cluster bus](cluster-bus.md) is enabled |
+| Output Cache | Each instance stores its own copy; no cross-sharing **unless** peers receive bus commands |
 
 **Acceptable when:** Load balancer uses sticky sessions, or domains are truly static
 (TTL-based expiry is the only invalidation strategy).
+
+### Immediate purge without Redis: cluster bus
+
+Install **`CacheOrchestrator.Bus`**, enable `Cache:Cluster:Bus`, use **Static** or **ServiceDiscovery** membership, map `MapCacheOrchestratorHttpBus()` on every instance. Then:
+
+- Programmatic `Invalidate*` on any node → peers ApplyLocal  
+- Admin `distribute: true` → Version/TTL overlays cluster-wide  
+
+Full setup and Bus vs Redis matrix: **[cluster-bus.md](cluster-bus.md)**.
 
 ---
 

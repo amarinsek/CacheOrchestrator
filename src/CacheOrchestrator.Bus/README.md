@@ -7,6 +7,7 @@ Optional **cluster command bus** for [CacheOrchestrator](https://www.nuget.org/p
 | **Provides** | HTTP fan-out of invalidate / version-bump / TTL-patch commands across instances |
 | **Requires** | `CacheOrchestrator` core + `AddHttpClusterBus()` + `MapCacheOrchestratorHttpBus()` |
 | **Does not** | Replace Redis Fusion backplane for L1/L2 coherence |
+| **Full docs** | **[cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md)** · [invalidation.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/invalidation.md) · [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme) |
 
 Without this package the core uses a **Null** bus (zero effect on the hot path).
 
@@ -77,18 +78,14 @@ Receive endpoints are mapped even when Local Admin is disabled.
 }
 ```
 
-Uses `Microsoft.Extensions.ServiceDiscovery` (configuration section `Services:{name}`, platform DNS, Aspire, …). Example config endpoints:
-
-```json
-{
-  "Services": {
-    "app1": {
-      "http": [ "10.0.0.1:8080", "10.0.0.2:8080" ]
-    }
-  }
-}
-```
+Uses `Microsoft.Extensions.ServiceDiscovery` (configuration section `Services:{name}`, platform DNS, Aspire, …).
 
 ### Admin App
 
 When instances report an enabled bus (`GET …/cluster/info`), the Admin App prefers **single-origin + `distribute:true`** instead of multi-target fan-out. The Operations UI shows the active mode.
+
+## More
+
+- Full technical guide: [docs/cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md)
+- Configuration tables: [docs/configuration.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/configuration.md)
+- Deployment topologies: [docs/deployment.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/deployment.md)

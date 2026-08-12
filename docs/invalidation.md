@@ -169,7 +169,7 @@ Cluster **configuration** management (shared `appsettings.cache.json`, ConfigMap
 |----------|-------------------------------|-------------|
 | **1. Bump `Version` (shared config)** | No — new key space; old entries expire by TTL | Snapshot / catalog cutover; simplest multi-node story |
 | **2. Redis Fusion L2 + backplane** (+ optional Redis OC) | Yes for Fusion L1 (backplane) + shared L2 | **Recommended production multi-instance** |
-| **3. CacheOrchestrator.Bus** (HTTP + Static membership) | Yes if every peer has receive endpoints | Multi-instance **InMemory**; also Version/TTL overlays via Admin `distribute` |
+| **3. CacheOrchestrator.Bus** (HTTP + Static / ServiceDiscovery) | Yes if every peer has receive endpoints | Multi-instance **InMemory**; also Version/TTL overlays via Admin `distribute`. Full guide: [cluster-bus.md](cluster-bus.md) |
 | **4. Rolling restart of all instances** | Yes (cold process) | Emergency only |
 | **5. Custom observer + external bus** | Yes if you implement it | Rare; prefer package Bus |
 
@@ -209,7 +209,7 @@ Details: [deployment.md](deployment.md), [backends.md](backends.md).
 
 ### Approach 3 — CacheOrchestrator.Bus (optional package)
 
-Install and register:
+Full reference: **[cluster-bus.md](cluster-bus.md)** (install, membership Static/ServiceDiscovery, commands, Admin App, metrics, security).
 
 ```bash
 dotnet add package CacheOrchestrator.Bus
@@ -218,50 +218,20 @@ dotnet add package CacheOrchestrator.Bus
 ```csharp
 using CacheOrchestrator.Bus;
 
-builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
-{
-    o.AddHttpClusterBus();
-});
-
+builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClusterBus());
 app.UseCacheOrchestrator();
-app.MapCacheOrchestratorHttpBus(); // receive endpoints — independent of Admin
-// app.MapCacheOrchestratorAdmin(); // optional
-```
-
-```json
-{
-  "Cache": {
-    "Namespace": "app1",
-    "InstanceId": "app1-a",
-    "Cluster": {
-      "Bus": {
-        "Enabled": true,
-        "Membership": "Static",
-        "PeerTimeoutMs": 2000,
-        "MaxParallelism": 32,
-        "Static": {
-          "Instances": [
-            { "Id": "app1-a", "Url": "http://10.0.0.1:8080" },
-            { "Id": "app1-b", "Url": "http://10.0.0.2:8080" }
-          ]
-        }
-      }
-    }
-  }
-}
+app.MapCacheOrchestratorHttpBus(); // independent of Admin
 ```
 
 | Behaviour | Detail |
 |-----------|--------|
 | `Invalidate*` (app code) | Local apply + publish when bus enabled |
-| Admin `POST …/invalidate` | `distribute: false` (default) = local only; `true` = local + publish |
-| Admin version / TTL | Same `distribute` flag → `VersionBumpCommand` / `TtlPatchCommand` |
-| Peers | `POST {prefix}/cluster/apply` ApplyLocal only (anti-echo) |
-| Auth | `X-Cache-Admin-Key` from `Cache:Cluster:Bus:ApiKey` or `Cache:Admin:ApiKey` |
+| Admin mutations | `distribute: true` → peers; default local only |
+| Peers | `POST …/cluster/apply` ApplyLocal only (anti-echo) |
 
-**Bus vs Redis:** Bus is not a replacement for Fusion L2 + Redis backplane. Prefer Redis for continuous shared data; use Bus for InMemory multi-instance and for runtime Version/TTL overlays.
+**Bus vs Redis:** not a replacement for Fusion L2 + backplane. Prefer Redis for continuous shared data; use Bus for InMemory multi-instance and runtime Version/TTL overlays.
 
-`ICacheInvalidationObserver` remains for **audit/webhooks only** — do not use it to build a second cluster fan-out when Bus is registered.
+`ICacheInvalidationObserver` remains for **audit/webhooks only** — not a second cluster bus when Bus is registered.
 
 ### Choosing an approach (multi-instance)
 
@@ -282,3 +252,5 @@ app.MapCacheOrchestratorHttpBus(); // receive endpoints — independent of Admin
 - [output-cache.md](output-cache.md)  
 - [fusion-cache.md](fusion-cache.md)  
 - [backends.md](backends.md) — Redis package  
+- [cluster-bus.md](cluster-bus.md) — optional multi-instance command bus  
+

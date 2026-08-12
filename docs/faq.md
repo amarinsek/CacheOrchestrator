@@ -122,10 +122,24 @@ See [client-cache-schedule.md](client-cache-schedule.md).
 
 | Package | Contains |
 |---------|----------|
-| `CacheOrchestrator` | Policy, InMemory, domain APIs |
+| `CacheOrchestrator` | Policy, InMemory, domain APIs, Null cluster bus |
 | `CacheOrchestrator.Redis` | Redis registrar, connection options, Redis health probe |
+| `CacheOrchestrator.Bus` | HTTP cluster command bus, Static / ServiceDiscovery membership |
 
-Without Redis package + `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
+Without Redis package + `AddRedisBackend()`, `"Provider": "Redis"` fails validation.  
+Without Bus package, multi-instance InMemory invalidation stays process-local (unless you build your own fan-out).
+
+---
+
+## Bus vs Redis backplane — which do I need?
+
+| Goal | Prefer |
+|------|--------|
+| Shared Fusion L2 + automatic L1 drop on other nodes | **Redis** package (L2 + backplane) |
+| Multi-instance **InMemory**, purge / Version / TTL on all nodes | **Bus** package |
+| Both installed | Safe but often redundant for Fusion tag purge; Bus still useful for OC InMemory + runtime overlays |
+
+Bus does **not** share cache payloads. Details: [cluster-bus.md](cluster-bus.md).
 
 ---
 

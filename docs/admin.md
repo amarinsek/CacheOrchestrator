@@ -115,6 +115,8 @@ The Operations UI shows a banner and the mode used for the last result. Never co
 
 Receive path for peers: `MapCacheOrchestratorHttpBus()` (not gated on `Admin:Enabled`).
 
+Deep dive (membership, commands, metrics, security): **[cluster-bus.md](cluster-bus.md)**.
+
 ### Auth header
 
 When `ApiKey` is set, every Local Admin call must send:

@@ -7,7 +7,8 @@ Domain-based caching for ASP.NET Core that orchestrates **Output Cache**, **Fusi
 | **NuGet** | [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/) |
 | **Targets** | `net8.0`, `net10.0` |
 | **Redis (optional)** | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) |
-| **Full documentation** | **[GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)** |
+| **Cluster bus (optional)** | [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/) |
+| **Full documentation** | **[GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)** · [cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md) |
 
 ## Install
 
@@ -18,6 +19,9 @@ dotnet add package CacheOrchestrator
 ```bash
 # Optional Redis backends (Output Cache store + Fusion L2 / backplane):
 dotnet add package CacheOrchestrator.Redis
+
+# Optional multi-instance command bus (InMemory peer invalidation / Version-TTL):
+dotnet add package CacheOrchestrator.Bus
 ```
 
 ## Quick start

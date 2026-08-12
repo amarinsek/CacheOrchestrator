@@ -52,8 +52,15 @@ Meter name: **`CacheOrchestrator`**
 | `cache_orchestrator.oc.requests` | Output outcomes by `domain`, `result` |
 | `cache_orchestrator.client.schedule` | Client Cache Schedule by `domain`, `phase` |
 | `cache_orchestrator.invalidate` | Successful full invalidations by `domain` |
+| `cache_orchestrator.cluster.commands_published` | Cluster bus origin publish (`command_type`) — [cluster-bus.md](cluster-bus.md) |
+| `cache_orchestrator.cluster.commands_received` | Cluster commands accepted on receive path |
+| `cache_orchestrator.cluster.commands_applied` | Cluster ApplyLocal success |
+| `cache_orchestrator.cluster.publish_failures` | Per-peer publish failure (`reason`) |
+| `cache_orchestrator.cluster.command_dedupe_hits` | Duplicate `CommandId` within dedupe window |
 
 `phase` tag values match X-Cache: `calm`, `approaching`, `hold`, `n/a`.
+
+Cluster instruments are silent when the bus is Null / disabled (no meaningful counters without publish/receive).
 
 Subscribe with OpenTelemetry / any `MeterListener`.
 
@@ -78,9 +85,11 @@ Tags include `domain`, `cache.result`, and success flags on invalidate.
 | Fusion STALE / errors | Information / Warning |
 | Invalidation start | Information |
 | Invalidation partial failure | Warning |
+| Cluster peer publish failure / bus open without ApiKey | Warning |
+| Cluster ignore (namespace / self / dedupe) | Debug |
 | Unknown domain / missing Version | Warning |
 
-Log categories use the implementing type names (internal): `DomainFusionCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, and public `DomainOutputCachePolicy`.
+Log categories use the implementing type names (internal): `DomainFusionCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, and public `DomainOutputCachePolicy`. Cluster bus: `HttpClusterCommandBus`, `DefaultClusterCommandHandler`, `CacheOrchestrator.Bus`.
 
 ## Health checks
 
@@ -97,4 +106,6 @@ builder.Services.AddHealthChecks()
 
 ## Related
 
+- [cluster-bus.md](cluster-bus.md) — multi-instance command bus metrics and endpoints  
 - [architecture.md](architecture.md)  
+
