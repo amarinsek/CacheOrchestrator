@@ -4,7 +4,7 @@ Three complementary strategies:
 
 1. **Version stamp** — change `Version` so new keys never match old ones (bulk cutover)  
 2. **Domain tag eviction** — remove all entries tagged `domain:{name}`  
-3. **Entity tag eviction** — remove one resource tagged `entity:{domain}:{resourceId}` (CRUD under the same Version)
+3. **Entity tag eviction** — remove one resource tagged `entity:{domain}:{entityKind}:{resourceId}` (CRUD under the same Version)
 
 For a plain-language explanation of Snapshot vs Dynamic domains, see **[domain-profiles.md](domain-profiles.md)**.
 
@@ -45,13 +45,13 @@ CacheInvalidationResult r2 = await invalidator.InvalidateDomainsAsync(
     ["products", "catalog"],
     cancellationToken);
 
-// Single entity — requires entries stored with resource id / resourceRouteKey
+// Single entity — requires entries stored with entityKind + resource id / resourceRouteKey
 CacheInvalidationResult r3 = await invalidator.InvalidateEntityAsync(
-    "product-detail", "42", cancellationToken);
+    "store", "products", "42", cancellationToken);
 
 // Custom or multiple tags (all FusionCache instances + Output Cache)
 CacheInvalidationResult r4 = await invalidator.InvalidateTagsAsync(
-    ["domain:products", "entity:products:42", "custom:batch-7"],
+    ["domain:store", "entity:store:products:42", "custom:batch-7"],
     cancellationToken);
 ```
 
@@ -73,20 +73,21 @@ Empty input (null domain, no tags) → `CacheInvalidationResult.Skipped(...)` wi
 | Tag | When applied |
 |-----|----------------|
 | `domain:{name}` | Every Output Cache policy entry; every Fusion `GetOrSet` |
-| `entity:{domain}:{resourceId}` | Fusion when using `GetOrSetAsync(http, domain, resourceId, factory)`; Output Cache when `resourceRouteKey` is set on the policy |
+| `entity:{domain}:{entityKind}:{resourceId}` | Fusion when using `GetOrSetEntityAsync`; Output Cache when `resourceRouteKey` **and** `entityKind` are set on the policy |
+| `entitykind:{domain}:{entityKind}` | Same writes; purge all entries of that kind with `InvalidateEntityKindAsync` |
 | Custom | Your tags — purge with `InvalidateTagsAsync` |
 
 ### Wiring entity tags
 
 ```csharp
 // Fusion
-await cache.GetOrSetAsync(http, "product-detail", productId, factory, ct);
+await cache.GetOrSetEntityAsync(http, "store", "products", productId, factory, cancellationToken);
 
 // Output Cache — tag entity from route value "id"
-app.MapGet("/api/products/{id}", ...).CacheOutputWithDomain("product-detail", resourceRouteKey: "id");
+app.MapGet("/api/products/{id}", ...).CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
 
 // MVC
-[CacheDomain("product-detail", resourceRouteKey: "id")]
+[CacheDomain("store", resourceRouteKey: "id", entityKind: "products")]
 public class ProductsController : ControllerBase { }
 ```
 

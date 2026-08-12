@@ -274,11 +274,14 @@ public sealed class InstanceStatsContributionDto
 /// <summary>Invalidate request for the Admin App (adds multi-instance target).</summary>
 public sealed class AdminAppInvalidateRequest
 {
-    /// <summary><c>domain</c>, <c>entity</c>, or <c>tags</c>.</summary>
+    /// <summary><c>domain</c>, <c>entity</c>, <c>entityKind</c>, or <c>tags</c>.</summary>
     public string Scope { get; set; } = "domain";
 
     /// <summary>Domain name.</summary>
     public string? Domain { get; set; }
+
+    /// <summary>Entity kind (required for entity / entityKind scopes).</summary>
+    public string? EntityKind { get; set; }
 
     /// <summary>Entity id.</summary>
     public string? EntityId { get; set; }

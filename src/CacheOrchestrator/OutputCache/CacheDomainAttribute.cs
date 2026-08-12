@@ -12,24 +12,49 @@ public sealed class CacheDomainAttribute : Attribute
     public string Domain { get; }
 
     /// <summary>
-    /// Optional route value name used as the entity id for Output Cache tags
-    /// (e.g. <c>"id"</c> for <c>/api/products/{id}</c>). Enables fine-grained
-    /// <see cref="Invalidation.ICacheOrchestratorInvalidator.InvalidateEntityAsync"/>.
+    /// Route value name used as the entity id for Output Cache tags
+    /// (e.g. <c>"id"</c> for <c>/api/products/{id}</c>). Requires <see cref="EntityKind"/>.
     /// </summary>
     public string? ResourceRouteKey { get; }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CacheDomainAttribute"/> class.
+    /// Resource type within the domain (e.g. <c>products</c>). Required when
+    /// <see cref="ResourceRouteKey"/> is set so entity tags are
+    /// <c>entity:{domain}:{entityKind}:{id}</c>.
+    /// </summary>
+    public string? EntityKind { get; }
+
+    /// <summary>
+    /// Binds a domain without entity tagging (list/snapshot endpoints).
     /// </summary>
     /// <param name="domain">Non-empty cache domain name.</param>
-    /// <param name="resourceRouteKey">Optional route value name for entity tagging.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="domain"/> is null, empty, or whitespace.</exception>
-    public CacheDomainAttribute(string domain, string? resourceRouteKey = null)
+    public CacheDomainAttribute(string domain)
     {
         if (string.IsNullOrWhiteSpace(domain))
             throw new ArgumentException("Domain must not be null or empty.", nameof(domain));
 
         Domain = domain;
-        ResourceRouteKey = string.IsNullOrWhiteSpace(resourceRouteKey) ? null : resourceRouteKey.Trim();
+    }
+
+    /// <summary>
+    /// Binds a domain and entity identity from a route value.
+    /// </summary>
+    /// <param name="domain">Non-empty cache domain name.</param>
+    /// <param name="resourceRouteKey">Route value name for the resource id (e.g. <c>"id"</c>).</param>
+    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
+    /// <exception cref="ArgumentException">Thrown when any argument is null, empty, or whitespace.</exception>
+    public CacheDomainAttribute(string domain, string resourceRouteKey, string entityKind)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+            throw new ArgumentException("Domain must not be null or empty.", nameof(domain));
+        if (string.IsNullOrWhiteSpace(resourceRouteKey))
+            throw new ArgumentException("Resource route key must not be null or empty.", nameof(resourceRouteKey));
+        if (string.IsNullOrWhiteSpace(entityKind))
+            throw new ArgumentException("Entity kind must not be null or empty.", nameof(entityKind));
+
+        Domain = domain;
+        ResourceRouteKey = resourceRouteKey.Trim();
+        EntityKind = entityKind.Trim();
     }
 }

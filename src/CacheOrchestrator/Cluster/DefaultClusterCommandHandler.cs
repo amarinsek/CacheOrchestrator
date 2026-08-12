@@ -113,13 +113,44 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
             return;
         }
 
-        if (command.Kind == CacheInvalidationKind.Entity
+        if (command.Kind == CacheInvalidationKind.EntityKind
             && !string.IsNullOrWhiteSpace(command.Domain)
-            && !string.IsNullOrWhiteSpace(command.EntityId))
+            && !string.IsNullOrWhiteSpace(command.EntityKind))
         {
-            await _invalidator.InvalidateEntityAsync(command.Domain, command.EntityId, cancellationToken)
+            await _invalidator.InvalidateEntityKindAsync(command.Domain, command.EntityKind, cancellationToken)
                 .ConfigureAwait(false);
             return;
+        }
+
+        if (command.Kind == CacheInvalidationKind.Entity
+            && !string.IsNullOrWhiteSpace(command.Domain)
+            && !string.IsNullOrWhiteSpace(command.EntityKind))
+        {
+            if (command.ResourceIds is { Count: > 1 })
+            {
+                await _invalidator.InvalidateEntitiesAsync(
+                        command.Domain,
+                        command.EntityKind,
+                        command.ResourceIds,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+
+            string? id = command.EntityId;
+            if (string.IsNullOrWhiteSpace(id) && command.ResourceIds is { Count: 1 })
+                id = command.ResourceIds[0];
+
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                await _invalidator.InvalidateEntityAsync(
+                        command.Domain,
+                        command.EntityKind,
+                        id,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
         }
 
         if (command.Tags is { Length: > 0 })

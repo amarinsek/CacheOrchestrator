@@ -1,9 +1,11 @@
-CacheOrchestrator 1.0.0 — first stable release.
+CacheOrchestrator 2.0.0 — breaking: entity identity requires entityKind.
 
-Domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
+A domain is a cache policy group. Row identity is (domain, entityKind, resourceId).
 
-- Core package (InMemory) + optional CacheOrchestrator.Redis
-- Per-domain TTLs, Version, Client Cache Schedule, invalidation API
-- Multi-target: net8.0 and net10.0
+- GetOrSetEntityAsync + InvalidateEntityAsync(domain, entityKind, id)
+- Tags: entity:{domain}:{entityKind}:{id} and entitykind:{domain}:{entityKind}
+- CacheOutputWithDomain(..., resourceRouteKey, entityKind)
+
+Migrate call sites; old entity entries expire by TTL or InvalidateDomainAsync / Version bump.
 
 Full notes: https://github.com/amarinsek/CacheOrchestrator/blob/main/CHANGELOG.md

@@ -87,7 +87,7 @@ The sample also exposes a small **product CRUD** playground that keeps `Version`
 
 | Method | URL | Behaviour |
 |--------|-----|-----------|
-| `GET` | `/api/crud/products/{id}` | OC + FC with domain `product-crud`, resource id from route `id` |
+| `GET` | `/api/crud/products/{id}` | OC + FC with domain `product-crud`, entityKind `products`, resource id from route `id` |
 | `PUT` | `/api/crud/products/{id}` | Body `{ "name": "...", "price": 12.5 }` then `InvalidateEntityAsync` |
 | `GET` | `/api/crud/products` | List in-memory “DB” (uncached) |
 

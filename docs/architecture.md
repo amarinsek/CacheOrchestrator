@@ -87,7 +87,7 @@ Prefer **interfaces + DI entry points** over concrete services. Implementations 
 | Health: `AddCacheOrchestrator()`, `ICacheOrchestratorHealthProbe` | `CacheOrchestratorHealthCheck` |
 | Meter/activity **names** (`CacheOrchestrator`) | `CacheOrchestratorMetrics.Record*` |
 
-`HttpContext.Items` keys live on **`CacheOrchestratorKeys`** (`DomainOptionsKey`, `ResourceIdKey`, `DispositionKey`).
+`HttpContext.Items` keys live on **`CacheOrchestratorKeys`** (`DomainOptionsKey`, `ResourceIdKey`, `EntityKindKey`, `DispositionKey`).
 
 ## Request flow — Output Cache
 

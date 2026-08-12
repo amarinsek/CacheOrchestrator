@@ -10,37 +10,67 @@ namespace CacheOrchestrator.OutputCache;
 public static class EndpointConventionBuilderExtensions
 {
     /// <summary>
-    /// Binds a fixed cache domain to this endpoint's output cache policy.
+    /// Binds a fixed cache domain to this endpoint's output cache policy (domain tag only).
     /// </summary>
     /// <param name="builder">The route handler builder.</param>
     /// <param name="domain">Cache domain name from configuration.</param>
-    /// <param name="resourceRouteKey">
-    /// Optional route value name for entity Output Cache tags (e.g. <c>"id"</c>).
-    /// </param>
+    /// <returns>The same <paramref name="builder"/> for chaining.</returns>
+    public static RouteHandlerBuilder CacheOutputWithDomain(
+        this RouteHandlerBuilder builder,
+        string domain)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.WithMetadata(new DomainOutputCachePolicy(domain));
+    }
+
+    /// <summary>
+    /// Binds a fixed cache domain and entity identity (route value + entity kind).
+    /// </summary>
+    /// <param name="builder">The route handler builder.</param>
+    /// <param name="domain">Cache domain name from configuration.</param>
+    /// <param name="resourceRouteKey">Route value name that holds the id (e.g. <c>"id"</c>).</param>
+    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
     /// <returns>The same <paramref name="builder"/> for chaining.</returns>
     public static RouteHandlerBuilder CacheOutputWithDomain(
         this RouteHandlerBuilder builder,
         string domain,
-        string? resourceRouteKey = null)
+        string resourceRouteKey,
+        string entityKind)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.WithMetadata(new DomainOutputCachePolicy(domain, resourceRouteKey));
+        return builder.WithMetadata(new DomainOutputCachePolicy(domain, resourceRouteKey, entityKind));
     }
 
     /// <summary>
-    /// Binds a per-request domain resolver to this endpoint's output cache policy.
+    /// Binds a per-request domain resolver to this endpoint's output cache policy (domain tag only).
     /// </summary>
     /// <param name="builder">The route handler builder.</param>
     /// <param name="domainResolver">Delegate that returns the domain for the current request.</param>
-    /// <param name="resourceRouteKey">Optional route value name for entity Output Cache tags.</param>
+    /// <returns>The same <paramref name="builder"/> for chaining.</returns>
+    public static RouteHandlerBuilder CacheOutputWithDomain(
+        this RouteHandlerBuilder builder,
+        Func<HttpContext, string> domainResolver)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.WithMetadata(new DomainOutputCachePolicy(domainResolver));
+    }
+
+    /// <summary>
+    /// Binds a per-request domain resolver with entity identity (route value + entity kind).
+    /// </summary>
+    /// <param name="builder">The route handler builder.</param>
+    /// <param name="domainResolver">Delegate that returns the domain for the current request.</param>
+    /// <param name="resourceRouteKey">Route value name that holds the id (e.g. <c>"id"</c>).</param>
+    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
     /// <returns>The same <paramref name="builder"/> for chaining.</returns>
     public static RouteHandlerBuilder CacheOutputWithDomain(
         this RouteHandlerBuilder builder,
         Func<HttpContext, string> domainResolver,
-        string? resourceRouteKey = null)
+        string resourceRouteKey,
+        string entityKind)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.WithMetadata(new DomainOutputCachePolicy(domainResolver, resourceRouteKey));
+        return builder.WithMetadata(new DomainOutputCachePolicy(domainResolver, resourceRouteKey, entityKind));
     }
 
     /// <summary>
@@ -77,10 +107,20 @@ public static class EndpointConventionBuilderExtensions
                 .OfType<CacheDomainAttribute>()
                 .LastOrDefault();
 
-            if (attribute is not null)
-                endpointBuilder.Metadata.Add(new DomainOutputCachePolicy(attribute.Domain, attribute.ResourceRouteKey));
+            if (attribute is null)
+                return;
+
+            endpointBuilder.Metadata.Add(CreatePolicy(attribute));
         });
 
         return builder;
+    }
+
+    internal static DomainOutputCachePolicy CreatePolicy(CacheDomainAttribute attribute)
+    {
+        if (attribute.ResourceRouteKey is not null && attribute.EntityKind is not null)
+            return new DomainOutputCachePolicy(attribute.Domain, attribute.ResourceRouteKey, attribute.EntityKind);
+
+        return new DomainOutputCachePolicy(attribute.Domain);
     }
 }

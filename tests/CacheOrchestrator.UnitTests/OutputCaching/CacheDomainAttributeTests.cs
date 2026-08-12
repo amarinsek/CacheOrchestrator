@@ -34,6 +34,24 @@ public class CacheDomainAttributeTests
     }
 
     [Fact]
+    public void EntityConstructor_SetsRouteKeyAndKind()
+    {
+        var attr = new CacheDomainAttribute("store", "id", "products");
+
+        attr.Domain.Should().Be("store");
+        attr.ResourceRouteKey.Should().Be("id");
+        attr.EntityKind.Should().Be("products");
+    }
+
+    [Fact]
+    public void EntityConstructor_WhenEntityKindMissing_Throws()
+    {
+        var act = () => new CacheDomainAttribute("store", "id", "  ");
+
+        act.Should().Throw<ArgumentException>().WithParameterName("entityKind");
+    }
+
+    [Fact]
     public void AttributeUsage_IsCorrect()
     {
         var usage = (AttributeUsageAttribute)Attribute.GetCustomAttribute(

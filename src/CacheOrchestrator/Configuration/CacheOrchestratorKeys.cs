@@ -17,8 +17,14 @@ public static class CacheOrchestratorKeys
     public static readonly object DomainOptionsKey = new();
 
     /// <summary>
-    /// Key for the normalized resource id set by <c>IDomainFusionCache.GetOrSetAsync</c> resource overloads
-    /// (and optionally used by key generation / entity tags).
+    /// Key for the normalized resource id set by <c>IDomainFusionCache.GetOrSetEntityAsync</c>
+    /// (and by Output Cache when <c>resourceRouteKey</c> is configured).
     /// </summary>
     public static readonly object ResourceIdKey = new();
+
+    /// <summary>
+    /// Key for the normalized entity kind set by <c>IDomainFusionCache.GetOrSetEntityAsync</c>
+    /// (and by Output Cache when <c>entityKind</c> is configured).
+    /// </summary>
+    public static readonly object EntityKindKey = new();
 }

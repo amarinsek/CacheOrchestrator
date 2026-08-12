@@ -280,10 +280,10 @@ public class ClusterBusMultiHostTests
             app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, HitCounter h) =>
             {
                 h.Increment();
-                string v = await cache.GetOrSetAsync(
-                    http, domain, id, _ => Task.FromResult("p-" + id), http.RequestAborted);
+                string v = await cache.GetOrSetEntityAsync(
+                    http, domain, "products", id, _ => Task.FromResult("p-" + id), http.RequestAborted);
                 return Results.Text(v);
-            }).CacheOutputWithDomain(domain, resourceRouteKey: "id");
+            }).CacheOutputWithDomain(domain, resourceRouteKey: "id", entityKind: "products");
             await app.StartAsync(Ct);
             HttpClient client = new() { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
             client.DefaultRequestHeaders.TryAddWithoutValidation("X-Cache-Admin-Key", "bus-key");
@@ -306,7 +306,7 @@ public class ClusterBusMultiHostTests
         b.Hits.Count.Should().Be(1);
 
         await a.App.Services.GetRequiredService<ICacheOrchestratorInvalidator>()
-            .InvalidateEntityAsync(domain, "42", Ct);
+            .InvalidateEntityAsync(domain, "products", "42", Ct);
         await Task.Delay(400, Ct);
 
         (await a.Client.GetAsync("/api/products/42", Ct)).EnsureSuccessStatusCode();

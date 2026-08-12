@@ -412,11 +412,14 @@ public sealed class AdminHealthDto
 /// <summary>Invalidate request body.</summary>
 public sealed class AdminInvalidateRequest
 {
-    /// <summary><c>domain</c>, <c>entity</c>, or <c>tags</c>.</summary>
+    /// <summary><c>domain</c>, <c>entity</c>, <c>entityKind</c>, or <c>tags</c>.</summary>
     public string Scope { get; set; } = "domain";
 
     /// <summary>Domain name (required for domain/entity scopes).</summary>
     public string? Domain { get; set; }
+
+    /// <summary>Entity kind (required for entity / entityKind scopes).</summary>
+    public string? EntityKind { get; set; }
 
     /// <summary>Entity id (required for entity scope).</summary>
     public string? EntityId { get; set; }

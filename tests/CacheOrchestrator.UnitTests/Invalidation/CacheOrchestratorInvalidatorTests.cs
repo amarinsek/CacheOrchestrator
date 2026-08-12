@@ -112,14 +112,49 @@ public class CacheOrchestratorInvalidatorTests
     public async Task InvalidateEntityAsync_EvictsEntityTagOnCorrectInstance()
     {
         CacheInvalidationResult result =
-            await _sut.InvalidateEntityAsync("products", "42", TestContext.Current.CancellationToken);
+            await _sut.InvalidateEntityAsync("store", "products", "42", TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeTrue();
-        result.Tags.Should().Equal("entity:products:42");
-        result.Scope.Should().Be("products/42");
+        result.Tags.Should().Equal("entity:store:products:42");
+        result.Scope.Should().Be("store/products/42");
 
         await _defaultFusion.Received(1).RemoveByTagAsync(
-            "entity:products:42",
+            "entity:store:products:42",
+            Arg.Any<FusionCacheEntryOptions?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InvalidateEntitiesAsync_EvictsEachEntityTagOnce()
+    {
+        CacheInvalidationResult result = await _sut.InvalidateEntitiesAsync(
+            "store",
+            "products",
+            ["42", " 42 ", "7", ""],
+            TestContext.Current.CancellationToken);
+
+        result.Succeeded.Should().BeTrue();
+        result.Scope.Should().Be("store/products");
+        result.Tags.Should().Equal("entity:store:products:42", "entity:store:products:7");
+
+        await _defaultFusion.Received(1).RemoveByTagAsync(
+            "entity:store:products:42", Arg.Any<FusionCacheEntryOptions?>(), Arg.Any<CancellationToken>());
+        await _defaultFusion.Received(1).RemoveByTagAsync(
+            "entity:store:products:7", Arg.Any<FusionCacheEntryOptions?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InvalidateEntityKindAsync_EvictsKindTag()
+    {
+        CacheInvalidationResult result =
+            await _sut.InvalidateEntityKindAsync("store", "products", TestContext.Current.CancellationToken);
+
+        result.Succeeded.Should().BeTrue();
+        result.Tags.Should().Equal("entitykind:store:products");
+        result.Scope.Should().Be("store/products");
+
+        await _defaultFusion.Received(1).RemoveByTagAsync(
+            "entitykind:store:products",
             Arg.Any<FusionCacheEntryOptions?>(),
             Arg.Any<CancellationToken>());
     }

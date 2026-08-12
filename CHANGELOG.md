@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- Entity identity is now `(domain, entityKind, resourceId)`. A domain is a cache **policy** group and does not uniquely identify a row.
+  - Removed `InvalidateEntityAsync(domain, resourceId)`. Use `InvalidateEntityAsync(domain, entityKind, resourceId)`, `InvalidateEntitiesAsync`, or `InvalidateEntityKindAsync`.
+  - Removed `IDomainFusionCache.GetOrSetAsync(http, domain, resourceId, factory)`. Use `GetOrSetEntityAsync` (domain optional when already on the request).
+  - Entity tags are `entity:{domain}:{entityKind}:{resourceId}` (was `entity:{domain}:{resourceId}`). Kind-wide tag: `entitykind:{domain}:{entityKind}`.
+  - Fusion resource keys include `entityKind`: `{domain}:{versionHex}:id:{entityKind}:{resourceId}:{hash}`.
+  - `CacheOutputWithDomain` / `[CacheDomain]` require `entityKind` when `resourceRouteKey` is set.
+  - Local Admin `scope=entity` requires `entityKind`. New `scope=entityKind` purges the kind tag.
+  - In-flight 1.0.0 entity entries are not evicted by the new APIs; they expire by TTL, or purge the domain / bump Version on deploy. Upgrade all cluster nodes together before relying on entity Bus commands.
+
 ### Added
 
 - **CacheOrchestrator.Bus** (optional package) — HTTP cluster command bus for multi-instance command fan-out

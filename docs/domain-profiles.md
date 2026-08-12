@@ -21,7 +21,7 @@ Inside that package, each HTTP response (or Fusion object) is stored under its o
 | **Domain** | Group of endpoints that share cache rules (`maps-osm`, `product-detail`) |
 | **Version** | Generation of the package (`2026-08`, `v1`). Changing it opens a **new key space** |
 | **TTL** | How long one cache entry may live before it expires (MISS → load from DB) |
-| **Tag invalidation** | Explicit delete: whole domain, or one entity (`entity:products:42`) |
+| **Tag invalidation** | Explicit delete: whole domain, one kind, or one entity (`entity:store:products:42`) |
 | **ETag** | Hint for browsers/CDNs when revalidating — see [ETag modes](#etag-modes) |
 
 ### Three ways a request becomes a MISS (fresh data from the DB)
@@ -89,8 +89,8 @@ No per-tile invalidation is required.
 
 - `Version` stays stable (`"1"`) most of the time.  
 - Individual rows change → **short TTLs** and/or **entity invalidation**.  
-- Use `GetOrSetAsync(http, domain, resourceId, factory)` so entries are tagged `entity:{domain}:{id}`.  
-- On admin save: `InvalidateEntityAsync(domain, id)` — **same Version**, new body on next request.  
+- Use `GetOrSetEntityAsync(http, domain, entityKind, resourceId, factory)` so entries are tagged `entity:{domain}:{entityKind}:{id}`.  
+- On admin save: `InvalidateEntityAsync(domain, entityKind, id)` — **same Version**, new body on next request.  
 - Prefer shorter client cache (or `Private` / low max-age).  
 - `ETagMode: Resource` gives a distinct ETag per product URL/id (still generation-bound; for very short client TTL, `None` is fine).
 
@@ -118,17 +118,17 @@ No per-tile invalidation is required.
 // GET — cache per product id
 app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache) =>
 {
-    var product = await cache.GetOrSetAsync(http, "product-detail", id, async ct =>
+    var product = await cache.GetOrSetEntityAsync(http, "store", "products", id, async ct =>
         await db.Products.FindAsync([id], ct));
     return Results.Json(product);
 })
-.CacheOutputWithDomain("product-detail", resourceRouteKey: "id");
+.CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
 
 // PUT — write then purge only this product (Version stays "1")
 app.MapPut("/api/products/{id}", async (string id, ProductDto dto, ICacheOrchestratorInvalidator inv) =>
 {
     await db.SaveAsync(id, dto);
-    await inv.InvalidateEntityAsync("product-detail", id);
+    await inv.InvalidateEntityAsync("store", "products", id);
     return Results.NoContent();
 });
 ```
@@ -136,8 +136,8 @@ app.MapPut("/api/products/{id}", async (string id, ProductDto dto, ICacheOrchest
 Flow:
 
 ```text
-t0  GET /products/42  → MISS → DB (price 10) → store OC+FC, tags domain + entity:product-detail:42
-t1  Admin sets price 12, calls InvalidateEntityAsync("product-detail", "42")
+t0  GET /products/42  → MISS → DB (price 10) → store OC+FC, tags domain + entity:store:products:42
+t1  Admin sets price 12, calls InvalidateEntityAsync("store", "products", "42")
 t2  GET /products/42  → MISS → DB (price 12)
     GET /products/99  → still HIT (other entity)
 ```

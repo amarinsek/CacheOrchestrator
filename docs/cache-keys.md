@@ -18,7 +18,7 @@ Three layers appear in the overall system:
 | **Domain** | Named policy group (TTLs, Version, provider instance) | `products`, `product-detail` |
 | **Request material** | What varies *within* a domain | path, route values, query, host, encoding, resource id |
 
-**Tags** (`domain:{name}`, `entity:{domain}:{id}`) group entries for **purge**. They do not participate in lookup. A tag can delete an entry whose key never embeds the domain name.
+**Tags** (`domain:{name}`, `entity:{domain}:{entityKind}:{id}`) group entries for **purge**. They do not participate in lookup. A tag can delete an entry whose key never embeds the domain name.
 
 ```
 Lookup  → key identity (this document)
@@ -82,19 +82,19 @@ Replace with a custom `IDomainKeyGenerator` when you must vary on dimensions the
 | Mode | Key shape |
 |------|-----------|
 | URL-shaped (default) | `{domain}:{versionHex}:{hash}` |
-| Entity / resource id | `{domain}:{versionHex}:id:{resourceId}:{hash}` |
+| Entity / resource id | `{domain}:{versionHex}:id:{entityKind}:{resourceId}:{hash}` |
 
 Examples:
 
 ```text
 products:a1b2c3d4e5f60708:7f3e9c1a2b4d6e08
-product-detail:a1b2c3d4e5f60708:id:42:9c8b7a6d5e4f3210
+store:a1b2c3d4e5f60708:id:products:42:9c8b7a6d5e4f3210
 ```
 
 - **`domain`** — normalized domain name from `DomainCacheOptions` (explicit partition).
 - **`versionHex`** — stable hex of the domain `Version` stamp. Bumping `Version` changes every new key for that domain; old entries age out by TTL.
 - **`hash`** — 16 hex chars of XxHash3 over the material below.
-- **`resourceId`** — present only for the entity overload (see below).
+- **`entityKind` + `resourceId`** — present only for `GetOrSetEntityAsync` (see below).
 
 ### What goes into the hash
 
@@ -110,17 +110,17 @@ product-detail:a1b2c3d4e5f60708:id:42:9c8b7a6d5e4f3210
 
 Order of query keys does not matter: `?a=1&b=2` and `?b=2&a=1` produce the same hash.
 
-#### Entity keys (`GetOrSetAsync(http, domain, resourceId, factory)`)
+#### Entity keys (`GetOrSetEntityAsync`)
 
-The resource id is stored on `HttpContext.Items` and preferred for identity:
+Kind and resource id are stored on `HttpContext.Items` and preferred for identity:
 
 | Input | Included |
 |-------|----------|
-| Normalized `resourceId` | Always (also visible as the `id:{resourceId}` segment) |
+| Normalized `entityKind` + `resourceId` | Always (visible as the `id:{entityKind}:{resourceId}` segment) |
 | Accept-Encoding / scheme+host | Same flags as above |
 | Path / query / route | **Not** used for the key |
 
-Use this for CRUD-style resources so invalidation can target `entity:{domain}:{id}` without depending on the full URL shape. Wire the matching Output Cache route with `resourceRouteKey` when you need entity OC tags ([invalidation.md](invalidation.md#wiring-entity-tags)).
+Use this for CRUD-style resources so invalidation can target `entity:{domain}:{entityKind}:{id}` without depending on the full URL shape. Wire the matching Output Cache route with `resourceRouteKey` **and** `entityKind` ([invalidation.md](invalidation.md#wiring-entity-tags)).
 
 ### Why domain is in the Fusion key
 
@@ -135,7 +135,7 @@ never share an entry even if path and query are identical.
 
 ### Tags (Fusion)
 
-Every stored entry is also tagged `domain:{name}` (and `entity:{domain}:{id}` when a resource id was used). Tags are for `ICacheOrchestratorInvalidator`, not for lookup.
+Every stored entry is also tagged `domain:{name}` (and `entity:{domain}:{entityKind}:{id}` + `entitykind:{domain}:{entityKind}` when entity identity was used). Tags are for `ICacheOrchestratorInvalidator`, not for lookup.
 
 ---
 
@@ -167,7 +167,7 @@ The library does **not** emit a single custom string of the form `{domain}:{vers
 | Tag | When |
 |-----|------|
 | `domain:{name}` | Every cached OC entry for that domain |
-| `entity:{domain}:{id}` | When `resourceRouteKey` resolves a route value (or resource id was set on the request) |
+| `entity:{domain}:{entityKind}:{id}` | When `resourceRouteKey` and `entityKind` resolve (or `GetOrSetEntityAsync` set them) |
 
 ---
 

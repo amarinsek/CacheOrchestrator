@@ -48,7 +48,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         HttpContext http,
         Func<CancellationToken, Task<T>> factory,
         CancellationToken cancellationToken = default)
-        => GetOrSetCoreAsync(http, domain: null, resourceId: null, factory, cancellationToken);
+        => GetOrSetCoreAsync(http, domain: null, entityKind: null, resourceId: null, factory, cancellationToken);
 
     /// <inheritdoc />
     public Task<T> GetOrSetAsync<T>(
@@ -58,25 +58,41 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        return GetOrSetCoreAsync(http, domain, resourceId: null, factory, cancellationToken);
+        return GetOrSetCoreAsync(http, domain, entityKind: null, resourceId: null, factory, cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task<T> GetOrSetAsync<T>(
+    public Task<T> GetOrSetEntityAsync<T>(
+        HttpContext http,
+        string entityKind,
+        string resourceId,
+        Func<CancellationToken, Task<T>> factory,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        return GetOrSetCoreAsync(http, domain: null, entityKind, resourceId, factory, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<T> GetOrSetEntityAsync<T>(
         HttpContext http,
         string domain,
+        string entityKind,
         string resourceId,
         Func<CancellationToken, Task<T>> factory,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
-        return GetOrSetCoreAsync(http, domain, resourceId, factory, cancellationToken);
+        return GetOrSetCoreAsync(http, domain, entityKind, resourceId, factory, cancellationToken);
     }
 
     private async Task<T> GetOrSetCoreAsync<T>(
         HttpContext http,
         string? domain,
+        string? entityKind,
         string? resourceId,
         Func<CancellationToken, Task<T>> factory,
         CancellationToken cancellationToken)
@@ -112,12 +128,22 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             return await factory(cancellationToken).ConfigureAwait(false);
         }
 
+        string? normalizedEntityKind = null;
         string? normalizedResourceId = null;
-        if (!string.IsNullOrWhiteSpace(resourceId))
+        if (!string.IsNullOrWhiteSpace(entityKind) && !string.IsNullOrWhiteSpace(resourceId))
         {
+            normalizedEntityKind = DomainName.Normalize(entityKind);
             normalizedResourceId = DomainName.NormalizeResourceId(resourceId);
-            if (!string.IsNullOrEmpty(normalizedResourceId))
+            if (!string.IsNullOrEmpty(normalizedEntityKind) && !string.IsNullOrEmpty(normalizedResourceId))
+            {
+                http.Items[CacheOrchestratorKeys.EntityKindKey] = normalizedEntityKind;
                 http.Items[CacheOrchestratorKeys.ResourceIdKey] = normalizedResourceId;
+            }
+            else
+            {
+                normalizedEntityKind = null;
+                normalizedResourceId = null;
+            }
         }
 
         if (!opts.FusionCacheEnabled)
@@ -150,7 +176,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         // Resolve the named FusionCache instance for this domain.
         IFusionCache fusion = _fusionProvider.GetCache(opts.FusionCacheInstanceName);
 
-        string[] tags = BuildTags(opts.Domain, normalizedResourceId);
+        string[] tags = BuildTags(opts.Domain, normalizedEntityKind, normalizedResourceId);
 
         bool materialized = false;
         bool factoryFailed = false;
@@ -158,6 +184,8 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
         activity?.SetTag("domain", opts.Domain);
+        if (normalizedEntityKind is not null)
+            activity?.SetTag("entity_kind", normalizedEntityKind);
         if (normalizedResourceId is not null)
             activity?.SetTag("resource_id", normalizedResourceId);
 
@@ -277,15 +305,16 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         return attr?.Domain;
     }
 
-    private static string[] BuildTags(string domain, string? normalizedResourceId)
+    private static string[] BuildTags(string domain, string? normalizedEntityKind, string? normalizedResourceId)
     {
-        if (string.IsNullOrEmpty(normalizedResourceId))
+        if (string.IsNullOrEmpty(normalizedEntityKind) || string.IsNullOrEmpty(normalizedResourceId))
             return [CacheTags.Domain(domain)];
 
         return
         [
             CacheTags.Domain(domain),
-            CacheTags.Entity(domain, normalizedResourceId)
+            CacheTags.Entity(domain, normalizedEntityKind, normalizedResourceId),
+            CacheTags.EntityKind(domain, normalizedEntityKind)
         ];
     }
 

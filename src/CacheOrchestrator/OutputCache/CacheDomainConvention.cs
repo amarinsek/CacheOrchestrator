@@ -32,7 +32,7 @@ internal sealed class CacheDomainConvention : IApplicationModelConvention
                     ?? controllerAttr;
 
                 if (actionAttr is not null)
-                    action.Filters.Add(new DomainOutputCachePolicy(actionAttr.Domain, actionAttr.ResourceRouteKey));
+                    action.Filters.Add(EndpointConventionBuilderExtensions.CreatePolicy(actionAttr));
             }
         }
     }

@@ -18,7 +18,7 @@ namespace CacheOrchestrator.OutputCache;
 
 /// <summary>
 /// Output cache policy that resolves per-domain settings, tags entries with <c>domain:{name}</c>
-/// (and optional <c>entity:{domain}:{id}</c>), and applies client <c>Cache-Control</c> / optional
+/// (and optional <c>entity:{domain}:{entityKind}:{id}</c>), and applies client <c>Cache-Control</c> / optional
 /// diagnostic <c>X-Cache</c> / ETag headers.
 /// </summary>
 /// <remarks>
@@ -35,40 +35,89 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     /// Creates a policy bound to a fixed cache domain.
     /// </summary>
     /// <param name="domain">Non-empty domain name (normalized on construction).</param>
-    /// <param name="resourceRouteKey">
-    /// Optional route value name used as the entity id for Output Cache tags
-    /// (e.g. <c>"id"</c> for <c>/products/{id}</c>). Enables
-    /// <see cref="Invalidation.ICacheOrchestratorInvalidator.InvalidateEntityAsync"/>.
-    /// </param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="domain"/> is null, empty, or whitespace.</exception>
-    public DomainOutputCachePolicy(string domain, string? resourceRouteKey = null)
+    public DomainOutputCachePolicy(string domain)
+        : this(domain, resourceRouteKey: null, entityKind: null, requireEntity: false)
+    {
+    }
+
+    /// <summary>
+    /// Creates a policy bound to a fixed cache domain with entity tagging from a route value.
+    /// </summary>
+    /// <param name="domain">Non-empty domain name (normalized on construction).</param>
+    /// <param name="resourceRouteKey">Route value name for the resource id (e.g. <c>"id"</c>).</param>
+    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
+    public DomainOutputCachePolicy(string domain, string resourceRouteKey, string entityKind)
+        : this(domain, resourceRouteKey, entityKind, requireEntity: true)
+    {
+    }
+
+    private DomainOutputCachePolicy(string domain, string? resourceRouteKey, string? entityKind, bool requireEntity = false)
     {
         if (string.IsNullOrWhiteSpace(domain))
             throw new ArgumentException("Domain must not be null or empty.", nameof(domain));
+        if (requireEntity)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(resourceRouteKey);
+            ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
+        }
+
         string fixedDomain = DomainName.Normalize(domain);
         _domainProvider = _ => fixedDomain;
         FixedDomain = fixedDomain;
         ResourceRouteKey = string.IsNullOrWhiteSpace(resourceRouteKey) ? null : resourceRouteKey.Trim();
+        EntityKind = string.IsNullOrWhiteSpace(entityKind) ? null : DomainName.Normalize(entityKind);
     }
 
     /// <summary>
     /// Creates a policy that resolves the cache domain per request.
     /// </summary>
     /// <param name="domainResolver">Delegate that returns the domain for the current <see cref="HttpContext"/>.</param>
-    /// <param name="resourceRouteKey">Optional route value name used as the entity id for Output Cache tags.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="domainResolver"/> is null.</exception>
-    public DomainOutputCachePolicy(Func<HttpContext, string> domainResolver, string? resourceRouteKey = null)
+    public DomainOutputCachePolicy(Func<HttpContext, string> domainResolver)
+        : this(domainResolver, resourceRouteKey: null, entityKind: null, requireEntity: false)
+    {
+    }
+
+    /// <summary>
+    /// Creates a policy that resolves the cache domain per request, with entity tagging from a route value.
+    /// </summary>
+    /// <param name="domainResolver">Delegate that returns the domain for the current <see cref="HttpContext"/>.</param>
+    /// <param name="resourceRouteKey">Route value name for the resource id (e.g. <c>"id"</c>).</param>
+    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
+    public DomainOutputCachePolicy(Func<HttpContext, string> domainResolver, string resourceRouteKey, string entityKind)
+        : this(domainResolver, resourceRouteKey, entityKind, requireEntity: true)
+    {
+    }
+
+    private DomainOutputCachePolicy(
+        Func<HttpContext, string> domainResolver,
+        string? resourceRouteKey,
+        string? entityKind,
+        bool requireEntity = false)
     {
         ArgumentNullException.ThrowIfNull(domainResolver);
+        if (requireEntity)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(resourceRouteKey);
+            ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
+        }
+
         _domainProvider = http => domainResolver(http) ?? string.Empty;
         FixedDomain = null;
         ResourceRouteKey = string.IsNullOrWhiteSpace(resourceRouteKey) ? null : resourceRouteKey.Trim();
+        EntityKind = string.IsNullOrWhiteSpace(entityKind) ? null : DomainName.Normalize(entityKind);
     }
 
     /// <summary>
     /// Route value name used for entity tagging, or <see langword="null"/> when not configured.
     /// </summary>
     public string? ResourceRouteKey { get; }
+
+    /// <summary>
+    /// Normalized entity kind used for entity tags, or <see langword="null"/> when not configured.
+    /// </summary>
+    public string? EntityKind { get; }
 
     /// <summary>
     /// Normalized domain when this policy was constructed with a constant domain name;
@@ -139,8 +188,9 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             return ValueTask.CompletedTask;
         }
 
+        string? entityKind = TryResolveEntityKind(http);
         string? resourceId = TryResolveResourceId(http);
-        ApplyETag(http, opts, resourceId);
+        ApplyETag(http, opts, entityKind, resourceId);
 
         if (!opts.OutputCacheEnabled)
         {
@@ -178,11 +228,30 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         }
 
         context.Tags.Add(CacheTags.Domain(opts.Domain));
-        if (!string.IsNullOrEmpty(resourceId))
-            context.Tags.Add(CacheTags.Entity(opts.Domain, resourceId));
+        if (!string.IsNullOrEmpty(entityKind) && !string.IsNullOrEmpty(resourceId))
+        {
+            context.Tags.Add(CacheTags.Entity(opts.Domain, entityKind, resourceId));
+            context.Tags.Add(CacheTags.EntityKind(opts.Domain, entityKind));
+        }
 
         RegisterResponseHeaders(http, opts, OutputCacheResult.Miss);
         return ValueTask.CompletedTask;
+    }
+
+    private string? TryResolveEntityKind(HttpContext http)
+    {
+        if (http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? fromItems)
+            && fromItems is string itemKind
+            && itemKind.Length > 0)
+        {
+            return itemKind;
+        }
+
+        if (EntityKind is null)
+            return null;
+
+        http.Items[CacheOrchestratorKeys.EntityKindKey] = EntityKind;
+        return EntityKind;
     }
 
     private string? TryResolveResourceId(HttpContext http)
@@ -201,10 +270,14 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             return null;
 
         string normalized = DomainName.NormalizeResourceId(raw.ToString());
-        return string.IsNullOrEmpty(normalized) ? null : normalized;
+        if (string.IsNullOrEmpty(normalized))
+            return null;
+
+        http.Items[CacheOrchestratorKeys.ResourceIdKey] = normalized;
+        return normalized;
     }
 
-    private static void ApplyETag(HttpContext http, DomainCacheOptions opts, string? resourceId)
+    private static void ApplyETag(HttpContext http, DomainCacheOptions opts, string? entityKind, string? resourceId)
     {
         switch (opts.ETagMode)
         {
@@ -213,8 +286,9 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
                 break;
 
             case ETagMode.Resource:
-                string resourceKey = resourceId
-                    ?? BuildPathResourceKey(http);
+                string resourceKey = resourceId is not null && entityKind is not null
+                    ? entityKind + ":" + resourceId
+                    : resourceId ?? BuildPathResourceKey(http);
                 http.Response.Headers.ETag = CacheETagFactory.FromVersionAndResource(opts.VersionHex, resourceKey);
                 break;
 

@@ -472,7 +472,7 @@ public class OutputCacheHttpLifecycleTests
             a.MapGet("/ver/{id}", (string id) => Results.Text("v-" + id))
                 .CacheOutputWithDomain(domainVer);
             a.MapGet("/res/{id}", (string id) => Results.Text("r-" + id))
-                .CacheOutputWithDomain(domainRes, resourceRouteKey: "id");
+                .CacheOutputWithDomain(domainRes, resourceRouteKey: "id", entityKind: "items");
             a.MapGet("/none", () => Results.Text("n"))
                 .CacheOutputWithDomain(domainNone);
         });
@@ -628,7 +628,7 @@ public class OutputCacheHttpLifecycleTests
             {
                 hits.Increment();
                 return Results.Text("product-" + id);
-            }).CacheOutputWithDomain(domain, resourceRouteKey: "id");
+            }).CacheOutputWithDomain(domain, resourceRouteKey: "id", entityKind: "items");
         });
 
         try
@@ -645,7 +645,7 @@ public class OutputCacheHttpLifecycleTests
 
             CacheInvalidationResult inv = await app.Services
                 .GetRequiredService<ICacheOrchestratorInvalidator>()
-                .InvalidateEntityAsync(domain, "1", TestContext.Current.CancellationToken);
+                .InvalidateEntityAsync(domain, "items", "1", TestContext.Current.CancellationToken);
             inv.Succeeded.Should().BeTrue(string.Join("; ", inv.Errors));
 
             (HttpResponseMessage after1, string xAfter1, string b1) = await GetAsync(client, "/p/1");

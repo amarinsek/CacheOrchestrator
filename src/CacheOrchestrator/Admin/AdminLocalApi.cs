@@ -94,9 +94,37 @@ public static class AdminLocalApi
                     break;
 
                 case "entity":
-                    if (string.IsNullOrWhiteSpace(body.Domain) || string.IsNullOrWhiteSpace(body.EntityId))
-                        return Results.BadRequest(new { error = "domain and entityId are required for scope=entity." });
-                    result = await invalidator.InvalidateEntityAsync(body.Domain, body.EntityId, cancellationToken)
+                    if (string.IsNullOrWhiteSpace(body.Domain)
+                        || string.IsNullOrWhiteSpace(body.EntityKind)
+                        || string.IsNullOrWhiteSpace(body.EntityId))
+                    {
+                        return Results.BadRequest(new
+                        {
+                            error = "domain, entityKind, and entityId are required for scope=entity."
+                        });
+                    }
+
+                    result = await invalidator.InvalidateEntityAsync(
+                            body.Domain,
+                            body.EntityKind,
+                            body.EntityId,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    break;
+
+                case "entitykind":
+                    if (string.IsNullOrWhiteSpace(body.Domain) || string.IsNullOrWhiteSpace(body.EntityKind))
+                    {
+                        return Results.BadRequest(new
+                        {
+                            error = "domain and entityKind are required for scope=entityKind."
+                        });
+                    }
+
+                    result = await invalidator.InvalidateEntityKindAsync(
+                            body.Domain,
+                            body.EntityKind,
+                            cancellationToken)
                         .ConfigureAwait(false);
                     break;
 
@@ -108,7 +136,7 @@ public static class AdminLocalApi
                     break;
 
                 default:
-                    return Results.BadRequest(new { error = "scope must be domain, entity, or tags." });
+                    return Results.BadRequest(new { error = "scope must be domain, entity, entityKind, or tags." });
             }
 
             return Results.Ok(result);

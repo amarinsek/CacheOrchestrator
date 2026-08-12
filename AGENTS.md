@@ -35,7 +35,7 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 Domain (config name)
   → DomainCacheOptions (resolved snapshot)
       → DomainOutputCachePolicy (HTTP)
-      → IDomainFusionCache.GetOrSetAsync (data)
+      → IDomainFusionCache.GetOrSetAsync / GetOrSetEntityAsync (data)
       → tags domain:{name} for invalidation
 ```
 

@@ -173,7 +173,7 @@ Everything below is available without opening other pages first. Links go deeper
 | **Client Cache Schedule** | Near a planned cutover (`ScheduledUpdateUtc`), client `max-age` ramps from long → short (Calm / Approaching / Hold). Server TTLs unchanged. [client-cache-schedule](docs/client-cache-schedule.md) |
 | **Snapshot vs dynamic domains** | OSM-style generation stamps vs CRUD + per-entity invalidation. [domain-profiles](docs/domain-profiles.md) |
 | **ETag modes** | `Version` (generation), `Resource` (per URL/id), or `None`. |
-| **Entity / resource id** | `GetOrSetAsync(http, domain, resourceId, …)` + `InvalidateEntityAsync`. |
+| **Entity / resource id** | `GetOrSetEntityAsync(http, domain, entityKind, resourceId, …)` + `InvalidateEntityAsync(domain, entityKind, id)`. |
 | **Auth controls** | Default: skip Output Cache for authenticated / `Authorization`. Opt-in with `BypassWhenAuthenticated` + `VaryOutputCacheByUser`. |
 | **Named Fusion instances** | Map domains to separate Redis clusters (e.g. PII vs catalog). [deployment](docs/deployment.md) |
 | **Redis package** | `CacheOrchestrator.Redis` — OC store + keyed L2 + backplane. Not in core. |

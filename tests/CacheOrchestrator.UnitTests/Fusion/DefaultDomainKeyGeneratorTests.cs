@@ -43,14 +43,43 @@ public class DefaultDomainKeyGeneratorTests
     {
         var cfg = CreateConfig(domain: "products");
         var http = CreateHttpContext();
+        http.Items[CacheOrchestratorKeys.EntityKindKey] = "items";
         http.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
 
         string key1 = _sut.Generate(cfg, http);
         string key2 = _sut.Generate(cfg, http);
 
         key1.Should().Be(key2);
-        key1.Should().Contain(":id:42:");
-        key1.Should().StartWith($"products:{cfg.VersionHex}:id:42:");
+        key1.Should().Contain(":id:items:42:");
+        key1.Should().StartWith($"products:{cfg.VersionHex}:id:items:42:");
+    }
+
+    [Fact]
+    public void Generate_DifferentEntityKinds_SameResourceId_ProduceDifferentKeys()
+    {
+        var cfg = CreateConfig(domain: "store");
+        var product = CreateHttpContext();
+        product.Items[CacheOrchestratorKeys.EntityKindKey] = "products";
+        product.Items[CacheOrchestratorKeys.ResourceIdKey] = "1";
+        var asset = CreateHttpContext();
+        asset.Items[CacheOrchestratorKeys.EntityKindKey] = "assets";
+        asset.Items[CacheOrchestratorKeys.ResourceIdKey] = "1";
+
+        _sut.Generate(cfg, product).Should().NotBe(_sut.Generate(cfg, asset));
+        _sut.Generate(cfg, product).Should().Contain(":id:products:1:");
+        _sut.Generate(cfg, asset).Should().Contain(":id:assets:1:");
+    }
+
+    [Fact]
+    public void Generate_ResourceIdWithoutEntityKind_DoesNotUseIdKeyShape()
+    {
+        var cfg = CreateConfig(domain: "products");
+        var http = CreateHttpContext();
+        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
+
+        string key = _sut.Generate(cfg, http);
+
+        key.Should().NotContain(":id:42:");
     }
 
     [Fact]
@@ -58,8 +87,10 @@ public class DefaultDomainKeyGeneratorTests
     {
         var cfg = CreateConfig(domain: "products");
         var http1 = CreateHttpContext();
+        http1.Items[CacheOrchestratorKeys.EntityKindKey] = "items";
         http1.Items[CacheOrchestratorKeys.ResourceIdKey] = "1";
         var http2 = CreateHttpContext();
+        http2.Items[CacheOrchestratorKeys.EntityKindKey] = "items";
         http2.Items[CacheOrchestratorKeys.ResourceIdKey] = "2";
 
         _sut.Generate(cfg, http1).Should().NotBe(_sut.Generate(cfg, http2));
