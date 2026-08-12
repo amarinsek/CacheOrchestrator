@@ -84,9 +84,10 @@ public sealed class AdminFanOutService
     public async Task<ClusterStatsDto> GetStatsAsync(
         string? scope,
         CancellationToken cancellationToken,
-        bool groupByInstance = false)
+        bool groupByInstance = false,
+        string? instances = null)
     {
-        IReadOnlyList<AdminInstanceOptions> targets = ResolveTarget(NormalizeScopeToTarget(scope));
+        IReadOnlyList<AdminInstanceOptions> targets = ResolveInstanceFilter(scope, instances);
         List<InstanceCallOutcome<AdminLiveStatsSnapshot>> outcomes =
             await FanOutAsync(targets, (inst, ct) => _client.GetStatsAsync(inst, ct), cancellationToken)
                 .ConfigureAwait(false);
@@ -104,15 +105,52 @@ public sealed class AdminFanOutService
             .Select(o => o.Value!)
             .ToList();
 
+        // Config for TTL/schedule hints (best-effort from first healthy instance set).
+        Dictionary<string, AdminDomainConfigDto> configByName = new(StringComparer.Ordinal);
+        try
+        {
+            FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>> cfg = await GetDomainsAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (cfg.Data is not null)
+            {
+                foreach (AdminDomainConfigDto c in cfg.Data)
+                    configByName[c.Name] = c;
+            }
+        }
+        catch
+        {
+            // Hints without config still apply rate-based rules.
+        }
+
+        IReadOnlyList<AdminDomainStatsDto> domains = StatsAggregator.MergeDomains(ok, groupByInstance)
+            .Select(d =>
+            {
+                configByName.TryGetValue(d.Name, out AdminDomainConfigDto? c);
+                return RecommendationHints.WithHints(d, c);
+            })
+            .ToArray();
+
+        IReadOnlyList<AdminEndpointStatsDto> endpoints = StatsAggregator.MergeEndpoints(ok, groupByInstance)
+            .Select(RecommendationHints.WithHints)
+            .ToArray();
+
+        IReadOnlyList<AdminEndpointStatsDto> unassigned = StatsAggregator.MergeUnassignedEndpoints(ok, groupByInstance)
+            .Select(RecommendationHints.WithHints)
+            .ToArray();
+
+        string scopeLabel = string.IsNullOrWhiteSpace(scope) ? "all" : scope.Trim();
+        if (!string.IsNullOrWhiteSpace(instances))
+            scopeLabel = "instances:" + string.Join(',', ParseCsv(instances));
+
         return new ClusterStatsDto
         {
-            Scope = string.IsNullOrWhiteSpace(scope) ? "all" : scope.Trim(),
+            Scope = scopeLabel,
             GroupByInstance = groupByInstance,
             CollectedAtUtc = _time.GetUtcNow(),
             Instances = contributions,
-            Domains = StatsAggregator.MergeDomains(ok, groupByInstance),
-            Endpoints = StatsAggregator.MergeEndpoints(ok, groupByInstance),
-            UnassignedEndpoints = StatsAggregator.MergeUnassignedEndpoints(ok, groupByInstance)
+            Domains = domains,
+            Endpoints = endpoints,
+            UnassignedEndpoints = unassigned
         };
     }
 
@@ -182,10 +220,12 @@ public sealed class AdminFanOutService
         bool groupByInstance = false,
         string? search = null,
         string? domain = null,
+        string? domains = null,
+        string? instances = null,
         long minRequests = 0,
         int skip = 0)
     {
-        ClusterStatsDto stats = await GetStatsAsync("all", cancellationToken, groupByInstance)
+        ClusterStatsDto stats = await GetStatsAsync("all", cancellationToken, groupByInstance, instances)
             .ConfigureAwait(false);
         IEnumerable<AdminEndpointStatsDto> all = stats.Endpoints;
 
@@ -197,11 +237,17 @@ public sealed class AdminFanOutService
                 || (e.ConfiguredDomain?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
-        if (!string.IsNullOrWhiteSpace(domain))
+        HashSet<string>? domainFilter = null;
+        if (!string.IsNullOrWhiteSpace(domains))
+            domainFilter = new HashSet<string>(ParseCsv(domains), StringComparer.OrdinalIgnoreCase);
+        else if (!string.IsNullOrWhiteSpace(domain))
+            domainFilter = new HashSet<string>([domain.Trim()], StringComparer.OrdinalIgnoreCase);
+
+        if (domainFilter is { Count: > 0 })
         {
-            string d = domain.Trim();
             all = all.Where(e =>
-                string.Equals(e.ConfiguredDomain, d, StringComparison.OrdinalIgnoreCase));
+                e.ConfiguredDomain is not null
+                && domainFilter.Contains(e.ConfiguredDomain));
         }
 
         if (minRequests > 0)
@@ -391,4 +437,31 @@ public sealed class AdminFanOutService
         return "instance:" + scope.Trim();
     }
 
+    /// <summary>
+    /// Combines legacy <paramref name="scope"/> with optional multi-instance CSV filter.
+    /// Empty/null <paramref name="instances"/> means all instances from scope.
+    /// </summary>
+    private IReadOnlyList<AdminInstanceOptions> ResolveInstanceFilter(string? scope, string? instances)
+    {
+        IReadOnlyList<AdminInstanceOptions> fromScope = ResolveTarget(NormalizeScopeToTarget(scope));
+        if (string.IsNullOrWhiteSpace(instances))
+            return fromScope;
+
+        HashSet<string> wanted = new(ParseCsv(instances), StringComparer.OrdinalIgnoreCase);
+        if (wanted.Count == 0)
+            return fromScope;
+
+        List<AdminInstanceOptions> filtered = fromScope
+            .Where(i => wanted.Contains(i.Id))
+            .ToList();
+
+        if (filtered.Count == 0)
+            throw new KeyNotFoundException($"No configured instances match: {instances}");
+
+        return filtered;
+    }
+
+    private static IEnumerable<string> ParseCsv(string csv) =>
+        csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => s.Length > 0);
 }

@@ -108,6 +108,19 @@ public sealed class AdminPipelineDto
     public double? OtherShare { get; init; }
 }
 
+/// <summary>Rule-based operational hint (recommendations engine).</summary>
+public sealed class AdminHintDto
+{
+    /// <summary><c>Info</c>, <c>Warning</c>, or <c>Critical</c>.</summary>
+    public required string Severity { get; init; }
+
+    /// <summary>Stable machine-readable code (e.g. <c>low-fc-hit-rate</c>).</summary>
+    public required string Code { get; init; }
+
+    /// <summary>Human-readable suggestion.</summary>
+    public required string Message { get; init; }
+}
+
 /// <summary>Spread of a ratio across instances (heterogeneity signal).</summary>
 public sealed class AdminShareSpreadDto
 {
@@ -214,6 +227,9 @@ public sealed class AdminDomainStatsDto
 
     /// <summary>Spread of key shares/rates across instances (cluster only).</summary>
     public AdminInstanceSpreadDto? InstanceSpread { get; init; }
+
+    /// <summary>Rule-based recommendations for this domain.</summary>
+    public IReadOnlyList<AdminHintDto> Hints { get; init; } = [];
 }
 
 /// <summary>Endpoint-level live stats (fundamental unit).</summary>
@@ -245,6 +261,9 @@ public sealed class AdminEndpointStatsDto
 
     /// <summary>Spread across instances.</summary>
     public AdminInstanceSpreadDto? InstanceSpread { get; init; }
+
+    /// <summary>Rule-based recommendations for this endpoint.</summary>
+    public IReadOnlyList<AdminHintDto> Hints { get; init; } = [];
 }
 
 /// <summary>Discovered endpoint metadata.</summary>

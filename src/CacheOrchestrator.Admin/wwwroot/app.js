@@ -62,6 +62,140 @@ function spreadCell(s) {
   return `${pct(s.min)}–${pct(s.max)} <span class="muted">μ ${pct(s.mean)}</span>`;
 }
 
+/** Rule-based hint badges (recommendations). */
+function hintBadges(hints) {
+  if (!hints || !hints.length) return "";
+  return `<span class="hint-badges">${hints.map(h =>
+    `<span class="hint ${esc(h.severity || "Info")}" title="${esc(h.message)}">${esc(shortHint(h))}</span>`
+  ).join("")}</span>`;
+}
+
+function shortHint(h) {
+  const map = {
+    "low-fc-hit-rate": "FC↓",
+    "low-oc-hit-rate": "OC↓",
+    "high-origin-share": "Origin↑",
+    "elevated-stale": "Stale",
+    "very-high-oc-hit-long-ttl": "TTL?",
+    "frequent-invalidations": "Inv↑",
+    "client-ttl-gt-output": "ClientTTL",
+    "schedule-phase": "Sched",
+    "instance-oc-hit-spread": "Drift",
+    "instance-origin-spread": "Drift",
+    "fc-miss-rate-vs-oc-share": "Rate≠share",
+  };
+  return map[h.code] || (h.severity || "Hint").slice(0, 4);
+}
+
+function parseCsvParam(params, key) {
+  const raw = params.get(key) || "";
+  if (!raw || raw === "*") return [];
+  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+function csvParam(ids) {
+  return ids && ids.length ? ids.join(",") : "";
+}
+
+/** Multi-select dropdown: options [{id,label}], selectedIds array. empty = all. */
+function multiSelectHtml(id, label, options, selectedIds) {
+  const all = !selectedIds || selectedIds.length === 0;
+  const summary = all
+    ? "All"
+    : selectedIds.length <= 2
+      ? selectedIds.join(", ")
+      : `${selectedIds.length} selected`;
+  return `
+    <label class="ms" data-ms="${esc(id)}">
+      <span>${esc(label)}</span>
+      <button type="button" class="ms-btn" data-ms-toggle="${esc(id)}">${esc(summary)} ▾</button>
+      <div class="ms-panel hidden" data-ms-panel="${esc(id)}">
+        <div class="ms-actions">
+          <button type="button" class="secondary" data-ms-all="${esc(id)}">All</button>
+          <button type="button" class="secondary" data-ms-none="${esc(id)}">None</button>
+        </div>
+        ${options.map((o) => {
+          const checked = all || selectedIds.includes(o.id);
+          return `<label><input type="checkbox" value="${esc(o.id)}" ${checked ? "checked" : ""}/> ${esc(o.label)}</label>`;
+        }).join("")}
+      </div>
+    </label>`;
+}
+
+function bindMultiSelects(root, onChange) {
+  root.querySelectorAll("[data-ms-toggle]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const id = btn.dataset.msToggle;
+      const panel = root.querySelector(`[data-ms-panel="${id}"]`);
+      root.querySelectorAll("[data-ms-panel]").forEach((p) => {
+        if (p !== panel) p.classList.add("hidden");
+      });
+      panel?.classList.toggle("hidden");
+    });
+  });
+  root.querySelectorAll("[data-ms-all]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const id = btn.dataset.msAll;
+      root.querySelectorAll(`[data-ms-panel="${id}"] input[type=checkbox]`).forEach((c) => { c.checked = true; });
+      updateMsSummary(root, id);
+      onChange?.();
+    });
+  });
+  root.querySelectorAll("[data-ms-none]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const id = btn.dataset.msNone;
+      root.querySelectorAll(`[data-ms-panel="${id}"] input[type=checkbox]`).forEach((c) => { c.checked = false; });
+      updateMsSummary(root, id);
+      onChange?.();
+    });
+  });
+  root.querySelectorAll("[data-ms-panel] input[type=checkbox]").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const panel = cb.closest("[data-ms-panel]");
+      const id = panel?.dataset.msPanel;
+      if (id) updateMsSummary(root, id);
+      onChange?.();
+    });
+  });
+  document.addEventListener("click", closeMsOutside, { once: false });
+}
+
+function closeMsOutside(ev) {
+  if (ev.target.closest("[data-ms]")) return;
+  document.querySelectorAll("[data-ms-panel]").forEach((p) => p.classList.add("hidden"));
+}
+
+function updateMsSummary(root, id) {
+  const panel = root.querySelector(`[data-ms-panel="${id}"]`);
+  const btn = root.querySelector(`[data-ms-toggle="${id}"]`);
+  if (!panel || !btn) return;
+  const boxes = [...panel.querySelectorAll("input[type=checkbox]")];
+  const checked = boxes.filter((c) => c.checked).map((c) => c.value);
+  const all = checked.length === 0 || checked.length === boxes.length;
+  btn.textContent = (all ? "All" : checked.length <= 2 ? checked.join(", ") : `${checked.length} selected`) + " ▾";
+}
+
+/** Selected ids; empty array means all (no filter). */
+function readMultiSelect(root, id) {
+  const panel = root.querySelector(`[data-ms-panel="${id}"]`);
+  if (!panel) return [];
+  const boxes = [...panel.querySelectorAll("input[type=checkbox]")];
+  const checked = boxes.filter((c) => c.checked).map((c) => c.value);
+  if (checked.length === 0 || checked.length === boxes.length) return [];
+  return checked;
+}
+
+function hintListHtml(hints) {
+  if (!hints || !hints.length) return "";
+  return `<ul class="alert-list" style="margin-top:0.75rem">${hints.map(h =>
+    `<li><strong class="hint ${esc(h.severity)}">${esc(h.severity)}</strong> ${esc(h.message)}</li>`
+  ).join("")}</ul>`;
+}
+
 // —— router ——
 function parseHash() {
   const raw = (location.hash || "#/overview").replace(/^#\/?/, "");
@@ -225,7 +359,7 @@ async function renderOverview() {
           <tbody>
             ${(o.topEndpoints || []).map(e => `
               <tr class="clickable" data-go="endpoints" data-route="${esc(e.route)}">
-                <td><code>${esc(e.route)}</code></td>
+                <td><code>${esc(e.route)}</code> ${hintBadges(e.hints)}</td>
                 <td>${num(e.requests)}</td>
                 <td>${pct(e.fc?.originShare, e.fc?.lowSample)}</td>
                 <td>${pct(e.oc?.hitShare, e.oc?.lowSample)}</td>
@@ -248,18 +382,30 @@ async function renderOverview() {
 async function renderEndpointsList(params) {
   setBreadcrumb([{ label: "Endpoints", href: "#/endpoints" }]);
   const search = params.get("search") || "";
-  const domain = params.get("domain") || "";
   const sort = params.get("sort") || "requests";
   const minRequests = params.get("minRequests") || "0";
   const take = params.get("take") || "50";
   const skip = Number(params.get("skip") || "0");
+  let selInstances = parseCsvParam(params, "instances");
+  let selDomains = parseCsvParam(params, "domains");
+
+  main().innerHTML = `<div class="card"><h2>Endpoints <span class="badge">primary unit</span></h2>
+    <p class="muted">Loading filters…</p></div>`;
+
+  const [instanceList, statsForFilters] = await Promise.all([
+    api("/api/instances"),
+    api("/api/stats?scope=all"),
+  ]);
+  const domainOpts = (statsForFilters.domains || []).map((d) => ({ id: d.name, label: d.name }));
+  const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
 
   main().innerHTML = `
     <div class="card">
       <h2>Endpoints <span class="badge">primary unit</span></h2>
       <form class="toolbar" id="epFilters">
         <label>Search<input name="search" value="${esc(search)}" placeholder="route or domain" /></label>
-        <label>Domain<input name="domain" value="${esc(domain)}" placeholder="e.g. hello" /></label>
+        ${multiSelectHtml("epInst", "Instances", instanceOpts, selInstances)}
+        ${multiSelectHtml("epDom", "Domains", domainOpts, selDomains)}
         <label>Min requests<input name="minRequests" type="number" min="0" value="${esc(minRequests)}" /></label>
         <label>Sort
           <select name="sort">
@@ -272,12 +418,16 @@ async function renderEndpointsList(params) {
       <div id="epTable"><p class="muted">Loading…</p></div>
     </div>`;
 
-  $("#epFilters").addEventListener("submit", (ev) => {
+  const form = $("#epFilters");
+  bindMultiSelects(form);
+
+  form.addEventListener("submit", (ev) => {
     ev.preventDefault();
-    const fd = new FormData(ev.target);
+    const fd = new FormData(form);
     navigate("endpoints", {
       search: fd.get("search"),
-      domain: fd.get("domain"),
+      instances: csvParam(readMultiSelect(form, "epInst")),
+      domains: csvParam(readMultiSelect(form, "epDom")),
       minRequests: fd.get("minRequests"),
       sort: fd.get("sort"),
       take,
@@ -285,17 +435,20 @@ async function renderEndpointsList(params) {
     });
   });
 
-  const q = new URLSearchParams({
-    sort, take, skip: String(skip),
-    search, domain, minRequests,
-  });
+  // re-read selection from URL after render
+  selInstances = parseCsvParam(params, "instances");
+  selDomains = parseCsvParam(params, "domains");
+
+  const q = new URLSearchParams({ sort, take, skip: String(skip), search, minRequests });
+  if (selInstances.length) q.set("instances", selInstances.join(","));
+  if (selDomains.length) q.set("domains", selDomains.join(","));
   const list = await api("/api/endpoints?" + q.toString());
 
   $("#epTable").innerHTML = `
     <table class="dense">
       <thead>
         <tr>
-          <th>Route</th><th>Domain</th><th>Req</th><th>Pipeline</th>
+          <th>Route</th><th>Domain</th><th>Hints</th><th>Req</th><th>Pipeline</th>
           <th>OC hit share</th><th>Origin share</th>
           <th class="secondary">FC miss rate</th>
         </tr>
@@ -305,12 +458,13 @@ async function renderEndpointsList(params) {
           <tr class="clickable" data-route="${esc(e.route)}">
             <td><code>${esc(e.route)}</code></td>
             <td>${e.configuredDomain ? `<a href="#/domains?name=${encodeURIComponent(e.configuredDomain)}">${esc(e.configuredDomain)}</a>` : "—"}</td>
+            <td>${hintBadges(e.hints)}</td>
             <td>${num(e.requests)}</td>
             <td>${pipelineBar(e.pipeline)}</td>
             <td>${pct(e.oc?.hitShare, e.oc?.lowSample)}</td>
             <td>${pct(e.fc?.originShare, e.fc?.lowSample)}</td>
             <td class="secondary">${pct(e.fc?.missRate, e.fc?.lowSample)}</td>
-          </tr>`).join("") : `<tr><td colspan="7" class="empty">No endpoints match filters</td></tr>`}
+          </tr>`).join("") : `<tr><td colspan="8" class="empty">No endpoints match filters</td></tr>`}
       </tbody>
     </table>
     <div class="pager">
@@ -325,11 +479,16 @@ async function renderEndpointsList(params) {
       navigate("endpoints", { route: tr.dataset.route });
     });
   });
+  const pageParams = () => ({
+    search, sort, minRequests, take,
+    instances: csvParam(selInstances),
+    domains: csvParam(selDomains),
+  });
   $("#epPrev")?.addEventListener("click", () => navigate("endpoints", {
-    search, domain, sort, minRequests, take, skip: Math.max(0, skip - Number(take)),
+    ...pageParams(), skip: Math.max(0, skip - Number(take)),
   }));
   $("#epNext")?.addEventListener("click", () => navigate("endpoints", {
-    search, domain, sort, minRequests, take, skip: skip + Number(take),
+    ...pageParams(), skip: skip + Number(take),
   }));
 }
 
@@ -352,7 +511,9 @@ async function renderEndpointDetail(route) {
     <div class="card">
       <h2><code>${esc(ep.route)}</code>
         ${ep.configuredDomain ? `<a class="badge" href="#/domains?name=${encodeURIComponent(ep.configuredDomain)}">${esc(ep.configuredDomain)}</a>` : ""}
+        ${hintBadges(ep.hints)}
       </h2>
+      ${hintListHtml(ep.hints)}
       <div class="kpi-row">
         <div class="kpi"><div class="label">Requests</div><div class="value">${num(ep.requests)}</div></div>
         <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowSample)}</div></div>
@@ -396,19 +557,30 @@ async function renderEndpointDetail(route) {
 }
 
 // —— D: Domains ——
-async function renderDomainsList() {
+async function renderDomainsList(params) {
   setBreadcrumb([{ label: "Domains", href: "#/domains" }]);
-  main().innerHTML = `<p class="muted">Loading domains…</p>`;
-  const stats = await api("/api/stats?scope=all");
+  const selInstances = parseCsvParam(params, "instances");
+
+  main().innerHTML = `<div class="card"><p class="muted">Loading domains…</p></div>`;
+  const instanceList = await api("/api/instances");
+  const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
+
+  const q = new URLSearchParams({ scope: "all" });
+  if (selInstances.length) q.set("instances", selInstances.join(","));
+  const stats = await api("/api/stats?" + q.toString());
   const domains = stats.domains || [];
 
   main().innerHTML = `
     <div class="card">
       <h2>Domains</h2>
+      <form class="toolbar" id="domFilters">
+        ${multiSelectHtml("domInst", "Instances", instanceOpts, selInstances)}
+        <button type="submit">Apply</button>
+      </form>
       <table class="dense">
         <thead>
           <tr>
-            <th>Domain</th><th>Version</th><th>Req</th><th>Pipeline</th>
+            <th>Domain</th><th>Hints</th><th>Version</th><th>Req</th><th>Pipeline</th>
             <th>OC hit share</th><th>Origin</th><th>Invalidations</th><th></th>
           </tr>
         </thead>
@@ -416,6 +588,7 @@ async function renderDomainsList() {
           ${domains.map(d => `
             <tr class="clickable" data-name="${esc(d.name)}">
               <td><code>${esc(d.name)}</code>${d.versionIsRuntimeOverride ? ' <span class="badge">rt</span>' : ""}</td>
+              <td>${hintBadges(d.hints)}</td>
               <td>${esc(d.version)}</td>
               <td>${num(d.requests)}</td>
               <td>${pipelineBar(d.pipeline)}</td>
@@ -423,13 +596,23 @@ async function renderDomainsList() {
               <td>${pct(d.fc?.originShare)}</td>
               <td>${num(d.invalidations)}</td>
               <td><a href="#/operations?domain=${encodeURIComponent(d.name)}" onclick="event.stopPropagation()">Ops</a></td>
-            </tr>`).join("") || `<tr><td colspan="8" class="empty">No domains</td></tr>`}
+            </tr>`).join("") || `<tr><td colspan="9" class="empty">No domains</td></tr>`}
         </tbody>
       </table>
     </div>`;
 
+  const form = $("#domFilters");
+  bindMultiSelects(form);
+  form.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    navigate("domains", { instances: csvParam(readMultiSelect(form, "domInst")) });
+  });
+
   main().querySelectorAll("tr.clickable").forEach((tr) => {
-    tr.addEventListener("click", () => navigate("domains", { name: tr.dataset.name }));
+    tr.addEventListener("click", () => navigate("domains", {
+      name: tr.dataset.name,
+      instances: csvParam(selInstances),
+    }));
   });
 }
 
@@ -458,8 +641,10 @@ async function renderDomainDetail(name) {
     <div class="card">
       <h2><code>${esc(name)}</code>
         ${domain.versionIsRuntimeOverride ? '<span class="badge">runtime version</span>' : ""}
+        ${hintBadges(domain.hints)}
         <a class="badge" href="#/operations?domain=${encodeURIComponent(name)}">Operations</a>
       </h2>
+      ${hintListHtml(domain.hints)}
       <div class="kpi-row">
         <div class="kpi"><div class="label">Version</div><div class="value" style="font-size:1rem">${esc(domain.version || cfg?.version || "—")}</div></div>
         <div class="kpi"><div class="label">Requests</div><div class="value">${num(domain.requests)}</div></div>
@@ -771,7 +956,7 @@ async function route() {
     } else if (root === "domains") {
       const name = params.get("name");
       if (name) await renderDomainDetail(name);
-      else await renderDomainsList();
+      else await renderDomainsList(params);
     } else if (root === "instances") {
       const id = params.get("id");
       if (id) await renderInstanceDetail(id);

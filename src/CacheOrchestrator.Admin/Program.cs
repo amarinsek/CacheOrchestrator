@@ -56,13 +56,14 @@ api.MapGet("/instances", async (AdminFanOutService fanOut, CancellationToken can
 api.MapGet("/stats", async (
     string? scope,
     bool? groupByInstance,
+    string? instances,
     AdminFanOutService fanOut,
     CancellationToken cancellationToken) =>
 {
     try
     {
         ClusterStatsDto stats = await fanOut
-            .GetStatsAsync(scope, cancellationToken, groupByInstance ?? false)
+            .GetStatsAsync(scope, cancellationToken, groupByInstance ?? false, instances)
             .ConfigureAwait(false);
         return Results.Ok(stats);
     }
@@ -82,24 +83,35 @@ api.MapGet("/endpoints", async (
     int? skip,
     string? search,
     string? domain,
+    string? domains,
+    string? instances,
     long? minRequests,
     bool? groupByInstance,
     AdminFanOutService fanOut,
     CancellationToken cancellationToken) =>
 {
-    IReadOnlyList<CacheOrchestrator.Admin.AdminEndpointStatsDto> list =
-        await fanOut
-            .GetTopEndpointsAsync(
-                sort,
-                take ?? 50,
-                cancellationToken,
-                groupByInstance ?? false,
-                search,
-                domain,
-                minRequests ?? 0,
-                skip ?? 0)
-            .ConfigureAwait(false);
-    return Results.Ok(list);
+    try
+    {
+        IReadOnlyList<CacheOrchestrator.Admin.AdminEndpointStatsDto> list =
+            await fanOut
+                .GetTopEndpointsAsync(
+                    sort,
+                    take ?? 50,
+                    cancellationToken,
+                    groupByInstance ?? false,
+                    search,
+                    domain,
+                    domains,
+                    instances,
+                    minRequests ?? 0,
+                    skip ?? 0)
+                .ConfigureAwait(false);
+        return Results.Ok(list);
+    }
+    catch (KeyNotFoundException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
 });
 
 api.MapGet("/domains", async (AdminFanOutService fanOut, CancellationToken cancellationToken) =>
