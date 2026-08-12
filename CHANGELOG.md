@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CacheOrchestrator.EFCore.Invalidation** (optional package) — SaveChanges interceptor that maps CLR types to `(domain, entityKind)` in **code** (`[CacheEntity]`, Fluent `CacheInvalidate`, or `Map<T>`) and calls `InvalidateEntitiesAsync` / `InvalidateEntityKindAsync` after a successful save. Not an EF cache provider. `ExecuteUpdate`/`ExecuteDelete` stay manual.
 - **CacheOrchestrator.Bus** (optional package) — HTTP cluster command bus for multi-instance command fan-out
   - Core contracts: `IClusterCommandBus` / `IClusterMembership` / `IClusterCommandHandler` (Null defaults in core)
   - Commands: `InvalidateCommand`, `VersionBumpCommand`, `TtlPatchCommand` (polymorphic JSON)

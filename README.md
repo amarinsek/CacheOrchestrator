@@ -76,6 +76,9 @@ dotnet add package CacheOrchestrator.Redis
 
 # Optional — multi-instance command bus (invalidate / Version / TTL across InMemory nodes):
 dotnet add package CacheOrchestrator.Bus
+
+# Optional — invalidate after EF Core SaveChanges (not an EF cache provider):
+dotnet add package CacheOrchestrator.EFCore.Invalidation
 ```
 
 ---
@@ -174,6 +177,7 @@ Everything below is available without opening other pages first. Links go deeper
 | **Snapshot vs dynamic domains** | OSM-style generation stamps vs CRUD + per-entity invalidation. [domain-profiles](docs/domain-profiles.md) |
 | **ETag modes** | `Version` (generation), `Resource` (per URL/id), or `None`. |
 | **Entity / resource id** | `GetOrSetEntityAsync(http, domain, entityKind, resourceId, …)` + `InvalidateEntityAsync(domain, entityKind, id)`. |
+| **EF Core SaveChanges** | `CacheOrchestrator.EFCore.Invalidation` — interceptor maps CLR types in code and purges entity tags after a successful save. [ef-core-invalidation](docs/ef-core-invalidation.md) |
 | **Auth controls** | Default: skip Output Cache for authenticated / `Authorization`. Opt-in with `BypassWhenAuthenticated` + `VaryOutputCacheByUser`. |
 | **Named Fusion instances** | Map domains to separate Redis clusters (e.g. PII vs catalog). [deployment](docs/deployment.md) |
 | **Redis package** | `CacheOrchestrator.Redis` — OC store + keyed L2 + backplane. Not in core. |
@@ -207,6 +211,7 @@ Start here, then go deep only when you need to:
 | FusionCache | [docs/fusion-cache.md](docs/fusion-cache.md) |
 | Cache keys | [docs/cache-keys.md](docs/cache-keys.md) |
 | Invalidation | [docs/invalidation.md](docs/invalidation.md) |
+| EF Core SaveChanges invalidation | [docs/ef-core-invalidation.md](docs/ef-core-invalidation.md) · [package README](src/CacheOrchestrator.EFCore.Invalidation/README.md) |
 | Cluster bus (multi-instance commands) | [docs/cluster-bus.md](docs/cluster-bus.md) · [src/CacheOrchestrator.Bus/README.md](src/CacheOrchestrator.Bus/README.md) |
 | Backends | [docs/backends.md](docs/backends.md) |
 | Observability | [docs/observability.md](docs/observability.md) |
@@ -215,7 +220,7 @@ Start here, then go deep only when you need to:
 | Architecture | [docs/architecture.md](docs/architecture.md) |
 | Benchmarks | [docs/benchmarks/results.md](docs/benchmarks/results.md) |
 
-**API reference:** XML docs ship with the NuGet packages ([CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/), [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/), [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/)). DocFX site planned post-1.0.
+**API reference:** XML docs ship with the NuGet packages ([CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/), [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/), [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/), [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/)). DocFX site planned post-1.0.
 
 | Project | |
 |---------|--|

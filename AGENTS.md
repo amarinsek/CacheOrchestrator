@@ -17,6 +17,7 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 - Package / project: `src/CacheOrchestrator` (core; InMemory only)  
 - Redis package: `src/CacheOrchestrator.Redis` (`AddRedisBackend`)  
 - Bus package: `src/CacheOrchestrator.Bus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
+- EF invalidation package: `src/CacheOrchestrator.EFCore.Invalidation` (`AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation`)  
 - Admin App: `src/CacheOrchestrator.Admin` (fan-out UI/API; not a NuGet package)  
 - Target frameworks: `net8.0` and `net10.0` (multi-target, see `.csproj`)  
 - Version: **MinVer** from Git tags `v*` (do not hardcode `<Version>` in Directory.Build.props)  
@@ -75,6 +76,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | Health: `AddCacheOrchestrator` on `IHealthChecksBuilder` | `CacheOrchestrator.Diagnostics` |
 | `MapCacheOrchestratorAdmin` / Local Admin API | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Admin` |
 | `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.Bus` |
+| `AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation` / `[CacheEntity]` | `CacheOrchestrator.EFCore` |
 | `IClusterCommandBus` / `IClusterMembership` / `IInstanceIdProvider` | `CacheOrchestrator.Cluster` |
 | Admin App fan-out host | `src/CacheOrchestrator.Admin` (`CacheAdmin` config) |
 
@@ -121,6 +123,7 @@ src/CacheOrchestrator/          core (InMemory only; no Redis/Bus packages)
   Utilities/
 src/CacheOrchestrator.Redis/    Redis package: registrar, RedisConnectionOptions, config resolve, validation
 src/CacheOrchestrator.Bus/      HTTP cluster bus + Static membership + cluster receive endpoints
+src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges interceptor (not an EF cache provider)
 src/CacheOrchestrator.Admin/    Admin App host (fan-out, UI, Scalar; not packable)
 tests/
 samples/

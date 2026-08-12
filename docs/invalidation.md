@@ -148,6 +148,34 @@ For **multi-instance fan-out** (publish to a bus so other nodes invalidate local
 
 ---
 
+## EF Core SaveChanges (`CacheOrchestrator.EFCore.Invalidation`)
+
+Optional package. Not an EF cache provider. After a **successful** `SaveChanges` it calls the public invalidator (and Bus, if configured).
+
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration);
+builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration);
+builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
+{
+    opt.UseSqlServer(cs);
+    opt.AddCacheOrchestratorInvalidation(sp);
+});
+```
+
+Map types in **code** (not appsettings): `[CacheEntity]`, Fluent `CacheInvalidate` on the EF model, or `Map<T>` at registration. Full guide: [ef-core-invalidation.md](ef-core-invalidation.md).
+
+`ExecuteUpdate` / `ExecuteDelete` / `ExecuteInsert` do **not** go through `ChangeTracker`:
+
+```csharp
+await invalidator.InvalidateEntitiesAsync("store", "products", productIds);
+// or, unknown / too many ids:
+await invalidator.InvalidateEntityKindAsync("store", "products");
+```
+
+List/index endpoints tagged only `domain:{name}` are not refreshed by row invalidation.
+
+---
+
 ## Multi-instance invalidation
 
 ### What the library does on one call

@@ -8,6 +8,7 @@ Domain-based caching for ASP.NET Core that orchestrates **Output Cache**, **Fusi
 | **Targets** | `net8.0`, `net10.0` |
 | **Redis (optional)** | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) |
 | **Cluster bus (optional)** | [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/) |
+| **EF SaveChanges invalidation (optional)** | [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) |
 | **Local Admin (opt-in)** | `Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin` — [admin.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/admin.md) |
 | **Full documentation** | **[GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)** · [cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md) |
 
@@ -23,6 +24,9 @@ dotnet add package CacheOrchestrator.Redis
 
 # Optional multi-instance command bus (InMemory peer invalidation / Version-TTL):
 dotnet add package CacheOrchestrator.Bus
+
+# Optional EF Core SaveChanges invalidation (not an EF cache):
+dotnet add package CacheOrchestrator.EFCore.Invalidation
 ```
 
 ## Quick start
