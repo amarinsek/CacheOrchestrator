@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CacheOrchestrator Admin</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>CacheOrchestrator Admin</h1>
+      <p class="muted">Multi-instance fan-out · live stats · invalidate · version / TTL</p>
+    </div>
+    <nav>
+      <a href="/scalar/v1" target="_blank" rel="noopener">API (Scalar)</a>
+      <button id="btnRefresh" type="button">Refresh</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Instances</h2>
+      <div id="instances" class="table-wrap">Loading…</div>
+    </section>
+
+    <section class="card">
+      <h2>Cluster stats <span id="scopeLabel" class="badge">all</span></h2>
+      <div id="stats" class="table-wrap">Loading…</div>
+    </section>
+
+    <section class="card">
+      <h2>Top endpoints (FC miss rate)</h2>
+      <div id="endpoints" class="table-wrap">Loading…</div>
+    </section>
+
+    <section class="card">
+      <h2>Operations</h2>
+      <form id="opForm" class="form-grid">
+        <label>Action
+          <select id="opAction">
+            <option value="invalidate">Invalidate domain</option>
+            <option value="version">Bump version</option>
+            <option value="ttl">Patch TTL (Output seconds)</option>
+          </select>
+        </label>
+        <label>Domain
+          <input id="opDomain" type="text" value="hello" required />
+        </label>
+        <label>Target
+          <select id="opTarget">
+            <option value="all">all</option>
+          </select>
+        </label>
+        <label id="ttlLabel" class="hidden">OutputCacheTtlSeconds
+          <input id="opTtl" type="number" min="0" value="120" />
+        </label>
+        <label id="versionLabel" class="hidden">Version (optional)
+          <input id="opVersion" type="text" placeholder="auto if empty" />
+        </label>
+        <button type="submit">Run</button>
+      </form>
+      <pre id="opResult" class="result">No operation yet.</pre>
+    </section>
+  </main>
+
+  <footer class="muted">
+    Configure instances in <code>CacheAdmin:Instances</code>. Local Admin must be enabled on each app.
+  </footer>
+  <script src="/app.js"></script>
+</body>
+</html>
