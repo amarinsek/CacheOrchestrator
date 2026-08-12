@@ -41,6 +41,12 @@ app.UseStaticFiles();
 
 RouteGroupBuilder api = app.MapGroup("/api").WithTags("Admin App");
 
+api.MapGet("/overview", async (AdminFanOutService fanOut, CancellationToken cancellationToken) =>
+{
+    OverviewDto overview = await fanOut.GetOverviewAsync(cancellationToken).ConfigureAwait(false);
+    return Results.Ok(overview);
+});
+
 api.MapGet("/instances", async (AdminFanOutService fanOut, CancellationToken cancellationToken) =>
 {
     IReadOnlyList<InstanceStatusDto> list = await fanOut.GetInstancesAsync(cancellationToken).ConfigureAwait(false);
@@ -73,13 +79,25 @@ api.MapGet("/stats", async (
 api.MapGet("/endpoints", async (
     string? sort,
     int? take,
+    int? skip,
+    string? search,
+    string? domain,
+    long? minRequests,
     bool? groupByInstance,
     AdminFanOutService fanOut,
     CancellationToken cancellationToken) =>
 {
     IReadOnlyList<CacheOrchestrator.Admin.AdminEndpointStatsDto> list =
         await fanOut
-            .GetTopEndpointsAsync(sort, take ?? 50, cancellationToken, groupByInstance ?? false)
+            .GetTopEndpointsAsync(
+                sort,
+                take ?? 50,
+                cancellationToken,
+                groupByInstance ?? false,
+                search,
+                domain,
+                minRequests ?? 0,
+                skip ?? 0)
             .ConfigureAwait(false);
     return Results.Ok(list);
 });

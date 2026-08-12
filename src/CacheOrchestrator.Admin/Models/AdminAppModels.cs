@@ -72,6 +72,52 @@ public sealed class InstanceCallResultDto
     public double LatencyMs { get; init; }
 }
 
+/// <summary>Compact overview for sticky header + Overview page.</summary>
+public sealed class OverviewDto
+{
+    /// <summary>UTC generation time.</summary>
+    public DateTimeOffset CollectedAtUtc { get; init; }
+
+    /// <summary>Instance health rows.</summary>
+    public required IReadOnlyList<InstanceStatusDto> Instances { get; init; }
+
+    /// <summary>Healthy instance count.</summary>
+    public int HealthyCount { get; init; }
+
+    /// <summary>Degraded instance count.</summary>
+    public int DegradedCount { get; init; }
+
+    /// <summary>Down instance count.</summary>
+    public int DownCount { get; init; }
+
+    /// <summary>Sum of requests across cluster.</summary>
+    public long TotalRequests { get; init; }
+
+    /// <summary>Sum of invalidations.</summary>
+    public long TotalInvalidations { get; init; }
+
+    /// <summary>Cluster-weighted pipeline shares.</summary>
+    public AdminPipelineDto Pipeline { get; init; } = new();
+
+    /// <summary>Cluster OC hit share.</summary>
+    public double? OcHitShare { get; init; }
+
+    /// <summary>Cluster origin share.</summary>
+    public double? OriginShare { get; init; }
+
+    /// <summary>Human-readable warnings.</summary>
+    public IReadOnlyList<string> Alerts { get; init; } = [];
+
+    /// <summary>Top endpoints by origin / traffic.</summary>
+    public IReadOnlyList<AdminEndpointStatsDto> TopEndpoints { get; init; } = [];
+
+    /// <summary>Domain count with traffic or config.</summary>
+    public int DomainCount { get; init; }
+
+    /// <summary>Endpoint count observed.</summary>
+    public int EndpointCount { get; init; }
+}
+
 /// <summary>Cluster (or single-instance) aggregated live stats.</summary>
 public sealed class ClusterStatsDto
 {

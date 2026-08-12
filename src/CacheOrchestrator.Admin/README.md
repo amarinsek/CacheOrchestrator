@@ -51,19 +51,37 @@ dotnet run --project src/CacheOrchestrator.Admin
 - Scalar API: http://localhost:5188/scalar/v1  
 - Health: http://localhost:5188/health  
 
+## UI (hash routes)
+
+| Route | Page |
+|-------|------|
+| `#/overview` | Dashboard: KPIs, pipeline, alerts, top endpoints |
+| `#/endpoints` | Endpoint list (search / sort / paginate) |
+| `#/endpoints?route=GET+%2Fhello` | Endpoint detail (OC + FC stale/factory, by-instance) |
+| `#/domains` | Domain list |
+| `#/domains?name=hello` | Domain detail + nested endpoints + config |
+| `#/instances` | Instance health list |
+| `#/instances?id=local-minimal` | Instance detail |
+| `#/operations` | Invalidate / version / TTL fan-out |
+
+Sticky header shows cluster health, pipeline, OC hit share, origin share, request totals (refreshes every 15s).
+
 ## Admin App API
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/api/overview` | Header + overview payload |
 | GET | `/api/instances` | List + health probe |
-| GET | `/api/stats?scope=all\|instance:{id}` | Aggregated live stats |
-| GET | `/api/endpoints?sort=missRate&take=10` | Top endpoints |
+| GET | `/api/stats?scope=all\|instance:{id}&groupByInstance=` | Aggregated live stats (shares + rates) |
+| GET | `/api/endpoints?sort=&take=&skip=&search=&domain=&minRequests=` | Endpoint list |
 | GET | `/api/domains` | Domain config snapshots (fan-out) |
 | POST | `/api/invalidate` | Fan-out invalidation (`target`: `all` \| `instance:{id}`) |
 | POST | `/api/domains/{domain}/version` | Fan-out version overlay |
 | PATCH | `/api/domains/{domain}/ttl` | Fan-out TTL overlay |
 
 Partial success is returned per instance in `results[]`.
+
+**Metrics:** primary UI uses **request shares** (`hitShare` of total requests). Layer **rates** (`hitRate` among layer traffic) are secondary — avoid treating FC miss rate as cluster-wide when OC serves most traffic.
 
 ## Notes
 

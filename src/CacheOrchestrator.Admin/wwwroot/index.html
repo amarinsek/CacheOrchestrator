@@ -7,73 +7,39 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <header class="top">
-    <div>
-      <h1>CacheOrchestrator Admin</h1>
-      <p class="muted">Endpoints first · request shares · multi-instance fan-out</p>
+  <!-- A: sticky header -->
+  <header class="app-header" id="appHeader">
+    <div class="brand">
+      <a href="#/overview" class="brand-link">CacheOrchestrator Admin</a>
+      <span class="muted brand-sub">multi-instance</span>
     </div>
-    <nav>
-      <label class="toggle">
-        <input type="checkbox" id="chkGroupByInstance" />
-        Group by instance
-      </label>
-      <a href="/scalar/v1" target="_blank" rel="noopener">API (Scalar)</a>
-      <button id="btnRefresh" type="button">Refresh</button>
-    </nav>
+    <div class="header-metrics" id="headerMetrics">
+      <span class="hm muted">Loading…</span>
+    </div>
+    <div class="header-actions">
+      <a href="/scalar/v1" target="_blank" rel="noopener" class="link-quiet">API</a>
+      <button type="button" id="btnHeaderRefresh" title="Refresh header + page">↻</button>
+    </div>
   </header>
 
-  <main>
-    <section class="card">
-      <h2>Instances</h2>
-      <div id="instances" class="table-wrap">Loading…</div>
-    </section>
+  <nav class="app-nav" id="appNav">
+    <a href="#/overview" data-nav="overview">Overview</a>
+    <a href="#/endpoints" data-nav="endpoints">Endpoints</a>
+    <a href="#/domains" data-nav="domains">Domains</a>
+    <a href="#/instances" data-nav="instances">Instances</a>
+    <a href="#/operations" data-nav="operations">Operations</a>
+  </nav>
 
-    <section class="card">
-      <h2>Endpoints <span class="badge">primary</span> <span id="scopeLabel" class="badge">all</span></h2>
-      <p class="muted hint">
-        Shares are of total requests (OC hit + miss + bypass). Layer rates (secondary) are of traffic that hit that layer only — ignore low-n badges.
-      </p>
-      <div id="endpoints" class="table-wrap">Loading…</div>
-    </section>
+  <div class="breadcrumb muted" id="breadcrumb"></div>
 
-    <section class="card">
-      <h2>Domains <span class="badge">aggregate</span></h2>
-      <div id="domains" class="table-wrap">Loading…</div>
-    </section>
-
-    <section class="card">
-      <h2>Operations</h2>
-      <form id="opForm" class="form-grid">
-        <label>Action
-          <select id="opAction">
-            <option value="invalidate">Invalidate domain</option>
-            <option value="version">Bump version</option>
-            <option value="ttl">Patch TTL (Output seconds)</option>
-          </select>
-        </label>
-        <label>Domain
-          <input id="opDomain" type="text" value="hello" required />
-        </label>
-        <label>Target
-          <select id="opTarget">
-            <option value="all">all</option>
-          </select>
-        </label>
-        <label id="ttlLabel" class="hidden">OutputCacheTtlSeconds
-          <input id="opTtl" type="number" min="0" value="120" />
-        </label>
-        <label id="versionLabel" class="hidden">Version (optional)
-          <input id="opVersion" type="text" placeholder="auto if empty" />
-        </label>
-        <button type="submit">Run</button>
-      </form>
-      <pre id="opResult" class="result">No operation yet.</pre>
-    </section>
+  <main id="appMain" class="app-main">
+    <p class="muted">Loading…</p>
   </main>
 
-  <footer class="muted">
-    Configure instances in <code>CacheAdmin:Instances</code>. Local Admin must be enabled on each app.
+  <footer class="app-footer muted">
+    Local Admin must be enabled on each app. Configure <code>CacheAdmin:Instances</code>.
   </footer>
+
   <script src="/app.js"></script>
 </body>
 </html>

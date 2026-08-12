@@ -116,32 +116,116 @@ public sealed class AdminFanOutService
         };
     }
 
+    public async Task<OverviewDto> GetOverviewAsync(CancellationToken cancellationToken)
+    {
+        Task<IReadOnlyList<InstanceStatusDto>> instancesTask = GetInstancesAsync(cancellationToken);
+        Task<ClusterStatsDto> statsTask = GetStatsAsync("all", cancellationToken, groupByInstance: false);
+        await Task.WhenAll(instancesTask, statsTask).ConfigureAwait(false);
+
+        IReadOnlyList<InstanceStatusDto> instances = await instancesTask.ConfigureAwait(false);
+        ClusterStatsDto stats = await statsTask.ConfigureAwait(false);
+
+        long totalRequests = stats.Domains.Sum(d => d.Requests);
+        long totalInvalidations = stats.Domains.Sum(d => d.Invalidations);
+
+        // Weighted pipeline from domain sums (rebuild from totals).
+        long ocH = stats.Domains.Sum(d => d.Oc.Hits);
+        long ocM = stats.Domains.Sum(d => d.Oc.Misses);
+        long ocB = stats.Domains.Sum(d => d.Oc.Bypass);
+        long fcH = stats.Domains.Sum(d => d.Fc.Hits);
+        long fcM = stats.Domains.Sum(d => d.Fc.Misses);
+        long fcS = stats.Domains.Sum(d => d.Fc.Stale);
+        long fcB = stats.Domains.Sum(d => d.Fc.Bypass);
+        long runs = stats.Domains.Sum(d => d.Fc.FactoryRuns);
+        long fails = stats.Domains.Sum(d => d.Fc.FactoryFailures);
+        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
+            AdminStatsMath.BuildAll(ocH, ocM, ocB, fcH, fcM, fcS, fcB, runs, fails);
+
+        List<string> alerts = [];
+        int down = instances.Count(i => i.Status == InstanceHealthStatus.Down);
+        int degraded = instances.Count(i => i.Status == InstanceHealthStatus.Degraded);
+        if (down > 0)
+            alerts.Add($"{down} instance(s) down.");
+        if (degraded > 0)
+            alerts.Add($"{degraded} instance(s) degraded.");
+        if (instances.Count > 1)
+            alerts.Add("Multiple instances: ensure Local Admin fan-out targets all nodes (L1 is per process).");
+
+        IReadOnlyList<AdminEndpointStatsDto> top = stats.Endpoints
+            .OrderByDescending(e => e.Fc.OriginShare ?? e.Requests)
+            .Take(10)
+            .ToArray();
+
+        return new OverviewDto
+        {
+            CollectedAtUtc = _time.GetUtcNow(),
+            Instances = instances,
+            HealthyCount = instances.Count(i => i.Status == InstanceHealthStatus.Healthy),
+            DegradedCount = degraded,
+            DownCount = down,
+            TotalRequests = totalRequests > 0 ? totalRequests : stats.Endpoints.Sum(e => e.Requests),
+            TotalInvalidations = totalInvalidations,
+            Pipeline = pipeline,
+            OcHitShare = oc.HitShare,
+            OriginShare = fc.OriginShare,
+            Alerts = alerts,
+            TopEndpoints = top,
+            DomainCount = stats.Domains.Count,
+            EndpointCount = stats.Endpoints.Count
+        };
+    }
+
     public async Task<IReadOnlyList<AdminEndpointStatsDto>> GetTopEndpointsAsync(
         string? sort,
         int take,
         CancellationToken cancellationToken,
-        bool groupByInstance = false)
+        bool groupByInstance = false,
+        string? search = null,
+        string? domain = null,
+        long minRequests = 0,
+        int skip = 0)
     {
         ClusterStatsDto stats = await GetStatsAsync("all", cancellationToken, groupByInstance)
             .ConfigureAwait(false);
         IEnumerable<AdminEndpointStatsDto> all = stats.Endpoints;
 
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string s = search.Trim();
+            all = all.Where(e =>
+                e.Route.Contains(s, StringComparison.OrdinalIgnoreCase)
+                || (e.ConfiguredDomain?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        if (!string.IsNullOrWhiteSpace(domain))
+        {
+            string d = domain.Trim();
+            all = all.Where(e =>
+                string.Equals(e.ConfiguredDomain, d, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (minRequests > 0)
+            all = all.Where(e => e.Requests >= minRequests);
+
         take = Math.Clamp(take, 1, 500);
+        skip = Math.Max(0, skip);
         string sortKey = (sort ?? "originShare").Trim().ToLowerInvariant();
 
         IOrderedEnumerable<AdminEndpointStatsDto> ordered = sortKey switch
         {
             "hits" or "traffic" or "requests" => all.OrderByDescending(e => e.Requests),
+            "route" => all.OrderBy(e => e.Route, StringComparer.OrdinalIgnoreCase),
             "ochitshare" => all.OrderByDescending(e => e.Oc.HitShare ?? -1),
             "ocmissrate" => all.OrderByDescending(e => e.Oc.MissRate ?? -1),
             "fchitshare" => all.OrderByDescending(e => e.Fc.HitShare ?? -1),
             "fcmissshare" => all.OrderByDescending(e => e.Fc.MissShare ?? -1),
             "fcmissrate" or "missrate" => all.OrderByDescending(e => e.Fc.MissRate ?? -1),
             "fchits" => all.OrderByDescending(e => e.Fc.Hits),
+            "stale" => all.OrderByDescending(e => e.Fc.Stale),
             _ => all.OrderByDescending(e => e.Fc.OriginShare ?? e.Fc.MissShare ?? -1)
         };
 
-        return ordered.Take(take).ToArray();
+        return ordered.Skip(skip).Take(take).ToArray();
     }
 
     public async Task<FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>>> GetDomainsAsync(
