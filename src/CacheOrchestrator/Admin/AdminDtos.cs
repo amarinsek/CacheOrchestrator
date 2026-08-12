@@ -423,6 +423,13 @@ public sealed class AdminInvalidateRequest
 
     /// <summary>Tags (required for tags scope).</summary>
     public string[]? Tags { get; set; }
+
+    /// <summary>
+    /// When <see langword="true"/> and the cluster bus is enabled, peers receive the same invalidation.
+    /// Default <see langword="false"/> = this process only (does not publish).
+    /// Programmatic <c>ICacheOrchestratorInvalidator</c> always publishes when the bus is enabled.
+    /// </summary>
+    public bool Distribute { get; set; }
 }
 
 /// <summary>Version set/bump request body.</summary>
@@ -432,6 +439,12 @@ public sealed class AdminVersionRequest
     /// New version token. When null or empty, the server generates a unique stamp.
     /// </summary>
     public string? Version { get; set; }
+
+    /// <summary>
+    /// When <see langword="true"/> and the cluster bus is enabled, peers apply the same Version overlay.
+    /// Default <see langword="false"/> = this process only.
+    /// </summary>
+    public bool Distribute { get; set; }
 }
 
 /// <summary>TTL patch request body (all fields optional).</summary>
@@ -454,6 +467,12 @@ public sealed class AdminTtlPatchRequest
 
     /// <summary>Client min TTL seconds.</summary>
     public int? ClientTtlMinSeconds { get; set; }
+
+    /// <summary>
+    /// When <see langword="true"/> and the cluster bus is enabled, peers apply the same TTL overlay.
+    /// Default <see langword="false"/> = this process only.
+    /// </summary>
+    public bool Distribute { get; set; }
 }
 
 /// <summary>Response after version or TTL mutation.</summary>

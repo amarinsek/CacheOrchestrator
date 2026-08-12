@@ -1,5 +1,6 @@
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
@@ -119,7 +120,8 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
 
             Uri applyUri = BuildApplyUri(peer.BaseUrl, routePrefix);
             using HttpRequestMessage request = new(HttpMethod.Post, applyUri);
-            request.Content = JsonContent.Create(command, command.GetType(), options: JsonOptions);
+            // Serialize as base ClusterCommand so polymorphic commandType discriminator is written.
+            request.Content = JsonContent.Create(command, typeof(ClusterCommand), options: JsonOptions);
             if (!string.IsNullOrEmpty(apiKey))
                 request.Headers.TryAddWithoutValidation(ClusterEndpointAuth.HeaderName, apiKey);
 
@@ -129,6 +131,7 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
 
             if (!response.IsSuccessStatusCode)
             {
+                CacheOrchestratorMetrics.RecordClusterPublishFailure("http_status");
                 _logger.LogWarning(
                     "Cluster bus peer {PeerId} returned {StatusCode} for command {CommandId}",
                     peer.Id,
@@ -138,6 +141,7 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            CacheOrchestratorMetrics.RecordClusterPublishFailure("timeout");
             _logger.LogWarning(
                 "Cluster bus peer {PeerId} timed out for command {CommandId} (timeoutMs={TimeoutMs})",
                 peer.Id,
@@ -146,6 +150,7 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
         }
         catch (Exception ex)
         {
+            CacheOrchestratorMetrics.RecordClusterPublishFailure("transport");
             _logger.LogWarning(
                 ex,
                 "Cluster bus peer {PeerId} failed for command {CommandId}",

@@ -92,6 +92,22 @@ app.MapCacheOrchestratorAdmin(); // after routing is available; safe no-op when 
 | `Admin:TrackEndpoints` | `true` | Per-route counters |
 | `Admin:TrackLatency` | `false` | Extra cost if true |
 
+Process identity is **`Cache:InstanceId`** (not under Admin). Same id is used by the optional cluster bus.
+
+### Cluster distribute (with CacheOrchestrator.Bus)
+
+When the HTTP bus is enabled, Local Admin mutation bodies accept **`distribute`** (default `false`):
+
+| Endpoint | `distribute: false` | `distribute: true` |
+|----------|---------------------|--------------------|
+| `POST …/invalidate` | This process only | Local + peers via bus |
+| `POST …/domains/{d}/version` | Local Version overlay | Local + `VersionBumpCommand` |
+| `PATCH …/domains/{d}/ttl` | Local TTL overlay | Local + `TtlPatchCommand` |
+
+Do **not** combine Admin App full fan-out **and** `distribute: true` for the same action. Prefer either multi-target Admin App calls without distribute, or single-target + `distribute: true` when the bus owns peer membership.
+
+Receive path for peers: `MapCacheOrchestratorHttpBus()` (not gated on `Admin:Enabled`).
+
 ### Auth header
 
 When `ApiKey` is set, every Local Admin call must send:

@@ -17,6 +17,7 @@ public class InvalidatorClusterPublishTests
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
     private readonly IClusterCommandBus _bus = Substitute.For<IClusterCommandBus>();
     private readonly IInstanceIdProvider _instanceId = Substitute.For<IInstanceIdProvider>();
+    private readonly ClusterCommandFactory _factory;
 
     public InvalidatorClusterPublishTests()
     {
@@ -27,6 +28,7 @@ public class InvalidatorClusterPublishTests
         _fusionProvider.GetCache("default").Returns(_defaultFusion);
         _options.CurrentValue.Returns(new CacheOrchestratorOptions { Namespace = "app1" });
         _instanceId.InstanceId.Returns("origin-1");
+        _factory = new ClusterCommandFactory(_instanceId, _options);
     }
 
     [Fact]
@@ -75,6 +77,21 @@ public class InvalidatorClusterPublishTests
     }
 
     [Fact]
+    public async Task InvalidateDomainAsync_WhenLocalOnlyScope_DoesNotPublish()
+    {
+        _bus.IsEnabled.Returns(true);
+        CacheOrchestratorInvalidator sut = CreateSut();
+
+        using (ClusterCommandScope.EnterLocalOnly())
+        {
+            await sut.InvalidateDomainAsync("products", TestContext.Current.CancellationToken);
+        }
+
+        await _bus.DidNotReceive()
+            .PublishAsync(Arg.Any<ClusterCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task InvalidateDomainAsync_WhenPublishThrows_StillReturnsLocalSuccess()
     {
         _bus.IsEnabled.Returns(true);
@@ -98,5 +115,5 @@ public class InvalidatorClusterPublishTests
             NullLogger<CacheOrchestratorInvalidator>.Instance,
             adminStats: null,
             clusterBus: _bus,
-            instanceId: _instanceId);
+            clusterCommands: _factory);
 }

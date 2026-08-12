@@ -26,7 +26,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
     private readonly ILogger<CacheOrchestratorInvalidator> _logger;
     private readonly IAdminStatsCollector _adminStats;
     private readonly IClusterCommandBus _clusterBus;
-    private readonly IInstanceIdProvider _instanceId;
+    private readonly ClusterCommandFactory? _clusterCommands;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CacheOrchestratorInvalidator"/> class.
@@ -40,7 +40,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         ILogger<CacheOrchestratorInvalidator> logger,
         IAdminStatsCollector? adminStats = null,
         IClusterCommandBus? clusterBus = null,
-        IInstanceIdProvider? instanceId = null)
+        ClusterCommandFactory? clusterCommands = null)
     {
         ArgumentNullException.ThrowIfNull(fusionProvider);
         ArgumentNullException.ThrowIfNull(domainOptionsProvider);
@@ -57,13 +57,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         _logger = logger;
         _adminStats = adminStats ?? NoOpAdminStatsCollector.Instance;
         _clusterBus = clusterBus ?? NullClusterCommandBus.Instance;
-        _instanceId = instanceId ?? new FallbackInstanceIdProvider(options);
-    }
-
-    /// <summary>Test/DI fallback when <see cref="IInstanceIdProvider"/> is not injected.</summary>
-    private sealed class FallbackInstanceIdProvider(IOptionsMonitor<CacheOrchestratorOptions> options) : IInstanceIdProvider
-    {
-        public string InstanceId => DefaultInstanceIdProvider.Resolve(options.CurrentValue.InstanceId);
+        _clusterCommands = clusterCommands;
     }
 
     /// <inheritdoc />
@@ -277,10 +271,12 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         IReadOnlyList<string> tags,
         CancellationToken cancellationToken)
     {
-        if (!_clusterBus.IsEnabled || ClusterCommandScope.IsRemote || tags.Count == 0)
+        if (!_clusterBus.IsEnabled || ClusterCommandScope.SuppressPublish || tags.Count == 0)
             return;
 
-        CacheOrchestratorOptions opts = _options.CurrentValue;
+        if (_clusterCommands is null)
+            return;
+
         string? domain = null;
         string? entityId = null;
 
@@ -298,26 +294,17 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             }
         }
 
-        InvalidateCommand command = new()
-        {
-            CommandId = Guid.NewGuid(),
-            OriginInstanceId = _instanceId.InstanceId,
-            Namespace = opts.Namespace ?? string.Empty,
-            TimestampUtc = DateTimeOffset.UtcNow,
-            Kind = kind,
-            Scope = scopeLabel,
-            Tags = tags is string[] arr ? arr : [.. tags],
-            Domain = domain,
-            EntityId = entityId
-        };
+        InvalidateCommand command = _clusterCommands.CreateInvalidate(kind, scopeLabel, tags, domain, entityId);
 
         try
         {
             await _clusterBus.PublishAsync(command, cancellationToken).ConfigureAwait(false);
+            CacheOrchestratorMetrics.RecordClusterPublished(nameof(InvalidateCommand));
         }
         catch (Exception ex)
         {
             // Local invalidation already finished; peer delivery is best-effort.
+            CacheOrchestratorMetrics.RecordClusterPublishFailure("exception");
             _logger.LogWarning(
                 ex,
                 "Cluster bus publish failed for scope '{Scope}' kind={Kind} commandId={CommandId}",

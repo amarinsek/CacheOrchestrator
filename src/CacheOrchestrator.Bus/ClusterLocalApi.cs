@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CacheOrchestrator.Bus;
 
@@ -15,6 +17,13 @@ namespace CacheOrchestrator.Bus;
 /// </summary>
 public static class ClusterLocalApi
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     /// <summary>
     /// Maps <c>.../cluster/apply</c> and <c>.../cluster/info</c> when the HTTP bus is registered
     /// and <c>Cache:Cluster:Bus:Enabled</c> is true. Safe no-op otherwise.
@@ -51,12 +60,24 @@ public static class ClusterLocalApi
             .WithMetadata(new OutputCacheAttribute { NoStore = true });
 
         group.MapPost("/cluster/apply", async (
-            InvalidateCommand? command,
+            HttpRequest request,
             IClusterCommandHandler handler,
             IInstanceIdProvider instanceId,
             IOptionsMonitor<CacheOrchestratorOptions> options,
             CancellationToken cancellationToken) =>
         {
+            ClusterCommand? command;
+            try
+            {
+                command = await JsonSerializer
+                    .DeserializeAsync<ClusterCommand>(request.Body, JsonOptions, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (JsonException)
+            {
+                return Results.BadRequest(new { error = "Invalid cluster command JSON." });
+            }
+
             if (command is null)
                 return Results.BadRequest(new { error = "Request body is required." });
 
@@ -81,7 +102,12 @@ public static class ClusterLocalApi
                 return Results.Ok(new { applied = false, reason = "origin-is-self" });
 
             await handler.ApplyLocalAsync(command, cancellationToken).ConfigureAwait(false);
-            return Results.Ok(new { applied = true, commandId = command.CommandId });
+            return Results.Ok(new
+            {
+                applied = true,
+                commandId = command.CommandId,
+                commandType = command.GetType().Name
+            });
         });
 
         group.MapGet("/cluster/info", async (

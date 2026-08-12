@@ -1,8 +1,14 @@
+using System.Text.Json.Serialization;
+
 namespace CacheOrchestrator.Cluster;
 
 /// <summary>
 /// Base type for cluster-wide CacheOrchestrator commands (never carries cache payloads).
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "commandType")]
+[JsonDerivedType(typeof(InvalidateCommand), "invalidate")]
+[JsonDerivedType(typeof(VersionBumpCommand), "versionBump")]
+[JsonDerivedType(typeof(TtlPatchCommand), "ttlPatch")]
 public abstract record ClusterCommand
 {
     /// <summary>Unique id for this command instance (idempotency / diagnostics).</summary>

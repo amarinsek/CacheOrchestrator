@@ -1,4 +1,6 @@
+using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -77,8 +79,11 @@ public static class AdminLocalApi
                 return Results.BadRequest(new { error = "Request body is required." });
 
             string scope = (body.Scope ?? "domain").Trim().ToLowerInvariant();
-            CacheInvalidationResult result;
 
+            // distribute=false (default): local only. distribute=true: invalidator may publish when bus enabled.
+            using IDisposable? localOnly = body.Distribute ? null : ClusterCommandScope.EnterLocalOnly();
+
+            CacheInvalidationResult result;
             switch (scope)
             {
                 case "domain":
@@ -109,11 +114,15 @@ public static class AdminLocalApi
             return Results.Ok(result);
         });
 
-        group.MapPost("/domains/{domain}/version", (
+        group.MapPost("/domains/{domain}/version", async (
             string domain,
             AdminVersionRequest? body,
             IDomainRuntimeOverrideStore overrides,
-            AdminQueryService query) =>
+            AdminQueryService query,
+            IClusterCommandBus bus,
+            ClusterCommandFactory commands,
+            ILoggerFactory loggerFactory,
+            CancellationToken cancellationToken) =>
         {
             if (string.IsNullOrWhiteSpace(domain))
                 return Results.BadRequest(new { error = "domain is required." });
@@ -124,6 +133,23 @@ public static class AdminLocalApi
                 : requested.Trim();
 
             overrides.SetVersion(domain, version);
+
+            if (body?.Distribute == true && bus.IsEnabled)
+            {
+                VersionBumpCommand cmd = commands.CreateVersionBump(domain, version);
+                try
+                {
+                    await bus.PublishAsync(cmd, cancellationToken).ConfigureAwait(false);
+                    CacheOrchestratorMetrics.RecordClusterPublished(nameof(VersionBumpCommand));
+                }
+                catch (Exception ex)
+                {
+                    CacheOrchestratorMetrics.RecordClusterPublishFailure("exception");
+                    loggerFactory.CreateLogger("CacheOrchestrator.Admin")
+                        .LogWarning(ex, "Cluster publish failed for VersionBump on domain {Domain}", domain);
+                }
+            }
+
             AdminDomainConfigDto effective = query.GetDomainConfig(DomainName.Normalize(domain));
             return Results.Ok(new AdminDomainMutationResultDto
             {
@@ -132,11 +158,15 @@ public static class AdminLocalApi
             });
         });
 
-        group.MapMethods("/domains/{domain}/ttl", ["PATCH"], (
+        group.MapMethods("/domains/{domain}/ttl", ["PATCH"], async (
             string domain,
             AdminTtlPatchRequest body,
             IDomainRuntimeOverrideStore overrides,
-            AdminQueryService query) =>
+            AdminQueryService query,
+            IClusterCommandBus bus,
+            ClusterCommandFactory commands,
+            ILoggerFactory loggerFactory,
+            CancellationToken cancellationToken) =>
         {
             if (string.IsNullOrWhiteSpace(domain))
                 return Results.BadRequest(new { error = "domain is required." });
@@ -161,6 +191,23 @@ public static class AdminLocalApi
                 return Results.BadRequest(new { error = validationError });
 
             overrides.PatchTtl(domain, patch);
+
+            if (body.Distribute && bus.IsEnabled)
+            {
+                TtlPatchCommand cmd = commands.CreateTtlPatch(domain, patch);
+                try
+                {
+                    await bus.PublishAsync(cmd, cancellationToken).ConfigureAwait(false);
+                    CacheOrchestratorMetrics.RecordClusterPublished(nameof(TtlPatchCommand));
+                }
+                catch (Exception ex)
+                {
+                    CacheOrchestratorMetrics.RecordClusterPublishFailure("exception");
+                    loggerFactory.CreateLogger("CacheOrchestrator.Admin")
+                        .LogWarning(ex, "Cluster publish failed for TtlPatch on domain {Domain}", domain);
+                }
+            }
+
             AdminDomainConfigDto effective = query.GetDomainConfig(DomainName.Normalize(domain));
             return Results.Ok(new AdminDomainMutationResultDto
             {

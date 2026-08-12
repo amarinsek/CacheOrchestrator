@@ -1,3 +1,4 @@
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Invalidation;
@@ -9,6 +10,7 @@ namespace CacheOrchestrator.UnitTests.Cluster;
 public class DefaultClusterCommandHandlerTests
 {
     private readonly ICacheOrchestratorInvalidator _invalidator = Substitute.For<ICacheOrchestratorInvalidator>();
+    private readonly IDomainRuntimeOverrideStore _overrides = Substitute.For<IDomainRuntimeOverrideStore>();
     private readonly IInstanceIdProvider _instanceId = Substitute.For<IInstanceIdProvider>();
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
     private readonly DefaultClusterCommandHandler _sut;
@@ -19,6 +21,7 @@ public class DefaultClusterCommandHandlerTests
         _options.CurrentValue.Returns(new CacheOrchestratorOptions { Namespace = "app1" });
         _sut = new DefaultClusterCommandHandler(
             _invalidator,
+            _overrides,
             _instanceId,
             _options,
             NullLogger<DefaultClusterCommandHandler>.Instance);
@@ -27,7 +30,7 @@ public class DefaultClusterCommandHandlerTests
     [Fact]
     public async Task ApplyLocalAsync_WhenNamespaceMismatch_DoesNotInvalidate()
     {
-        InvalidateCommand cmd = CreateCommand(ns: "other", origin: "remote-2");
+        InvalidateCommand cmd = CreateInvalidate(ns: "other", origin: "remote-2");
 
         await _sut.ApplyLocalAsync(cmd, TestContext.Current.CancellationToken);
 
@@ -38,7 +41,7 @@ public class DefaultClusterCommandHandlerTests
     [Fact]
     public async Task ApplyLocalAsync_WhenOriginIsSelf_DoesNotInvalidate()
     {
-        InvalidateCommand cmd = CreateCommand(ns: "app1", origin: "local-1");
+        InvalidateCommand cmd = CreateInvalidate(ns: "app1", origin: "local-1");
 
         await _sut.ApplyLocalAsync(cmd, TestContext.Current.CancellationToken);
 
@@ -49,7 +52,7 @@ public class DefaultClusterCommandHandlerTests
     [Fact]
     public async Task ApplyLocalAsync_Domain_CallsInvalidatorUnderRemoteScope()
     {
-        InvalidateCommand cmd = CreateCommand(ns: "app1", origin: "remote-2") with
+        InvalidateCommand cmd = CreateInvalidate(ns: "app1", origin: "remote-2") with
         {
             Kind = CacheInvalidationKind.Domain,
             Domain = "products",
@@ -74,7 +77,45 @@ public class DefaultClusterCommandHandlerTests
         ClusterCommandScope.IsRemote.Should().BeFalse();
     }
 
-    private static InvalidateCommand CreateCommand(string ns, string origin) => new()
+    [Fact]
+    public async Task ApplyLocalAsync_VersionBump_SetsRuntimeOverride()
+    {
+        VersionBumpCommand cmd = new()
+        {
+            CommandId = Guid.NewGuid(),
+            OriginInstanceId = "remote-2",
+            Namespace = "app1",
+            TimestampUtc = DateTimeOffset.UtcNow,
+            Domain = "catalog",
+            Version = "v-remote"
+        };
+
+        await _sut.ApplyLocalAsync(cmd, TestContext.Current.CancellationToken);
+
+        _overrides.Received(1).SetVersion("catalog", "v-remote");
+    }
+
+    [Fact]
+    public async Task ApplyLocalAsync_TtlPatch_PatchesRuntimeOverride()
+    {
+        TtlPatchCommand cmd = new()
+        {
+            CommandId = Guid.NewGuid(),
+            OriginInstanceId = "remote-2",
+            Namespace = "app1",
+            TimestampUtc = DateTimeOffset.UtcNow,
+            Domain = "catalog",
+            OutputCacheTtlSeconds = 42
+        };
+
+        await _sut.ApplyLocalAsync(cmd, TestContext.Current.CancellationToken);
+
+        _overrides.Received(1).PatchTtl(
+            "catalog",
+            Arg.Is<DomainTtlPatch>(p => p.OutputCacheTtlSeconds == 42));
+    }
+
+    private static InvalidateCommand CreateInvalidate(string ns, string origin) => new()
     {
         CommandId = Guid.NewGuid(),
         OriginInstanceId = origin,

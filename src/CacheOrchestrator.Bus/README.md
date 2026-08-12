@@ -4,11 +4,13 @@ Optional **cluster command bus** for [CacheOrchestrator](https://www.nuget.org/p
 
 | | |
 |--|--|
-| **Provides** | HTTP fan-out of invalidation (and later version/TTL) commands across instances |
+| **Provides** | HTTP fan-out of invalidate / version-bump / TTL-patch commands across instances |
 | **Requires** | `CacheOrchestrator` core + `AddHttpClusterBus()` + `MapCacheOrchestratorHttpBus()` |
 | **Does not** | Replace Redis Fusion backplane for L1/L2 coherence |
 
-Without this package the core uses a **Null** bus (zero effect).
+Without this package the core uses a **Null** bus (zero effect on the hot path).
+
+Programmatic `Invalidate*` always publishes when the bus is **enabled**. Local Admin uses `distribute: true` to publish; default is local-only.
 
 ## Install
 
