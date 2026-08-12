@@ -9,10 +9,16 @@
   --warn: #e6b84d;
   --bad: #f07178;
   --header: #121820;
+  --header-elevated: #151b23;
   --font: "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+
+html {
+  color-scheme: dark;
+}
 
 body {
   margin: 0;
@@ -21,60 +27,71 @@ body {
   color: var(--text);
   line-height: 1.45;
   min-height: 100vh;
+  color-scheme: dark;
 }
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* —— sticky shell —— */
-.app-header {
+/* —— sticky chrome: logo → header strip → menu strip —— */
+.app-chrome {
   position: sticky;
   top: 0;
   z-index: 40;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1.25rem;
-  padding: 0.65rem 1.25rem;
+  flex-direction: column;
   background: var(--header);
   border-bottom: 1px solid var(--border);
 }
 
-.brand { display: flex; align-items: baseline; gap: 0.5rem; min-width: 12rem; }
-.brand-link { color: var(--text); font-weight: 650; font-size: 1.05rem; text-decoration: none; }
+/* 1) App logo / brand (above the strips) */
+.chrome-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.55rem 1.25rem 0.4rem;
+  white-space: nowrap;
+}
+
+.brand-link {
+  color: var(--text);
+  font-weight: 650;
+  font-size: 1.05rem;
+  text-decoration: none;
+}
 .brand-sub { font-size: 0.8rem; }
 
-.header-metrics {
-  flex: 1;
+/*
+ * Shared strip style for:
+ * 2) header metrics row
+ * 3) menu row
+ */
+.chrome-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem 1.1rem;
   align-items: center;
+  gap: 0.45rem 0.85rem;
+  margin: 0;
+  padding: 0.4rem 1.25rem;
+  background: var(--header-elevated);
+  border-top: 1px solid var(--border);
+  min-height: 2.5rem;
+}
+
+/* 2) Header metrics strip */
+.chrome-metrics,
+.header-metrics {
   font-size: 0.85rem;
 }
 
-.hm { display: inline-flex; align-items: center; gap: 0.35rem; }
+.hm { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
 .hm strong { font-weight: 650; }
-
-.header-actions {
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
-}
 
 .link-quiet { color: var(--muted); font-size: 0.85rem; }
 
+/* 3) Menu strip — same chrome-strip base + nav layout */
 .app-nav {
-  position: sticky;
-  top: 52px;
-  z-index: 30;
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.35rem 1.25rem;
-  background: #151b23;
-  border-bottom: 1px solid var(--border);
 }
 
 .nav-left, .nav-right {
@@ -118,6 +135,172 @@ a:hover { text-decoration: underline; }
 .nav-hints-badge .sev-stack {
   font-size: 0.7rem;
   padding: 0.1rem 0.3rem;
+}
+
+.nav-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.2rem 0.1rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--header-elevated);
+  color: var(--text);
+}
+
+.nav-refresh select,
+select#selAutoRefresh {
+  border: none;
+  background-color: #0f1419;
+  color: var(--text);
+  padding: 0.28rem 1.35rem 0.28rem 0.4rem;
+  font: inherit;
+  font-size: 0.8rem;
+  min-width: 4.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+  color-scheme: dark;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 11px) calc(50% - 2px), calc(100% - 6px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.nav-refresh select:hover,
+select#selAutoRefresh:hover {
+  background-color: #1a222c;
+}
+
+.nav-refresh select:focus,
+select#selAutoRefresh:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: 0;
+}
+
+.nav-refresh select option,
+select#selAutoRefresh option {
+  background-color: #1a222c;
+  color: var(--text);
+}
+
+/* Force dark native form controls in the chrome */
+.app-chrome select,
+.app-chrome button,
+.app-chrome input {
+  color-scheme: dark;
+}
+
+.nav-refresh button {
+  padding: 0.25rem 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.nav-refresh button:hover {
+  color: var(--accent);
+  filter: none;
+}
+
+.nav-api {
+  font-size: 0.85rem !important;
+}
+
+/* empty / offline states */
+.empty-state {
+  text-align: center;
+  padding: 1.75rem 1.25rem;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: #121820;
+  margin: 0.25rem 0;
+}
+
+.empty-state .es-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  opacity: 0.85;
+}
+
+.empty-state h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.empty-state p {
+  margin: 0 auto;
+  max-width: 28rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.empty-state .es-actions {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+a.btn-secondary {
+  display: inline-block;
+  font: inherit;
+  color: var(--text);
+  background: #1a222c;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  text-decoration: none;
+}
+
+a.btn-secondary:hover {
+  filter: brightness(1.08);
+  text-decoration: none;
+}
+
+.empty-state.offline { border-color: #5a3035; background: #1a1214; }
+.empty-state.offline h3 { color: var(--bad); }
+.empty-state.config { border-color: #3a4a5a; }
+.empty-state.filter { border-style: solid; opacity: 0.95; }
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: 0.85rem;
+  font-size: 0.88rem;
+}
+
+.banner.warn {
+  border-color: #8a7020;
+  background: #2a2410;
+  color: var(--warn);
+}
+
+.banner.err {
+  border-color: #8b3a42;
+  background: #2a1518;
+  color: #f0a0a5;
+}
+
+.banner .banner-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.4rem;
 }
 
 .breadcrumb {
@@ -238,6 +421,12 @@ button, select, input, textarea {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.4rem 0.6rem;
+  color-scheme: dark;
+}
+
+select option {
+  background: #1a222c;
+  color: var(--text);
 }
 
 button {
@@ -532,8 +721,9 @@ code { color: #cde; font-size: 0.9em; }
 .entity-table .col-pipe { min-width: 5rem; }
 
 @media (max-width: 720px) {
-  .app-nav { top: auto; position: relative; flex-wrap: wrap; }
-  .app-header { position: relative; }
-  .nav-left, .nav-right { width: 100%; }
+  .chrome-brand { padding: 0.45rem 0.85rem 0.35rem; }
+  .chrome-strip { padding: 0.35rem 0.85rem; }
+  .app-nav { flex-wrap: wrap; }
+  .nav-left, .nav-right { flex-wrap: wrap; width: 100%; }
   .nav-right { justify-content: flex-end; }
 }

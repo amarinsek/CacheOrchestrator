@@ -402,6 +402,11 @@ public sealed class AdminHealthDto
 
     /// <summary>Elapsed time since <see cref="StartedAtUtc"/> in whole seconds.</summary>
     public long UptimeSeconds { get; init; }
+
+    /// <summary>
+    /// Lifetime request count on this process (from Admin live counters), when available.
+    /// </summary>
+    public long Requests { get; init; }
 }
 
 /// <summary>Invalidate request body.</summary>

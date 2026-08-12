@@ -42,6 +42,9 @@ public sealed class InstanceStatusDto
     /// <summary>Uptime in seconds from Local Admin health, when known.</summary>
     public long? UptimeSeconds { get; init; }
 
+    /// <summary>Lifetime request count from the instance, when known.</summary>
+    public long? Requests { get; init; }
+
     /// <summary>Aggregated recommendation hint counts for this instance (when available).</summary>
     public AdminHintSummaryDto? HintSummary { get; init; }
 }

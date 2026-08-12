@@ -7,36 +7,50 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <!-- A: sticky header -->
-  <header class="app-header" id="appHeader">
-    <div class="brand">
+  <!--
+    Chrome layout (top → bottom):
+    1) app logo / brand
+    2) header metrics strip (same bar style as menu)
+    3) menu strip
+  -->
+  <div class="app-chrome" id="appChrome">
+    <div class="chrome-brand">
       <a href="#/overview" class="brand-link">CacheOrchestrator Admin</a>
       <span class="muted brand-sub">multi-instance</span>
     </div>
-    <div class="header-metrics" id="headerMetrics">
+
+    <div class="chrome-strip chrome-metrics" id="headerMetrics">
       <span class="hm muted">Loading…</span>
     </div>
-    <div class="header-actions">
-      <a href="/scalar/v1" target="_blank" rel="noopener" class="link-quiet">API</a>
-      <button type="button" id="btnHeaderRefresh" title="Refresh header + page">↻</button>
-    </div>
-  </header>
 
-  <nav class="app-nav" id="appNav">
-    <div class="nav-left">
-      <a href="#/overview" data-nav="overview">Overview</a>
-      <a href="#/instances" data-nav="instances">Instances</a>
-      <a href="#/domains" data-nav="domains">Domains</a>
-      <a href="#/endpoints" data-nav="endpoints">Endpoints</a>
-    </div>
-    <div class="nav-right">
-      <a href="#/hints" data-nav="hints" class="nav-hints">
-        <span data-nav-hints-badge class="nav-hints-badge"><span class="sev-stack empty">○</span></span>
-        Hints
-      </a>
-      <a href="#/operations" data-nav="operations">Operations</a>
-    </div>
-  </nav>
+    <nav class="chrome-strip app-nav" id="appNav">
+      <div class="nav-left">
+        <a href="#/overview" data-nav="overview">Overview</a>
+        <a href="#/instances" data-nav="instances">Instances</a>
+        <a href="#/domains" data-nav="domains">Domains</a>
+        <a href="#/endpoints" data-nav="endpoints">Endpoints</a>
+      </div>
+      <div class="nav-right">
+        <a href="#/hints" data-nav="hints" class="nav-hints">
+          <span data-nav-hints-badge class="nav-hints-badge"><span class="sev-stack empty">○</span></span>
+          Hints
+        </a>
+        <div class="nav-refresh" title="Auto-refresh interval">
+          <select id="selAutoRefresh" aria-label="Auto refresh">
+            <option value="0">Off</option>
+            <option value="5">5 s</option>
+            <option value="10">10 s</option>
+            <option value="30">30 s</option>
+            <option value="60">1 m</option>
+            <option value="300">5 m</option>
+          </select>
+          <button type="button" id="btnHeaderRefresh" title="Refresh now">↻</button>
+        </div>
+        <a href="#/operations" data-nav="operations">Operations</a>
+        <a href="/scalar/v1" target="_blank" rel="noopener" class="nav-api">API</a>
+      </div>
+    </nav>
+  </div>
 
   <div class="breadcrumb muted" id="breadcrumb"></div>
 

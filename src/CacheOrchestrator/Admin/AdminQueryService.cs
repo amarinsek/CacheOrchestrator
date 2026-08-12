@@ -43,6 +43,23 @@ internal sealed class AdminQueryService
         DateTimeOffset now = _time.GetUtcNow();
         DateTimeOffset started = AdminProcessInfo.StartedAtUtc;
         long uptimeSeconds = (long)Math.Max(0, (now - started).TotalSeconds);
+        long requests = 0;
+        try
+        {
+            AdminLiveStatsSnapshot snap = _stats.GetSnapshot();
+            foreach (AdminDomainStatsDto d in snap.Domains)
+                requests += d.Requests;
+            if (requests == 0)
+            {
+                foreach (AdminEndpointStatsDto e in snap.UnassignedEndpoints)
+                    requests += e.Requests;
+            }
+        }
+        catch
+        {
+            // Health must not fail if counters are unavailable.
+        }
+
         return new AdminHealthDto
         {
             Healthy = true,
@@ -50,7 +67,8 @@ internal sealed class AdminQueryService
             UtcNow = now,
             AdminEnabled = admin.Enabled,
             StartedAtUtc = started,
-            UptimeSeconds = uptimeSeconds
+            UptimeSeconds = uptimeSeconds,
+            Requests = requests
         };
     }
 

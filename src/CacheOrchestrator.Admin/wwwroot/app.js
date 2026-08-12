@@ -373,8 +373,10 @@ function endpointRowHtml(e) {
   </tr>`;
 }
 
-function endpointTableHtml(list) {
-  if (!list || !list.length) return `<p class="empty">No endpoints</p>`;
+function endpointTableHtml(list, emptyCtx = {}) {
+  if (!list || !list.length) {
+    return emptyStateHtml(emptyCtx.kind || "endpoints", emptyCtx);
+  }
   return `
     <table class="dense entity-table endpoints-table">
       <thead>
@@ -408,8 +410,10 @@ function domainRowHtml(d) {
   </tr>`;
 }
 
-function domainTableHtml(list) {
-  if (!list || !list.length) return `<p class="empty">No domains</p>`;
+function domainTableHtml(list, emptyCtx = {}) {
+  if (!list || !list.length) {
+    return emptyStateHtml(emptyCtx.kind || "domains", emptyCtx);
+  }
   return `
     <table class="dense entity-table domains-table">
       <thead>
@@ -429,16 +433,46 @@ function domainTableHtml(list) {
     </table>`;
 }
 
+/**
+ * Unified unit formatting: thin space (U+2009) between number and unit.
+ * Examples: "5 m", "11 ms", "3 h". Counts without a unit stay plain numbers.
+ * Accepts a raw number (locale-formatted) or an already-safe display string.
+ */
+function fmtUnit(value, unit) {
+  if (value == null || value === "") return "—";
+  if (typeof value === "number") {
+    if (Number.isNaN(value)) return "—";
+    return `${num(value)}\u2009${unit}`;
+  }
+  const s = String(value).trim();
+  if (!s || s === "—") return "—";
+  return `${s}\u2009${unit}`;
+}
+
 function formatUptime(seconds) {
   if (seconds == null || seconds < 0 || Number.isNaN(Number(seconds))) return "—";
   const s = Math.floor(Number(seconds));
   const d = Math.floor(s / 86400);
   const h = Math.floor((s % 86400) / 3600);
   const m = Math.floor((s % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m`;
-  return `${s}s`;
+  const sec = s % 60;
+  if (d > 0) return `${fmtUnit(d, "d")} ${fmtUnit(h, "h")}`;
+  if (h > 0) return `${fmtUnit(h, "h")} ${fmtUnit(m, "m")}`;
+  if (m > 0) return `${fmtUnit(m, "m")} ${fmtUnit(sec, "s")}`;
+  return fmtUnit(sec, "s");
+}
+
+function formatLatencyMs(ms) {
+  if (ms == null || Number.isNaN(Number(ms))) return "—";
+  return fmtUnit(Math.round(Number(ms)), "ms");
+}
+
+/** Duration labels for UI chrome (refresh interval etc.): "5 s", "1 m". */
+function formatDurationLabel(seconds) {
+  if (seconds == null || Number.isNaN(Number(seconds))) return "—";
+  const s = Number(seconds);
+  if (s >= 60 && s % 60 === 0) return fmtUnit(s / 60, "m");
+  return fmtUnit(s, "s");
 }
 
 function instanceRowHtml(i) {
@@ -451,14 +485,21 @@ function instanceRowHtml(i) {
     <td class="col-hints">${severityStack(i.hintSummary)}</td>
     <td class="status-${esc(i.status)}">${esc(i.status)}</td>
     <td><code>${esc(i.url)}</code></td>
+    <td class="col-num">${num(i.requests)}</td>
     <td title="${esc(started || "start time unknown")}">${esc(up)}</td>
-    <td>${i.latencyMs != null ? Math.round(i.latencyMs) + " ms" : "—"}</td>
+    <td>${formatLatencyMs(i.latencyMs)}</td>
     <td class="muted">${esc(i.error || "—")}</td>
   </tr>`;
 }
 
-function instanceTableHtml(list) {
-  if (!list || !list.length) return `<p class="empty">No instances</p>`;
+function instanceTableHtml(list, emptyCtx = {}) {
+  if (!list || !list.length) {
+    return emptyStateHtml(emptyCtx.kind || "config", {
+      title: "No instances configured",
+      detail: "Add targets under CacheAdmin:Instances in Admin App appsettings, then refresh.",
+      ...emptyCtx,
+    });
+  }
   return `
     <table class="dense entity-table instances-table">
       <thead>
@@ -467,6 +508,7 @@ function instanceTableHtml(list) {
           <th>Hints</th>
           <th>Status</th>
           <th>URL</th>
+          <th>Req</th>
           <th>Uptime</th>
           <th>Latency</th>
           <th>Error</th>
@@ -474,6 +516,113 @@ function instanceTableHtml(list) {
       </thead>
       <tbody>${list.map(instanceRowHtml).join("")}</tbody>
     </table>`;
+}
+
+/** Shared empty / offline panels for list surfaces. */
+function emptyStateHtml(kind, ctx = {}) {
+  const map = {
+    config: {
+      cls: "config",
+      icon: "◎",
+      title: ctx.title || "Nothing configured",
+      detail: ctx.detail || "Configure CacheAdmin:Instances and enable Local Admin on target apps.",
+    },
+    offline: {
+      cls: "offline",
+      icon: "⏻",
+      title: ctx.title || "Target apps unreachable",
+      detail: ctx.detail
+        || "All configured instances are down or timed out. Entity lists need at least one healthy Local Admin API.",
+    },
+    endpoints: {
+      cls: "filter",
+      icon: "◫",
+      title: ctx.title || "No endpoints",
+      detail: ctx.detail
+        || "No endpoint counters match the current filters, or apps have not served traffic yet.",
+    },
+    domains: {
+      cls: "filter",
+      icon: "◫",
+      title: ctx.title || "No domains",
+      detail: ctx.detail
+        || "No domains to show for the current instance filter / connectivity state.",
+    },
+    filter: {
+      cls: "filter",
+      icon: "⊘",
+      title: ctx.title || "No matches",
+      detail: ctx.detail || "Adjust filters or choose All.",
+    },
+    error: {
+      cls: "offline",
+      icon: "!",
+      title: ctx.title || "Failed to load",
+      detail: ctx.detail || "Request failed. Check Admin App logs and instance URLs.",
+    },
+  };
+  const m = map[kind] || map.filter;
+  const actions = ctx.actions || [
+    { label: "Refresh", onclick: "window.__adminRefresh && window.__adminRefresh()" },
+    { label: "Instances", href: "#/instances" },
+  ];
+  return `
+    <div class="empty-state ${esc(m.cls)}">
+      <div class="es-icon">${m.icon}</div>
+      <h3>${esc(m.title)}</h3>
+      <p>${esc(m.detail)}</p>
+      <div class="es-actions">
+        ${actions.map((a) => a.href
+          ? `<a class="btn-secondary" href="${esc(a.href)}">${esc(a.label)}</a>`
+          : `<button type="button" class="secondary" data-es-action="${esc(a.label)}">${esc(a.label)}</button>`
+        ).join("")}
+      </div>
+    </div>`;
+}
+
+function connectivityBanner(instances) {
+  const list = instances || [];
+  if (!list.length) {
+    return `<div class="banner warn">
+      <span>No instances in <code>CacheAdmin:Instances</code>.</span>
+      <span class="banner-actions"><button type="button" class="secondary" data-es-refresh>Refresh</button></span>
+    </div>`;
+  }
+  const up = list.filter((i) => i.status === "Healthy").length;
+  const down = list.filter((i) => i.status === "Down").length;
+  const deg = list.filter((i) => i.status === "Degraded").length;
+  if (down === list.length) {
+    return `<div class="banner err">
+      <span><strong>All instances down</strong> — entity data cannot be loaded from Local Admin APIs.
+        ${list.map((i) => `<code>${esc(i.id)}</code>`).join(", ")}</span>
+      <span class="banner-actions"><button type="button" class="secondary" data-es-refresh>Retry</button></span>
+    </div>`;
+  }
+  if (down > 0 || deg > 0) {
+    return `<div class="banner warn">
+      <span>Partial connectivity: <strong>${up}</strong> healthy
+        ${down ? `· <strong>${down}</strong> down` : ""}
+        ${deg ? `· <strong>${deg}</strong> degraded` : ""}
+      </span>
+      <span class="banner-actions"><a href="#/instances">View instances</a></span>
+    </div>`;
+  }
+  return "";
+}
+
+function bindEmptyStateActions(root) {
+  root.querySelectorAll("[data-es-refresh], [data-es-action=Refresh], [data-es-action=Retry]").forEach((btn) => {
+    btn.addEventListener("click", () => window.__adminRefresh?.());
+  });
+}
+
+function allInstancesDown(instances) {
+  const list = instances || [];
+  return list.length > 0 && list.every((i) => i.status === "Down");
+}
+
+function noInstancesConfigured(instances) {
+  return !instances || instances.length === 0;
 }
 
 function bindEntityTableClicks(root) {
@@ -532,9 +681,21 @@ function setBreadcrumb(parts) {
   }).join(" <span class='muted'>/</span> ");
 }
 
-// —— header (A) ——
+// —— header + auto-refresh (Grafana-style) ——
+const REFRESH_KEY = "adminAutoRefreshSec";
 let headerTimer = null;
+let pageTimer = null;
 let lastOverview = null;
+
+function getAutoRefreshSec() {
+  const v = Number(localStorage.getItem(REFRESH_KEY) || "0");
+  return [0, 5, 10, 30, 60, 300].includes(v) ? v : 0;
+}
+
+function setAutoRefreshSec(sec) {
+  localStorage.setItem(REFRESH_KEY, String(sec));
+  scheduleRefresh();
+}
 
 async function refreshHeader() {
   try {
@@ -544,10 +705,20 @@ async function refreshHeader() {
     renderHeader(o);
     updateNavHintsBadge(o.hintSummary);
   } catch (err) {
-    $("#headerMetrics").innerHTML =
-      `<span class="hm status-Down">Header: ${esc(err.message)}</span>`;
+    lastOverview = null;
+    $("#headerMetrics").innerHTML = `
+      <span class="hm status-Down" title="${esc(err.message)}">Admin API error</span>
+      <span class="hm muted">${esc(err.message)}</span>`;
+    updateNavHintsBadge({ total: 0 });
   }
 }
+
+async function refreshAll() {
+  await refreshHeader();
+  await route();
+}
+
+window.__adminRefresh = refreshAll;
 
 function updateNavHintsBadge(summary) {
   const el = document.querySelector("[data-nav-hints-badge]");
@@ -556,27 +727,39 @@ function updateNavHintsBadge(summary) {
 }
 
 function renderHeader(o) {
+  // Always show N/M up (healthy / configured), never bare "N up".
+  const total = (o.instances || []).length
+    || ((o.healthyCount || 0) + (o.degradedCount || 0) + (o.downCount || 0));
+  const up = o.healthyCount ?? 0;
   const healthDots = [
     ...Array(o.healthyCount || 0).fill("ok"),
     ...Array(o.degradedCount || 0).fill("warn"),
     ...Array(o.downCount || 0).fill("bad"),
-  ].map((c) => `<span class="dot ${c}"></span>`).join("") || `<span class="muted">no instances</span>`;
+  ].map((c) => `<span class="dot ${c}"></span>`).join("") || `<span class="muted">—</span>`;
 
   const hs = o.hintSummary || { total: 0 };
+  // Cluster health: Admin App probes each Local Admin GET /health → Healthy / Degraded / Down.
+  const healthTitle = [
+    `${up}/${total} healthy`,
+    o.degradedCount ? `${o.degradedCount} degraded` : null,
+    o.downCount ? `${o.downCount} down` : null,
+  ].filter(Boolean).join(" · ");
 
   $("#headerMetrics").innerHTML = `
-    <span class="hm" title="Instance health">${healthDots}
-      <strong>${o.healthyCount ?? 0}</strong><span class="muted">up</span>
-      ${(o.downCount || 0) > 0 ? `<span class="status-Down">${o.downCount} down</span>` : ""}
+    <span class="hm" title="${esc(healthTitle)}">${healthDots}
+      <strong>${up}/${total || 0}</strong><span class="muted">\u2009up</span>
+      ${(o.downCount || 0) > 0 ? `<span class="status-Down">${fmtUnit(o.downCount, "down")}</span>` : ""}
+      ${(o.degradedCount || 0) > 0 ? `<span class="status-Degraded">${fmtUnit(o.degradedCount, "deg")}</span>` : ""}
     </span>
     <span class="hm" title="Cluster recommendation urgency">${severityStack(hs)}</span>
-    <span class="hm" title="Request pipeline">${pipelineBar(o.pipeline)}</span>
-    <span class="hm">OC hit <strong>${pct(o.ocHitShare)}</strong></span>
-    <span class="hm">Origin <strong>${pct(o.originShare)}</strong></span>
-    <span class="hm">Req <strong>${num(o.totalRequests)}</strong></span>
-    <span class="hm">Inv <strong>${num(o.totalInvalidations)}</strong></span>
+    <span class="hm" title="Request pipeline (OC hit · FC hit · Origin · Bypass)">${pipelineBar(o.pipeline)}</span>
+    <span class="hm" title="Output Cache hit share of requests">OC hit <strong>${pct(o.ocHitShare)}</strong></span>
+    <span class="hm" title="Factory / origin share of requests">Origin <strong>${pct(o.originShare)}</strong></span>
+    <span class="hm" title="Lifetime request count (sum)">Req <strong>${num(o.totalRequests)}</strong></span>
+    <span class="hm" title="Lifetime invalidations (sum)">Inv <strong>${num(o.totalInvalidations)}</strong></span>
+    <span class="hm muted" title="Domains / endpoints observed">${fmtUnit(o.domainCount, "dom")} · ${fmtUnit(o.endpointCount, "ep")}</span>
     ${isHintMock() ? `<span class="hm badge" title="Mock hints active">MOCK</span>` : ""}
-    ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠ ${o.alerts.length}</span>` : ""}
+    ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
   `;
 }
 
@@ -627,16 +810,29 @@ function layerDetailFc(fc) {
 // —— B: Overview ——
 async function renderOverview() {
   setBreadcrumb([{ label: "Overview" }]);
-  main().innerHTML = `<p class="muted">Loading overview…</p>`;
-  let o = await api("/api/overview");
-  o = applyMockToOverview(o);
+  main().innerHTML = `<div class="card"><p class="muted">Loading overview…</p></div>`;
+  let o;
+  try {
+    o = applyMockToOverview(await api("/api/overview"));
+  } catch (err) {
+    main().innerHTML = `<div class="card">${emptyStateHtml("error", {
+      title: "Cannot load overview",
+      detail: err.message,
+    })}</div>`;
+    bindEmptyStateActions(main());
+    return;
+  }
   lastOverview = o;
   renderHeader(o);
   updateNavHintsBadge(o.hintSummary);
 
+  const offline = allInstancesDown(o.instances);
+  const noCfg = noInstancesConfigured(o.instances);
+
   main().innerHTML = `
+    ${connectivityBanner(o.instances)}
     <div class="kpi-row">
-      <div class="kpi"><div class="label">Instances up</div><div class="value status-Healthy">${o.healthyCount}/${(o.instances||[]).length}</div></div>
+      <div class="kpi"><div class="label">Instances up</div><div class="value ${offline ? "status-Down" : "status-Healthy"}">${o.healthyCount}/${(o.instances||[]).length}\u2009up</div></div>
       <div class="kpi"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>
       <div class="kpi"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
       <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
@@ -651,15 +847,22 @@ async function renderOverview() {
     ${o.alerts?.length ? `<div class="card"><h2>Alerts</h2><ul class="alert-list">${o.alerts.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}
     <div class="card">
       <h2>Instances</h2>
-      ${instanceTableHtml(o.instances || [])}
+      ${instanceTableHtml(o.instances || [], { kind: "config" })}
     </div>
     <div class="card">
       <h2>Endpoints <span class="badge">top by origin / traffic</span></h2>
-      ${endpointTableHtml(o.topEndpoints || [])}
-      <p style="margin:0.75rem 0 0"><a href="#/endpoints">All endpoints →</a></p>
+      ${endpointTableHtml(o.topEndpoints || [], {
+        kind: noCfg ? "config" : offline ? "offline" : "endpoints",
+        title: offline ? "No endpoint data — apps offline" : undefined,
+        detail: offline
+          ? "Start target apps with Cache:Admin:Enabled and matching ApiKey, then refresh."
+          : undefined,
+      })}
+      ${!offline && (o.topEndpoints || []).length ? `<p style="margin:0.75rem 0 0"><a href="#/endpoints">All endpoints →</a></p>` : ""}
     </div>`;
 
   bindEntityTableClicks(main());
+  bindEmptyStateActions(main());
 }
 
 // —— C: Endpoints list + detail ——
@@ -670,24 +873,62 @@ async function renderEndpointsList(params) {
   const minRequests = params.get("minRequests") || "0";
   const take = params.get("take") || "50";
   const skip = Number(params.get("skip") || "0");
-  // null = All, [] = none, [...] = filter
   const selInstances = parseCsvParam(params, "instances");
   const selDomains = parseCsvParam(params, "domains");
 
-  main().innerHTML = `<div class="card"><h2>Endpoints <span class="badge">primary unit</span></h2>
-    <p class="muted">Loading filters…</p></div>`;
+  main().innerHTML = `<div class="card"><p class="muted">Loading endpoints…</p></div>`;
 
-  const [instanceList, statsForFilters] = await Promise.all([
-    api("/api/instances"),
-    api("/api/stats?scope=all"),
-  ]);
-  const domainOpts = (statsForFilters.domains || []).map((d) => ({ id: d.name, label: d.name }));
+  let instanceList = [];
+  try {
+    instanceList = await api("/api/instances");
+  } catch (err) {
+    main().innerHTML = `<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`;
+    bindEmptyStateActions(main());
+    return;
+  }
+
+  const offline = allInstancesDown(instanceList);
+  const noCfg = noInstancesConfigured(instanceList);
   const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
 
+  // Skip heavy fan-out when nothing is up
+  let domainOpts = [];
+  let list = [];
+  let loadError = null;
+  if (!noCfg && !offline && !(selDomains !== null && selDomains.length === 0)
+      && !(selInstances !== null && selInstances.length === 0)) {
+    try {
+      const statsForFilters = await api("/api/stats?scope=all");
+      domainOpts = (statsForFilters.domains || []).map((d) => ({ id: d.name, label: d.name }));
+      const q = new URLSearchParams({ sort, take, skip: String(skip), search, minRequests });
+      if (selInstances !== null) q.set("instances", selInstances.length ? selInstances.join(",") : "__none__");
+      if (selDomains !== null) q.set("domains", selDomains.length ? selDomains.join(",") : "__none__");
+      list = await api("/api/endpoints?" + q.toString());
+      list = list.map((e, i) => applyMockToEndpoint(e, i));
+    } catch (err) {
+      loadError = err.message;
+    }
+  } else if (!noCfg && !offline) {
+    try {
+      const statsForFilters = await api("/api/stats?scope=all");
+      domainOpts = (statsForFilters.domains || []).map((d) => ({ id: d.name, label: d.name }));
+    } catch { /* filters optional */ }
+  }
+
+  const emptyKind = noCfg ? "config" : offline ? "offline" : loadError ? "error" : "endpoints";
+  const emptyCtx = {
+    kind: emptyKind,
+    title: loadError ? "Failed to load endpoints" : undefined,
+    detail: loadError
+      || (offline ? "All target apps are down. Start them with Local Admin enabled." : undefined),
+  };
+
   main().innerHTML = `
+    ${connectivityBanner(instanceList)}
     <div class="card">
       <h2>Endpoints <span class="badge">primary unit</span></h2>
-      <p class="muted" style="margin-top:0">Filter: <strong>All</strong> = no filter. Explicit checks apply even for a single domain. <strong>None</strong> = empty list.</p>
+      ${!offline && !noCfg ? `
+      <p class="muted" style="margin-top:0">Filter: <strong>All</strong> = no filter · explicit selection applies · <strong>None</strong> = empty list.</p>
       <form class="toolbar" id="epFilters">
         <label>Search<input name="search" value="${esc(search)}" placeholder="route or domain" /></label>
         ${multiSelectHtml("epInst", "Instances", instanceOpts, selInstances)}
@@ -700,49 +941,38 @@ async function renderEndpointsList(params) {
           </select>
         </label>
         <button type="submit">Apply</button>
-      </form>
-      <div id="epTable"><p class="muted">Loading…</p></div>
+      </form>` : ""}
+      <div id="epTable">
+        ${endpointTableHtml(list, emptyCtx)}
+        ${list.length ? `
+        <div class="pager">
+          <button type="button" class="secondary" id="epPrev" ${skip<=0?"disabled":""}>Prev</button>
+          <span>skip ${skip} · ${list.length} rows</span>
+          <button type="button" class="secondary" id="epNext" ${list.length < Number(take)?"disabled":""}>Next</button>
+        </div>` : ""}
+      </div>
     </div>`;
+
+  bindEmptyStateActions(main());
+  bindEntityTableClicks($("#epTable") || main());
 
   const form = $("#epFilters");
-  bindMultiSelects(form);
-
-  form.addEventListener("submit", (ev) => {
-    ev.preventDefault();
-    const fd = new FormData(form);
-    navigate("endpoints", {
-      search: fd.get("search"),
-      instances: csvParamFromSelection(readMultiSelect(form, "epInst")),
-      domains: csvParamFromSelection(readMultiSelect(form, "epDom")),
-      minRequests: fd.get("minRequests"),
-      sort: fd.get("sort"),
-      take,
-      skip: 0,
+  if (form) {
+    bindMultiSelects(form);
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(form);
+      navigate("endpoints", {
+        search: fd.get("search"),
+        instances: csvParamFromSelection(readMultiSelect(form, "epInst")),
+        domains: csvParamFromSelection(readMultiSelect(form, "epDom")),
+        minRequests: fd.get("minRequests"),
+        sort: fd.get("sort"),
+        take,
+        skip: 0,
+      });
     });
-  });
-
-  const q = new URLSearchParams({ sort, take, skip: String(skip), search, minRequests });
-  if (selInstances !== null) q.set("instances", selInstances.length ? selInstances.join(",") : "__none__");
-  if (selDomains !== null) q.set("domains", selDomains.length ? selDomains.join(",") : "__none__");
-
-  let list = [];
-  if (selDomains !== null && selDomains.length === 0) {
-    list = [];
-  } else if (selInstances !== null && selInstances.length === 0) {
-    list = [];
-  } else {
-    list = await api("/api/endpoints?" + q.toString());
   }
-  list = list.map((e, i) => applyMockToEndpoint(e, i));
-
-  $("#epTable").innerHTML = endpointTableHtml(list) + `
-    <div class="pager">
-      <button type="button" class="secondary" id="epPrev" ${skip<=0?"disabled":""}>Prev</button>
-      <span>skip ${skip} · ${list.length} rows</span>
-      <button type="button" class="secondary" id="epNext" ${list.length < Number(take)?"disabled":""}>Next</button>
-    </div>`;
-
-  bindEntityTableClicks($("#epTable"));
   const pageParams = () => ({
     search, sort, minRequests, take,
     instances: csvParamFromSelection(selInstances),
@@ -825,39 +1055,63 @@ async function renderEndpointDetail(route) {
 // —— D: Domains ——
 async function renderDomainsList(params) {
   setBreadcrumb([{ label: "Domains", href: "#/domains" }]);
-  const selInstances = parseCsvParam(params, "instances"); // null=all, []=none
+  const selInstances = parseCsvParam(params, "instances");
 
   main().innerHTML = `<div class="card"><p class="muted">Loading domains…</p></div>`;
-  const instanceList = await api("/api/instances");
+
+  let instanceList = [];
+  try {
+    instanceList = await api("/api/instances");
+  } catch (err) {
+    main().innerHTML = `<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`;
+    bindEmptyStateActions(main());
+    return;
+  }
+
+  const offline = allInstancesDown(instanceList);
+  const noCfg = noInstancesConfigured(instanceList);
   const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
 
   let domains = [];
-  if (selInstances !== null && selInstances.length === 0) {
-    domains = [];
-  } else {
-    const q = new URLSearchParams({ scope: "all" });
-    if (selInstances !== null) q.set("instances", selInstances.join(","));
-    const stats = await api("/api/stats?" + q.toString());
-    domains = (stats.domains || []).map((d, i) => applyMockToDomain(d, i));
+  let loadError = null;
+  if (!noCfg && !offline && !(selInstances !== null && selInstances.length === 0)) {
+    try {
+      const q = new URLSearchParams({ scope: "all" });
+      if (selInstances !== null) q.set("instances", selInstances.join(","));
+      const stats = await api("/api/stats?" + q.toString());
+      domains = (stats.domains || []).map((d, i) => applyMockToDomain(d, i));
+    } catch (err) {
+      loadError = err.message;
+    }
   }
 
+  const emptyKind = noCfg ? "config" : offline ? "offline" : loadError ? "error" : "domains";
+
   main().innerHTML = `
+    ${connectivityBanner(instanceList)}
     <div class="card">
       <h2>Domains</h2>
+      ${!offline && !noCfg ? `
       <form class="toolbar" id="domFilters">
         ${multiSelectHtml("domInst", "Instances", instanceOpts, selInstances)}
         <button type="submit">Apply</button>
-      </form>
-      ${domainTableHtml(domains)}
+      </form>` : ""}
+      ${domainTableHtml(domains, {
+        kind: emptyKind,
+        title: loadError ? "Failed to load domains" : undefined,
+        detail: loadError || (offline ? "All target apps are down." : undefined),
+      })}
     </div>`;
 
+  bindEmptyStateActions(main());
   const form = $("#domFilters");
-  bindMultiSelects(form);
-  form.addEventListener("submit", (ev) => {
-    ev.preventDefault();
-    navigate("domains", { instances: csvParamFromSelection(readMultiSelect(form, "domInst")) });
-  });
-
+  if (form) {
+    bindMultiSelects(form);
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      navigate("domains", { instances: csvParamFromSelection(readMultiSelect(form, "domInst")) });
+    });
+  }
   bindEntityTableClicks(main());
 }
 
@@ -908,10 +1162,10 @@ async function renderDomainDetail(name) {
       <div class="detail-block">
         <h3>Effective config</h3>
         <div class="kv">
-          <span>Output TTL s</span><span>${cfg.outputCacheTtlSeconds}</span>
-          <span>Fusion soft/hard</span><span>${cfg.fusionCacheSoftTtlSeconds} / ${cfg.fusionCacheHardTtlSeconds}</span>
-          <span>Fail-safe s</span><span>${cfg.fusionCacheFailSafeSeconds}</span>
-          <span>Client TTL / min</span><span>${cfg.clientTtlSeconds} / ${cfg.clientTtlMinSeconds}</span>
+          <span>Output TTL</span><span>${fmtUnit(cfg.outputCacheTtlSeconds, "s")}</span>
+          <span>Fusion soft/hard</span><span>${fmtUnit(cfg.fusionCacheSoftTtlSeconds, "s")} / ${fmtUnit(cfg.fusionCacheHardTtlSeconds, "s")}</span>
+          <span>Fail-safe</span><span>${fmtUnit(cfg.fusionCacheFailSafeSeconds, "s")}</span>
+          <span>Client TTL / min</span><span>${fmtUnit(cfg.clientTtlSeconds, "s")} / ${fmtUnit(cfg.clientTtlMinSeconds, "s")}</span>
           <span>Schedule phase</span><span>${esc(cfg.schedulePhase || "—")}</span>
           <span>FC instance</span><span>${esc(cfg.fusionCacheInstanceName)}</span>
         </div>
@@ -951,20 +1205,28 @@ async function renderDomainDetail(name) {
 // —— E: Instances ——
 async function renderInstancesList() {
   setBreadcrumb([{ label: "Instances", href: "#/instances" }]);
-  main().innerHTML = `<p class="muted">Loading…</p>`;
-  let overview = await api("/api/overview");
-  overview = applyMockToOverview(overview);
+  main().innerHTML = `<div class="card"><p class="muted">Loading instances…</p></div>`;
+  let overview;
+  try {
+    overview = applyMockToOverview(await api("/api/overview"));
+  } catch (err) {
+    main().innerHTML = `<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`;
+    bindEmptyStateActions(main());
+    return;
+  }
   renderHeader(overview);
   updateNavHintsBadge(overview.hintSummary);
   const list = overview.instances || [];
 
   main().innerHTML = `
+    ${connectivityBanner(list)}
     <div class="card">
       <h2>Instances ${severityStack(overview.hintSummary)}</h2>
       ${instanceTableHtml(list)}
     </div>`;
 
   bindEntityTableClicks(main());
+  bindEmptyStateActions(main());
 }
 
 async function renderInstanceDetail(id) {
@@ -991,15 +1253,15 @@ async function renderInstanceDetail(id) {
       </h2>
       <p class="muted"><code>${esc(inst?.url || "")}</code>
         · reported <code>${esc(inst?.reportedInstanceId || "—")}</code>
-        · latency ${inst?.latencyMs != null ? Math.round(inst.latencyMs) + " ms" : "—"}
+        · latency ${formatLatencyMs(inst?.latencyMs)}
         ${inst?.error ? ` · <span class="status-Down">${esc(inst.error)}</span>` : ""}
       </p>
       <div class="kpi-row">
         <div class="kpi" title="${esc(startedTitle)}"><div class="label">Uptime</div><div class="value" style="font-size:1.05rem">${esc(formatUptime(inst?.uptimeSeconds))}</div></div>
         <div class="kpi"><div class="label">Started (UTC)</div><div class="value" style="font-size:0.85rem">${esc(startedTitle ? startedTitle.replace("T", " ").replace(/\.\d+Z$/, "Z") : "—")}</div></div>
+        <div class="kpi"><div class="label">Req</div><div class="value">${num(inst?.requests ?? (stats.domains||[]).reduce((s,d)=>s+(d.requests||0),0))}</div></div>
         <div class="kpi"><div class="label">Domains</div><div class="value">${(stats.domains||[]).length}</div></div>
         <div class="kpi"><div class="label">Endpoints</div><div class="value">${(stats.endpoints||[]).length}</div></div>
-        <div class="kpi"><div class="label">Requests</div><div class="value">${num((stats.domains||[]).reduce((s,d)=>s+(d.requests||0),0))}</div></div>
       </div>
     </div>
     <div class="card">
@@ -1179,8 +1441,14 @@ async function renderHintsPage(params) {
               <td class="muted">${esc(r.entityType)}</td>
             </tr>`).join("")}
         </tbody>
-      </table>` : `<p class="empty">No hints match filters${isHintMock() ? "" : " (enable Mock hints to preview symbology)"}.</p>`}
+      </table>` : emptyStateHtml("filter", {
+        title: "No hints to show",
+        detail: isHintMock()
+          ? "No rows match the current filters."
+          : "No recommendations from live data. Enable “Mock hints (all pages)” to preview symbology, or generate traffic on healthy apps.",
+      })}
     </div>`;
+  bindEmptyStateActions(main());
 
   const form = $("#hintFilters");
   bindMultiSelects(form);
@@ -1348,23 +1616,51 @@ async function route() {
     }
   } catch (err) {
     console.error(err);
-    main().innerHTML = `<div class="card"><p class="status-Down">${esc(err.message)}</p></div>`;
+    main().innerHTML = `<div class="card">${emptyStateHtml("error", {
+      title: "Page failed to load",
+      detail: err.message,
+    })}</div>`;
+    bindEmptyStateActions(main());
   }
 }
 
-function startHeaderRefresh() {
-  refreshHeader();
-  if (headerTimer) clearInterval(headerTimer);
-  headerTimer = setInterval(refreshHeader, 15000);
+function scheduleRefresh() {
+  if (headerTimer) {
+    clearInterval(headerTimer);
+    headerTimer = null;
+  }
+  if (pageTimer) {
+    clearInterval(pageTimer);
+    pageTimer = null;
+  }
+  const sec = getAutoRefreshSec();
+  // Header stays lightly refreshed even when auto is off (slow), full page only on interval / manual.
+  if (sec > 0) {
+    pageTimer = setInterval(() => {
+      refreshAll();
+    }, sec * 1000);
+  } else {
+    headerTimer = setInterval(refreshHeader, 30000);
+  }
 }
 
-$("#btnHeaderRefresh").addEventListener("click", () => {
-  refreshHeader();
-  route();
-});
+function initRefreshControls() {
+  const sel = $("#selAutoRefresh");
+  if (sel) {
+    sel.value = String(getAutoRefreshSec());
+    sel.addEventListener("change", () => {
+      setAutoRefreshSec(Number(sel.value) || 0);
+    });
+  }
+  $("#btnHeaderRefresh")?.addEventListener("click", () => {
+    refreshAll();
+  });
+}
 
 window.addEventListener("hashchange", route);
 
 if (!location.hash) location.hash = "#/overview";
-startHeaderRefresh();
+initRefreshControls();
+scheduleRefresh();
+refreshHeader();
 route();

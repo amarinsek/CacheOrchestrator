@@ -78,7 +78,8 @@ public sealed class AdminFanOutService
                 Error = o.Error,
                 LatencyMs = o.LatencyMs,
                 StartedAtUtc = o.Value?.StartedAtUtc,
-                UptimeSeconds = o.Succeeded ? o.Value?.UptimeSeconds : null
+                UptimeSeconds = o.Succeeded ? o.Value?.UptimeSeconds : null,
+                Requests = o.Succeeded ? o.Value?.Requests : null
             };
         }).ToArray();
     }
@@ -234,6 +235,7 @@ public sealed class AdminFanOutService
                 LatencyMs = i.LatencyMs,
                 StartedAtUtc = i.StartedAtUtc,
                 UptimeSeconds = i.UptimeSeconds,
+                Requests = i.Requests,
                 HintSummary = hl is null ? new AdminHintSummaryDto() : RecommendationHints.Summarize(hl)
             };
         }).ToArray();
