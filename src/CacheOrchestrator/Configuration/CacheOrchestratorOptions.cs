@@ -44,6 +44,12 @@ public sealed class CacheOrchestratorOptions
     public Dictionary<string, DomainCacheSettings> Domains { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Local Admin API settings (live stats, invalidate, runtime version/TTL).
+    /// Bound from <c>Cache:Admin</c>. Disabled by default (zero cost).
+    /// </summary>
+    public AdminOptions Admin { get; set; } = new();
+
     /// <summary>The final namespace used for Output Cache keys.</summary>
     public string OutputNamespace => OutputCache.Namespace ?? (Namespace + "-oc");
 
@@ -53,6 +59,37 @@ public sealed class CacheOrchestratorOptions
     // ---------------------------------------------------------------------------
     // Nested types
     // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Local Admin API feature flags and auth. Bound from <c>Cache:Admin</c>.
+    /// </summary>
+    public sealed class AdminOptions
+    {
+        /// <summary>
+        /// When <see langword="false"/> (default), no live counters, no admin routes, no runtime overlay activity.
+        /// </summary>
+        public bool Enabled { get; set; }
+
+        /// <summary>
+        /// Stable id returned by Local Admin API. When empty, the host machine name is used.
+        /// </summary>
+        public string? InstanceId { get; set; }
+
+        /// <summary>
+        /// Shared secret for header <c>X-Cache-Admin-Key</c>. When empty and <see cref="Enabled"/> is true,
+        /// endpoints are open (intended for local development only).
+        /// </summary>
+        public string? ApiKey { get; set; }
+
+        /// <summary>Base path for Local Admin endpoints. Default: <c>/cache-admin/local</c>.</summary>
+        public string RoutePrefix { get; set; } = "/cache-admin/local";
+
+        /// <summary>When true (default), maintain per-endpoint counters in addition to per-domain.</summary>
+        public bool TrackEndpoints { get; set; } = true;
+
+        /// <summary>When true, track factory duration sum/count (more expensive). Default false.</summary>
+        public bool TrackLatency { get; set; }
+    }
 
     /// <summary>
     /// Configuration for a single named FusionCache instance.

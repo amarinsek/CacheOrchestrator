@@ -1,3 +1,4 @@
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Backends;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.FusionCache;
@@ -57,6 +58,7 @@ public static class ServiceCollectionExtensions
         CacheOrchestratorOptions opts = BindAndValidateOptions(services, configuration, configSection, builder);
 
         RegisterCoreServices(services);
+        RegisterAdminServices(services, opts.Admin);
 
         if (enableMvcConvention)
             RegisterControllerConvention(services);
@@ -129,6 +131,29 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDomainFusionCache, DomainFusionCacheService>();
         services.AddSingleton<ICacheOrchestratorInvalidator, CacheOrchestratorInvalidator>();
         services.TryAddSingleton<IDomainKeyGenerator, DefaultDomainKeyGenerator>();
+    }
+
+    private static void RegisterAdminServices(
+        IServiceCollection services,
+        CacheOrchestratorOptions.AdminOptions admin)
+    {
+        if (admin.Enabled)
+        {
+            services.AddSingleton<IDomainRuntimeOverrideStore, DomainRuntimeOverrideStore>();
+            services.AddSingleton<IAdminStatsCollector>(sp =>
+                new InMemoryAdminStatsCollector(
+                    sp.GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value.Admin,
+                    sp.GetService<TimeProvider>()));
+            services.AddSingleton<IAdminEndpointCatalog, AdminEndpointCatalog>();
+            services.AddSingleton<AdminQueryService>();
+            services.AddSingleton<AdminApiKeyEndpointFilter>();
+        }
+        else
+        {
+            services.TryAddSingleton<IDomainRuntimeOverrideStore>(_ => NullDomainRuntimeOverrideStore.Instance);
+            services.TryAddSingleton<IAdminStatsCollector>(_ => NoOpAdminStatsCollector.Instance);
+            services.TryAddSingleton<IAdminEndpointCatalog>(_ => NullAdminEndpointCatalog.Instance);
+        }
     }
 
     private static void RegisterControllerConvention(IServiceCollection services) =>

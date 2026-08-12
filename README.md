@@ -199,6 +199,7 @@ Start here, then go deep only when you need to:
 | Invalidation | [docs/invalidation.md](docs/invalidation.md) |
 | Backends | [docs/backends.md](docs/backends.md) |
 | Observability | [docs/observability.md](docs/observability.md) |
+| Admin (Local API + fan-out UI) | [docs/admin.md](docs/admin.md) · [src/CacheOrchestrator.Admin/README.md](src/CacheOrchestrator.Admin/README.md) |
 | Deployment | [docs/deployment.md](docs/deployment.md) |
 | Architecture | [docs/architecture.md](docs/architecture.md) |
 | Benchmarks | [docs/benchmarks/results.md](docs/benchmarks/results.md) |

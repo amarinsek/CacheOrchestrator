@@ -35,6 +35,8 @@ Root overview (also lists every advanced feature): [../README.md](../README.md)
 | [invalidation.md](invalidation.md) | Version, domain/entity tags, invalidator API |
 | [backends.md](backends.md) | InMemory, Redis package, custom registrars |
 | [observability.md](observability.md) | `X-Cache`, `EmitDiagnosticsHeaders`, metrics, health |
+| [admin.md](admin.md) | Local Admin API + Admin App fan-out SPA |
+| [admin-hints.md](admin-hints.md) | Recommendation hints: formulas, catalogue, how to add |
 | [deployment.md](deployment.md) | Multi-instance, Redis, backplane |
 | [architecture.md](architecture.md) | Layers, request flow, public API surface |
 | [benchmarks/results.md](benchmarks/results.md) | How to run BDN + hot-path notes |

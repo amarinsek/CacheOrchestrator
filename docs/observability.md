@@ -1,5 +1,7 @@
 # Observability
 
+For multi-instance **Admin App** dashboards, Local Admin health, and live counter aggregation, see [admin.md](admin.md).
+
 ## X-Cache response header
 
 Written by `DomainOutputCachePolicy` on response start via `XCacheHeaderFormatter`, when

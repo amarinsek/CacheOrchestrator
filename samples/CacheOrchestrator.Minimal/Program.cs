@@ -10,6 +10,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 var app = builder.Build();
 
 app.UseCacheOrchestrator();
+app.MapCacheOrchestratorAdmin(); // no-op unless Cache:Admin:Enabled
 
 // Domain rules live in appsettings (Cache:Domains:hello).
 // One line on the endpoint wires Output Cache + FusionCache for this route.

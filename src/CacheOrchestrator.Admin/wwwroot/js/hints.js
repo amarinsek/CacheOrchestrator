@@ -1,0 +1,152 @@
+/**
+ * Recommendation-hint presentation and flattening.
+ *
+ * Live hints come from the Admin App / Local Admin aggregation
+ * (`RecommendationHints` on the server). This module only renders and
+ * collects them for the SPA — it does not evaluate rules.
+ */
+
+import { esc } from "./format.js";
+
+/**
+ * Severity chip stack for aggregates (header / instance / cluster).
+ * Empty → neutral ○ (always show a mark so the column is never blank).
+ * @param {{ critical?: number, warning?: number, info?: number, total?: number, maxSeverity?: string }|null} summary
+ */
+export function severityStack(summary) {
+  const c = summary?.critical || 0;
+  const w = summary?.warning || 0;
+  const i = summary?.info || 0;
+  const total = summary?.total ?? (c + w + i);
+  if (!total) {
+    return `<span class="sev-stack empty" title="No hints">○</span>`;
+  }
+  const max = summary.maxSeverity || (c ? "Critical" : w ? "Warning" : "Info");
+  const parts = [];
+  if (c) parts.push(`<span class="sev Critical" title="${c} critical">●${c}</span>`);
+  if (w) parts.push(`<span class="sev Warning" title="${w} warning">▲${w}</span>`);
+  if (i) parts.push(`<span class="sev Info" title="${i} info">i${i}</span>`);
+  return `<span class="sev-stack max-${esc(max)}" title="${c} critical · ${w} warning · ${i} info">${parts.join("")}</span>`;
+}
+
+/** Compact code badges on entity list rows. Empty → ○. */
+export function hintBadges(hints) {
+  if (!hints || !hints.length) {
+    return `<span class="hint-badges"><span class="hint empty" title="No recommendations">○</span></span>`;
+  }
+  return `<span class="hint-badges">${hints.map((h) =>
+    `<span class="hint ${esc(h.severity || "Info")}" title="${esc(h.message)}">${esc(shortHint(h))}</span>`
+  ).join("")}</span>`;
+}
+
+/** Map rule codes to short row labels. Unknown codes use severity prefix. */
+export function shortHint(h) {
+  const map = {
+    "low-fc-hit-rate": "FC↓",
+    "low-oc-hit-rate": "OC↓",
+    "high-origin-share": "Origin↑",
+    "elevated-stale": "Stale",
+    "very-high-oc-hit-long-ttl": "TTL?",
+    "frequent-invalidations": "Inv↑",
+    "client-ttl-gt-output": "ClientTTL",
+    "schedule-phase": "Sched",
+    "instance-oc-hit-spread": "Drift",
+    "instance-origin-spread": "Drift",
+    "fc-miss-rate-vs-oc-share": "Rate≠share",
+  };
+  return map[h.code] || (h.severity || "Hint").slice(0, 4);
+}
+
+/** Full severity + code + message blocks for detail pages. */
+export function hintListHtml(hints) {
+  if (!hints || !hints.length) return `<p class="muted">No recommendations.</p>`;
+  return `<div class="hint-list">${hints.map((h) => `
+    <div class="hint-row ${esc(h.severity || "Info")}">
+      <span class="hint-sev">${esc(h.severity || "Info")}</span>
+      <div>
+        <div class="hint-code"><code>${esc(h.code)}</code></div>
+        <div class="hint-msg">${esc(h.message)}</div>
+      </div>
+    </div>`).join("")}</div>`;
+}
+
+/**
+ * Aggregate hint counts for severityStack / header badge.
+ * @param {Array<{severity?: string}>|null|undefined} hints
+ */
+export function summarizeHints(hints) {
+  let info = 0;
+  let warning = 0;
+  let critical = 0;
+  for (const h of hints || []) {
+    if (h.severity === "Critical") critical++;
+    else if (h.severity === "Warning") warning++;
+    else info++;
+  }
+  return {
+    info,
+    warning,
+    critical,
+    total: info + warning + critical,
+    maxSeverity: critical ? "Critical" : warning ? "Warning" : info ? "Info" : "None",
+  };
+}
+
+/**
+ * Flatten domain + endpoint hints (including byInstance rows) for the Hints page.
+ * Each row: { severity, code, message, instanceId, domain, route, entityType }
+ *
+ * @param {{ domains?: any[], endpoints?: any[] }} stats Cluster stats DTO
+ */
+export function collectHintRows(stats) {
+  const rows = [];
+  const push = (h, ctx) => {
+    rows.push({
+      severity: h.severity || "Info",
+      code: h.code,
+      message: h.message,
+      instanceId: ctx.instanceId || "",
+      domain: ctx.domain || "",
+      route: ctx.route || "",
+      entityType: ctx.entityType || "domain",
+    });
+  };
+
+  for (const d of stats.domains || []) {
+    for (const h of d.hints || []) {
+      push(h, { domain: d.name, instanceId: d.instanceId || "", entityType: "domain" });
+    }
+    if (d.byInstance) {
+      for (const bi of d.byInstance) {
+        for (const h of bi.hints || []) {
+          push(h, { domain: d.name, instanceId: bi.instanceId || "", entityType: "domain" });
+        }
+      }
+    }
+  }
+
+  for (const e of stats.endpoints || []) {
+    for (const h of e.hints || []) {
+      push(h, {
+        domain: e.configuredDomain || "",
+        route: e.route,
+        instanceId: e.instanceId || "",
+        entityType: "endpoint",
+      });
+    }
+    if (e.byInstance) {
+      for (const bi of e.byInstance) {
+        for (const h of bi.hints || []) {
+          push(h, {
+            domain: e.configuredDomain || bi.configuredDomain || "",
+            route: e.route,
+            instanceId: bi.instanceId || "",
+            entityType: "endpoint",
+          });
+        }
+      }
+    }
+  }
+
+  return rows;
+}

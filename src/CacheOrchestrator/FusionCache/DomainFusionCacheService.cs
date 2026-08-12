@@ -1,3 +1,4 @@
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.OutputCache;
@@ -18,6 +19,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
     private readonly IDomainCacheOptionsProvider _domainConfig;
     private readonly IDomainKeyGenerator _keyGenerator;
     private readonly ILogger<DomainFusionCacheService> _logger;
+    private readonly IAdminStatsCollector _adminStats;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DomainFusionCacheService"/> class.
@@ -26,7 +28,8 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         IFusionCacheProvider fusionProvider,
         IDomainCacheOptionsProvider domainConfig,
         IDomainKeyGenerator keyGenerator,
-        ILogger<DomainFusionCacheService> logger)
+        ILogger<DomainFusionCacheService> logger,
+        IAdminStatsCollector? adminStats = null)
     {
         ArgumentNullException.ThrowIfNull(fusionProvider);
         ArgumentNullException.ThrowIfNull(domainConfig);
@@ -37,6 +40,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         _domainConfig = domainConfig;
         _keyGenerator = keyGenerator;
         _logger = logger;
+        _adminStats = adminStats ?? NoOpAdminStatsCollector.Instance;
     }
 
     /// <inheritdoc />
@@ -98,6 +102,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
             SetData(http, DataCacheResult.Unresolved);
             CacheOrchestratorMetrics.RecordFusion(domain: "_", result: "unresolved");
+            RecordAdminFusion(http, domain: null, "unresolved", elapsedTicks: null);
 
             using Activity? unresolvedActivity =
                 CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
@@ -130,6 +135,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
             SetData(http, DataCacheResult.Bypass);
             CacheOrchestratorMetrics.RecordFusion(opts.Domain, "bypass");
+            RecordAdminFusion(http, opts.Domain, "bypass", elapsedTicks: null);
 
             using Activity? bypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
             bypassActivity?.SetTag("domain", opts.Domain);
@@ -213,6 +219,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         string resultCode = DataToMetric(dataResult);
         activity?.SetTag("cache.result", resultCode);
         CacheOrchestratorMetrics.RecordFusion(opts.Domain, resultCode, elapsed);
+        RecordAdminFusion(http, opts.Domain, resultCode, sw.ElapsedTicks);
 
         if (dataResult == DataCacheResult.Stale)
         {
@@ -309,4 +316,14 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         DataCacheResult.Miss => "miss",
         _ => "miss"
     };
+
+    private void RecordAdminFusion(HttpContext http, string? domain, string result, long? elapsedTicks)
+    {
+        if (!_adminStats.IsEnabled)
+            return;
+
+        string? endpointKey = AdminEndpointKey.TryGet(http);
+        long? ticks = _adminStats.TrackLatency ? elapsedTicks : null;
+        _adminStats.RecordFusion(endpointKey, domain, result, ticks);
+    }
 }

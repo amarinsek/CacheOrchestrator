@@ -16,6 +16,7 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 
 - Package / project: `src/CacheOrchestrator` (core; InMemory only)  
 - Redis package: `src/CacheOrchestrator.Redis` (`AddRedisBackend`)  
+- Admin App: `src/CacheOrchestrator.Admin` (fan-out UI/API; not a NuGet package)  
 - Target frameworks: `net8.0` and `net10.0` (multi-target, see `.csproj`)  
 - Version: **MinVer** from Git tags `v*` (do not hardcode `<Version>` in Directory.Build.props)  
 - Samples: `samples/CacheOrchestrator.Minimal` (1-minute InMemory), `samples/CacheOrchestrator.Sample` (playground; Redis package)  
@@ -71,6 +72,8 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `ICacheOrchestratorInvalidator` / `ICacheInvalidationObserver` / `CacheInvalidationResult` | `CacheOrchestrator.Invalidation` |
 | `CacheTags` | `CacheOrchestrator.Configuration` |
 | Health: `AddCacheOrchestrator` on `IHealthChecksBuilder` | `CacheOrchestrator.Diagnostics` |
+| `MapCacheOrchestratorAdmin` / Local Admin API | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Admin` |
+| Admin App fan-out host | `src/CacheOrchestrator.Admin` (`CacheAdmin` config) |
 
 There is **no** `CacheOrchestrator.Abstractions` folder — interfaces sit beside implementations (`Backends`, `FusionCache`, `Diagnostics`, …).
 
@@ -109,9 +112,11 @@ src/CacheOrchestrator/          core (InMemory only; no Redis packages)
   Backends/          ICacheBackendRegistrar, registration contexts, InMemory
   Invalidation/      tag purge
   Diagnostics/       metrics, activities, health
-  DependencyInjection/ AddCacheOrchestrator, ICacheOrchestratorBuilder
+  Admin/             Local Admin API (feature-flagged; stats, invalidate, version/TTL overlay)
+  DependencyInjection/ AddCacheOrchestrator, MapCacheOrchestratorAdmin, ICacheOrchestratorBuilder
   Utilities/
 src/CacheOrchestrator.Redis/    Redis package: registrar, RedisConnectionOptions, config resolve, validation
+src/CacheOrchestrator.Admin/    Admin App host (fan-out, UI, Scalar; not packable)
 tests/
 samples/
 docs/                human technical docs

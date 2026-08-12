@@ -1,3 +1,4 @@
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using Microsoft.AspNetCore.OutputCaching;
@@ -20,6 +21,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly IEnumerable<ICacheInvalidationObserver> _observers;
     private readonly ILogger<CacheOrchestratorInvalidator> _logger;
+    private readonly IAdminStatsCollector _adminStats;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CacheOrchestratorInvalidator"/> class.
@@ -30,7 +32,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         IOutputCacheStore outputCacheStore,
         IOptionsMonitor<CacheOrchestratorOptions> options,
         IEnumerable<ICacheInvalidationObserver> observers,
-        ILogger<CacheOrchestratorInvalidator> logger)
+        ILogger<CacheOrchestratorInvalidator> logger,
+        IAdminStatsCollector? adminStats = null)
     {
         ArgumentNullException.ThrowIfNull(fusionProvider);
         ArgumentNullException.ThrowIfNull(domainOptionsProvider);
@@ -45,6 +48,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         _options = options;
         _observers = observers;
         _logger = logger;
+        _adminStats = adminStats ?? NoOpAdminStatsCollector.Instance;
     }
 
     /// <inheritdoc />
@@ -239,11 +243,35 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             activity?.SetStatus(ActivityStatusCode.Error, "One or more invalidation targets failed");
 
         if (fusionOk && outputOk)
+        {
             CacheOrchestratorMetrics.RecordInvalidate(scopeLabel);
+            RecordAdminInvalidation(kind, scopeLabel);
+        }
 
         CacheInvalidationResult result = new(scopeLabel, tags, fusionOk, outputOk, errors);
         await NotifyAfterAsync(observerContext, result, cancellationToken).ConfigureAwait(false);
         return result;
+    }
+
+    private void RecordAdminInvalidation(CacheInvalidationKind kind, string scopeLabel)
+    {
+        if (!_adminStats.IsEnabled)
+            return;
+
+        if (kind == CacheInvalidationKind.Domain)
+        {
+            _adminStats.RecordInvalidation(scopeLabel);
+            return;
+        }
+
+        if (kind == CacheInvalidationKind.Entity)
+        {
+            int slash = scopeLabel.IndexOf('/');
+            if (slash > 0)
+                _adminStats.RecordInvalidation(scopeLabel[..slash]);
+        }
+
+        // Tag-only invalidations are not attributed to a single domain.
     }
 
     private async ValueTask NotifyBeforeAsync(CacheInvalidationContext context, CancellationToken cancellationToken)

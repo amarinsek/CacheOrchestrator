@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Local Admin API** (core package, opt-in) — process-local HTTP surface under `/cache-admin/local` via `MapCacheOrchestratorAdmin()` when `Cache:Admin:Enabled` is true
+  - Live stats (domains / endpoints) with **request shares** and layer rates, discovered routes, domain config snapshot
+  - Health probe: instance id, process start / uptime, lifetime request sum
+  - Write ops: domain / entity invalidation, runtime **Version** and **TTL** overlays (process-local)
+  - API key guard (`X-Cache-Admin-Key` / `Cache:Admin:ApiKey`); not on the caching hot path
+- **CacheOrchestrator.Admin** app — separate fan-out process over configured instances (`CacheAdmin:Instances`)
+  - Aggregate overview (cluster pipeline, OC hit / origin shares, alerts, `N/M` instance health)
+  - Multi-page SPA (hash routes): Overview, Instances, Domains, Endpoints, Hints, Operations
+  - Filters / search / sort; Overview **top 5** domains and endpoints ranked over the **full** aggregated sets
+  - Instance health columns (status, Req, uptime, latency) from Local Admin `/health`
+  - Rule-based **recommendation hints** in the Admin App (`RecommendationHints`); UI badges and Hints page
+  - Modular static UI (`wwwroot/js/*` ES modules); Scalar OpenAPI in Development
+
 ### Fixed
 
 - **Output Cache auth bypass** — `forceClient: Blocked` was ignored when writing response headers, so authenticated / `Authorization` bypass could still emit a public/private `Cache-Control` and `X-Cache client=public` instead of non-cacheable / `client=blocked`. `ApplyHeadersAsync` now honours `Blocked` the same way as `NoStore`.
@@ -15,12 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Expanded **integration tests** (TestServer + DI, optional Testcontainers Redis): Output Cache HTTP lifecycle, Fusion domain resolution / fail-safe / Version reload, Client Cache Schedule cutover, config reload, multi-node Redis OC/L2, health checks, and related coverage
 - Expanded **micro-benchmarks** (BenchmarkDotNet): hot-path coverage for HTTP helpers, Fusion key generation (resource id / route), Client Cache Schedule / `X-Cache` formatting, domain options / templates, Output Cache policy + query keys, ETag factory, Fusion entry-options reuse; unified short job settings and updated `docs/benchmarks/results.md`
+- **Admin** unit tests under `tests/CacheOrchestrator.UnitTests/Admin` (registration, in-memory stats collector, fan-out service)
 
 ### Documentation
 
 - Polished the main **README.md**, sample docs, and fixed minor typos
 - **Deployment.md** — multi-instance topologies; shared configuration across instances (`appsettings.cache.json` / ConfigMap pattern; do not hand-edit per machine)
 - **Invalidation.md** — multi-instance behaviour (local vs Redis backplane); Version cutover via shared config; full fan-out sample with `ICacheInvalidationObserver` + message bus (loop-safe)
+- **Admin** — [docs/admin.md](docs/admin.md) (Local Admin + Admin App architecture), [docs/admin-hints.md](docs/admin-hints.md) (hint rules / how to add), `src/CacheOrchestrator.Admin/README.md`
 
 ## [1.0.0] - 2026-08-08
 

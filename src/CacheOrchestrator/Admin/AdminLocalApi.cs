@@ -1,0 +1,198 @@
+using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Invalidation;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace CacheOrchestrator.Admin;
+
+/// <summary>
+/// Maps Local Admin API endpoints (per instance). No-op when Admin is disabled.
+/// Prefer <see cref="DependencyInjection.ApplicationBuilderExtensions.MapCacheOrchestratorAdmin"/>.
+/// </summary>
+public static class AdminLocalApi
+{
+    /// <summary>
+    /// Maps Local Admin routes under <c>Cache:Admin:RoutePrefix</c> when Admin is enabled.
+    /// Safe to call when Admin is disabled (maps nothing).
+    /// </summary>
+    /// <param name="endpoints">Endpoint route builder.</param>
+    /// <returns>The same <paramref name="endpoints"/> for chaining.</returns>
+    public static IEndpointRouteBuilder Map(IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+
+        using IServiceScope scope = endpoints.ServiceProvider.CreateScope();
+        CacheOrchestratorOptions opts = scope.ServiceProvider
+            .GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
+
+        if (!opts.Admin.Enabled)
+            return endpoints;
+
+        string prefix = string.IsNullOrWhiteSpace(opts.Admin.RoutePrefix)
+            ? "/cache-admin/local"
+            : opts.Admin.RoutePrefix.TrimEnd('/');
+
+        if (string.IsNullOrEmpty(opts.Admin.ApiKey))
+        {
+            ILogger? logger = endpoints.ServiceProvider.GetService<ILoggerFactory>()
+                ?.CreateLogger("CacheOrchestrator.Admin");
+            logger?.LogWarning(
+                "CacheOrchestrator Admin is enabled without ApiKey. Local Admin API at '{Prefix}' is open. " +
+                "Set Cache:Admin:ApiKey for non-local environments.",
+                prefix);
+        }
+
+        // Admin is operational traffic — never store responses in Output Cache.
+        RouteGroupBuilder group = endpoints
+            .MapGroup(prefix)
+            .AddEndpointFilter<AdminApiKeyEndpointFilter>()
+            .WithTags("CacheOrchestrator Admin")
+            .WithMetadata(new OutputCacheAttribute { NoStore = true });
+
+        group.MapGet("/health", (AdminQueryService query) => Results.Ok(query.GetHealth()));
+
+        group.MapGet("/stats", (AdminQueryService query) => Results.Ok(query.GetStats()));
+
+        group.MapGet("/endpoints", (AdminQueryService query) => Results.Ok(query.GetEndpoints()));
+
+        group.MapGet("/domains", (AdminQueryService query) => Results.Ok(query.GetDomains()));
+
+        group.MapGet("/domains/{domain}", (string domain, AdminQueryService query) =>
+        {
+            AdminDomainConfigDto? dto = query.GetDomain(domain);
+            return dto is null ? Results.NotFound() : Results.Ok(dto);
+        });
+
+        group.MapPost("/invalidate", async (
+            AdminInvalidateRequest body,
+            ICacheOrchestratorInvalidator invalidator,
+            CancellationToken cancellationToken) =>
+        {
+            if (body is null)
+                return Results.BadRequest(new { error = "Request body is required." });
+
+            string scope = (body.Scope ?? "domain").Trim().ToLowerInvariant();
+            CacheInvalidationResult result;
+
+            switch (scope)
+            {
+                case "domain":
+                    if (string.IsNullOrWhiteSpace(body.Domain))
+                        return Results.BadRequest(new { error = "domain is required for scope=domain." });
+                    result = await invalidator.InvalidateDomainAsync(body.Domain, cancellationToken)
+                        .ConfigureAwait(false);
+                    break;
+
+                case "entity":
+                    if (string.IsNullOrWhiteSpace(body.Domain) || string.IsNullOrWhiteSpace(body.EntityId))
+                        return Results.BadRequest(new { error = "domain and entityId are required for scope=entity." });
+                    result = await invalidator.InvalidateEntityAsync(body.Domain, body.EntityId, cancellationToken)
+                        .ConfigureAwait(false);
+                    break;
+
+                case "tags":
+                    if (body.Tags is null || body.Tags.Length == 0)
+                        return Results.BadRequest(new { error = "tags are required for scope=tags." });
+                    result = await invalidator.InvalidateTagsAsync(body.Tags, cancellationToken)
+                        .ConfigureAwait(false);
+                    break;
+
+                default:
+                    return Results.BadRequest(new { error = "scope must be domain, entity, or tags." });
+            }
+
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/domains/{domain}/version", (
+            string domain,
+            AdminVersionRequest? body,
+            IDomainRuntimeOverrideStore overrides,
+            AdminQueryService query) =>
+        {
+            if (string.IsNullOrWhiteSpace(domain))
+                return Results.BadRequest(new { error = "domain is required." });
+
+            string? requested = body?.Version;
+            string version = string.IsNullOrWhiteSpace(requested)
+                ? "rt-" + DateTimeOffset.UtcNow.UtcTicks.ToString("x")
+                : requested.Trim();
+
+            overrides.SetVersion(domain, version);
+            AdminDomainConfigDto effective = query.GetDomainConfig(DomainName.Normalize(domain));
+            return Results.Ok(new AdminDomainMutationResultDto
+            {
+                Domain = effective.Name,
+                Effective = effective
+            });
+        });
+
+        group.MapMethods("/domains/{domain}/ttl", ["PATCH"], (
+            string domain,
+            AdminTtlPatchRequest body,
+            IDomainRuntimeOverrideStore overrides,
+            AdminQueryService query) =>
+        {
+            if (string.IsNullOrWhiteSpace(domain))
+                return Results.BadRequest(new { error = "domain is required." });
+            if (body is null)
+                return Results.BadRequest(new { error = "Request body is required." });
+
+            DomainTtlPatch patch = new()
+            {
+                OutputCacheTtlSeconds = body.OutputCacheTtlSeconds,
+                FusionCacheSoftTtlSeconds = body.FusionCacheSoftTtlSeconds,
+                FusionCacheHardTtlSeconds = body.FusionCacheHardTtlSeconds,
+                FusionCacheFailSafeSeconds = body.FusionCacheFailSafeSeconds,
+                ClientTtlSeconds = body.ClientTtlSeconds,
+                ClientTtlMinSeconds = body.ClientTtlMinSeconds
+            };
+
+            if (!patch.HasAny)
+                return Results.BadRequest(new { error = "At least one TTL field is required." });
+
+            string? validationError = ValidateTtlPatch(patch);
+            if (validationError is not null)
+                return Results.BadRequest(new { error = validationError });
+
+            overrides.PatchTtl(domain, patch);
+            AdminDomainConfigDto effective = query.GetDomainConfig(DomainName.Normalize(domain));
+            return Results.Ok(new AdminDomainMutationResultDto
+            {
+                Domain = effective.Name,
+                Effective = effective
+            });
+        });
+
+        return endpoints;
+    }
+
+    private static string? ValidateTtlPatch(DomainTtlPatch patch)
+    {
+        static bool Negative(int? v) => v is < 0;
+
+        if (Negative(patch.OutputCacheTtlSeconds)
+            || Negative(patch.FusionCacheSoftTtlSeconds)
+            || Negative(patch.FusionCacheHardTtlSeconds)
+            || Negative(patch.FusionCacheFailSafeSeconds)
+            || Negative(patch.ClientTtlSeconds)
+            || Negative(patch.ClientTtlMinSeconds))
+        {
+            return "TTL values must be non-negative.";
+        }
+
+        if (patch.ClientTtlSeconds is int max
+            && patch.ClientTtlMinSeconds is int min
+            && min > max)
+        {
+            return "clientTtlMinSeconds must be <= clientTtlSeconds when both are set.";
+        }
+
+        return null;
+    }
+}
