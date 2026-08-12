@@ -8,7 +8,7 @@ It does **not** sit on the caching hot path. Instances remain independent; this 
 |------|------|
 | Project | `src/CacheOrchestrator.Admin` |
 | UI (static) | `wwwroot/` — modular ES modules under `wwwroot/js/` |
-| Tech docs | [docs/admin.md](../../docs/admin.md) |
+| Tech docs | [docs/admin.md](../../docs/admin.md) · [docs/admin-hints.md](../../docs/admin-hints.md) |
 | Local Admin (library) | `src/CacheOrchestrator/Admin/` |
 
 ## Prerequisites
@@ -90,7 +90,7 @@ Chrome layout (top → bottom):
 | `#/domains?name=hello` | Domain detail + config + nested endpoints |
 | `#/instances` | Instance health (search, sort) — status, Req, uptime, latency |
 | `#/instances?id=…` | Instance detail |
-| `#/hints` | Flattened recommendations (+ optional **mock** toggle) |
+| `#/hints` | Flattened recommendations from live stats |
 | `#/operations` | Invalidate / version / TTL fan-out |
 
 **Auto-refresh** (Grafana-style) lives in the menu strip; interval is stored in `localStorage`.
@@ -112,7 +112,6 @@ wwwroot/js/
   api.js           fetch wrapper for /api/*
   format.js        esc, pct, units, pipeline bar
   hints.js         badges, lists, collectHintRows
-  hints-mock.js    REMOVE LATER — mock recommendation catalog
   filters.js       multi-select, sort options, client sort/search
   tables.js        entity tables + empty states
   router.js        hash parse / navigate
@@ -120,7 +119,7 @@ wwwroot/js/
   views.js         all pages + route()
 ```
 
-Comments in code are English-only. Search **`REMOVE LATER — Hint mockup`** to find temporary mock UI.
+Comments in code are English-only.
 
 ## Admin App API
 

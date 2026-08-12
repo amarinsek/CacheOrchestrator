@@ -123,9 +123,9 @@ Section: `CacheAdmin` → `CacheAdminOptions`.
 ### Recommendation hints
 
 Server: `RecommendationHints.cs` (traffic thresholds, origin share, stale, invalidation ratio, instance spread, …).  
-Client: render-only in `wwwroot/js/hints.js`.  
+Client: render-only in `wwwroot/js/hints.js` (live data only).
 
-**Mock mode** (`hints-mock.js`, toggle on Hints page) injects catalog hints for UI design; remove when live density is enough (`REMOVE LATER — Hint mockup`).
+**How to define rules, formulas, and add a new hint:** [admin-hints.md](admin-hints.md).
 
 ---
 
@@ -138,7 +138,7 @@ Hash router, no build step. Entry: `wwwroot/js/app.js` (`type="module"` from `in
 | `dom.js` | `$`, `main()` |
 | `api.js` | `fetch` + JSON error handling |
 | `format.js` | Escape, %, thin-space units, pipeline bar |
-| `hints.js` / `hints-mock.js` | Hint UI + optional mock catalog |
+| `hints.js` | Hint badges, lists, flatten for Hints page |
 | `filters.js` | Multi-select All/none/filter, sort keys, client sort/search |
 | `tables.js` | Endpoint / domain / instance tables, empty states |
 | `router.js` | `#/path?query` parse & navigate |

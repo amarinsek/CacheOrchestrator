@@ -42,13 +42,6 @@ import {
   severityStack,
   summarizeHints,
 } from "./hints.js";
-import {
-  applyMockToDomain,
-  applyMockToEndpoint,
-  applyMockToOverview,
-  isHintMock,
-  setHintMock,
-} from "./hints-mock.js";
 import { navigate, parseHash, setBreadcrumb, setNavActive } from "./router.js";
 import * as shell from "./shell.js";
 import {
@@ -72,7 +65,7 @@ export async function renderOverview(params = new URLSearchParams()) {
   main().innerHTML = `<div class="card"><p class="muted">Loading overview…</p></div>`;
   let o;
   try {
-    o = applyMockToOverview(await api("/api/overview"));
+    o = await api("/api/overview");
   } catch (err) {
     main().innerHTML = `<div class="card">${emptyStateHtml("error", {
       title: "Cannot load overview",
@@ -211,7 +204,6 @@ export async function renderEndpointsList(params) {
       if (selInstances !== null) q.set("instances", selInstances.length ? selInstances.join(",") : "__none__");
       if (selDomains !== null) q.set("domains", selDomains.length ? selDomains.join(",") : "__none__");
       list = await api("/api/endpoints?" + q.toString());
-      list = list.map((e, i) => applyMockToEndpoint(e, i));
     } catch (err) {
       loadError = err.message;
     }
@@ -304,8 +296,6 @@ export async function renderEndpointDetail(routeName) {
       <a href="#/endpoints">← Back</a></div>`;
     return;
   }
-  ep = applyMockToEndpoint(ep);
-
   main().innerHTML = `
     <div class="card">
       <h2><code>${esc(ep.route)}</code>
@@ -386,7 +376,7 @@ export async function renderDomainsList(params) {
       const q = new URLSearchParams({ scope: "all" });
       if (selInstances !== null) q.set("instances", selInstances.join(","));
       const stats = await api("/api/stats?" + q.toString());
-      domains = (stats.domains || []).map((d, i) => applyMockToDomain(d, i));
+      domains = stats.domains || [];
     } catch (err) {
       loadError = err.message;
     }
@@ -449,8 +439,7 @@ export async function renderDomainDetail(name) {
     return;
   }
 
-  let domain = d || { name, requests: 0, oc: {}, fc: {}, pipeline: {}, endpoints: [], hints: [] };
-  domain = applyMockToDomain(domain);
+  const domain = d || { name, requests: 0, oc: {}, fc: {}, pipeline: {}, endpoints: [], hints: [] };
 
   main().innerHTML = `
     <div class="card">
@@ -527,7 +516,7 @@ export async function renderInstancesList(params = new URLSearchParams()) {
   main().innerHTML = `<div class="card"><p class="muted">Loading instances…</p></div>`;
   let overview;
   try {
-    overview = applyMockToOverview(await api("/api/overview"));
+    overview = await api("/api/overview");
   } catch (err) {
     main().innerHTML = `<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`;
     bindEmptyStateActions(main());
@@ -599,11 +588,11 @@ export async function renderInstanceDetail(id) {
     </div>
     <div class="card">
       <h2>Domains on instance</h2>
-      ${domainTableHtml((stats.domains || []).map((d, i) => applyMockToDomain(d, i)))}
+      ${domainTableHtml(stats.domains || [])}
     </div>
     <div class="card">
       <h2>Endpoints on instance</h2>
-      ${endpointTableHtml((stats.endpoints || []).slice(0, 50).map((e, i) => applyMockToEndpoint(e, i)))}
+      ${endpointTableHtml((stats.endpoints || []).slice(0, 50))}
     </div>
     <p><a href="#/instances">← Instances</a>
       · <a href="#/operations?target=instance:${encodeURIComponent(id)}">Operations on this instance</a></p>`;
@@ -656,10 +645,8 @@ export async function renderHintsPage(params) {
 
   main().innerHTML = `
     <div class="card">
-      <h2>Hints ${severityStack(summary)}
-        ${isHintMock() ? '<span class="badge">MOCK on</span>' : ""}
-      </h2>
-      <p class="muted">Rule-based recommendations. Filters combine (AND). Empty hint mark is <strong>○</strong>.</p>
+      <h2>Hints ${severityStack(summary)}</h2>
+      <p class="muted">Rule-based recommendations from live stats. Filters combine (AND). Empty hint mark is <strong>○</strong>.</p>
       <form class="toolbar" id="hintFilters">
         ${multiSelectHtml("hInst", "Instances", instanceOpts, selInstances)}
         ${multiSelectHtml("hDom", "Domains", domainOpts, selDomains)}
@@ -672,11 +659,6 @@ export async function renderHintsPage(params) {
           </select>
         </label>
         ${applyButtonHtml()}
-        <!-- REMOVE LATER — Hint mockup toggle -->
-        <label class="toggle-inline" title="REMOVE LATER: UI preview only">
-          <input type="checkbox" id="chkHintMock" ${isHintMock() ? "checked" : ""} />
-          Mock hints (all pages)
-        </label>
       </form>
       <div class="kpi-row">
         <div class="kpi"><div class="label">Critical</div><div class="value status-Down">${summary.critical}</div></div>
@@ -706,9 +688,7 @@ export async function renderHintsPage(params) {
         </tbody>
       </table>` : emptyStateHtml("filter", {
         title: "No hints to show",
-        detail: isHintMock()
-          ? "No rows match the current filters."
-          : "No recommendations from live data. Enable “Mock hints (all pages)” to preview symbology, or generate traffic on healthy apps.",
+        detail: "No recommendations from live data for the current filters. Generate traffic on healthy apps or clear filters.",
       })}
     </div>`;
   bindEmptyStateActions(main());
@@ -724,11 +704,6 @@ export async function renderHintsPage(params) {
       endpoints: csvParamFromSelection(readMultiSelect(form, "hEp")),
       severity: fd.get("severity") || "",
     });
-  });
-  $("#chkHintMock")?.addEventListener("change", (ev) => {
-    setHintMock(ev.target.checked);
-    shell.refreshHeader();
-    route();
   });
 }
 
@@ -877,7 +852,7 @@ export async function route() {
       else await renderInstancesList(params);
     } else if (root === "operations") {
       await renderOperations(params);
-    } else if (root === "hints" || root === "hints-mockup") {
+    } else if (root === "hints") {
       await renderHintsPage(params);
     } else {
       navigate("overview");

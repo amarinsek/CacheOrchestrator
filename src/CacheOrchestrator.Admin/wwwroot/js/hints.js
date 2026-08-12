@@ -7,12 +7,6 @@
  */
 
 import { esc } from "./format.js";
-import {
-  applyMockToDomain,
-  applyMockToEndpoint,
-  isHintMock,
-  MOCK_HINT_CATALOG,
-} from "./hints-mock.js";
 
 /**
  * Severity chip stack for aggregates (header / instance / cluster).
@@ -103,9 +97,8 @@ export function summarizeHints(hints) {
  * Each row: { severity, code, message, instanceId, domain, route, entityType }
  *
  * @param {{ domains?: any[], endpoints?: any[] }} stats Cluster stats DTO
- * @param {{ includeCatalog?: boolean }} [opts]
  */
-export function collectHintRows(stats, opts = {}) {
+export function collectHintRows(stats) {
   const rows = [];
   const push = (h, ctx) => {
     rows.push({
@@ -120,14 +113,12 @@ export function collectHintRows(stats, opts = {}) {
   };
 
   for (const d of stats.domains || []) {
-    const dHints = isHintMock() ? applyMockToDomain(d).hints : (d.hints || []);
-    for (const h of dHints) {
+    for (const h of d.hints || []) {
       push(h, { domain: d.name, instanceId: d.instanceId || "", entityType: "domain" });
     }
     if (d.byInstance) {
       for (const bi of d.byInstance) {
-        const biHints = isHintMock() ? applyMockToDomain(bi).hints : (bi.hints || []);
-        for (const h of biHints) {
+        for (const h of bi.hints || []) {
           push(h, { domain: d.name, instanceId: bi.instanceId || "", entityType: "domain" });
         }
       }
@@ -135,8 +126,7 @@ export function collectHintRows(stats, opts = {}) {
   }
 
   for (const e of stats.endpoints || []) {
-    const eHints = isHintMock() ? applyMockToEndpoint(e).hints : (e.hints || []);
-    for (const h of eHints) {
+    for (const h of e.hints || []) {
       push(h, {
         domain: e.configuredDomain || "",
         route: e.route,
@@ -146,8 +136,7 @@ export function collectHintRows(stats, opts = {}) {
     }
     if (e.byInstance) {
       for (const bi of e.byInstance) {
-        const biHints = isHintMock() ? applyMockToEndpoint(bi).hints : (bi.hints || []);
-        for (const h of biHints) {
+        for (const h of bi.hints || []) {
           push(h, {
             domain: e.configuredDomain || bi.configuredDomain || "",
             route: e.route,
@@ -156,24 +145,6 @@ export function collectHintRows(stats, opts = {}) {
           });
         }
       }
-    }
-  }
-
-  // Mock-only catalog rows so the Hints page is never empty in mock mode.
-  if (isHintMock() && opts.includeCatalog !== false) {
-    for (const h of MOCK_HINT_CATALOG) {
-      push(h, {
-        domain: "catalog",
-        route: "GET /api/products/{id}",
-        instanceId: "app-1",
-        entityType: "endpoint",
-      });
-      push(h, {
-        domain: "hello",
-        route: "GET /hello",
-        instanceId: "local-minimal",
-        entityType: "endpoint",
-      });
     }
   }
 

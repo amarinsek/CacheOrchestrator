@@ -700,16 +700,6 @@ code { color: #cde; font-size: 0.9em; }
   font-weight: 500;
 }
 
-.toggle-inline {
-  display: inline-flex !important;
-  flex-direction: row !important;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-  cursor: pointer;
-}
-
 .section-sub {
   margin: 0.75rem 0 0.35rem;
   font-size: 0.85rem;

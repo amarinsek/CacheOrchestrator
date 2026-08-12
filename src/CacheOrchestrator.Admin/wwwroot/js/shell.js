@@ -11,7 +11,6 @@ import { api } from "./api.js";
 import { $, main } from "./dom.js";
 import { esc, fmtUnit, num, pct, pipelineBar } from "./format.js";
 import { severityStack } from "./hints.js";
-import { applyMockToOverview, isHintMock } from "./hints-mock.js";
 
 const REFRESH_KEY = "adminAutoRefreshSec";
 
@@ -51,8 +50,7 @@ export function setAutoRefreshSec(sec) {
 /** Lightweight header-only refresh (overview API). */
 export async function refreshHeader() {
   try {
-    let o = await api("/api/overview");
-    o = applyMockToOverview(o);
+    const o = await api("/api/overview");
     setLastOverview(o);
     renderHeader(o);
     updateNavHintsBadge(o.hintSummary);
@@ -115,7 +113,6 @@ export function renderHeader(o) {
     <span class="hm" title="Lifetime request count (sum)">Req <strong>${num(o.totalRequests)}</strong></span>
     <span class="hm" title="Lifetime invalidations (sum)">Inv <strong>${num(o.totalInvalidations)}</strong></span>
     <span class="hm muted" title="Domains / endpoints observed">${fmtUnit(o.domainCount, "dom")} · ${fmtUnit(o.endpointCount, "ep")}</span>
-    ${isHintMock() ? `<span class="hm badge" title="Mock hints active">MOCK</span>` : ""}
     ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
   `;
 }

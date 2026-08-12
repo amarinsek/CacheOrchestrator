@@ -6,7 +6,6 @@
  *   api.js          /api/* client
  *   format.js       numbers, units, pipeline bar
  *   hints.js        recommendation badges / lists / collect
- *   hints-mock.js   REMOVE LATER — localStorage mock hints
  *   filters.js      multi-select, sort, search
  *   tables.js       entity tables + empty states
  *   router.js       hash routing helpers
