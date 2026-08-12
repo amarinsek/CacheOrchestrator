@@ -87,12 +87,17 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
         foreach ((string name, AdminCounterSet counters) in _domains)
         {
             long invTicks = Interlocked.Read(ref counters.LastInvalidationUtcTicks);
+            (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
+                counters.ToStats();
             domains.Add(new AdminDomainStatsDto
             {
                 Name = name,
+                InstanceId = _instanceId,
                 Version = string.Empty,
-                Oc = counters.ToOcDto(),
-                Fc = counters.ToFcDto(),
+                Requests = requests,
+                Oc = oc,
+                Fc = fc,
+                Pipeline = pipeline,
                 Invalidations = Interlocked.Read(ref counters.Invalidations),
                 LastInvalidationUtc = invTicks > 0
                     ? new DateTimeOffset(invTicks, TimeSpan.Zero)
@@ -105,12 +110,17 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
         foreach ((string route, AdminCounterSet counters) in _endpoints)
         {
             _endpointConfiguredDomain.TryGetValue(route, out string? configured);
+            (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
+                counters.ToStats();
             endpoints.Add(new AdminEndpointStatsDto
             {
                 Route = route,
+                InstanceId = _instanceId,
                 ConfiguredDomain = configured,
-                Oc = counters.ToOcDto(),
-                Fc = counters.ToFcDto()
+                Requests = requests,
+                Oc = oc,
+                Fc = fc,
+                Pipeline = pipeline
             });
         }
 
@@ -119,7 +129,8 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
             InstanceId = _instanceId,
             CollectedAtUtc = _time.GetUtcNow(),
             Domains = [.. domains.OrderBy(d => d.Name, StringComparer.Ordinal)],
-            UnassignedEndpoints = endpoints
+            UnassignedEndpoints = endpoints,
+            Endpoints = endpoints
         };
     }
 

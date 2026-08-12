@@ -6,72 +6,80 @@ namespace CacheOrchestrator.UnitTests.Admin;
 public class StatsAggregatorTests
 {
     [Fact]
-    public void MergeDomains_SumsCountersAcrossInstances()
+    public void MergeDomains_SumsCountersAndRecomputesShares()
     {
         AdminLiveStatsSnapshot a = Snapshot("i1",
-            Domain("catalog", ocHits: 10, ocMisses: 2, fcHits: 8, fcMisses: 1));
+            Domain("catalog", ocHits: 90, ocMisses: 10, fcHits: 8, fcMisses: 2));
         AdminLiveStatsSnapshot b = Snapshot("i2",
-            Domain("catalog", ocHits: 5, ocMisses: 3, fcHits: 4, fcMisses: 2));
+            Domain("catalog", ocHits: 50, ocMisses: 50, fcHits: 40, fcMisses: 10));
 
         IReadOnlyList<AdminDomainStatsDto> merged = StatsAggregator.MergeDomains([a, b]);
 
         AdminDomainStatsDto catalog = merged.Should().ContainSingle().Subject;
         catalog.Name.Should().Be("catalog");
-        catalog.Oc.Hits.Should().Be(15);
-        catalog.Oc.Misses.Should().Be(5);
-        catalog.Oc.HitRate.Should().BeApproximately(15.0 / 20.0, 0.0001);
-        catalog.Fc.Hits.Should().Be(12);
-        catalog.Fc.Misses.Should().Be(3);
+        catalog.Requests.Should().Be(200); // 100+100 OC traffic
+        catalog.Oc.Hits.Should().Be(140);
+        catalog.Oc.Misses.Should().Be(60);
+        catalog.Oc.HitShare.Should().BeApproximately(0.7, 0.0001);
+        catalog.Fc.Hits.Should().Be(48);
+        catalog.Fc.MissShare.Should().BeApproximately(12.0 / 200.0, 0.0001);
+        // Layer FC miss rate among FC traffic only (48 hit + 12 miss)
+        catalog.Fc.MissRate.Should().BeApproximately(12.0 / 60.0, 0.0001);
     }
 
     [Fact]
-    public void MergeDomains_MergesNestedEndpointsByRoute()
+    public void MergeDomains_WithByInstance_AttachesRowsAndSpread()
     {
-        AdminDomainStatsDto d1 = Domain("catalog", 1, 0, 1, 0);
-        d1 = WithEndpoint(d1, "GET /a", ocHits: 3, ocMisses: 1);
-        AdminDomainStatsDto d2 = Domain("catalog", 0, 0, 0, 0);
-        d2 = WithEndpoint(d2, "GET /a", ocHits: 2, ocMisses: 2);
+        AdminLiveStatsSnapshot a = Snapshot("i1",
+            Domain("catalog", ocHits: 100, ocMisses: 0, fcHits: 0, fcMisses: 0));
+        AdminLiveStatsSnapshot b = Snapshot("i2",
+            Domain("catalog", ocHits: 0, ocMisses: 100, fcHits: 0, fcMisses: 100));
 
-        IReadOnlyList<AdminDomainStatsDto> merged = StatsAggregator.MergeDomains(
+        AdminDomainStatsDto catalog = StatsAggregator.MergeDomains([a, b], includeByInstance: true)
+            .Should().ContainSingle().Subject;
+
+        catalog.ByInstance.Should().HaveCount(2);
+        catalog.InstanceSpread.Should().NotBeNull();
+        catalog.InstanceSpread!.OcHitShare!.Min.Should().BeApproximately(0, 0.001);
+        catalog.InstanceSpread.OcHitShare.Max.Should().BeApproximately(1, 0.001);
+    }
+
+    [Fact]
+    public void MergeEndpoints_IsFundamentalUnit()
+    {
+        AdminDomainStatsDto d1 = Domain("catalog", 10, 0, 0, 0);
+        d1 = WithEndpoint(d1, "GET /a", ocHits: 10, ocMisses: 0);
+        AdminDomainStatsDto d2 = Domain("catalog", 5, 5, 0, 0);
+        d2 = WithEndpoint(d2, "GET /a", ocHits: 5, ocMisses: 5);
+
+        IReadOnlyList<AdminEndpointStatsDto> eps = StatsAggregator.MergeEndpoints(
         [
             Snapshot("i1", d1),
             Snapshot("i2", d2)
         ]);
 
-        AdminEndpointStatsDto ep = merged.Single().Endpoints.Should().ContainSingle().Subject;
+        AdminEndpointStatsDto ep = eps.Should().ContainSingle().Subject;
         ep.Route.Should().Be("GET /a");
-        ep.Oc.Hits.Should().Be(5);
-        ep.Oc.Misses.Should().Be(3);
+        ep.Requests.Should().Be(20);
+        ep.Oc.HitShare.Should().BeApproximately(0.75, 0.0001);
     }
 
     [Fact]
-    public void MergeUnassignedEndpoints_SumsByRoute()
+    public void AdminStatsMath_OcHitDominates_FcMissShareIsSmallNotOne()
     {
-        AdminLiveStatsSnapshot a = new()
-        {
-            InstanceId = "i1",
-            CollectedAtUtc = DateTimeOffset.UtcNow,
-            Domains = [],
-            UnassignedEndpoints =
-            [
-                Endpoint("GET /x", ocHits: 1, ocMisses: 1)
-            ]
-        };
-        AdminLiveStatsSnapshot b = new()
-        {
-            InstanceId = "i2",
-            CollectedAtUtc = DateTimeOffset.UtcNow,
-            Domains = [],
-            UnassignedEndpoints =
-            [
-                Endpoint("GET /x", ocHits: 4, ocMisses: 0)
-            ]
-        };
+        // 99 OC hits, 1 OC miss that is FC miss → FC layer miss rate 100%, miss share 1%
+        (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+            AdminStatsMath.BuildAll(
+                ocHits: 99, ocMisses: 1, ocBypass: 0,
+                fcHits: 0, fcMisses: 1, fcStale: 0, fcBypass: 0,
+                factoryRuns: 1, factoryFailures: 0);
 
-        AdminEndpointStatsDto ep = StatsAggregator.MergeUnassignedEndpoints([a, b])
-            .Should().ContainSingle().Subject;
-        ep.Oc.Hits.Should().Be(5);
-        ep.Oc.Misses.Should().Be(1);
+        requests.Should().Be(100);
+        oc.HitShare.Should().BeApproximately(0.99, 0.0001);
+        fc.MissRate.Should().BeApproximately(1.0, 0.0001);
+        fc.MissShare.Should().BeApproximately(0.01, 0.0001);
+        fc.OriginShare.Should().BeApproximately(0.01, 0.0001);
+        pipe.OcHitShare.Should().BeApproximately(0.99, 0.0001);
     }
 
     private static AdminLiveStatsSnapshot Snapshot(string id, params AdminDomainStatsDto[] domains) =>
@@ -80,7 +88,8 @@ public class StatsAggregatorTests
             InstanceId = id,
             CollectedAtUtc = DateTimeOffset.UtcNow,
             Domains = domains,
-            UnassignedEndpoints = []
+            UnassignedEndpoints = [],
+            Endpoints = domains.SelectMany(d => d.Endpoints).ToArray()
         };
 
     private static AdminDomainStatsDto Domain(
@@ -88,64 +97,51 @@ public class StatsAggregatorTests
         long ocHits,
         long ocMisses,
         long fcHits,
-        long fcMisses) =>
-        new()
+        long fcMisses)
+    {
+        (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+            AdminStatsMath.BuildAll(ocHits, ocMisses, 0, fcHits, fcMisses, 0, 0, fcMisses, 0);
+        return new AdminDomainStatsDto
         {
             Name = name,
+            InstanceId = null,
             Version = "v1",
-            Oc = new AdminLayerDto
-            {
-                Hits = ocHits,
-                Misses = ocMisses,
-                HitRate = HitRate(ocHits, ocMisses)
-            },
-            Fc = new AdminFusionLayerDto
-            {
-                Hits = fcHits,
-                Misses = fcMisses,
-                HitRate = HitRate(fcHits, fcMisses)
-            },
+            Requests = requests,
+            Oc = oc,
+            Fc = fc,
+            Pipeline = pipe,
             Endpoints = []
         };
+    }
 
     private static AdminDomainStatsDto WithEndpoint(
         AdminDomainStatsDto domain,
         string route,
         long ocHits,
-        long ocMisses) =>
-        new()
+        long ocMisses)
+    {
+        (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+            AdminStatsMath.BuildAll(ocHits, ocMisses, 0, 0, 0, 0, 0, 0, 0);
+        return new AdminDomainStatsDto
         {
             Name = domain.Name,
             Version = domain.Version,
+            Requests = domain.Requests,
             Oc = domain.Oc,
             Fc = domain.Fc,
+            Pipeline = domain.Pipeline,
             Endpoints =
             [
-                Endpoint(route, ocHits, ocMisses, domain.Name)
+                new AdminEndpointStatsDto
+                {
+                    Route = route,
+                    ConfiguredDomain = domain.Name,
+                    Requests = requests,
+                    Oc = oc,
+                    Fc = fc,
+                    Pipeline = pipe
+                }
             ]
         };
-
-    private static AdminEndpointStatsDto Endpoint(
-        string route,
-        long ocHits,
-        long ocMisses,
-        string? domain = null) =>
-        new()
-        {
-            Route = route,
-            ConfiguredDomain = domain,
-            Oc = new AdminLayerDto
-            {
-                Hits = ocHits,
-                Misses = ocMisses,
-                HitRate = HitRate(ocHits, ocMisses)
-            },
-            Fc = new AdminFusionLayerDto { Hits = 0, Misses = 0 }
-        };
-
-    private static double? HitRate(long hits, long misses)
-    {
-        long t = hits + misses;
-        return t <= 0 ? null : (double)hits / t;
     }
 }

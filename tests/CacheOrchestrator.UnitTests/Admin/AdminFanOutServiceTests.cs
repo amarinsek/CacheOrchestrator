@@ -45,6 +45,8 @@ public class AdminFanOutServiceTests
     public async Task GetStatsAsync_AggregatesSuccessfulInstances_IgnoresFailures()
     {
         FakeLocalAdminClient client = new();
+        (long req, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+            AdminStatsMath.BuildAll(10, 0, 0, 5, 5, 0, 0, 5, 0);
         client.Stats["a"] = new AdminLiveStatsSnapshot
         {
             InstanceId = "a",
@@ -55,12 +57,15 @@ public class AdminFanOutServiceTests
                 {
                     Name = "catalog",
                     Version = "1",
-                    Oc = new AdminLayerDto { Hits = 10, Misses = 0, HitRate = 1 },
-                    Fc = new AdminFusionLayerDto { Hits = 5, Misses = 5, HitRate = 0.5 },
+                    Requests = req,
+                    Oc = oc,
+                    Fc = fc,
+                    Pipeline = pipe,
                     Endpoints = []
                 }
             ],
-            UnassignedEndpoints = []
+            UnassignedEndpoints = [],
+            Endpoints = []
         };
         client.FailStats.Add("b");
 
@@ -140,7 +145,8 @@ public class AdminFanOutServiceTests
                     InstanceId = instance.Id,
                     CollectedAtUtc = DateTimeOffset.UtcNow,
                     Domains = [],
-                    UnassignedEndpoints = []
+                    UnassignedEndpoints = [],
+                    Endpoints = []
                 };
 
             return Task.FromResult(Ok(instance.Id, snap));

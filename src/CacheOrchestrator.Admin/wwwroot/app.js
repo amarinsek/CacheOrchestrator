@@ -13,9 +13,41 @@ async function api(path, options = {}) {
   return body;
 }
 
-function pct(rate) {
+function pct(rate, lowSample) {
   if (rate == null || Number.isNaN(rate)) return "—";
-  return (rate * 100).toFixed(1) + "%";
+  const s = (rate * 100).toFixed(1) + "%";
+  return lowSample ? `<span class="low-n" title="Low sample size">${s}</span>` : s;
+}
+
+function pipelineBar(p) {
+  if (!p) return "";
+  const parts = [
+    ["oc", p.ocHitShare, "OC hit"],
+    ["fc", p.fcHitShare, "FC hit"],
+    ["origin", p.originShare, "Origin"],
+    ["bypass", p.bypassShare, "Bypass"],
+    ["other", p.otherShare, "Other"],
+  ].filter(([, v]) => v != null && v > 0.0005);
+  if (!parts.length) return `<div class="pipe empty"></div>`;
+  return `<div class="pipe" title="${parts.map(([,,l,]) => l).join(" · ")}">${
+    parts.map(([cls, v, label]) =>
+      `<span class="seg ${cls}" style="flex:${Math.max(v, 0.01)}" title="${label}: ${(v*100).toFixed(1)}%"></span>`
+    ).join("")
+  }</div>`;
+}
+
+function spreadCell(s) {
+  if (!s || s.sampleCount < 1) return "—";
+  if (s.sampleCount === 1) return pct(s.mean);
+  return `${pct(s.min)}–${pct(s.max)} <span class="muted">(μ ${pct(s.mean)})</span>`;
+}
+
+function esc(s) {
+  return String(s ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function renderInstances(list) {
@@ -49,85 +81,121 @@ function renderInstances(list) {
     </table>`;
 }
 
-function renderStats(stats) {
-  const el = document.getElementById("stats");
-  document.getElementById("scopeLabel").textContent = stats.scope || "all";
-  if (!stats.domains || !stats.domains.length) {
-    el.innerHTML = `<p class="muted">No domain stats yet (instances down, or no traffic).</p>
-      <p class="muted">Contributing instances: ${(stats.instances || []).map(i =>
-        `${i.instanceId}:${i.succeeded ? "ok" : "fail"}`).join(", ") || "none"}</p>`;
-    return;
+function endpointRows(list, groupBy) {
+  const rows = [];
+  for (const e of list) {
+    rows.push(endpointRow(e, false));
+    if (groupBy && e.byInstance && e.byInstance.length) {
+      for (const bi of e.byInstance) rows.push(endpointRow(bi, true));
+    }
   }
-  el.innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>Domain</th><th>Version</th><th>OC hit%</th><th>FC hit%</th>
-          <th>OC traffic</th><th>FC traffic</th><th>Invalidations</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${stats.domains.map(d => `
-          <tr>
-            <td><code>${esc(d.name)}</code>${d.versionIsRuntimeOverride ? ' <span class="badge">rt</span>' : ""}</td>
-            <td>${esc(d.version)}</td>
-            <td>${pct(d.oc?.hitRate)}</td>
-            <td>${pct(d.fc?.hitRate)}</td>
-            <td>${(d.oc?.hits ?? 0) + (d.oc?.misses ?? 0)}</td>
-            <td>${(d.fc?.hits ?? 0) + (d.fc?.misses ?? 0)}</td>
-            <td>${d.invalidations ?? 0}</td>
-          </tr>`).join("")}
-      </tbody>
-    </table>
-    <p class="muted" style="margin-top:0.75rem">
-      Instances: ${(stats.instances || []).map(i =>
-        `<span class="status-${i.succeeded ? "Healthy" : "Down"}">${esc(i.instanceId)}</span>`).join(" · ")}
-    </p>`;
+  return rows.join("");
 }
 
-function renderEndpoints(list) {
+function endpointRow(e, child) {
+  const cls = child ? "child" : "";
+  const route = child
+    ? `<span class="indent">↳</span> <code class="muted">${esc(e.instanceId || "?")}</code>`
+    : `<code>${esc(e.route)}</code>`;
+  return `<tr class="${cls}">
+    <td>${route}</td>
+    <td>${esc(e.configuredDomain || "—")}</td>
+    <td>${e.requests ?? 0}</td>
+    <td>${pipelineBar(e.pipeline)}</td>
+    <td>${pct(e.oc?.hitShare, e.oc?.lowSample)}</td>
+    <td>${pct(e.fc?.hitShare, e.fc?.lowSample)}</td>
+    <td>${pct(e.fc?.missShare, e.fc?.lowSample)}</td>
+    <td>${pct(e.fc?.originShare, e.fc?.lowSample)}</td>
+    <td class="secondary">${pct(e.oc?.hitRate, e.oc?.lowSample)}</td>
+    <td class="secondary">${pct(e.fc?.hitRate, e.fc?.lowSample)}</td>
+    <td class="secondary">${pct(e.fc?.missRate, e.fc?.lowSample)}</td>
+    ${!child && e.instanceSpread ? `<td class="muted">${spreadCell(e.instanceSpread.ocHitShare)}</td>` : (child ? "" : "<td>—</td>")}
+  </tr>`;
+}
+
+function renderEndpoints(list, groupBy) {
   const el = document.getElementById("endpoints");
   if (!list || !list.length) {
-    el.innerHTML = `<p class="muted">No endpoint counters yet.</p>`;
+    el.innerHTML = `<p class="muted">No endpoint counters yet. Generate traffic on instances with Admin enabled.</p>`;
     return;
   }
   el.innerHTML = `
-    <table>
-      <thead><tr><th>Route</th><th>Domain</th><th>OC hit%</th><th>FC hit%</th><th>FC miss%</th></tr></thead>
-      <tbody>
-        ${list.map(e => {
-          const ft = (e.fc?.hits ?? 0) + (e.fc?.misses ?? 0);
-          const miss = ft ? (e.fc.misses / ft) : null;
-          return `<tr>
-            <td><code>${esc(e.route)}</code></td>
-            <td>${esc(e.configuredDomain || "—")}</td>
-            <td>${pct(e.oc?.hitRate)}</td>
-            <td>${pct(e.fc?.hitRate)}</td>
-            <td>${pct(miss)}</td>
-          </tr>`;
-        }).join("")}
-      </tbody>
+    <table class="dense">
+      <thead>
+        <tr>
+          <th>Route / instance</th><th>Domain</th><th>Req</th><th>Pipeline</th>
+          <th>OC hit share</th><th>FC hit share</th><th>FC miss share</th><th>Origin share</th>
+          <th class="secondary">OC hit rate</th><th class="secondary">FC hit rate</th><th class="secondary">FC miss rate</th>
+          <th>OC hit share σ</th>
+        </tr>
+      </thead>
+      <tbody>${endpointRows(list, groupBy)}</tbody>
     </table>`;
 }
 
-function esc(s) {
-  return String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+function domainRows(list, groupBy) {
+  const rows = [];
+  for (const d of list) {
+    rows.push(domainRow(d, false));
+    if (groupBy && d.byInstance && d.byInstance.length) {
+      for (const bi of d.byInstance) rows.push(domainRow(bi, true));
+    }
+  }
+  return rows.join("");
+}
+
+function domainRow(d, child) {
+  const name = child
+    ? `<span class="indent">↳</span> <code class="muted">${esc(d.instanceId || "?")}</code>`
+    : `<code>${esc(d.name)}</code>${d.versionIsRuntimeOverride ? ' <span class="badge">rt</span>' : ""}`;
+  return `<tr class="${child ? "child" : ""}">
+    <td>${name}</td>
+    <td>${esc(d.version)}</td>
+    <td>${d.requests ?? 0}</td>
+    <td>${pipelineBar(d.pipeline)}</td>
+    <td>${pct(d.oc?.hitShare, d.oc?.lowSample)}</td>
+    <td>${pct(d.fc?.hitShare, d.fc?.lowSample)}</td>
+    <td>${pct(d.fc?.originShare, d.fc?.lowSample)}</td>
+    <td class="secondary">${pct(d.oc?.hitRate, d.oc?.lowSample)}</td>
+    <td class="secondary">${pct(d.fc?.hitRate, d.fc?.lowSample)}</td>
+    <td>${d.invalidations ?? 0}</td>
+    ${!child && d.instanceSpread ? `<td class="muted">${spreadCell(d.instanceSpread.fcHitShare)}</td>` : (child ? "" : "<td>—</td>")}
+  </tr>`;
+}
+
+function renderDomains(list, groupBy) {
+  const el = document.getElementById("domains");
+  if (!list || !list.length) {
+    el.innerHTML = `<p class="muted">No domain stats yet.</p>`;
+    return;
+  }
+  el.innerHTML = `
+    <table class="dense">
+      <thead>
+        <tr>
+          <th>Domain / instance</th><th>Version</th><th>Req</th><th>Pipeline</th>
+          <th>OC hit share</th><th>FC hit share</th><th>Origin share</th>
+          <th class="secondary">OC hit rate</th><th class="secondary">FC hit rate</th>
+          <th>Invalidations</th><th>FC hit share range</th>
+        </tr>
+      </thead>
+      <tbody>${domainRows(list, groupBy)}</tbody>
+    </table>`;
 }
 
 async function refresh() {
+  const groupBy = document.getElementById("chkGroupByInstance").checked;
+  const q = groupBy ? "&groupByInstance=true" : "";
   try {
     const [instances, stats, endpoints] = await Promise.all([
       api("/api/instances"),
-      api("/api/stats?scope=all"),
-      api("/api/endpoints?sort=missRate&take=15"),
+      api(`/api/stats?scope=all${q}`),
+      api(`/api/endpoints?sort=requests&take=50${q}`),
     ]);
+    document.getElementById("scopeLabel").textContent = stats.scope || "all";
     renderInstances(instances);
-    renderStats(stats);
-    renderEndpoints(endpoints);
+    renderEndpoints(endpoints, groupBy);
+    renderDomains(stats.domains || [], groupBy);
   } catch (err) {
     console.error(err);
     document.getElementById("instances").innerHTML =
@@ -136,6 +204,7 @@ async function refresh() {
 }
 
 document.getElementById("btnRefresh").addEventListener("click", refresh);
+document.getElementById("chkGroupByInstance").addEventListener("change", refresh);
 
 const actionEl = document.getElementById("opAction");
 function syncOpFields() {

@@ -81,7 +81,10 @@ public sealed class AdminFanOutService
         }).ToArray();
     }
 
-    public async Task<ClusterStatsDto> GetStatsAsync(string? scope, CancellationToken cancellationToken)
+    public async Task<ClusterStatsDto> GetStatsAsync(
+        string? scope,
+        CancellationToken cancellationToken,
+        bool groupByInstance = false)
     {
         IReadOnlyList<AdminInstanceOptions> targets = ResolveTarget(NormalizeScopeToTarget(scope));
         List<InstanceCallOutcome<AdminLiveStatsSnapshot>> outcomes =
@@ -104,32 +107,38 @@ public sealed class AdminFanOutService
         return new ClusterStatsDto
         {
             Scope = string.IsNullOrWhiteSpace(scope) ? "all" : scope.Trim(),
+            GroupByInstance = groupByInstance,
             CollectedAtUtc = _time.GetUtcNow(),
             Instances = contributions,
-            Domains = StatsAggregator.MergeDomains(ok),
-            UnassignedEndpoints = StatsAggregator.MergeUnassignedEndpoints(ok)
+            Domains = StatsAggregator.MergeDomains(ok, groupByInstance),
+            Endpoints = StatsAggregator.MergeEndpoints(ok, groupByInstance),
+            UnassignedEndpoints = StatsAggregator.MergeUnassignedEndpoints(ok, groupByInstance)
         };
     }
 
     public async Task<IReadOnlyList<AdminEndpointStatsDto>> GetTopEndpointsAsync(
         string? sort,
         int take,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool groupByInstance = false)
     {
-        ClusterStatsDto stats = await GetStatsAsync("all", cancellationToken).ConfigureAwait(false);
-        IEnumerable<AdminEndpointStatsDto> all = stats.Domains
-            .SelectMany(d => d.Endpoints)
-            .Concat(stats.UnassignedEndpoints);
+        ClusterStatsDto stats = await GetStatsAsync("all", cancellationToken, groupByInstance)
+            .ConfigureAwait(false);
+        IEnumerable<AdminEndpointStatsDto> all = stats.Endpoints;
 
         take = Math.Clamp(take, 1, 500);
-        string sortKey = (sort ?? "missRate").Trim();
+        string sortKey = (sort ?? "originShare").Trim().ToLowerInvariant();
 
-        IOrderedEnumerable<AdminEndpointStatsDto> ordered = sortKey.ToLowerInvariant() switch
+        IOrderedEnumerable<AdminEndpointStatsDto> ordered = sortKey switch
         {
-            "hits" or "traffic" => all.OrderByDescending(e => (e.Oc.Hits + e.Oc.Misses) + (e.Fc.Hits + e.Fc.Misses)),
-            "ocmissrate" => all.OrderByDescending(e => MissRate(e.Oc.Hits, e.Oc.Misses)),
+            "hits" or "traffic" or "requests" => all.OrderByDescending(e => e.Requests),
+            "ochitshare" => all.OrderByDescending(e => e.Oc.HitShare ?? -1),
+            "ocmissrate" => all.OrderByDescending(e => e.Oc.MissRate ?? -1),
+            "fchitshare" => all.OrderByDescending(e => e.Fc.HitShare ?? -1),
+            "fcmissshare" => all.OrderByDescending(e => e.Fc.MissShare ?? -1),
+            "fcmissrate" or "missrate" => all.OrderByDescending(e => e.Fc.MissRate ?? -1),
             "fchits" => all.OrderByDescending(e => e.Fc.Hits),
-            _ => all.OrderByDescending(e => MissRate(e.Fc.Hits, e.Fc.Misses))
+            _ => all.OrderByDescending(e => e.Fc.OriginShare ?? e.Fc.MissShare ?? -1)
         };
 
         return ordered.Take(take).ToArray();
@@ -298,9 +307,4 @@ public sealed class AdminFanOutService
         return "instance:" + scope.Trim();
     }
 
-    private static double MissRate(long hits, long misses)
-    {
-        long total = hits + misses;
-        return total <= 0 ? 0 : (double)misses / total;
-    }
 }

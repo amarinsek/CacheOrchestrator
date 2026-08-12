@@ -47,11 +47,17 @@ api.MapGet("/instances", async (AdminFanOutService fanOut, CancellationToken can
     return Results.Ok(list);
 });
 
-api.MapGet("/stats", async (string? scope, AdminFanOutService fanOut, CancellationToken cancellationToken) =>
+api.MapGet("/stats", async (
+    string? scope,
+    bool? groupByInstance,
+    AdminFanOutService fanOut,
+    CancellationToken cancellationToken) =>
 {
     try
     {
-        ClusterStatsDto stats = await fanOut.GetStatsAsync(scope, cancellationToken).ConfigureAwait(false);
+        ClusterStatsDto stats = await fanOut
+            .GetStatsAsync(scope, cancellationToken, groupByInstance ?? false)
+            .ConfigureAwait(false);
         return Results.Ok(stats);
     }
     catch (KeyNotFoundException ex)
@@ -67,11 +73,14 @@ api.MapGet("/stats", async (string? scope, AdminFanOutService fanOut, Cancellati
 api.MapGet("/endpoints", async (
     string? sort,
     int? take,
+    bool? groupByInstance,
     AdminFanOutService fanOut,
     CancellationToken cancellationToken) =>
 {
     IReadOnlyList<CacheOrchestrator.Admin.AdminEndpointStatsDto> list =
-        await fanOut.GetTopEndpointsAsync(sort, take ?? 10, cancellationToken).ConfigureAwait(false);
+        await fanOut
+            .GetTopEndpointsAsync(sort, take ?? 50, cancellationToken, groupByInstance ?? false)
+            .ConfigureAwait(false);
     return Results.Ok(list);
 });
 

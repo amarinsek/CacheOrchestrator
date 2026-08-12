@@ -78,6 +78,9 @@ public sealed class ClusterStatsDto
     /// <summary>Scope label: <c>all</c> or <c>instance:{id}</c>.</summary>
     public required string Scope { get; init; }
 
+    /// <summary>Whether per-instance breakdowns are included.</summary>
+    public bool GroupByInstance { get; init; }
+
     /// <summary>UTC collection time on the Admin App.</summary>
     public DateTimeOffset CollectedAtUtc { get; init; }
 
@@ -86,6 +89,12 @@ public sealed class ClusterStatsDto
 
     /// <summary>Domains aggregated across contributing instances.</summary>
     public required IReadOnlyList<AdminDomainStatsDto> Domains { get; init; }
+
+    /// <summary>
+    /// Endpoints as fundamental unit (cluster merge of all routes).
+    /// Prefer this over nested domain.endpoints for EP-first views.
+    /// </summary>
+    public required IReadOnlyList<AdminEndpointStatsDto> Endpoints { get; init; }
 
     /// <summary>Endpoints without a domain after merge.</summary>
     public required IReadOnlyList<AdminEndpointStatsDto> UnassignedEndpoints { get; init; }
