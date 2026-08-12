@@ -40,12 +40,17 @@ internal sealed class AdminQueryService
     public AdminHealthDto GetHealth()
     {
         CacheOrchestratorOptions.AdminOptions admin = _options.CurrentValue.Admin;
+        DateTimeOffset now = _time.GetUtcNow();
+        DateTimeOffset started = AdminProcessInfo.StartedAtUtc;
+        long uptimeSeconds = (long)Math.Max(0, (now - started).TotalSeconds);
         return new AdminHealthDto
         {
             Healthy = true,
             InstanceId = AdminInstanceId.Resolve(admin),
-            UtcNow = _time.GetUtcNow(),
-            AdminEnabled = admin.Enabled
+            UtcNow = now,
+            AdminEnabled = admin.Enabled,
+            StartedAtUtc = started,
+            UptimeSeconds = uptimeSeconds
         };
     }
 

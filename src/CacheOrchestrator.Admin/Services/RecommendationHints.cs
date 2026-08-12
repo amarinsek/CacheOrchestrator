@@ -197,6 +197,70 @@ public static class RecommendationHints
             Hints = ForEndpoint(ep)
         };
 
+    /// <summary>Aggregate hint counts from a flat list.</summary>
+    public static AdminHintSummaryDto Summarize(IEnumerable<AdminHintDto> hints)
+    {
+        int info = 0, warning = 0, critical = 0;
+        foreach (AdminHintDto h in hints)
+        {
+            switch (h.Severity)
+            {
+                case "Critical":
+                    critical++;
+                    break;
+                case "Warning":
+                    warning++;
+                    break;
+                default:
+                    info++;
+                    break;
+            }
+        }
+
+        return new AdminHintSummaryDto
+        {
+            Info = info,
+            Warning = warning,
+            Critical = critical
+        };
+    }
+
+    /// <summary>Collect all domain + nested endpoint hints (dedupe by code+message).</summary>
+    public static IReadOnlyList<AdminHintDto> CollectFromStats(
+        IReadOnlyList<AdminDomainStatsDto> domains,
+        IReadOnlyList<AdminEndpointStatsDto>? endpoints = null)
+    {
+        List<AdminHintDto> list = [];
+        HashSet<string> seen = new(StringComparer.Ordinal);
+
+        void addRange(IEnumerable<AdminHintDto>? hints)
+        {
+            if (hints is null)
+                return;
+            foreach (AdminHintDto h in hints)
+            {
+                string key = h.Severity + "|" + h.Code + "|" + h.Message;
+                if (seen.Add(key))
+                    list.Add(h);
+            }
+        }
+
+        foreach (AdminDomainStatsDto d in domains)
+        {
+            addRange(d.Hints);
+            foreach (AdminEndpointStatsDto e in d.Endpoints)
+                addRange(e.Hints);
+        }
+
+        if (endpoints is not null)
+        {
+            foreach (AdminEndpointStatsDto e in endpoints)
+                addRange(e.Hints);
+        }
+
+        return list;
+    }
+
     private static AdminHintDto Hint(string severity, string code, string message) =>
         new() { Severity = severity, Code = code, Message = message };
 }

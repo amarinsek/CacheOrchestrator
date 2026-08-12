@@ -121,6 +121,29 @@ public sealed class AdminHintDto
     public required string Message { get; init; }
 }
 
+/// <summary>
+/// Aggregated hint counts for cluster / instance header chips.
+/// Highest severity present drives urgency styling.
+/// </summary>
+public sealed class AdminHintSummaryDto
+{
+    /// <summary>Info count.</summary>
+    public int Info { get; init; }
+
+    /// <summary>Warning count.</summary>
+    public int Warning { get; init; }
+
+    /// <summary>Critical count.</summary>
+    public int Critical { get; init; }
+
+    /// <summary>Total hints.</summary>
+    public int Total => Info + Warning + Critical;
+
+    /// <summary>Highest severity present: Critical, Warning, Info, or None.</summary>
+    public string MaxSeverity =>
+        Critical > 0 ? "Critical" : Warning > 0 ? "Warning" : Info > 0 ? "Info" : "None";
+}
+
 /// <summary>Spread of a ratio across instances (heterogeneity signal).</summary>
 public sealed class AdminShareSpreadDto
 {
@@ -368,11 +391,17 @@ public sealed class AdminHealthDto
     /// <summary>Instance id.</summary>
     public required string InstanceId { get; init; }
 
-    /// <summary>UTC now.</summary>
+    /// <summary>UTC now on the instance.</summary>
     public DateTimeOffset UtcNow { get; init; }
 
     /// <summary>Admin feature is enabled on this process.</summary>
     public bool AdminEnabled { get; init; }
+
+    /// <summary>UTC process start time (host process).</summary>
+    public DateTimeOffset StartedAtUtc { get; init; }
+
+    /// <summary>Elapsed time since <see cref="StartedAtUtc"/> in whole seconds.</summary>
+    public long UptimeSeconds { get; init; }
 }
 
 /// <summary>Invalidate request body.</summary>

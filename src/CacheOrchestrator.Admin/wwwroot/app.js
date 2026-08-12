@@ -62,13 +62,132 @@ function spreadCell(s) {
   return `${pct(s.min)}–${pct(s.max)} <span class="muted">μ ${pct(s.mean)}</span>`;
 }
 
-/** Rule-based hint badges (recommendations). */
+/**
+ * Severity chip stack for aggregates (header / instance / cluster).
+ * Empty → neutral ○ (always show a mark).
+ */
+function severityStack(summary) {
+  const c = summary?.critical || 0;
+  const w = summary?.warning || 0;
+  const i = summary?.info || 0;
+  const total = summary?.total ?? (c + w + i);
+  if (!total) {
+    return `<span class="sev-stack empty" title="No hints">○</span>`;
+  }
+  const max = summary.maxSeverity || (c ? "Critical" : w ? "Warning" : "Info");
+  const parts = [];
+  if (c) parts.push(`<span class="sev Critical" title="${c} critical">●${c}</span>`);
+  if (w) parts.push(`<span class="sev Warning" title="${w} warning">▲${w}</span>`);
+  if (i) parts.push(`<span class="sev Info" title="${i} info">i${i}</span>`);
+  return `<span class="sev-stack max-${esc(max)}" title="${c} critical · ${w} warning · ${i} info">${parts.join("")}</span>`;
+}
+
+/** Compact code badges on entity rows. Empty → ○ mark. */
 function hintBadges(hints) {
-  if (!hints || !hints.length) return "";
+  if (!hints || !hints.length) {
+    return `<span class="hint-badges"><span class="hint empty" title="No recommendations">○</span></span>`;
+  }
   return `<span class="hint-badges">${hints.map(h =>
     `<span class="hint ${esc(h.severity || "Info")}" title="${esc(h.message)}">${esc(shortHint(h))}</span>`
   ).join("")}</span>`;
 }
+
+// =============================================================================
+// REMOVE LATER — Hint mockup (UI preview only)
+// Toggle on Hints page; persists in localStorage. Injects fake hints on all pages.
+// Delete this whole block + every applyMock* / isHintMock / setHintMock call site
+// when real recommendation density is enough for design review.
+// Search: "REMOVE LATER — Hint mockup"
+// =============================================================================
+const HINT_MOCK_KEY = "adminHintMock";
+function isHintMock() {
+  return localStorage.getItem(HINT_MOCK_KEY) === "1";
+}
+function setHintMock(on) {
+  localStorage.setItem(HINT_MOCK_KEY, on ? "1" : "0");
+}
+
+const MOCK_HINT_CATALOG = [
+  { severity: "Critical", code: "high-origin-share", message: "Origin/factory share is high — short TTL or frequent misses; consider soft/hard TTL and eager refresh." },
+  { severity: "Warning", code: "low-fc-hit-rate", message: "FC layer hit rate below 60% with enough traffic — consider longer Fusion/Output TTL." },
+  { severity: "Warning", code: "elevated-stale", message: "Stale serves are elevated — factory failures or fail-safe in use." },
+  { severity: "Warning", code: "instance-oc-hit-spread", message: "OC hit share varies across instances — check L1 consistency / uneven traffic." },
+  { severity: "Info", code: "client-ttl-gt-output", message: "Client TTL ≫ Output TTL — align the ratio to avoid stale browser cache." },
+  { severity: "Info", code: "schedule-phase", message: "Client Cache Schedule is approaching/hold — verify ScheduledUpdateUtc." },
+  { severity: "Info", code: "fc-miss-rate-vs-oc-share", message: "FC miss rate looks high only on rare OC misses — prefer request shares." },
+];
+
+function mockHintsFor(seed) {
+  const n = (seed || 0) % MOCK_HINT_CATALOG.length;
+  const count = 1 + (seed % 3);
+  const out = [];
+  for (let k = 0; k < count; k++) {
+    out.push(MOCK_HINT_CATALOG[(n + k) % MOCK_HINT_CATALOG.length]);
+  }
+  return out;
+}
+
+function hashSeed(s) {
+  let h = 0;
+  const str = String(s || "");
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function summarizeHints(hints) {
+  let info = 0, warning = 0, critical = 0;
+  for (const h of hints || []) {
+    if (h.severity === "Critical") critical++;
+    else if (h.severity === "Warning") warning++;
+    else info++;
+  }
+  return {
+    info, warning, critical,
+    total: info + warning + critical,
+    maxSeverity: critical ? "Critical" : warning ? "Warning" : info ? "Info" : "None",
+  };
+}
+
+/** Apply mock hints to API entities when mock mode is on (preview everywhere). */
+function applyMockToEndpoint(e, i = 0) {
+  if (!isHintMock()) return e;
+  const hints = mockHintsFor(hashSeed(e.route) + i);
+  return { ...e, hints };
+}
+function applyMockToDomain(d, i = 0) {
+  if (!isHintMock()) return d;
+  const hints = mockHintsFor(hashSeed(d.name) + i + 1);
+  return {
+    ...d,
+    hints,
+    endpoints: (d.endpoints || []).map((e, j) => applyMockToEndpoint(e, j)),
+  };
+}
+function applyMockToInstance(inst, i = 0) {
+  if (!isHintMock()) return inst;
+  const hints = mockHintsFor(hashSeed(inst.id) + i + 2);
+  return { ...inst, hintSummary: summarizeHints(hints), _mockHints: hints };
+}
+function applyMockToOverview(o) {
+  if (!isHintMock()) return o;
+  const top = (o.topEndpoints || []).map((e, i) => applyMockToEndpoint(e, i));
+  const instances = (o.instances || []).map((inst, i) => applyMockToInstance(inst, i));
+  const all = [];
+  top.forEach((e) => all.push(...(e.hints || [])));
+  instances.forEach((inst) => all.push(...(inst._mockHints || [])));
+  // pad with catalog for demo density
+  all.push(...MOCK_HINT_CATALOG);
+  return {
+    ...o,
+    topEndpoints: top,
+    instances,
+    hintSummary: summarizeHints(all),
+    topHints: MOCK_HINT_CATALOG,
+  };
+}
+// =============================================================================
+// END REMOVE LATER — Hint mockup
+// =============================================================================
 
 function shortHint(h) {
   const map = {
@@ -87,42 +206,68 @@ function shortHint(h) {
   return map[h.code] || (h.severity || "Hint").slice(0, 4);
 }
 
+/** Full descriptions — use on detail pages. */
+function hintListHtml(hints) {
+  if (!hints || !hints.length) return `<p class="muted">No recommendations.</p>`;
+  return `<div class="hint-list">${hints.map(h => `
+    <div class="hint-row ${esc(h.severity || "Info")}">
+      <span class="hint-sev">${esc(h.severity || "Info")}</span>
+      <div>
+        <div class="hint-code"><code>${esc(h.code)}</code></div>
+        <div class="hint-msg">${esc(h.message)}</div>
+      </div>
+    </div>`).join("")}</div>`;
+}
+
 function parseCsvParam(params, key) {
   const raw = params.get(key) || "";
-  if (!raw || raw === "*") return [];
+  if (!raw) return null; // null = All (no filter)
+  if (raw === "__none__") return []; // explicit none
   return raw.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-function csvParam(ids) {
-  return ids && ids.length ? ids.join(",") : "";
+function csvParamFromSelection(ids) {
+  // null/undefined → omit (All). [] → none. [...] → filter.
+  if (ids === null || ids === undefined) return "";
+  if (ids.length === 0) return "__none__";
+  return ids.join(",");
 }
 
-/** Multi-select dropdown: options [{id,label}], selectedIds array. empty = all. */
+/**
+ * Multi-select: mode All | filter | none.
+ * selectedIds: null = All, [] = none, [id,...] = explicit filter (even if all items checked).
+ */
 function multiSelectHtml(id, label, options, selectedIds) {
-  const all = !selectedIds || selectedIds.length === 0;
-  const summary = all
-    ? "All"
-    : selectedIds.length <= 2
+  const mode = selectedIds === null || selectedIds === undefined
+    ? "all"
+    : selectedIds.length === 0
+      ? "none"
+      : "filter";
+  let summary = "All";
+  if (mode === "none") summary = "None";
+  else if (mode === "filter") {
+    summary = selectedIds.length <= 2
       ? selectedIds.join(", ")
       : `${selectedIds.length} selected`;
+  }
   return `
-    <label class="ms" data-ms="${esc(id)}">
-      <span>${esc(label)}</span>
+    <div class="ms" data-ms="${esc(id)}">
+      <span class="ms-label">${esc(label)}</span>
       <button type="button" class="ms-btn" data-ms-toggle="${esc(id)}">${esc(summary)} ▾</button>
-      <div class="ms-panel hidden" data-ms-panel="${esc(id)}">
+      <div class="ms-panel hidden" data-ms-panel="${esc(id)}" data-ms-mode="${mode}">
         <div class="ms-actions">
           <button type="button" class="secondary" data-ms-all="${esc(id)}">All</button>
           <button type="button" class="secondary" data-ms-none="${esc(id)}">None</button>
         </div>
         ${options.map((o) => {
-          const checked = all || selectedIds.includes(o.id);
+          const checked = mode === "all" || (mode === "filter" && selectedIds.includes(o.id));
           return `<label><input type="checkbox" value="${esc(o.id)}" ${checked ? "checked" : ""}/> ${esc(o.label)}</label>`;
         }).join("")}
       </div>
-    </label>`;
+    </div>`;
 }
 
-function bindMultiSelects(root, onChange) {
+function bindMultiSelects(root) {
   root.querySelectorAll("[data-ms-toggle]").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.preventDefault();
@@ -139,29 +284,34 @@ function bindMultiSelects(root, onChange) {
     btn.addEventListener("click", (ev) => {
       ev.preventDefault();
       const id = btn.dataset.msAll;
+      const panel = root.querySelector(`[data-ms-panel="${id}"]`);
+      if (panel) panel.dataset.msMode = "all";
       root.querySelectorAll(`[data-ms-panel="${id}"] input[type=checkbox]`).forEach((c) => { c.checked = true; });
       updateMsSummary(root, id);
-      onChange?.();
     });
   });
   root.querySelectorAll("[data-ms-none]").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.preventDefault();
       const id = btn.dataset.msNone;
+      const panel = root.querySelector(`[data-ms-panel="${id}"]`);
+      if (panel) panel.dataset.msMode = "none";
       root.querySelectorAll(`[data-ms-panel="${id}"] input[type=checkbox]`).forEach((c) => { c.checked = false; });
       updateMsSummary(root, id);
-      onChange?.();
     });
   });
   root.querySelectorAll("[data-ms-panel] input[type=checkbox]").forEach((cb) => {
     cb.addEventListener("change", () => {
       const panel = cb.closest("[data-ms-panel]");
       const id = panel?.dataset.msPanel;
+      if (panel) panel.dataset.msMode = "filter";
       if (id) updateMsSummary(root, id);
-      onChange?.();
     });
   });
-  document.addEventListener("click", closeMsOutside, { once: false });
+  if (!window.__msOutsideBound) {
+    window.__msOutsideBound = true;
+    document.addEventListener("click", closeMsOutside);
+  }
 }
 
 function closeMsOutside(ev) {
@@ -173,27 +323,175 @@ function updateMsSummary(root, id) {
   const panel = root.querySelector(`[data-ms-panel="${id}"]`);
   const btn = root.querySelector(`[data-ms-toggle="${id}"]`);
   if (!panel || !btn) return;
+  const mode = panel.dataset.msMode || "all";
   const boxes = [...panel.querySelectorAll("input[type=checkbox]")];
   const checked = boxes.filter((c) => c.checked).map((c) => c.value);
-  const all = checked.length === 0 || checked.length === boxes.length;
-  btn.textContent = (all ? "All" : checked.length <= 2 ? checked.join(", ") : `${checked.length} selected`) + " ▾";
+  let summary = "All";
+  if (mode === "none" || (mode === "filter" && checked.length === 0)) summary = "None";
+  else if (mode === "filter") {
+    summary = checked.length <= 2 ? checked.join(", ") : `${checked.length} selected`;
+  }
+  btn.textContent = summary + " ▾";
 }
 
-/** Selected ids; empty array means all (no filter). */
+/**
+ * @returns {null|string[]} null = All (no filter), [] = none, [...] = filter
+ */
 function readMultiSelect(root, id) {
   const panel = root.querySelector(`[data-ms-panel="${id}"]`);
-  if (!panel) return [];
+  if (!panel) return null;
+  const mode = panel.dataset.msMode || "all";
+  if (mode === "all") return null;
   const boxes = [...panel.querySelectorAll("input[type=checkbox]")];
   const checked = boxes.filter((c) => c.checked).map((c) => c.value);
-  if (checked.length === 0 || checked.length === boxes.length) return [];
-  return checked;
+  if (mode === "none") return [];
+  return checked; // filter mode: even if all items checked, keep explicit list
 }
 
-function hintListHtml(hints) {
-  if (!hints || !hints.length) return "";
-  return `<ul class="alert-list" style="margin-top:0.75rem">${hints.map(h =>
-    `<li><strong class="hint ${esc(h.severity)}">${esc(h.severity)}</strong> ${esc(h.message)}</li>`
-  ).join("")}</ul>`;
+// —— ONE list view per entity type (same columns everywhere) ——
+//
+// Endpoints columns (fixed): Route | Domain | Hints | Req | Pipeline | OC hit share | Origin | FC miss rate | Stale
+// Domains columns (fixed):   Domain | Hints | Version | Req | Pipeline | OC hit share | Origin | Inv | Ops
+// Instances columns (fixed): Id | Hints | Status | URL | Latency | Error
+//
+// Exception: none for list surfaces. Detail pages may add sections below the table.
+
+function endpointRowHtml(e) {
+  const domainCell = e.configuredDomain
+    ? `<a href="#/domains?name=${encodeURIComponent(e.configuredDomain)}">${esc(e.configuredDomain)}</a>`
+    : "—";
+  return `<tr class="clickable entity-row" data-entity="endpoint" data-route="${esc(e.route)}">
+    <td class="col-name"><code>${esc(e.route)}</code></td>
+    <td class="col-domain">${domainCell}</td>
+    <td class="col-hints">${hintBadges(e.hints)}</td>
+    <td class="col-num">${num(e.requests)}</td>
+    <td class="col-pipe">${pipelineBar(e.pipeline)}</td>
+    <td class="col-metric">${pct(e.oc?.hitShare, e.oc?.lowSample)}</td>
+    <td class="col-metric">${pct(e.fc?.originShare, e.fc?.lowSample)}</td>
+    <td class="col-metric secondary">${pct(e.fc?.missRate, e.fc?.lowSample)}</td>
+    <td class="col-metric secondary">${num(e.fc?.stale)}</td>
+  </tr>`;
+}
+
+function endpointTableHtml(list) {
+  if (!list || !list.length) return `<p class="empty">No endpoints</p>`;
+  return `
+    <table class="dense entity-table endpoints-table">
+      <thead>
+        <tr>
+          <th>Route</th>
+          <th>Domain</th>
+          <th>Hints</th>
+          <th>Req</th>
+          <th>Pipeline</th>
+          <th>OC hit share</th>
+          <th>Origin</th>
+          <th class="secondary">FC miss rate</th>
+          <th class="secondary">Stale</th>
+        </tr>
+      </thead>
+      <tbody>${list.map(endpointRowHtml).join("")}</tbody>
+    </table>`;
+}
+
+function domainRowHtml(d) {
+  return `<tr class="clickable entity-row" data-entity="domain" data-name="${esc(d.name)}">
+    <td class="col-name"><code>${esc(d.name)}</code>${d.versionIsRuntimeOverride ? ' <span class="badge">rt</span>' : ""}</td>
+    <td class="col-hints">${hintBadges(d.hints)}</td>
+    <td class="col-metric">${esc(d.version)}</td>
+    <td class="col-num">${num(d.requests)}</td>
+    <td class="col-pipe">${pipelineBar(d.pipeline)}</td>
+    <td class="col-metric">${pct(d.oc?.hitShare, d.oc?.lowSample)}</td>
+    <td class="col-metric">${pct(d.fc?.originShare)}</td>
+    <td class="col-num">${num(d.invalidations)}</td>
+    <td class="col-ops"><a href="#/operations?domain=${encodeURIComponent(d.name)}" onclick="event.stopPropagation()">Ops</a></td>
+  </tr>`;
+}
+
+function domainTableHtml(list) {
+  if (!list || !list.length) return `<p class="empty">No domains</p>`;
+  return `
+    <table class="dense entity-table domains-table">
+      <thead>
+        <tr>
+          <th>Domain</th>
+          <th>Hints</th>
+          <th>Version</th>
+          <th>Req</th>
+          <th>Pipeline</th>
+          <th>OC hit share</th>
+          <th>Origin</th>
+          <th>Inv</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${list.map(domainRowHtml).join("")}</tbody>
+    </table>`;
+}
+
+function formatUptime(seconds) {
+  if (seconds == null || seconds < 0 || Number.isNaN(Number(seconds))) return "—";
+  const s = Math.floor(Number(seconds));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${s}s`;
+}
+
+function instanceRowHtml(i) {
+  const started = i.startedAtUtc
+    ? new Date(i.startedAtUtc).toISOString().replace("T", " ").replace(/\.\d+Z$/, "Z")
+    : "";
+  const up = formatUptime(i.uptimeSeconds);
+  return `<tr class="clickable entity-row" data-entity="instance" data-id="${esc(i.id)}">
+    <td class="col-name"><code>${esc(i.id)}</code></td>
+    <td class="col-hints">${severityStack(i.hintSummary)}</td>
+    <td class="status-${esc(i.status)}">${esc(i.status)}</td>
+    <td><code>${esc(i.url)}</code></td>
+    <td title="${esc(started || "start time unknown")}">${esc(up)}</td>
+    <td>${i.latencyMs != null ? Math.round(i.latencyMs) + " ms" : "—"}</td>
+    <td class="muted">${esc(i.error || "—")}</td>
+  </tr>`;
+}
+
+function instanceTableHtml(list) {
+  if (!list || !list.length) return `<p class="empty">No instances</p>`;
+  return `
+    <table class="dense entity-table instances-table">
+      <thead>
+        <tr>
+          <th>Id</th>
+          <th>Hints</th>
+          <th>Status</th>
+          <th>URL</th>
+          <th>Uptime</th>
+          <th>Latency</th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody>${list.map(instanceRowHtml).join("")}</tbody>
+    </table>`;
+}
+
+function bindEntityTableClicks(root) {
+  root.querySelectorAll("tr.entity-row[data-entity=endpoint]").forEach((tr) => {
+    tr.addEventListener("click", (ev) => {
+      if (ev.target.closest("a")) return;
+      navigate("endpoints", { route: tr.dataset.route });
+    });
+  });
+  root.querySelectorAll("tr.entity-row[data-entity=domain]").forEach((tr) => {
+    tr.addEventListener("click", (ev) => {
+      if (ev.target.closest("a")) return;
+      navigate("domains", { name: tr.dataset.name });
+    });
+  });
+  root.querySelectorAll("tr.entity-row[data-entity=instance]").forEach((tr) => {
+    tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
+  });
 }
 
 // —— router ——
@@ -240,13 +538,21 @@ let lastOverview = null;
 
 async function refreshHeader() {
   try {
-    const o = await api("/api/overview");
+    let o = await api("/api/overview");
+    o = applyMockToOverview(o);
     lastOverview = o;
     renderHeader(o);
+    updateNavHintsBadge(o.hintSummary);
   } catch (err) {
     $("#headerMetrics").innerHTML =
       `<span class="hm status-Down">Header: ${esc(err.message)}</span>`;
   }
+}
+
+function updateNavHintsBadge(summary) {
+  const el = document.querySelector("[data-nav-hints-badge]");
+  if (!el) return;
+  el.innerHTML = severityStack(summary || { total: 0 });
 }
 
 function renderHeader(o) {
@@ -256,16 +562,20 @@ function renderHeader(o) {
     ...Array(o.downCount || 0).fill("bad"),
   ].map((c) => `<span class="dot ${c}"></span>`).join("") || `<span class="muted">no instances</span>`;
 
+  const hs = o.hintSummary || { total: 0 };
+
   $("#headerMetrics").innerHTML = `
     <span class="hm" title="Instance health">${healthDots}
       <strong>${o.healthyCount ?? 0}</strong><span class="muted">up</span>
       ${(o.downCount || 0) > 0 ? `<span class="status-Down">${o.downCount} down</span>` : ""}
     </span>
+    <span class="hm" title="Cluster recommendation urgency">${severityStack(hs)}</span>
     <span class="hm" title="Request pipeline">${pipelineBar(o.pipeline)}</span>
     <span class="hm">OC hit <strong>${pct(o.ocHitShare)}</strong></span>
     <span class="hm">Origin <strong>${pct(o.originShare)}</strong></span>
     <span class="hm">Req <strong>${num(o.totalRequests)}</strong></span>
     <span class="hm">Inv <strong>${num(o.totalInvalidations)}</strong></span>
+    ${isHintMock() ? `<span class="hm badge" title="Mock hints active">MOCK</span>` : ""}
     ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠ ${o.alerts.length}</span>` : ""}
   `;
 }
@@ -318,18 +628,20 @@ function layerDetailFc(fc) {
 async function renderOverview() {
   setBreadcrumb([{ label: "Overview" }]);
   main().innerHTML = `<p class="muted">Loading overview…</p>`;
-  const o = await api("/api/overview");
+  let o = await api("/api/overview");
+  o = applyMockToOverview(o);
   lastOverview = o;
   renderHeader(o);
+  updateNavHintsBadge(o.hintSummary);
 
   main().innerHTML = `
     <div class="kpi-row">
       <div class="kpi"><div class="label">Instances up</div><div class="value status-Healthy">${o.healthyCount}/${(o.instances||[]).length}</div></div>
+      <div class="kpi"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>
       <div class="kpi"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
       <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
       <div class="kpi"><div class="label">Origin share</div><div class="value">${pct(o.originShare)}</div></div>
-      <div class="kpi"><div class="label">Domains</div><div class="value">${num(o.domainCount)}</div></div>
-      <div class="kpi"><div class="label">Endpoints</div><div class="value">${num(o.endpointCount)}</div></div>
+      <div class="kpi"><div class="label">Domains / EP</div><div class="value" style="font-size:1rem">${num(o.domainCount)} / ${num(o.endpointCount)}</div></div>
     </div>
     <div class="card">
       <h2>Cluster pipeline</h2>
@@ -337,45 +649,17 @@ async function renderOverview() {
       <p class="muted" style="margin:0.5rem 0 0;font-size:0.85rem">OC hit · FC hit · Origin · Bypass — shares of total requests</p>
     </div>
     ${o.alerts?.length ? `<div class="card"><h2>Alerts</h2><ul class="alert-list">${o.alerts.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}
-    <div class="grid-2">
-      <div class="card">
-        <h2>Instances</h2>
-        <table class="dense">
-          <thead><tr><th>Id</th><th>Status</th><th>Latency</th></tr></thead>
-          <tbody>
-            ${(o.instances || []).map(i => `
-              <tr class="clickable" data-go="instances" data-id="${esc(i.id)}">
-                <td><code>${esc(i.id)}</code></td>
-                <td class="status-${esc(i.status)}">${esc(i.status)}</td>
-                <td>${i.latencyMs != null ? Math.round(i.latencyMs) + " ms" : "—"}</td>
-              </tr>`).join("") || `<tr><td colspan="3" class="empty">None configured</td></tr>`}
-          </tbody>
-        </table>
-      </div>
-      <div class="card">
-        <h2>Top endpoints <span class="badge">origin / traffic</span></h2>
-        <table class="dense">
-          <thead><tr><th>Route</th><th>Req</th><th>Origin</th><th>OC hit</th></tr></thead>
-          <tbody>
-            ${(o.topEndpoints || []).map(e => `
-              <tr class="clickable" data-go="endpoints" data-route="${esc(e.route)}">
-                <td><code>${esc(e.route)}</code> ${hintBadges(e.hints)}</td>
-                <td>${num(e.requests)}</td>
-                <td>${pct(e.fc?.originShare, e.fc?.lowSample)}</td>
-                <td>${pct(e.oc?.hitShare, e.oc?.lowSample)}</td>
-              </tr>`).join("") || `<tr><td colspan="4" class="empty">No traffic yet</td></tr>`}
-          </tbody>
-        </table>
-        <p style="margin:0.75rem 0 0"><a href="#/endpoints">All endpoints →</a></p>
-      </div>
+    <div class="card">
+      <h2>Instances</h2>
+      ${instanceTableHtml(o.instances || [])}
+    </div>
+    <div class="card">
+      <h2>Endpoints <span class="badge">top by origin / traffic</span></h2>
+      ${endpointTableHtml(o.topEndpoints || [])}
+      <p style="margin:0.75rem 0 0"><a href="#/endpoints">All endpoints →</a></p>
     </div>`;
 
-  main().querySelectorAll("[data-go]").forEach((tr) => {
-    tr.addEventListener("click", () => {
-      if (tr.dataset.go === "instances") navigate("instances", { id: tr.dataset.id });
-      if (tr.dataset.go === "endpoints") navigate("endpoints", { route: tr.dataset.route });
-    });
-  });
+  bindEntityTableClicks(main());
 }
 
 // —— C: Endpoints list + detail ——
@@ -386,8 +670,9 @@ async function renderEndpointsList(params) {
   const minRequests = params.get("minRequests") || "0";
   const take = params.get("take") || "50";
   const skip = Number(params.get("skip") || "0");
-  let selInstances = parseCsvParam(params, "instances");
-  let selDomains = parseCsvParam(params, "domains");
+  // null = All, [] = none, [...] = filter
+  const selInstances = parseCsvParam(params, "instances");
+  const selDomains = parseCsvParam(params, "domains");
 
   main().innerHTML = `<div class="card"><h2>Endpoints <span class="badge">primary unit</span></h2>
     <p class="muted">Loading filters…</p></div>`;
@@ -402,6 +687,7 @@ async function renderEndpointsList(params) {
   main().innerHTML = `
     <div class="card">
       <h2>Endpoints <span class="badge">primary unit</span></h2>
+      <p class="muted" style="margin-top:0">Filter: <strong>All</strong> = no filter. Explicit checks apply even for a single domain. <strong>None</strong> = empty list.</p>
       <form class="toolbar" id="epFilters">
         <label>Search<input name="search" value="${esc(search)}" placeholder="route or domain" /></label>
         ${multiSelectHtml("epInst", "Instances", instanceOpts, selInstances)}
@@ -426,8 +712,8 @@ async function renderEndpointsList(params) {
     const fd = new FormData(form);
     navigate("endpoints", {
       search: fd.get("search"),
-      instances: csvParam(readMultiSelect(form, "epInst")),
-      domains: csvParam(readMultiSelect(form, "epDom")),
+      instances: csvParamFromSelection(readMultiSelect(form, "epInst")),
+      domains: csvParamFromSelection(readMultiSelect(form, "epDom")),
       minRequests: fd.get("minRequests"),
       sort: fd.get("sort"),
       take,
@@ -435,54 +721,32 @@ async function renderEndpointsList(params) {
     });
   });
 
-  // re-read selection from URL after render
-  selInstances = parseCsvParam(params, "instances");
-  selDomains = parseCsvParam(params, "domains");
-
   const q = new URLSearchParams({ sort, take, skip: String(skip), search, minRequests });
-  if (selInstances.length) q.set("instances", selInstances.join(","));
-  if (selDomains.length) q.set("domains", selDomains.join(","));
-  const list = await api("/api/endpoints?" + q.toString());
+  if (selInstances !== null) q.set("instances", selInstances.length ? selInstances.join(",") : "__none__");
+  if (selDomains !== null) q.set("domains", selDomains.length ? selDomains.join(",") : "__none__");
 
-  $("#epTable").innerHTML = `
-    <table class="dense">
-      <thead>
-        <tr>
-          <th>Route</th><th>Domain</th><th>Hints</th><th>Req</th><th>Pipeline</th>
-          <th>OC hit share</th><th>Origin share</th>
-          <th class="secondary">FC miss rate</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${list.length ? list.map(e => `
-          <tr class="clickable" data-route="${esc(e.route)}">
-            <td><code>${esc(e.route)}</code></td>
-            <td>${e.configuredDomain ? `<a href="#/domains?name=${encodeURIComponent(e.configuredDomain)}">${esc(e.configuredDomain)}</a>` : "—"}</td>
-            <td>${hintBadges(e.hints)}</td>
-            <td>${num(e.requests)}</td>
-            <td>${pipelineBar(e.pipeline)}</td>
-            <td>${pct(e.oc?.hitShare, e.oc?.lowSample)}</td>
-            <td>${pct(e.fc?.originShare, e.fc?.lowSample)}</td>
-            <td class="secondary">${pct(e.fc?.missRate, e.fc?.lowSample)}</td>
-          </tr>`).join("") : `<tr><td colspan="8" class="empty">No endpoints match filters</td></tr>`}
-      </tbody>
-    </table>
+  let list = [];
+  if (selDomains !== null && selDomains.length === 0) {
+    list = [];
+  } else if (selInstances !== null && selInstances.length === 0) {
+    list = [];
+  } else {
+    list = await api("/api/endpoints?" + q.toString());
+  }
+  list = list.map((e, i) => applyMockToEndpoint(e, i));
+
+  $("#epTable").innerHTML = endpointTableHtml(list) + `
     <div class="pager">
       <button type="button" class="secondary" id="epPrev" ${skip<=0?"disabled":""}>Prev</button>
-      <span>skip ${skip}</span>
+      <span>skip ${skip} · ${list.length} rows</span>
       <button type="button" class="secondary" id="epNext" ${list.length < Number(take)?"disabled":""}>Next</button>
     </div>`;
 
-  $("#epTable").querySelectorAll("tr.clickable").forEach((tr) => {
-    tr.addEventListener("click", (ev) => {
-      if (ev.target.closest("a")) return;
-      navigate("endpoints", { route: tr.dataset.route });
-    });
-  });
+  bindEntityTableClicks($("#epTable"));
   const pageParams = () => ({
     search, sort, minRequests, take,
-    instances: csvParam(selInstances),
-    domains: csvParam(selDomains),
+    instances: csvParamFromSelection(selInstances),
+    domains: csvParamFromSelection(selDomains),
   });
   $("#epPrev")?.addEventListener("click", () => navigate("endpoints", {
     ...pageParams(), skip: Math.max(0, skip - Number(take)),
@@ -500,12 +764,13 @@ async function renderEndpointDetail(route) {
   main().innerHTML = `<p class="muted">Loading ${esc(route)}…</p>`;
 
   const stats = await api("/api/stats?scope=all&groupByInstance=true");
-  const ep = (stats.endpoints || []).find((e) => e.route === route);
+  let ep = (stats.endpoints || []).find((e) => e.route === route);
   if (!ep) {
     main().innerHTML = `<div class="card"><p class="status-Down">Endpoint not found: <code>${esc(route)}</code></p>
       <a href="#/endpoints">← Back</a></div>`;
     return;
   }
+  ep = applyMockToEndpoint(ep);
 
   main().innerHTML = `
     <div class="card">
@@ -513,6 +778,7 @@ async function renderEndpointDetail(route) {
         ${ep.configuredDomain ? `<a class="badge" href="#/domains?name=${encodeURIComponent(ep.configuredDomain)}">${esc(ep.configuredDomain)}</a>` : ""}
         ${hintBadges(ep.hints)}
       </h2>
+      <h3 class="section-sub">Recommendations</h3>
       ${hintListHtml(ep.hints)}
       <div class="kpi-row">
         <div class="kpi"><div class="label">Requests</div><div class="value">${num(ep.requests)}</div></div>
@@ -559,16 +825,21 @@ async function renderEndpointDetail(route) {
 // —— D: Domains ——
 async function renderDomainsList(params) {
   setBreadcrumb([{ label: "Domains", href: "#/domains" }]);
-  const selInstances = parseCsvParam(params, "instances");
+  const selInstances = parseCsvParam(params, "instances"); // null=all, []=none
 
   main().innerHTML = `<div class="card"><p class="muted">Loading domains…</p></div>`;
   const instanceList = await api("/api/instances");
   const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
 
-  const q = new URLSearchParams({ scope: "all" });
-  if (selInstances.length) q.set("instances", selInstances.join(","));
-  const stats = await api("/api/stats?" + q.toString());
-  const domains = stats.domains || [];
+  let domains = [];
+  if (selInstances !== null && selInstances.length === 0) {
+    domains = [];
+  } else {
+    const q = new URLSearchParams({ scope: "all" });
+    if (selInstances !== null) q.set("instances", selInstances.join(","));
+    const stats = await api("/api/stats?" + q.toString());
+    domains = (stats.domains || []).map((d, i) => applyMockToDomain(d, i));
+  }
 
   main().innerHTML = `
     <div class="card">
@@ -577,43 +848,17 @@ async function renderDomainsList(params) {
         ${multiSelectHtml("domInst", "Instances", instanceOpts, selInstances)}
         <button type="submit">Apply</button>
       </form>
-      <table class="dense">
-        <thead>
-          <tr>
-            <th>Domain</th><th>Hints</th><th>Version</th><th>Req</th><th>Pipeline</th>
-            <th>OC hit share</th><th>Origin</th><th>Invalidations</th><th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${domains.map(d => `
-            <tr class="clickable" data-name="${esc(d.name)}">
-              <td><code>${esc(d.name)}</code>${d.versionIsRuntimeOverride ? ' <span class="badge">rt</span>' : ""}</td>
-              <td>${hintBadges(d.hints)}</td>
-              <td>${esc(d.version)}</td>
-              <td>${num(d.requests)}</td>
-              <td>${pipelineBar(d.pipeline)}</td>
-              <td>${pct(d.oc?.hitShare, d.oc?.lowSample)}</td>
-              <td>${pct(d.fc?.originShare)}</td>
-              <td>${num(d.invalidations)}</td>
-              <td><a href="#/operations?domain=${encodeURIComponent(d.name)}" onclick="event.stopPropagation()">Ops</a></td>
-            </tr>`).join("") || `<tr><td colspan="9" class="empty">No domains</td></tr>`}
-        </tbody>
-      </table>
+      ${domainTableHtml(domains)}
     </div>`;
 
   const form = $("#domFilters");
   bindMultiSelects(form);
   form.addEventListener("submit", (ev) => {
     ev.preventDefault();
-    navigate("domains", { instances: csvParam(readMultiSelect(form, "domInst")) });
+    navigate("domains", { instances: csvParamFromSelection(readMultiSelect(form, "domInst")) });
   });
 
-  main().querySelectorAll("tr.clickable").forEach((tr) => {
-    tr.addEventListener("click", () => navigate("domains", {
-      name: tr.dataset.name,
-      instances: csvParam(selInstances),
-    }));
-  });
+  bindEntityTableClicks(main());
 }
 
 async function renderDomainDetail(name) {
@@ -627,7 +872,7 @@ async function renderDomainDetail(name) {
     api("/api/stats?scope=all&groupByInstance=true"),
     api("/api/domains"),
   ]);
-  const d = (stats.domains || []).find((x) => x.name === name);
+  let d = (stats.domains || []).find((x) => x.name === name);
   const cfg = (cfgFan.data || []).find((x) => x.name === name);
 
   if (!d && !cfg) {
@@ -635,7 +880,8 @@ async function renderDomainDetail(name) {
     return;
   }
 
-  const domain = d || { name, requests: 0, oc: {}, fc: {}, pipeline: {}, endpoints: [] };
+  let domain = d || { name, requests: 0, oc: {}, fc: {}, pipeline: {}, endpoints: [], hints: [] };
+  domain = applyMockToDomain(domain);
 
   main().innerHTML = `
     <div class="card">
@@ -644,6 +890,7 @@ async function renderDomainDetail(name) {
         ${hintBadges(domain.hints)}
         <a class="badge" href="#/operations?domain=${encodeURIComponent(name)}">Operations</a>
       </h2>
+      <h3 class="section-sub">Recommendations</h3>
       ${hintListHtml(domain.hints)}
       <div class="kpi-row">
         <div class="kpi"><div class="label">Version</div><div class="value" style="font-size:1rem">${esc(domain.version || cfg?.version || "—")}</div></div>
@@ -691,62 +938,33 @@ async function renderDomainDetail(name) {
     </div>` : ""}
     <div class="card">
       <h2>Endpoints in domain</h2>
-      <table class="dense">
-        <thead><tr><th>Route</th><th>Req</th><th>OC hit share</th><th>Origin</th><th>Stale</th></tr></thead>
-        <tbody>
-          ${(domain.endpoints || []).map(e => `
-            <tr class="clickable" data-route="${esc(e.route)}">
-              <td><code>${esc(e.route)}</code></td>
-              <td>${num(e.requests)}</td>
-              <td>${pct(e.oc?.hitShare, e.oc?.lowSample)}</td>
-              <td>${pct(e.fc?.originShare)}</td>
-              <td>${num(e.fc?.stale)}</td>
-            </tr>`).join("") || `<tr><td colspan="5" class="empty">No endpoints</td></tr>`}
-        </tbody>
-      </table>
+      ${endpointTableHtml(domain.endpoints || [])}
     </div>
     <p><a href="#/domains">← Domains</a> · <a href="#/operations?domain=${encodeURIComponent(name)}">Operations</a></p>`;
 
   main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
     tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
   });
-  main().querySelectorAll("tr.clickable[data-route]").forEach((tr) => {
-    tr.addEventListener("click", () => navigate("endpoints", { route: tr.dataset.route }));
-  });
+  bindEntityTableClicks(main());
 }
 
 // —— E: Instances ——
 async function renderInstancesList() {
   setBreadcrumb([{ label: "Instances", href: "#/instances" }]);
   main().innerHTML = `<p class="muted">Loading…</p>`;
-  const [list, overview] = await Promise.all([
-    api("/api/instances"),
-    api("/api/overview"),
-  ]);
+  let overview = await api("/api/overview");
+  overview = applyMockToOverview(overview);
   renderHeader(overview);
+  updateNavHintsBadge(overview.hintSummary);
+  const list = overview.instances || [];
 
   main().innerHTML = `
     <div class="card">
-      <h2>Instances</h2>
-      <table>
-        <thead><tr><th>Id</th><th>URL</th><th>Status</th><th>Reported</th><th>Latency</th><th>Error</th></tr></thead>
-        <tbody>
-          ${list.map(i => `
-            <tr class="clickable" data-id="${esc(i.id)}">
-              <td><code>${esc(i.id)}</code></td>
-              <td><code>${esc(i.url)}</code></td>
-              <td class="status-${esc(i.status)}">${esc(i.status)}</td>
-              <td>${esc(i.reportedInstanceId || "—")}</td>
-              <td>${i.latencyMs != null ? Math.round(i.latencyMs) + " ms" : "—"}</td>
-              <td class="muted">${esc(i.error || "")}</td>
-            </tr>`).join("") || `<tr><td colspan="6" class="empty">None configured</td></tr>`}
-        </tbody>
-      </table>
+      <h2>Instances ${severityStack(overview.hintSummary)}</h2>
+      ${instanceTableHtml(list)}
     </div>`;
 
-  main().querySelectorAll("tr.clickable").forEach((tr) => {
-    tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
-  });
+  bindEntityTableClicks(main());
 }
 
 async function renderInstanceDetail(id) {
@@ -761,18 +979,24 @@ async function renderInstanceDetail(id) {
     api(`/api/stats?scope=instance:${encodeURIComponent(id)}`),
   ]);
   const inst = instances.find((i) => i.id === id);
+  const startedTitle = inst?.startedAtUtc
+    ? new Date(inst.startedAtUtc).toISOString()
+    : "";
 
   main().innerHTML = `
     <div class="card">
       <h2>Instance <code>${esc(id)}</code>
         <span class="status-${esc(inst?.status || "Down")}">${esc(inst?.status || "unknown")}</span>
+        ${severityStack(inst?.hintSummary)}
       </h2>
       <p class="muted"><code>${esc(inst?.url || "")}</code>
         · reported <code>${esc(inst?.reportedInstanceId || "—")}</code>
-        · ${inst?.latencyMs != null ? Math.round(inst.latencyMs) + " ms" : "—"}
+        · latency ${inst?.latencyMs != null ? Math.round(inst.latencyMs) + " ms" : "—"}
         ${inst?.error ? ` · <span class="status-Down">${esc(inst.error)}</span>` : ""}
       </p>
       <div class="kpi-row">
+        <div class="kpi" title="${esc(startedTitle)}"><div class="label">Uptime</div><div class="value" style="font-size:1.05rem">${esc(formatUptime(inst?.uptimeSeconds))}</div></div>
+        <div class="kpi"><div class="label">Started (UTC)</div><div class="value" style="font-size:0.85rem">${esc(startedTitle ? startedTitle.replace("T", " ").replace(/\.\d+Z$/, "Z") : "—")}</div></div>
         <div class="kpi"><div class="label">Domains</div><div class="value">${(stats.domains||[]).length}</div></div>
         <div class="kpi"><div class="label">Endpoints</div><div class="value">${(stats.endpoints||[]).length}</div></div>
         <div class="kpi"><div class="label">Requests</div><div class="value">${num((stats.domains||[]).reduce((s,d)=>s+(d.requests||0),0))}</div></div>
@@ -780,46 +1004,200 @@ async function renderInstanceDetail(id) {
     </div>
     <div class="card">
       <h2>Domains on instance</h2>
-      <table class="dense">
-        <thead><tr><th>Domain</th><th>Version</th><th>Req</th><th>OC hit share</th><th>Origin</th><th>Stale</th><th>Factory</th></tr></thead>
-        <tbody>
-          ${(stats.domains||[]).map(d => `
-            <tr class="clickable" data-name="${esc(d.name)}">
-              <td><code>${esc(d.name)}</code></td>
-              <td>${esc(d.version)}</td>
-              <td>${num(d.requests)}</td>
-              <td>${pct(d.oc?.hitShare, d.oc?.lowSample)}</td>
-              <td>${pct(d.fc?.originShare)}</td>
-              <td>${num(d.fc?.stale)}</td>
-              <td>${num(d.fc?.factoryRuns)} / fail ${num(d.fc?.factoryFailures)}</td>
-            </tr>`).join("") || `<tr><td colspan="7" class="empty">No data</td></tr>`}
-        </tbody>
-      </table>
+      ${domainTableHtml((stats.domains || []).map((d, i) => applyMockToDomain(d, i)))}
     </div>
     <div class="card">
       <h2>Endpoints on instance</h2>
-      <table class="dense">
-        <thead><tr><th>Route</th><th>Domain</th><th>Req</th><th>Pipeline</th><th>Origin</th></tr></thead>
-        <tbody>
-          ${(stats.endpoints||[]).slice(0, 50).map(e => `
-            <tr class="clickable" data-route="${esc(e.route)}">
-              <td><code>${esc(e.route)}</code></td>
-              <td>${esc(e.configuredDomain || "—")}</td>
-              <td>${num(e.requests)}</td>
-              <td>${pipelineBar(e.pipeline)}</td>
-              <td>${pct(e.fc?.originShare)}</td>
-            </tr>`).join("") || `<tr><td colspan="5" class="empty">No data</td></tr>`}
-        </tbody>
-      </table>
+      ${endpointTableHtml((stats.endpoints || []).slice(0, 50).map((e, i) => applyMockToEndpoint(e, i)))}
     </div>
     <p><a href="#/instances">← Instances</a>
       · <a href="#/operations?target=instance:${encodeURIComponent(id)}">Operations on this instance</a></p>`;
 
-  main().querySelectorAll("tr.clickable[data-name]").forEach((tr) => {
-    tr.addEventListener("click", () => navigate("domains", { name: tr.dataset.name }));
+  bindEntityTableClicks(main());
+}
+
+/**
+ * Collect flat hint rows from cluster stats for Hints page.
+ * Each row: { severity, code, message, instanceId, domain, route, entityType }
+ */
+function collectHintRows(stats, opts = {}) {
+  const rows = [];
+  const push = (h, ctx) => {
+    rows.push({
+      severity: h.severity || "Info",
+      code: h.code,
+      message: h.message,
+      instanceId: ctx.instanceId || "",
+      domain: ctx.domain || "",
+      route: ctx.route || "",
+      entityType: ctx.entityType || "domain",
+    });
+  };
+
+  for (const d of stats.domains || []) {
+    const dHints = isHintMock() ? applyMockToDomain(d).hints : (d.hints || []);
+    for (const h of dHints) {
+      push(h, { domain: d.name, instanceId: d.instanceId || "", entityType: "domain" });
+    }
+    if (d.byInstance) {
+      for (const bi of d.byInstance) {
+        const biHints = isHintMock() ? applyMockToDomain(bi).hints : (bi.hints || []);
+        for (const h of biHints) {
+          push(h, { domain: d.name, instanceId: bi.instanceId || "", entityType: "domain" });
+        }
+      }
+    }
+  }
+
+  for (const e of stats.endpoints || []) {
+    const eHints = isHintMock() ? applyMockToEndpoint(e).hints : (e.hints || []);
+    for (const h of eHints) {
+      push(h, {
+        domain: e.configuredDomain || "",
+        route: e.route,
+        instanceId: e.instanceId || "",
+        entityType: "endpoint",
+      });
+    }
+    if (e.byInstance) {
+      for (const bi of e.byInstance) {
+        const biHints = isHintMock() ? applyMockToEndpoint(bi).hints : (bi.hints || []);
+        for (const h of biHints) {
+          push(h, {
+            domain: e.configuredDomain || bi.configuredDomain || "",
+            route: e.route,
+            instanceId: bi.instanceId || "",
+            entityType: "endpoint",
+          });
+        }
+      }
+    }
+  }
+
+  // Mock-only extra catalog rows so Hints page is never empty in mock mode
+  if (isHintMock() && opts.includeCatalog !== false) {
+    for (const h of MOCK_HINT_CATALOG) {
+      push(h, { domain: "catalog", route: "GET /api/products/{id}", instanceId: "app-1", entityType: "endpoint" });
+      push(h, { domain: "hello", route: "GET /hello", instanceId: "local-minimal", entityType: "endpoint" });
+    }
+  }
+
+  return rows;
+}
+
+// —— Hints page (final) ——
+async function renderHintsPage(params) {
+  setBreadcrumb([{ label: "Hints" }]);
+  const selInstances = parseCsvParam(params, "instances");
+  const selDomains = parseCsvParam(params, "domains");
+  const selEndpoints = parseCsvParam(params, "endpoints");
+  const severity = params.get("severity") || "";
+
+  main().innerHTML = `<div class="card"><p class="muted">Loading hints…</p></div>`;
+
+  const [instanceList, stats] = await Promise.all([
+    api("/api/instances"),
+    api("/api/stats?scope=all&groupByInstance=true"),
+  ]);
+
+  const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
+  const domainOpts = (stats.domains || []).map((d) => ({ id: d.name, label: d.name }));
+  const endpointOpts = (stats.endpoints || []).map((e) => ({ id: e.route, label: e.route }));
+
+  let rows = collectHintRows(stats);
+  const summary = summarizeHints(rows);
+  updateNavHintsBadge(summary);
+
+  // filters
+  if (selInstances !== null) {
+    if (selInstances.length === 0) rows = [];
+    else rows = rows.filter((r) => !r.instanceId || selInstances.includes(r.instanceId));
+  }
+  if (selDomains !== null) {
+    if (selDomains.length === 0) rows = [];
+    else rows = rows.filter((r) => !r.domain || selDomains.includes(r.domain));
+  }
+  if (selEndpoints !== null) {
+    if (selEndpoints.length === 0) rows = [];
+    else rows = rows.filter((r) => !r.route || selEndpoints.includes(r.route));
+  }
+  if (severity) {
+    rows = rows.filter((r) => r.severity === severity);
+  }
+
+  // sort Critical > Warning > Info
+  const rank = { Critical: 0, Warning: 1, Info: 2 };
+  rows.sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9) || a.code.localeCompare(b.code));
+
+  main().innerHTML = `
+    <div class="card">
+      <h2>Hints ${severityStack(summary)}
+        ${isHintMock() ? '<span class="badge">MOCK on</span>' : ""}
+      </h2>
+      <p class="muted">Rule-based recommendations. Filters combine (AND). Empty hint mark is <strong>○</strong>.</p>
+      <form class="toolbar" id="hintFilters">
+        ${multiSelectHtml("hInst", "Instances", instanceOpts, selInstances)}
+        ${multiSelectHtml("hDom", "Domains", domainOpts, selDomains)}
+        ${multiSelectHtml("hEp", "Endpoints", endpointOpts, selEndpoints)}
+        <label>Severity
+          <select name="severity">
+            <option value="">All</option>
+            ${["Critical","Warning","Info"].map(s =>
+              `<option value="${s}" ${severity===s?"selected":""}>${s}</option>`).join("")}
+          </select>
+        </label>
+        <button type="submit">Apply</button>
+        <!-- REMOVE LATER — Hint mockup toggle -->
+        <label class="toggle-inline" title="REMOVE LATER: UI preview only">
+          <input type="checkbox" id="chkHintMock" ${isHintMock() ? "checked" : ""} />
+          Mock hints (all pages)
+        </label>
+      </form>
+      <div class="kpi-row">
+        <div class="kpi"><div class="label">Critical</div><div class="value status-Down">${summary.critical}</div></div>
+        <div class="kpi"><div class="label">Warning</div><div class="value" style="color:var(--warn)">${summary.warning}</div></div>
+        <div class="kpi"><div class="label">Info</div><div class="value" style="color:var(--accent)">${summary.info}</div></div>
+        <div class="kpi"><div class="label">Shown</div><div class="value">${rows.length}</div></div>
+      </div>
+      ${rows.length ? `
+      <table class="dense entity-table hints-table">
+        <thead>
+          <tr>
+            <th>Sev</th><th>Code</th><th>Message</th>
+            <th>Instance</th><th>Domain</th><th>Endpoint</th><th>Entity</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr class="hint-table-row ${esc(r.severity)}">
+              <td><span class="hint ${esc(r.severity)}">${esc(r.severity)}</span></td>
+              <td><code>${esc(r.code)}</code></td>
+              <td>${esc(r.message)}</td>
+              <td>${r.instanceId ? `<a href="#/instances?id=${encodeURIComponent(r.instanceId)}"><code>${esc(r.instanceId)}</code></a>` : "—"}</td>
+              <td>${r.domain ? `<a href="#/domains?name=${encodeURIComponent(r.domain)}"><code>${esc(r.domain)}</code></a>` : "—"}</td>
+              <td>${r.route ? `<a href="#/endpoints?route=${encodeURIComponent(r.route)}"><code>${esc(r.route)}</code></a>` : "—"}</td>
+              <td class="muted">${esc(r.entityType)}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>` : `<p class="empty">No hints match filters${isHintMock() ? "" : " (enable Mock hints to preview symbology)"}.</p>`}
+    </div>`;
+
+  const form = $("#hintFilters");
+  bindMultiSelects(form);
+  form.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(form);
+    navigate("hints", {
+      instances: csvParamFromSelection(readMultiSelect(form, "hInst")),
+      domains: csvParamFromSelection(readMultiSelect(form, "hDom")),
+      endpoints: csvParamFromSelection(readMultiSelect(form, "hEp")),
+      severity: fd.get("severity") || "",
+    });
   });
-  main().querySelectorAll("tr.clickable[data-route]").forEach((tr) => {
-    tr.addEventListener("click", () => navigate("endpoints", { route: tr.dataset.route }));
+  $("#chkHintMock")?.addEventListener("change", (ev) => {
+    setHintMock(ev.target.checked);
+    refreshHeader();
+    route();
   });
 }
 
@@ -963,6 +1341,8 @@ async function route() {
       else await renderInstancesList();
     } else if (root === "operations") {
       await renderOperations(params);
+    } else if (root === "hints" || root === "hints-mockup") {
+      await renderHintsPage(params);
     } else {
       navigate("overview");
     }

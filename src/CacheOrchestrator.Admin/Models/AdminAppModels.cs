@@ -35,6 +35,15 @@ public sealed class InstanceStatusDto
 
     /// <summary>Latency of the last health probe in milliseconds, if measured.</summary>
     public double? LatencyMs { get; init; }
+
+    /// <summary>UTC process start time from Local Admin health, when known.</summary>
+    public DateTimeOffset? StartedAtUtc { get; init; }
+
+    /// <summary>Uptime in seconds from Local Admin health, when known.</summary>
+    public long? UptimeSeconds { get; init; }
+
+    /// <summary>Aggregated recommendation hint counts for this instance (when available).</summary>
+    public AdminHintSummaryDto? HintSummary { get; init; }
 }
 
 /// <summary>Generic fan-out result wrapper.</summary>
@@ -116,6 +125,12 @@ public sealed class OverviewDto
 
     /// <summary>Endpoint count observed.</summary>
     public int EndpointCount { get; init; }
+
+    /// <summary>Cluster-wide aggregated recommendation hints.</summary>
+    public AdminHintSummaryDto HintSummary { get; init; } = new();
+
+    /// <summary>Distinct top hint messages for overview (capped).</summary>
+    public IReadOnlyList<AdminHintDto> TopHints { get; init; } = [];
 }
 
 /// <summary>Cluster (or single-instance) aggregated live stats.</summary>

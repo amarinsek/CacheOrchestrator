@@ -76,7 +76,9 @@ public sealed class AdminFanOutService
                 Status = status,
                 ReportedInstanceId = o.Value?.InstanceId,
                 Error = o.Error,
-                LatencyMs = o.LatencyMs
+                LatencyMs = o.LatencyMs,
+                StartedAtUtc = o.Value?.StartedAtUtc,
+                UptimeSeconds = o.Succeeded ? o.Value?.UptimeSeconds : null
             };
         }).ToArray();
     }
@@ -194,10 +196,62 @@ public sealed class AdminFanOutService
             .Take(10)
             .ToArray();
 
+        IReadOnlyList<AdminHintDto> allHints = RecommendationHints.CollectFromStats(stats.Domains, stats.Endpoints);
+        AdminHintSummaryDto clusterHints = RecommendationHints.Summarize(allHints);
+
+        // Per-instance hint rollup (groupByInstance domain rows).
+        ClusterStatsDto byInst = await GetStatsAsync("all", cancellationToken, groupByInstance: true)
+            .ConfigureAwait(false);
+        Dictionary<string, List<AdminHintDto>> instHintLists = new(StringComparer.OrdinalIgnoreCase);
+        foreach (AdminDomainStatsDto d in byInst.Domains)
+        {
+            if (d.ByInstance is null)
+                continue;
+            foreach (AdminDomainStatsDto row in d.ByInstance)
+            {
+                if (string.IsNullOrEmpty(row.InstanceId))
+                    continue;
+                if (!instHintLists.TryGetValue(row.InstanceId, out List<AdminHintDto>? list))
+                {
+                    list = [];
+                    instHintLists[row.InstanceId] = list;
+                }
+
+                list.AddRange(RecommendationHints.CollectFromStats([row], row.Endpoints));
+            }
+        }
+
+        IReadOnlyList<InstanceStatusDto> instancesWithHints = instances.Select(i =>
+        {
+            instHintLists.TryGetValue(i.Id, out List<AdminHintDto>? hl);
+            return new InstanceStatusDto
+            {
+                Id = i.Id,
+                Url = i.Url,
+                Status = i.Status,
+                ReportedInstanceId = i.ReportedInstanceId,
+                Error = i.Error,
+                LatencyMs = i.LatencyMs,
+                StartedAtUtc = i.StartedAtUtc,
+                UptimeSeconds = i.UptimeSeconds,
+                HintSummary = hl is null ? new AdminHintSummaryDto() : RecommendationHints.Summarize(hl)
+            };
+        }).ToArray();
+
+        IReadOnlyList<AdminHintDto> topHints = allHints
+            .OrderByDescending(h => h.Severity switch
+            {
+                "Critical" => 3,
+                "Warning" => 2,
+                _ => 1
+            })
+            .Take(8)
+            .ToArray();
+
         return new OverviewDto
         {
             CollectedAtUtc = _time.GetUtcNow(),
-            Instances = instances,
+            Instances = instancesWithHints,
             HealthyCount = instances.Count(i => i.Status == InstanceHealthStatus.Healthy),
             DegradedCount = degraded,
             DownCount = down,
@@ -209,7 +263,9 @@ public sealed class AdminFanOutService
             Alerts = alerts,
             TopEndpoints = top,
             DomainCount = stats.Domains.Count,
-            EndpointCount = stats.Endpoints.Count
+            EndpointCount = stats.Endpoints.Count,
+            HintSummary = clusterHints,
+            TopHints = topHints
         };
     }
 
@@ -235,6 +291,13 @@ public sealed class AdminFanOutService
             all = all.Where(e =>
                 e.Route.Contains(s, StringComparison.OrdinalIgnoreCase)
                 || (e.ConfiguredDomain?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        // "__none__" from UI = show empty set
+        if (string.Equals(domains, "__none__", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(instances, "__none__", StringComparison.OrdinalIgnoreCase))
+        {
+            return [];
         }
 
         HashSet<string>? domainFilter = null;
@@ -446,6 +509,9 @@ public sealed class AdminFanOutService
         IReadOnlyList<AdminInstanceOptions> fromScope = ResolveTarget(NormalizeScopeToTarget(scope));
         if (string.IsNullOrWhiteSpace(instances))
             return fromScope;
+
+        if (string.Equals(instances.Trim(), "__none__", StringComparison.OrdinalIgnoreCase))
+            return [];
 
         HashSet<string> wanted = new(ParseCsv(instances), StringComparer.OrdinalIgnoreCase);
         if (wanted.Count == 0)
