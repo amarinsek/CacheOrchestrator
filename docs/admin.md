@@ -1,13 +1,29 @@
 # CacheOrchestrator Admin
 
-Technical reference for the **Local Admin** API (in-process, on each app) and the separate **Admin App** (fan-out + SPA).
+Operator and integrator guide for the **Local Admin** API (in-process on each app) and the separate **Admin App** (fan-out + SPA).
 
-| Component | Location | Role |
-|-----------|----------|------|
-| Local Admin | `src/CacheOrchestrator/Admin/` | Opt-in HTTP API on each process: live stats, health, invalidation, runtime overlays |
-| Admin App | `src/CacheOrchestrator.Admin/` | Standalone process: configure instance list, fan-out, aggregate, host UI |
+| Component | Location | Distributed as | Role |
+|-----------|----------|----------------|------|
+| **Local Admin API** | `src/CacheOrchestrator/Admin/` | **NuGet** `CacheOrchestrator` (opt-in at runtime) | Per-process stats, health, invalidate, version/TTL overlays |
+| **Admin App** | `src/CacheOrchestrator.Admin/` | **Not** a NuGet package (`IsPackable=false`) | Multi-instance fan-out host + browser UI |
 
-Quick start for operators: [src/CacheOrchestrator.Admin/README.md](../src/CacheOrchestrator.Admin/README.md).
+| Doc | Audience |
+|-----|----------|
+| This page | Architecture, security, production checklist |
+| [Admin App README](../src/CacheOrchestrator.Admin/README.md) | Run, configure instances, UI map |
+| [admin-hints.md](admin-hints.md) | Recommendation rules: formulas, catalogue, how to add |
+
+---
+
+## Who should use what
+
+| You want… | Use |
+|-----------|-----|
+| Counters / invalidate / runtime Version·TTL **on one process** | Local Admin only (curl, script, your own tool) |
+| Cluster dashboard, multi-node ops UI, recommendation hints | Admin App + Local Admin on **each** target |
+| Metrics / time series (“last 1h”) | OTLP / Prometheus — **not** Admin (lifetime counters only) |
+
+**Warning:** Admin is an **ops** surface. Writes (invalidate, version, TTL) change cache behaviour on live processes. Restrict who can reach it.
 
 ---
 
@@ -17,166 +33,271 @@ Quick start for operators: [src/CacheOrchestrator.Admin/README.md](../src/CacheO
 ┌────────────────────┐     HTTP fan-out      ┌──────────────────────────┐
 │  Admin App         │ ──────────────────►   │ App instance A           │
 │  - CacheAdmin:*    │   X-Cache-Admin-Key   │ MapCacheOrchestratorAdmin│
-│  - /api/* aggregate│                       │ /cache-admin/local/*     │
-│  - wwwroot SPA     │ ──────────────────►   │ App instance B           │
+│  - /api/* + SPA    │                       │ /cache-admin/local/*     │
+│  (browser → open)  │ ──────────────────►   │ App instance B           │
 └────────────────────┘                       └──────────────────────────┘
+        ▲
+        │  no built-in login today
+        │  protect with network / SSO proxy
+     Operators
 ```
 
-- Admin App is **never** on the request hot path for end-user traffic.  
-- Each instance keeps its own L1 Output Cache / FusionCache counters.  
-- Aggregation is **sum / recompute shares** (see `StatsAggregator`, `AdminStatsMath`).  
-- Runtime **version** and **TTL** overlays applied via Admin are **process-local** unless you fan-out to every node.
+- Admin App is **never** on the end-user caching hot path.  
+- Each instance keeps its **own** L1 Output Cache / FusionCache counters.  
+- Aggregation is **sum / recompute shares** (`StatsAggregator`, `AdminStatsMath`).  
+- Runtime **Version** and **TTL** overlays are **process-local** on each node — fan-out must hit every instance that should change.
+
+---
+
+## Distribution
+
+| Piece | How users get it |
+|-------|------------------|
+| Local Admin | Ships inside **`CacheOrchestrator`** NuGet. No extra package. Default **disabled** (`Cache:Admin:Enabled` = false). |
+| Admin App | Source in repo; run with `dotnet run` / `dotnet publish`, or ship your own **container / release zip**. Not published to nuget.org. |
+
+**Good practice:** document Local Admin in the library README; run Admin App as an internal ops service (Docker/Helm, VPN-only), not as a public SaaS endpoint.
 
 ---
 
 ## Local Admin (library)
 
-### Enable
+### Enable (each app instance)
 
 ```json
 "Cache": {
   "Admin": {
     "Enabled": true,
-    "ApiKey": "…",
-    "InstanceId": "optional-stable-id"
+    "ApiKey": "use-a-strong-secret-in-production",
+    "InstanceId": "app-1",
+    "RoutePrefix": "/cache-admin/local",
+    "TrackEndpoints": true,
+    "TrackLatency": false
   }
 }
 ```
 
 ```csharp
-app.MapCacheOrchestratorAdmin(); // typically after UseCacheOrchestrator
+app.UseCacheOrchestrator();
+// …
+app.MapCacheOrchestratorAdmin(); // after routing is available; safe no-op when Admin disabled
 ```
 
-Default path prefix: `/cache-admin/local`. Authentication: header `X-Cache-Admin-Key` must match `ApiKey` when configured.
+| Option | Default | Notes |
+|--------|---------|--------|
+| `Enabled` | `false` | No routes, no counter cost when false |
+| `ApiKey` | empty | Empty + Enabled ⇒ **open** endpoints (dev only; logs a warning) |
+| `InstanceId` | machine name | Stable id in health / UI |
+| `RoutePrefix` | `/cache-admin/local` | Must match Admin App `LocalPathPrefix` |
+| `TrackEndpoints` | `true` | Per-route counters |
+| `TrackLatency` | `false` | Extra cost if true |
+
+### Auth header
+
+When `ApiKey` is set, every Local Admin call must send:
+
+```http
+X-Cache-Admin-Key: <same-as-Cache:Admin:ApiKey>
+```
+
+Comparison is fixed-time. Wrong/missing key ⇒ `401 Unauthorized`.
 
 ### Important endpoints
 
-| Method | Path (under prefix) | Purpose |
-|--------|---------------------|---------|
-| GET | `/health` | `AdminHealthDto`: Healthy, InstanceId, StartedAtUtc, UptimeSeconds, Requests |
-| GET | `/stats` | Live domain/endpoint counters with request shares + layer rates |
+Base path = `RoutePrefix` (default `/cache-admin/local`).
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/health` | `Healthy`, `InstanceId`, `StartedAtUtc`, `UptimeSeconds`, `Requests` |
+| GET | `/stats` | Live domain/endpoint counters (shares + rates) |
 | GET | `/endpoints` | Discovered + counted routes |
 | GET | `/domains` | Effective domain options snapshot |
 | POST | `/invalidate` | Domain / entity invalidation |
 | POST | `/domains/{name}/version` | Runtime version overlay |
 | PATCH | `/domains/{name}/ttl` | Runtime TTL overlay |
 
-### Health fields used by Admin App
-
-| Field | Use in UI |
-|-------|-----------|
-| `Healthy` | Healthy vs Degraded when HTTP succeeds |
-| `StartedAtUtc` / `UptimeSeconds` | Instances table + detail |
-| `Requests` | Req column (process lifetime request sum from stats) |
-
-If the HTTP call fails (timeout, 401, connection refused), Admin App marks the instance **Down** and clears uptime/request fields for that probe.
+Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
 ### Stats model (shares vs rates)
 
-Counters are layered:
+1. **Output Cache** events on HTTP responses (hit / miss / bypass).  
+2. **FusionCache** events on data path (hit / miss / stale / bypass, factory runs/failures).  
 
-1. **Output Cache** events (hit / miss / bypass) on HTTP responses.  
-2. **FusionCache** events (hit / miss / stale / bypass, factory runs/failures) on data cache.  
+| Metric type | Question it answers |
+|-------------|---------------------|
+| **Request share** (`hitShare`, `originShare`, …) | Of **all** requests, what fraction? |
+| **Layer rate** (`hitRate`, …) | Of traffic that **reached that layer**, what fraction? |
 
-**Request shares** answer: “of all requests, what fraction was OC hit vs origin?”  
-**Layer rates** answer: “of traffic that reached this layer, what fraction was hit?”  
+**Warning:** A high FC **miss rate** with very high OC hit share is often normal (Fusion barely runs). Prefer **origin share** / pipeline for cluster health. Recommendation rules follow the same preference — see [admin-hints.md](admin-hints.md).
 
-Primary Admin UI and recommendation rules prefer **shares**. Treating FC miss **rate** as cluster health when OC hit share is ~100% is misleading.
+### Health semantics (Admin App mapping)
 
-Implementation: `AdminStatsMath`, `InMemoryAdminStatsCollector`, DTOs in `AdminDtos.cs`.
+| Probe result | Instance status in UI |
+|--------------|------------------------|
+| HTTP OK + `Healthy == true` | **Healthy** |
+| HTTP OK + `Healthy == false` | **Degraded** |
+| Timeout / connection error / 401 | **Down** |
+
+`Requests` / uptime on the instance row come from health when the probe succeeds.
+
+### Limitations (Local Admin)
+
+- Counters are **process lifetime** (reset on restart), not sliding windows.  
+- Version/TTL overlays do **not** replicate to other nodes by themselves.  
+- Not a substitute for Redis backplane / shared config for multi-instance cache coherence.
 
 ---
 
 ## Admin App (process)
 
+Standalone **net10.0** host (ops tool; target apps may still be net8/net10).
+
 ### Configuration
 
 Section: `CacheAdmin` → `CacheAdminOptions`.
 
+```json
+{
+  "CacheAdmin": {
+    "ApiKey": "use-a-strong-secret-in-production",
+    "RequestTimeoutMs": 3000,
+    "Parallelism": 8,
+    "LocalPathPrefix": "/cache-admin/local",
+    "Instances": [
+      { "id": "app-1", "url": "https://app-1.internal:8080" },
+      { "id": "app-2", "url": "https://app-2.internal:8080" }
+    ]
+  }
+}
+```
+
 | Key | Description |
 |-----|-------------|
-| `ApiKey` | Sent to every instance |
-| `RequestTimeoutMs` | HttpClient timeout (validated 1–120000) |
-| `Parallelism` | Max concurrent instance calls (1–64) |
-| `LocalPathPrefix` | Combined with instance base URL |
-| `Instances` | `{ id, url }[]` |
+| `ApiKey` | Sent as `X-Cache-Admin-Key` to every instance (**must match** each app’s `Cache:Admin:ApiKey`) |
+| `RequestTimeoutMs` | Per-call timeout (1–120000) |
+| `Parallelism` | Max concurrent fan-out (1–64) |
+| `LocalPathPrefix` | Path on each instance (must match `RoutePrefix`) |
+| `Instances[].id` | Stable UI / filter id |
+| `Instances[].url` | **Base URL only** (scheme + host + port) — no `/cache-admin/...` path |
 
-### Server modules
+### Run (local)
 
-| Type | Role |
-|------|------|
-| `LocalAdminClient` | Typed HTTP to one instance |
-| `AdminFanOutService` | Parallel fan-out, overview, endpoints list, ops |
-| `StatsAggregator` | Merge multi-instance snapshots |
-| `RecommendationHints` | Rule-based Critical / Warning / Info |
-| `Program.cs` | `/api/*` + static files + Scalar (Development) |
+```bash
+dotnet run --project src/CacheOrchestrator.Admin
+```
 
-### Overview payload highlights
+Default UI: `http://localhost:5188/` (see launchSettings). Pair with Minimal sample + Local Admin on the port listed under `Instances`.
 
-- Instance list with health + optional per-instance `HintSummary`  
-- Cluster pipeline / OC hit share / origin share  
-- `TopDomains` / `TopEndpoints` — **full** aggregated domain/endpoint lists; Overview UI sorts by the selected key, then shows **top 5**  
+Quick operator steps: [Admin App README](../src/CacheOrchestrator.Admin/README.md).
 
-- `HintSummary` + sample `TopHints`  
-- Alerts (down/degraded/multi-instance notes)
+### What the SPA shows
+
+- Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/Origin, Req, Inv, hints) → **menu**  
+- Overview: instances; **top 5 domains** and **top 5 endpoints** after sorting the **full** aggregated lists  
+- Lists: filters, search, sort; detail pages; Operations fan-out; Hints page  
+- Auto-refresh interval in `localStorage`  
 
 ### Recommendation hints
 
-Server: `RecommendationHints.cs` (traffic thresholds, origin share, stale, invalidation ratio, instance spread, …).  
-Client: render-only in `wwwroot/js/hints.js` (live data only).
+Evaluated **only in the Admin App** after fan-out aggregation (`RecommendationHints`). UI does not invent rules.
 
-**How to define rules, formulas, and add a new hint:** [admin-hints.md](admin-hints.md).
+Details: [admin-hints.md](admin-hints.md).
 
----
+### Admin App HTTP API (for the SPA / automation)
 
-## SPA structure
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/overview` | Cluster overview + instances + top domains/endpoints + hints |
+| GET | `/api/instances` | Health probe fan-out |
+| GET | `/api/stats?scope=all\|instance:{id}&groupByInstance=` | Aggregated live stats |
+| GET | `/api/endpoints?…` | Endpoint list (search/sort/page/filters) |
+| GET | `/api/domains` | Domain config fan-out |
+| POST | `/api/invalidate` | Fan-out invalidation |
+| POST | `/api/domains/{domain}/version` | Fan-out version overlay |
+| PATCH | `/api/domains/{domain}/ttl` | Fan-out TTL overlay |
 
-Hash router, no build step. Entry: `wwwroot/js/app.js` (`type="module"` from `index.html`).
+Partial success is reported per instance in `results[]`.
 
-| Module | Responsibility |
-|--------|----------------|
-| `dom.js` | `$`, `main()` |
-| `api.js` | `fetch` + JSON error handling |
-| `format.js` | Escape, %, thin-space units, pipeline bar |
-| `hints.js` | Hint badges, lists, flatten for Hints page |
-| `filters.js` | Multi-select All/none/filter, sort keys, client sort/search |
-| `tables.js` | Endpoint / domain / instance tables, empty states |
-| `router.js` | `#/path?query` parse & navigate |
-| `shell.js` | Header metrics strip + auto-refresh timers |
-| `views.js` | Page renderers + `route()` |
-
-### Unit formatting
-
-Always use thin space (U+2009) between number and unit in the UI: `5 m`, `11 ms`, `3 h`. Counts without units use locale formatting only.
-
-### Filters
-
-- Endpoints: search, multi instance/domain, sort (server list API).  
-- Domains: search name, multi instance, sort (client).  
-- Instances: search id/url, sort (client).  
-- Overview: independent sort controls for instances table and top-5 endpoints.
+**Warning:** These `/api/*` routes currently have **no application-level authentication**. Anyone who can reach the Admin App can read stats and run operations. Protect the host (see [Security](#security)).
 
 ---
 
-## Security notes
+## Security
 
-- Treat Admin endpoints as **internal**. Prefer network policy + API key; do not expose Local Admin publicly without additional auth.  
-- Admin App and instances should share a strong key in non-dev environments.  
-- Operations (invalidate / version / TTL) mutate cache behaviour — audit access accordingly.
+API key is the **intended** machine-to-machine credential for Local Admin — not a temporary mock. Sample values like `dev-admin-key` are **dev-only**.
+
+### Two different trust boundaries
+
+| Path | Protected by today? |
+|------|---------------------|
+| **Admin App → Local Admin** on each app | Optional shared secret `X-Cache-Admin-Key` (required in production) |
+| **Browser / user → Admin App** | **No built-in login** — network / reverse-proxy auth only |
+
+So: the key stops strangers from calling `/cache-admin/local` on your apps **if** they cannot reach Admin App *or* guess the key. It does **not** by itself decide which humans may open the dashboard.
+
+### Production checklist
+
+1. **Network**  
+   - Local Admin: **not** on the public internet (private mesh, allowlist Admin App only).  
+   - Admin App: VPN, bastion, internal ingress, or zero-trust access — not a public anonymous URL.
+
+2. **Shared API key**  
+   - Strong random secret (e.g. 32+ bytes, base64).  
+   - Same value on every instance (`Cache:Admin:ApiKey`) and Admin App (`CacheAdmin:ApiKey`).  
+   - From a secret store (K8s Secret, Key Vault, …) — **never** commit production keys.  
+   - Empty `ApiKey` with `Enabled=true` leaves Local Admin **open** (logs a warning) — do not do this outside local dev.
+
+3. **Human access to Admin App**  
+   Because SPA/`/api` has no first-party auth, put in front of it one of:  
+   - OAuth2 / OIDC proxy (e.g. oauth2-proxy, Azure App Service auth, Cloudflare Access)  
+   - mTLS / service mesh only for operators  
+   - VPN-only deployment  
+
+4. **TLS**  
+   HTTPS for browser → Admin App and Admin App → instances so the key is not sent in clear text.
+
+5. **Least privilege & audit**  
+   Invalidate / version / TTL are **mutations**. Limit who can open Operations. Prefer platform logging of who accessed the admin host.  
+   Future hardening (optional): separate read vs write keys — not implemented today.
+
+6. **Do not rely on**  
+   - API key alone without network isolation  
+   - Sample `dev-admin-key` in shared environments  
+   - Shipping Admin App as an unauthenticated public cloud URL  
+
+### Local Admin without Admin App
+
+You may enable Local Admin for scripts only. Still set `ApiKey` and lock down network if the process is reachable outside localhost.
+
+---
+
+## Common pitfalls
+
+| Symptom | Likely cause |
+|---------|----------------|
+| All instances **Down** | Wrong URL/port; Local Admin not mapped; firewall; **401** wrong/missing ApiKey |
+| Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
+| Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local**; target was `instance:x` only, or a node was down during fan-out |
+| High FC miss rate, everything “fine” | Prefer **origin share** / OC hit share — see shares vs rates |
+| Scalar OpenAPI missing | Only mapped in **Development** on Admin App |
+| CORS issues calling Local Admin from a browser | Prefer Admin App fan-out; Local Admin is for server-side callers |
 
 ---
 
 ## Out of scope
 
-- Time-series / “last 1h” charts (use Prometheus / OTLP dashboards).  
-- Owning Redis topology beyond what target apps already configure.  
-- Shipping Admin App as a NuGet package.
+- Sliding-window / “last 1h” history (use Prometheus / OTLP).  
+- Redis topology management.  
+- Publishing Admin App as a NuGet library.  
+- Built-in OIDC login UI inside Admin App (use edge auth for now).
 
 ---
 
 ## Related docs
 
+- [admin-hints.md](admin-hints.md) — recommendation rule formulas  
 - [observability.md](observability.md) — metrics / `X-Cache` / health checks  
 - [invalidation.md](invalidation.md) — domain/entity invalidation model  
 - [configuration.md](configuration.md) — domain options binding  
 - [architecture.md](architecture.md) — library layers  
+- [deployment.md](deployment.md) — multi-instance topologies  

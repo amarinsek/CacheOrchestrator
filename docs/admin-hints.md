@@ -62,9 +62,9 @@ Common building blocks:
 | Symbol | Source | Meaning |
 |--------|--------|---------|
 | `R` | `domain.Requests` / `ep.Requests` | Request denominator for shares |
-| `MinTraffic` | `RecommendationHints.MinTraffic` (= **20**) | Gate: most rate rules need `R ≥ 20` |
-| Layer **hit rate** | `Oc.HitRate` / `Fc.HitRate` | Hits / (hits + misses) **within the layer** |
-| Request **share** | `Oc.HitShare`, `Fc.OriginShare`, `Fc.StaleShare`, … | Count / **total requests** |
+| `MinTraffic` | `RecommendationHints.MinTraffic` (= **20**) | Gate: most rate rules need `R >= 20` |
+| Layer **hit rate** | `Oc.HitRate` / `Fc.HitRate` | `hits / (hits + misses)` **within the layer** |
+| Request **share** | `Oc.HitShare`, `Fc.OriginShare`, `Fc.StaleShare`, … | `count / total requests` |
 | Config | `AdminDomainConfigDto` | TTLs, schedule phase (when fan-out loads config) |
 | Spread | `InstanceSpread.*.Stdev` | Cross-instance heterogeneity (when `groupByInstance`) |
 
@@ -98,29 +98,29 @@ private static AdminHintDto Hint(string severity, string code, string message) =
 
 Constants: `MinTraffic = 20`. Thresholds below are as implemented (not config-driven today).
 
-### Domain — `ForDomain` (needs `R ≥ MinTraffic` unless noted)
+### Domain — `ForDomain` (needs `R >= MinTraffic` unless noted)
 
-| Code | Severity | Condition (formula) |
-|------|----------|---------------------|
-| `low-fc-hit-rate` | Warning | `R ≥ 20` ∧ `Fc.HitRate < 0.60` |
-| `low-oc-hit-rate` | Warning | `R ≥ 20` ∧ `Oc.HitRate < 0.60` |
-| `high-origin-share` | Warning | `R ≥ 20` ∧ `Fc.OriginShare ≥ 0.25` |
-| `elevated-stale` | Warning | `R ≥ 20` ∧ `Fc.StaleShare ≥ 0.05` |
-| `very-high-oc-hit-long-ttl` | Info | `R ≥ 20` ∧ `Oc.HitRate ≥ 0.98` ∧ `config.OutputCacheTtlSeconds ≥ 3600` |
-| `frequent-invalidations` | Info | `R ≥ 20` ∧ `Invalidations ≥ 10` ∧ `Invalidations ≥ 0.05 · R` |
-| `client-ttl-gt-output` | Info | config: `ClientTtlSeconds > 0` ∧ `OutputCacheTtlSeconds > 0` ∧ `ClientTtlSeconds > 2 · OutputCacheTtlSeconds` |
-| `schedule-phase` | Info | config: `SchedulePhase` ∈ {`hold`, `approaching`} |
-| `instance-oc-hit-spread` | Warning | `InstanceSpread.OcHitShare.SampleCount ≥ 2` ∧ `Stdev ≥ 0.15` (no MinTraffic gate) |
+| Code | Severity | Condition |
+|------|----------|-----------|
+| `low-fc-hit-rate` | Warning | `R >= 20` and `Fc.HitRate < 0.60` |
+| `low-oc-hit-rate` | Warning | `R >= 20` and `Oc.HitRate < 0.60` |
+| `high-origin-share` | Warning | `R >= 20` and `Fc.OriginShare >= 0.25` |
+| `elevated-stale` | Warning | `R >= 20` and `Fc.StaleShare >= 0.05` |
+| `very-high-oc-hit-long-ttl` | Info | `R >= 20` and `Oc.HitRate >= 0.98` and `config.OutputCacheTtlSeconds >= 3600` |
+| `frequent-invalidations` | Info | `R >= 20` and `Invalidations >= 10` and `Invalidations >= 0.05 * R` |
+| `client-ttl-gt-output` | Info | config: `ClientTtlSeconds > 0` and `OutputCacheTtlSeconds > 0` and `ClientTtlSeconds > 2 * OutputCacheTtlSeconds` |
+| `schedule-phase` | Info | config: `SchedulePhase` is `hold` or `approaching` |
+| `instance-oc-hit-spread` | Warning | `InstanceSpread.OcHitShare.SampleCount >= 2` and `Stdev >= 0.15` (no MinTraffic gate) |
 
-### Endpoint — `ForEndpoint` (needs `R ≥ MinTraffic`)
+### Endpoint — `ForEndpoint` (needs `R >= MinTraffic`)
 
-| Code | Severity | Condition (formula) |
-|------|----------|---------------------|
-| `low-fc-hit-rate` | Warning | `R ≥ 20` ∧ `Fc.HitRate < 0.60` ∧ `Fc.LayerSampleSize ≥ 10` |
-| `high-origin-share` | Warning | `R ≥ 20` ∧ `Fc.OriginShare ≥ 0.25` |
-| `elevated-stale` | Warning | `R ≥ 20` ∧ `Fc.Stale > 0` ∧ `Fc.StaleShare ≥ 0.05` |
-| `fc-miss-rate-vs-oc-share` | Info | `R ≥ 20` ∧ `Oc.HitShare ≥ 0.95` ∧ `Fc.MissRate ≥ 0.99` ∧ `0 < Fc.LayerSampleSize < LowSampleThreshold` |
-| `instance-origin-spread` | Warning | `R ≥ 20` ∧ `InstanceSpread.OriginShare.SampleCount ≥ 2` ∧ `Stdev ≥ 0.15` |
+| Code | Severity | Condition |
+|------|----------|-----------|
+| `low-fc-hit-rate` | Warning | `R >= 20` and `Fc.HitRate < 0.60` and `Fc.LayerSampleSize >= 10` |
+| `high-origin-share` | Warning | `R >= 20` and `Fc.OriginShare >= 0.25` |
+| `elevated-stale` | Warning | `R >= 20` and `Fc.Stale > 0` and `Fc.StaleShare >= 0.05` |
+| `fc-miss-rate-vs-oc-share` | Info | `R >= 20` and `Oc.HitShare >= 0.95` and `Fc.MissRate >= 0.99` and `0 < Fc.LayerSampleSize < LowSampleThreshold` |
+| `instance-origin-spread` | Warning | `R >= 20` and `InstanceSpread.OriginShare.SampleCount >= 2` and `Stdev >= 0.15` |
 
 Same `code` may appear on domain and endpoint with different messages; the Hints page dedupes by `Severity|Code|Message`.
 
@@ -132,11 +132,12 @@ Same `code` may appear on domain and endpoint with different messages; the Hints
 
 **Intent:** Too many requests run the Fusion factory / origin path.
 
-**Formula:**
+**Condition:**
 
-\[
-R \ge 20 \;\land\; \text{OriginShare} = \frac{\text{FactoryRuns}}{R} \ge 0.25
-\]
+```text
+R >= 20 and OriginShare >= 0.25
+  where OriginShare = FactoryRuns / R   (request share, not layer rate)
+```
 
 **Code** (`RecommendationHints.ForDomain`):
 
@@ -159,13 +160,16 @@ if (domain.Requests >= MinTraffic)
 
 **Intent:** Among Fusion layer traffic, hits are weak — TTL or key cardinality issues on this route.
 
-**Formula:**
+**Condition:**
 
-\[
-R \ge 20 \;\land\; \text{Fc.HitRate} < 0.60 \;\land\; \text{Fc.LayerSampleSize} \ge 10
-\]
+```text
+R >= 20
+and Fc.HitRate < 0.60
+and Fc.LayerSampleSize >= 10
 
-where \(\text{HitRate} = \text{hits}/(\text{hits}+\text{misses})\) on the FC layer (not of all HTTP requests).
+where Fc.HitRate = hits / (hits + misses) on the FC layer
+  (not of all HTTP requests)
+```
 
 **Why extra sample gate:** Avoid noisy hints when almost all traffic was OC-hit and FC barely ran.
 
@@ -185,9 +189,9 @@ Write a clear predicate using **shares** when possible, and gate with `MinTraffi
 
 Example: **Critical** when origin share is extreme:
 
-\[
-R \ge 20 \;\land\; \text{OriginShare} \ge 0.50
-\]
+```text
+R >= 20 and OriginShare >= 0.50
+```
 
 ### Step 3 — Implement in `RecommendationHints.cs`
 

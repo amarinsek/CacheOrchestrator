@@ -1,19 +1,32 @@
 # CacheOrchestrator.Admin
 
+![Admin App overview](../../docs/assets/admin-overview.png)
+
 Separate **Admin App** that fans out to **Local Admin** APIs on your application instances.
 
-It does **not** sit on the caching hot path. Instances remain independent; this process only aggregates HTTP results and hosts a lightweight SPA.
+It does **not** sit on the caching hot path. Instances remain independent; this app only aggregates HTTP results and hosts a lightweight SPA.
 
 | Item | Path |
 |------|------|
-| Project | `src/CacheOrchestrator.Admin` |
-| UI (static) | `wwwroot/` — modular ES modules under `wwwroot/js/` |
-| Tech docs | [docs/admin.md](../../docs/admin.md) · [docs/admin-hints.md](../../docs/admin-hints.md) |
-| Local Admin (library) | `src/CacheOrchestrator/Admin/` |
+| Project | `src/CacheOrchestrator.Admin` (**net10.0**; not a NuGet package) |
+| UI | `wwwroot/` — ES modules under `wwwroot/js/` |
+| Full docs | [docs/admin.md](../../docs/admin.md) · [docs/admin-hints.md](../../docs/admin-hints.md) |
+| Local Admin (in core library) | Ships with NuGet **CacheOrchestrator** — enable per app |
 
-## Prerequisites
+## Security (short)
 
-On **each** app instance enable Local Admin and map the endpoints:
+| Trust boundary | Today |
+|----------------|--------|
+| Admin App → each app’s Local Admin | Shared secret header **`X-Cache-Admin-Key`** (`CacheAdmin:ApiKey` must match `Cache:Admin:ApiKey`) |
+| Browser → Admin App (`/` and `/api/*`) | **No built-in login** — treat as internal; put VPN / SSO reverse-proxy in front in production |
+
+- Sample key `dev-admin-key` is for **local development only**.  
+- Empty API key on an enabled Local Admin leaves that instance’s admin routes **open** (dev warning in logs).  
+- Operations (invalidate / version / TTL) **mutate** live cache state.
+
+**Production:** strong secrets from a secret store, private network for Local Admin, TLS, and access control for humans on this host. Details and checklist: **[docs/admin.md — Security](../../docs/admin.md#security)**.
+
+## Prerequisites (each target app)
 
 ```json
 "Cache": {
@@ -29,7 +42,7 @@ On **each** app instance enable Local Admin and map the endpoints:
 app.MapCacheOrchestratorAdmin();
 ```
 
-The Admin App’s `CacheAdmin:ApiKey` must match each instance’s `Cache:Admin:ApiKey` (sent as `X-Cache-Admin-Key`).
+Local Admin is **off by default** in the library. Target apps may be **net8 or net10**; this Admin App host is **net10**.
 
 ## Configure instances
 
@@ -52,12 +65,14 @@ The Admin App’s `CacheAdmin:ApiKey` must match each instance’s `Cache:Admin:
 
 | Option | Meaning |
 |--------|---------|
-| `ApiKey` | Shared secret for Local Admin calls |
+| `ApiKey` | Shared secret sent to Local Admin (`X-Cache-Admin-Key`) |
 | `RequestTimeoutMs` | Per-instance HTTP timeout |
 | `Parallelism` | Max concurrent fan-out calls |
-| `LocalPathPrefix` | Path prefix on each instance (default `/cache-admin/local`) |
-| `Instances[].id` | Stable id used in the UI and `scope=instance:{id}` |
-| `Instances[].url` | Base URL of the target app (no path) |
+| `LocalPathPrefix` | Must match each app’s `Cache:Admin:RoutePrefix` |
+| `Instances[].id` | Stable id in the UI and `scope=instance:{id}` |
+| `Instances[].url` | Base URL only (no admin path) |
+
+Use environment variables / secret mounts for production keys (do not commit real secrets).
 
 ## Run
 
@@ -68,77 +83,68 @@ dotnet run --project src/CacheOrchestrator.Admin
 | URL | Purpose |
 |-----|---------|
 | http://localhost:5188/ | SPA UI |
-| http://localhost:5188/scalar/v1 | OpenAPI (Development) |
-| http://localhost:5188/health | Process health |
+| http://localhost:5188/scalar/v1 | OpenAPI (Development only) |
+| http://localhost:5188/health | Admin App process health |
 
-Typical local pairing: run **Minimal** sample with Local Admin enabled, then point `CacheAdmin:Instances` at that port.
+Typical local pairing: Minimal sample with Local Admin enabled, then point `Instances` at that port.
 
 ## UI (hash routes)
 
-Chrome layout (top → bottom):
-
-1. App brand  
-2. **Header metrics strip** (same bar style as menu): `N/M up`, hints, pipeline, OC hit, Origin, Req, Inv  
-3. **Menu strip**: Overview · Instances · Domains · Endpoints · Hints · refresh · Operations · API  
+Chrome (top → bottom): brand → **metrics strip** (`N/M up`, hints, pipeline, OC, Origin, Req, Inv) → **menu**.
 
 | Route | Page |
 |-------|------|
-| `#/overview` | KPIs, pipeline, alerts, instances; domains/endpoints sorted over **all** rows then **top 5** shown |
-| `#/endpoints` | Endpoint list (search, multi-instance/domain, sort, page) |
-| `#/endpoints?route=GET+%2Fhello` | Endpoint detail (OC/FC, by-instance, hints) |
-| `#/domains` | Domain list (search, instance filter, sort) |
-| `#/domains?name=hello` | Domain detail + config + nested endpoints |
-| `#/instances` | Instance health (search, sort) — status, Req, uptime, latency |
+| `#/overview` | KPIs, pipeline, alerts; instances; top **5** domains & endpoints (sort over **all** rows) |
+| `#/endpoints` | List (search, multi-instance/domain, sort, page) |
+| `#/endpoints?route=…` | Endpoint detail |
+| `#/domains` | List (search, instance filter, sort) |
+| `#/domains?name=…` | Domain detail + config |
+| `#/instances` | Health (search, sort) — status, Req, uptime, latency |
 | `#/instances?id=…` | Instance detail |
-| `#/hints` | Flattened recommendations from live stats |
+| `#/hints` | Live recommendation hints |
 | `#/operations` | Invalidate / version / TTL fan-out |
 
-**Auto-refresh** (Grafana-style) lives in the menu strip; interval is stored in `localStorage`.
+Auto-refresh interval is stored in `localStorage`.
 
 ### Metrics mental model
 
-- Prefer **request shares** (`hitShare` of total requests) in the primary UI.  
-- Layer **rates** (`hitRate` among OC-only or FC-only traffic) are secondary — a high FC miss rate with a low origin share is usually not a cluster-wide problem.  
-- Instance health comes from Local Admin `GET …/health` (uptime, request sum, Healthy flag). Fan-out maps: HTTP OK + Healthy → **Healthy**, HTTP OK + !Healthy → **Degraded**, failure/timeout → **Down**.
+- Prefer **request shares** in the primary UI.  
+- Layer **rates** are secondary (high FC miss rate with low origin share is often fine).  
+- Health: Local Admin `GET …/health` → Healthy / Degraded / Down.
 
 ## Frontend modules
 
-No bundler. The browser loads ES modules:
-
 ```
 wwwroot/js/
-  app.js           entry (bootstrap)
-  dom.js           $ / main
-  api.js           fetch wrapper for /api/*
-  format.js        esc, pct, units, pipeline bar
-  hints.js         badges, lists, collectHintRows
-  filters.js       multi-select, sort options, client sort/search
-  tables.js        entity tables + empty states
-  router.js        hash parse / navigate
-  shell.js         header metrics + auto-refresh
-  views.js         all pages + route()
+  app.js       entry
+  dom.js       query helpers
+  api.js       /api/* client
+  format.js    units, pipeline bar
+  hints.js     badges / Hints page (render only)
+  filters.js   multi-select, sort, search
+  tables.js    entity tables
+  router.js    hash routes
+  shell.js     header + auto-refresh
+  views.js     pages
 ```
-
-Comments in code are English-only.
 
 ## Admin App API
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/overview` | Cluster overview + instances + top endpoints + hint summary |
-| GET | `/api/instances` | Health probe fan-out |
-| GET | `/api/stats?scope=all\|instance:{id}&groupByInstance=` | Aggregated live stats |
-| GET | `/api/endpoints?sort=&take=&skip=&search=&instances=&domains=` | Endpoint list |
-| GET | `/api/domains` | Domain config snapshots (fan-out) |
-| POST | `/api/invalidate` | Fan-out invalidation (`target`: `all` \| `instance:{id}`) |
+| GET | `/api/overview` | Overview payload |
+| GET | `/api/instances` | Health fan-out |
+| GET | `/api/stats?scope=…` | Aggregated stats |
+| GET | `/api/endpoints?…` | Endpoint list |
+| GET | `/api/domains` | Domain config fan-out |
+| POST | `/api/invalidate` | Fan-out invalidation |
 | POST | `/api/domains/{domain}/version` | Fan-out version overlay |
 | PATCH | `/api/domains/{domain}/ttl` | Fan-out TTL overlay |
 
-Partial success is returned per instance in `results[]`.
+Partial success appears per instance in `results[]`. These routes are **not** authenticated by the app itself — see [Security](#security-short).
 
 ## Notes
 
-- Runtime Version/TTL overlays are **process-local** on each instance — fan-out applies the same change to every selected target.  
-- History / “last 1h” trends are out of scope here (use OTLP/Prometheus).  
-- This project is **not** packed as a NuGet library (`IsPackable=false`).  
-- Deeper architecture and Local Admin contract: [docs/admin.md](../../docs/admin.md).
+- Runtime Version/TTL overlays are **process-local** per instance — fan-out must reach every node you care about.  
+- No sliding-window history here (use OTLP/Prometheus).  
+- How to distribute / harden for production: [docs/admin.md](../../docs/admin.md).  
