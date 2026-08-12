@@ -109,7 +109,8 @@ src/CacheOrchestrator/          core (InMemory only; no Redis packages)
   Backends/          ICacheBackendRegistrar, registration contexts, InMemory
   Invalidation/      tag purge
   Diagnostics/       metrics, activities, health
-  DependencyInjection/ AddCacheOrchestrator, ICacheOrchestratorBuilder
+  Admin/             Local Admin API (feature-flagged; stats, invalidate, version/TTL overlay)
+  DependencyInjection/ AddCacheOrchestrator, MapCacheOrchestratorAdmin, ICacheOrchestratorBuilder
   Utilities/
 src/CacheOrchestrator.Redis/    Redis package: registrar, RedisConnectionOptions, config resolve, validation
 tests/

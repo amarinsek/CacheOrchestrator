@@ -1,3 +1,4 @@
+using CacheOrchestrator.Admin;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,12 +14,14 @@ namespace CacheOrchestrator.Configuration;
 /// </summary>
 /// <remarks>
 /// Not part of the stable public surface — resolve via <see cref="IDomainCacheOptionsProvider"/>.
+/// Applies process-local <see cref="IDomainRuntimeOverrideStore"/> overlays (Admin Version/TTL) when present.
 /// </remarks>
 internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, IDisposable
 {
     private readonly ILogger<DomainCacheOptionsProvider> _logger;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _optionsMonitor;
-    private readonly ConcurrentDictionary<string, DomainCacheOptions> _globalCache = new(StringComparer.Ordinal);
+    private readonly IDomainRuntimeOverrideStore _runtimeOverrides;
+    private readonly ConcurrentDictionary<string, CachedDomainOptions> _globalCache = new(StringComparer.Ordinal);
     private readonly IDisposable? _changeRegistration;
 
     /// <summary>
@@ -26,13 +29,15 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
     /// </summary>
     public DomainCacheOptionsProvider(
         IOptionsMonitor<CacheOrchestratorOptions> optionsMonitor,
-        ILogger<DomainCacheOptionsProvider> logger)
+        ILogger<DomainCacheOptionsProvider> logger,
+        IDomainRuntimeOverrideStore? runtimeOverrides = null)
     {
         ArgumentNullException.ThrowIfNull(optionsMonitor);
         ArgumentNullException.ThrowIfNull(logger);
 
         _optionsMonitor = optionsMonitor;
         _logger = logger;
+        _runtimeOverrides = runtimeOverrides ?? NullDomainRuntimeOverrideStore.Instance;
 
         _changeRegistration = _optionsMonitor.OnChange(_ =>
         {
@@ -41,6 +46,12 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
                 _globalCache.Count);
             _globalCache.Clear();
         });
+    }
+
+    private sealed class CachedDomainOptions
+    {
+        public required DomainCacheOptions Options { get; init; }
+        public int OverrideStamp { get; init; }
     }
 
     /// <inheritdoc />
@@ -71,12 +82,17 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
     public DomainCacheOptions GetOrCreateDomainOptions(string domain)
     {
         domain = DomainName.Normalize(domain);
-        if (!_globalCache.TryGetValue(domain, out DomainCacheOptions? options))
+        int stamp = _runtimeOverrides.GetStamp(domain);
+
+        if (_globalCache.TryGetValue(domain, out CachedDomainOptions? cached)
+            && cached.OverrideStamp == stamp)
         {
-            options = CreateDomainOptions(domain);
-            _globalCache.TryAdd(domain, options);
+            return cached.Options;
         }
 
+        DomainCacheOptions options = CreateDomainOptions(domain);
+        CachedDomainOptions entry = new() { Options = options, OverrideStamp = stamp };
+        _globalCache[domain] = entry;
         return options;
     }
 
@@ -84,6 +100,7 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
     {
         CacheOrchestratorOptions options = _optionsMonitor.CurrentValue;
         CacheOrchestratorOptions.DomainCacheSettings defaults = options.DomainDefaults;
+        DomainRuntimeOverride? overlay = _runtimeOverrides.Get(domain);
 
         if (!options.Domains.TryGetValue(domain, out CacheOrchestratorOptions.DomainCacheSettings? dom))
         {
@@ -100,7 +117,11 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
         string version;
         bool usedDefaultVersion = false;
 
-        if (!string.IsNullOrWhiteSpace(dom.Version))
+        if (overlay?.Version is { Length: > 0 } overlayVersion)
+        {
+            version = overlayVersion;
+        }
+        else if (!string.IsNullOrWhiteSpace(dom.Version))
         {
             version = dom.Version;
         }
@@ -136,6 +157,19 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
         StringValues etag = CacheETagFactory.FromVersion(version);
         ETagMode etagMode = dom.ETagMode ?? defaults.ETagMode ?? ETagMode.Version;
 
+        int outputTtlSeconds = overlay?.OutputCacheTtlSeconds
+            ?? Pick(dom.OutputCacheTtlSeconds, defaults.OutputCacheTtlSeconds, 3700);
+        int fusionSoftSeconds = overlay?.FusionCacheSoftTtlSeconds
+            ?? Pick(dom.FusionCacheSoftTtlSeconds, defaults.FusionCacheSoftTtlSeconds, 3800);
+        int fusionHardSeconds = overlay?.FusionCacheHardTtlSeconds
+            ?? Pick(dom.FusionCacheHardTtlSeconds, defaults.FusionCacheHardTtlSeconds, 43200);
+        int fusionFailSafeSeconds = overlay?.FusionCacheFailSafeSeconds
+            ?? Pick(dom.FusionCacheFailSafeSeconds, defaults.FusionCacheFailSafeSeconds, 86400);
+        int clientTtlSeconds = overlay?.ClientTtlSeconds
+            ?? Pick(dom.ClientTtlSeconds, defaults.ClientTtlSeconds, 3600);
+        int clientTtlMinSeconds = overlay?.ClientTtlMinSeconds
+            ?? Pick(dom.ClientTtlMinSeconds, defaults.ClientTtlMinSeconds, 60);
+
         return new DomainCacheOptions
         {
             Domain = domain,
@@ -152,15 +186,15 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
             EncodingNormalizationList = dom.EncodingNormalizationList ?? defaults.EncodingNormalizationList,
 
             ClientCacheability = dom.ClientCacheability ?? defaults.ClientCacheability ?? ClientCacheability.Public,
-            ClientTtlSeconds = Pick(dom.ClientTtlSeconds, defaults.ClientTtlSeconds, 3600),
-            ClientTtlMinSeconds = Pick(dom.ClientTtlMinSeconds, defaults.ClientTtlMinSeconds, 60),
+            ClientTtlSeconds = clientTtlSeconds,
+            ClientTtlMinSeconds = clientTtlMinSeconds,
             ScheduledUpdateUtc = dom.ScheduledUpdateUtc ?? defaults.ScheduledUpdateUtc,
             ClientMustRevalidateNearUpdate = Pick(dom.ClientMustRevalidateNearUpdate, defaults.ClientMustRevalidateNearUpdate, false),
 
-            OutputTtl = TimeSpan.FromSeconds(Math.Max(0, Pick(dom.OutputCacheTtlSeconds, defaults.OutputCacheTtlSeconds, 3700))),
-            FusionCacheSoftTtl = TimeSpan.FromSeconds(Pick(dom.FusionCacheSoftTtlSeconds, defaults.FusionCacheSoftTtlSeconds, 3800)),
-            FusionCacheHardTtl = TimeSpan.FromSeconds(Pick(dom.FusionCacheHardTtlSeconds, defaults.FusionCacheHardTtlSeconds, 43200)),
-            FusionCacheFailSafe = TimeSpan.FromSeconds(Pick(dom.FusionCacheFailSafeSeconds, defaults.FusionCacheFailSafeSeconds, 86400)),
+            OutputTtl = TimeSpan.FromSeconds(Math.Max(0, outputTtlSeconds)),
+            FusionCacheSoftTtl = TimeSpan.FromSeconds(fusionSoftSeconds),
+            FusionCacheHardTtl = TimeSpan.FromSeconds(fusionHardSeconds),
+            FusionCacheFailSafe = TimeSpan.FromSeconds(fusionFailSafeSeconds),
 
             OutputCacheNamespace = options.OutputNamespace,
             FusionCacheNamespace = options.FusionCacheInstances.TryGetValue(instanceName, out CacheOrchestratorOptions.FusionCacheInstanceOptions? inst)

@@ -1,3 +1,4 @@
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Utilities;
@@ -46,6 +47,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             throw new ArgumentException("Domain must not be null or empty.", nameof(domain));
         string fixedDomain = DomainName.Normalize(domain);
         _domainProvider = _ => fixedDomain;
+        FixedDomain = fixedDomain;
         ResourceRouteKey = string.IsNullOrWhiteSpace(resourceRouteKey) ? null : resourceRouteKey.Trim();
     }
 
@@ -59,6 +61,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     {
         ArgumentNullException.ThrowIfNull(domainResolver);
         _domainProvider = http => domainResolver(http) ?? string.Empty;
+        FixedDomain = null;
         ResourceRouteKey = string.IsNullOrWhiteSpace(resourceRouteKey) ? null : resourceRouteKey.Trim();
     }
 
@@ -66,6 +69,13 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     /// Route value name used for entity tagging, or <see langword="null"/> when not configured.
     /// </summary>
     public string? ResourceRouteKey { get; }
+
+    /// <summary>
+    /// Normalized domain when this policy was constructed with a constant domain name;
+    /// <see langword="null"/> when the domain is resolved per request (func/template).
+    /// Used by Local Admin endpoint discovery.
+    /// </summary>
+    public string? FixedDomain { get; }
 
     /// <summary>
     /// Resolves the cache domain for the current request (fixed, func, or template-backed).
@@ -357,6 +367,15 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             _ => "miss"
         };
         CacheOrchestratorMetrics.RecordOutput(config.Domain, ocMetric);
+
+        IAdminStatsCollector? adminStats = httpContext.RequestServices.GetService<IAdminStatsCollector>();
+        if (adminStats is { IsEnabled: true })
+        {
+            adminStats.RecordOutput(
+                AdminEndpointKey.TryGet(httpContext),
+                config.Domain,
+                ocMetric);
+        }
 
         ClientCacheClass client;
         ClientCacheSchedulePhase phase = ClientCacheSchedulePhase.NotApplicable;
