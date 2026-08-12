@@ -715,12 +715,51 @@ export async function renderOperations(params) {
   const target = params.get("target") || "all";
   const action = params.get("action") || "invalidate";
 
-  const instances = await api("/api/instances");
+  const [instances, distribution] = await Promise.all([
+    api("/api/instances"),
+    api("/api/distribution").catch(() => null),
+  ]);
+
+  const mode = distribution?.recommendedMode || "fan-out";
+  const busAvailable = !!distribution?.busAvailable;
+  const modeClass = mode === "bus-distribute" ? "mode-bus" : "mode-fanout";
+  const modeLabel = mode === "bus-distribute" ? "Cluster bus (distribute)" : "HTTP fan-out";
+  const modeDetail = distribution?.summary
+    || "Probe /api/distribution for live capability.";
+
+  const probeRows = (distribution?.instances || []).map((p) => {
+    const bus = p.busEnabled
+      ? `<span class="badge ok">bus</span>`
+      : `<span class="badge muted">no bus</span>`;
+    const mem = p.membership ? esc(p.membership) : "—";
+    const peers = p.peerCount != null ? p.peerCount : "—";
+    const st = p.succeeded ? "ok" : "bad";
+    return `<tr>
+      <td>${esc(p.id)}</td>
+      <td class="${st}">${p.succeeded ? "reachable" : "down"}</td>
+      <td>${bus}</td>
+      <td>${mem}</td>
+      <td>${peers}</td>
+      <td class="muted">${p.error ? esc(p.error) : ""}</td>
+    </tr>`;
+  }).join("");
 
   main().innerHTML = `
     <div class="card">
       <h2>Operations</h2>
-      <p class="muted">Fan-out writes to Local Admin APIs. Runtime version/TTL are process-local on each instance.</p>
+      <div id="distBanner" class="dist-banner ${modeClass}">
+        <div class="dist-banner-title">
+          <span class="badge ${mode === "bus-distribute" ? "ok" : "warn"}">${esc(modeLabel)}</span>
+          ${busAvailable && distribution?.preferredBusOriginId
+            ? `<span class="muted">preferred origin: <code>${esc(distribution.preferredBusOriginId)}</code></span>`
+            : ""}
+        </div>
+        <p class="muted dist-banner-detail">${esc(modeDetail)}</p>
+        <p class="muted small">
+          <strong>fan-out</strong> = Admin App calls every target with <code>distribute:false</code> (each node applies locally).
+          <strong>bus-distribute</strong> = one origin with <code>distribute:true</code>; peers apply via CacheOrchestrator.Bus (never both).
+        </p>
+      </div>
       <form id="opForm" class="form-grid">
         <label>Action
           <select id="opAction" name="action">
@@ -755,7 +794,22 @@ export async function renderOperations(params) {
         </label>
         <button type="submit">Run</button>
       </form>
+      <div id="opModeUsed" class="dist-result-meta muted">No operation yet.</div>
       <pre id="opResult" class="result">No operation yet.</pre>
+    </div>
+    <div class="card">
+      <h2>Cluster bus probe</h2>
+      <p class="muted">From Local Admin <code>GET …/cluster/info</code> on each configured instance.</p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>Instance</th><th>Probe</th><th>Bus</th><th>Membership</th><th>Peers</th><th>Error</th></tr>
+          </thead>
+          <tbody>
+            ${probeRows || `<tr><td colspan="6" class="muted">No instances configured.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
     </div>
     <div class="card">
       <h2>Quick links</h2>
@@ -775,6 +829,23 @@ export async function renderOperations(params) {
   }
   actionEl.addEventListener("change", syncOpFields);
 
+  function renderModeUsed(result) {
+    const meta = $("#opModeUsed");
+    if (!result) {
+      meta.textContent = "No operation yet.";
+      return;
+    }
+    const m = result.distributionMode || "fan-out";
+    const badge = m === "bus-distribute"
+      ? `<span class="badge ok">bus-distribute</span>`
+      : `<span class="badge warn">fan-out</span>`;
+    const origin = result.busOriginInstanceId
+      ? ` · origin <code>${esc(result.busOriginInstanceId)}</code>`
+      : "";
+    const dist = result.distribute ? "distribute:true" : "distribute:false";
+    meta.innerHTML = `${badge} · ${dist}${origin}<br/><span class="muted">${esc(result.distributionSummary || "")}</span>`;
+  }
+
   $("#opForm").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const a = actionEl.value;
@@ -782,6 +853,7 @@ export async function renderOperations(params) {
     const tgt = $("#opTarget").value;
     const out = $("#opResult");
     out.textContent = "Running…";
+    $("#opModeUsed").textContent = "Running…";
     try {
       let result;
       if (a === "invalidate") {
@@ -817,9 +889,11 @@ export async function renderOperations(params) {
           body: JSON.stringify(body),
         });
       }
+      renderModeUsed(result);
       out.textContent = JSON.stringify(result, null, 2);
       shell.refreshHeader();
     } catch (err) {
+      $("#opModeUsed").textContent = "Error";
       out.textContent = "Error: " + err.message;
     }
   });

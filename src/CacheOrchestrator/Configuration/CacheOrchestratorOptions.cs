@@ -125,7 +125,7 @@ public sealed class CacheOrchestratorOptions
         public int MaxParallelism { get; set; } = 32;
 
         /// <summary>
-        /// Membership strategy: <c>Null</c> (default), <c>Static</c>, or later <c>ServiceDiscovery</c>.
+        /// Membership strategy: <c>Null</c> (default), <c>Static</c>, or <c>ServiceDiscovery</c>.
         /// </summary>
         public string Membership { get; set; } = "Null";
 
@@ -135,8 +135,17 @@ public sealed class CacheOrchestratorOptions
         /// </summary>
         public string? ApiKey { get; set; }
 
+        /// <summary>
+        /// Sliding window in seconds for ignoring duplicate <c>CommandId</c> values on receive.
+        /// Default: 60. Set to 0 to disable dedupe.
+        /// </summary>
+        public int DedupeWindowSeconds { get; set; } = 60;
+
         /// <summary>Static peer list when <see cref="Membership"/> is <c>Static</c>.</summary>
         public StaticClusterMembershipOptions Static { get; set; } = new();
+
+        /// <summary>Service discovery settings when <see cref="Membership"/> is <c>ServiceDiscovery</c>.</summary>
+        public ServiceDiscoveryMembershipOptions ServiceDiscovery { get; set; } = new();
     }
 
     /// <summary>Static peer list for the cluster bus. Bound from <c>Cache:Cluster:Bus:Static</c>.</summary>
@@ -154,6 +163,29 @@ public sealed class CacheOrchestratorOptions
 
         /// <summary>Base URL (e.g. <c>http://10.0.0.1:8080</c>).</summary>
         public string? Url { get; set; }
+    }
+
+    /// <summary>
+    /// Service discovery membership. Bound from <c>Cache:Cluster:Bus:ServiceDiscovery</c>.
+    /// Uses <c>Microsoft.Extensions.ServiceDiscovery</c> (config, DNS, platform resolvers).
+    /// </summary>
+    public sealed class ServiceDiscoveryMembershipOptions
+    {
+        /// <summary>
+        /// Logical service name to resolve (e.g. <c>app1</c> or <c>https+http://app1</c>).
+        /// Typically aligns with the application / <c>Cache:Namespace</c> boundary.
+        /// </summary>
+        public string? ServiceName { get; set; }
+
+        /// <summary>
+        /// URI scheme used when resolved endpoints have no scheme (default <c>http</c>).
+        /// </summary>
+        public string DefaultScheme { get; set; } = "http";
+
+        /// <summary>
+        /// How long (seconds) to cache resolved peers in-process. Default: 15. Min 1 when caching.
+        /// </summary>
+        public int CacheSeconds { get; set; } = 15;
     }
 
     /// <summary>

@@ -13,17 +13,24 @@ public class DefaultClusterCommandHandlerTests
     private readonly IDomainRuntimeOverrideStore _overrides = Substitute.For<IDomainRuntimeOverrideStore>();
     private readonly IInstanceIdProvider _instanceId = Substitute.For<IInstanceIdProvider>();
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
+    private readonly ClusterCommandDedupeStore _dedupe;
     private readonly DefaultClusterCommandHandler _sut;
 
     public DefaultClusterCommandHandlerTests()
     {
         _instanceId.InstanceId.Returns("local-1");
-        _options.CurrentValue.Returns(new CacheOrchestratorOptions { Namespace = "app1" });
+        _options.CurrentValue.Returns(new CacheOrchestratorOptions
+        {
+            Namespace = "app1",
+            Cluster = { Bus = { DedupeWindowSeconds = 60 } }
+        });
+        _dedupe = new ClusterCommandDedupeStore(_options);
         _sut = new DefaultClusterCommandHandler(
             _invalidator,
             _overrides,
             _instanceId,
             _options,
+            _dedupe,
             NullLogger<DefaultClusterCommandHandler>.Instance);
     }
 
@@ -113,6 +120,23 @@ public class DefaultClusterCommandHandlerTests
         _overrides.Received(1).PatchTtl(
             "catalog",
             Arg.Is<DomainTtlPatch>(p => p.OutputCacheTtlSeconds == 42));
+    }
+
+    [Fact]
+    public async Task ApplyLocalAsync_DuplicateCommandId_IsIgnored()
+    {
+        Guid id = Guid.NewGuid();
+        InvalidateCommand cmd = CreateInvalidate(ns: "app1", origin: "remote-2") with { CommandId = id };
+
+        _invalidator
+            .InvalidateDomainAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult(
+                new CacheInvalidationResult("products", ["domain:products"], true, true, [])));
+
+        await _sut.ApplyLocalAsync(cmd, TestContext.Current.CancellationToken);
+        await _sut.ApplyLocalAsync(cmd, TestContext.Current.CancellationToken);
+
+        await _invalidator.Received(1).InvalidateDomainAsync("products", Arg.Any<CancellationToken>());
     }
 
     private static InvalidateCommand CreateInvalidate(string ns, string origin) => new()

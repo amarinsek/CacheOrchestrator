@@ -33,6 +33,46 @@ body {
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+/* Operations: distribution mode banner */
+.dist-banner {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1rem;
+  background: #141b24;
+}
+.dist-banner.mode-bus { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+.dist-banner.mode-fanout { border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); }
+.dist-banner-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+.dist-banner-detail { margin: 0.25rem 0; }
+.dist-result-meta {
+  margin: 0.75rem 0 0.35rem;
+  padding: 0.5rem 0.65rem;
+  border-left: 3px solid var(--border);
+  background: #121820;
+  border-radius: 0 6px 6px 0;
+}
+.badge {
+  display: inline-block;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: #1a222c;
+}
+.badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--border)); }
+.badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, var(--border)); }
+.badge.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+code { font-size: 0.9em; }
+
 /* —— sticky chrome: logo → header strip → menu strip —— */
 .app-chrome {
   position: sticky;

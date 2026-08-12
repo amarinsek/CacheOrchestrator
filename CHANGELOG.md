@@ -12,10 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CacheOrchestrator.Bus** (optional package) — HTTP cluster command bus for multi-instance command fan-out
   - Core contracts: `IClusterCommandBus` / `IClusterMembership` / `IClusterCommandHandler` (Null defaults in core)
   - Commands: `InvalidateCommand`, `VersionBumpCommand`, `TtlPatchCommand` (polymorphic JSON)
-  - Static membership + `HttpClusterCommandBus`; receive endpoints via `MapCacheOrchestratorHttpBus()` (independent of Admin)
+  - Membership: **Null**, **Static**, **ServiceDiscovery** (`Microsoft.Extensions.ServiceDiscovery`)
+  - `HttpClusterCommandBus`; receive endpoints via `MapCacheOrchestratorHttpBus()` (independent of Admin)
+  - CommandId **dedupe window** on receive (`Cache:Cluster:Bus:DedupeWindowSeconds`)
   - Single process identity: **`Cache:InstanceId`** (Admin no longer has its own InstanceId)
   - Admin `distribute` flag on invalidate / version / TTL; programmatic invalidator publishes when bus enabled
-  - Metrics: `cache_orchestrator.cluster.commands_*` / `publish_failures`
+  - **Admin App**: auto bus-distribute vs HTTP fan-out; Operations UI shows distribution mode; `GET /api/distribution`
+  - Metrics: `cache_orchestrator.cluster.commands_*` / `publish_failures` / `command_dedupe_hits`
 - **Local Admin API** (core package, opt-in) — process-local HTTP surface under `/cache-admin/local` via `MapCacheOrchestratorAdmin()` when `Cache:Admin:Enabled` is true
   - Live stats (domains / endpoints) with **request shares** and layer rates, discovered routes, domain config snapshot
   - Health probe: instance id, process start / uptime, lifetime request sum

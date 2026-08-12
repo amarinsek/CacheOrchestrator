@@ -374,28 +374,77 @@ public sealed class AdminFanOutService
         };
     }
 
+    /// <summary>
+    /// Probes <c>/cluster/info</c> on configured instances and recommends fan-out vs bus-distribute.
+    /// </summary>
+    public async Task<ClusterDistributionCapabilityDto> GetDistributionCapabilityAsync(
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AdminInstanceOptions> all = GetConfiguredInstances();
+        List<InstanceCallOutcome<LocalClusterInfoDto>> outcomes =
+            await FanOutAsync(all, (inst, ct) => _client.GetClusterInfoAsync(inst, ct), cancellationToken)
+                .ConfigureAwait(false);
+
+        List<InstanceClusterProbeDto> probes = outcomes.Select(o =>
+        {
+            bool busOn = o.Succeeded
+                && o.Value is { BusEnabled: true }
+                && !string.Equals(o.Value.Membership, "Null", StringComparison.OrdinalIgnoreCase);
+            return new InstanceClusterProbeDto
+            {
+                Id = o.InstanceId,
+                Succeeded = o.Succeeded,
+                BusEnabled = busOn,
+                Membership = o.Value?.Membership,
+                PeerCount = o.Succeeded ? o.Value?.PeerCount : null,
+                Error = o.Error
+            };
+        }).ToList();
+
+        InstanceClusterProbeDto? preferred = probes.FirstOrDefault(p => p.BusEnabled);
+        bool busAvailable = preferred is not null;
+
+        return new ClusterDistributionCapabilityDto
+        {
+            BusAvailable = busAvailable,
+            PreferredBusOriginId = preferred?.Id,
+            RecommendedMode = busAvailable ? DistributionModes.BusDistribute : DistributionModes.FanOut,
+            Summary = busAvailable
+                ? $"Cluster bus available — prefer single origin ({preferred!.Id}) with distribute:true (peers apply via bus)."
+                : "No cluster bus detected — Admin App will HTTP fan-out to each target with distribute:false.",
+            Instances = probes
+        };
+    }
+
     public async Task<FanOutResultDto<object?>> InvalidateAsync(
         AdminAppInvalidateRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        IReadOnlyList<AdminInstanceOptions> targets = ResolveTarget(request.Target);
+        WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
+            .ConfigureAwait(false);
+
         AdminInvalidateRequest body = new()
         {
             Scope = request.Scope,
             Domain = request.Domain,
             EntityId = request.EntityId,
-            Tags = request.Tags
+            Tags = request.Tags,
+            Distribute = plan.Distribute
         };
 
         List<InstanceCallOutcome<CacheInvalidationResult>> outcomes =
-            await FanOutAsync(targets, (inst, ct) => _client.InvalidateAsync(inst, body, ct), cancellationToken)
+            await FanOutAsync(plan.Targets, (inst, ct) => _client.InvalidateAsync(inst, body, ct), cancellationToken)
                 .ConfigureAwait(false);
 
         return new FanOutResultDto<object?>
         {
             Data = null,
-            Results = outcomes.Select(o => o.ToResultDto()).ToArray()
+            Results = outcomes.Select(o => o.ToResultDto()).ToArray(),
+            DistributionMode = plan.Mode,
+            DistributionSummary = plan.Summary,
+            BusOriginInstanceId = plan.BusOriginInstanceId,
+            Distribute = plan.Distribute
         };
     }
 
@@ -406,12 +455,18 @@ public sealed class AdminFanOutService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
         ArgumentNullException.ThrowIfNull(request);
-        IReadOnlyList<AdminInstanceOptions> targets = ResolveTarget(request.Target);
-        AdminVersionRequest body = new() { Version = request.Version };
+        WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
+            .ConfigureAwait(false);
+
+        AdminVersionRequest body = new()
+        {
+            Version = request.Version,
+            Distribute = plan.Distribute
+        };
 
         List<InstanceCallOutcome<AdminDomainMutationResultDto>> outcomes =
             await FanOutAsync(
-                    targets,
+                    plan.Targets,
                     (inst, ct) => _client.SetVersionAsync(inst, domain, body, ct),
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -419,7 +474,11 @@ public sealed class AdminFanOutService
         return new FanOutResultDto<object?>
         {
             Data = outcomes.FirstOrDefault(o => o.Succeeded)?.Value,
-            Results = outcomes.Select(o => o.ToResultDto()).ToArray()
+            Results = outcomes.Select(o => o.ToResultDto()).ToArray(),
+            DistributionMode = plan.Mode,
+            DistributionSummary = plan.Summary,
+            BusOriginInstanceId = plan.BusOriginInstanceId,
+            Distribute = plan.Distribute
         };
     }
 
@@ -430,7 +489,9 @@ public sealed class AdminFanOutService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
         ArgumentNullException.ThrowIfNull(request);
-        IReadOnlyList<AdminInstanceOptions> targets = ResolveTarget(request.Target);
+        WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
+            .ConfigureAwait(false);
+
         AdminTtlPatchRequest body = new()
         {
             OutputCacheTtlSeconds = request.OutputCacheTtlSeconds,
@@ -438,12 +499,13 @@ public sealed class AdminFanOutService
             FusionCacheHardTtlSeconds = request.FusionCacheHardTtlSeconds,
             FusionCacheFailSafeSeconds = request.FusionCacheFailSafeSeconds,
             ClientTtlSeconds = request.ClientTtlSeconds,
-            ClientTtlMinSeconds = request.ClientTtlMinSeconds
+            ClientTtlMinSeconds = request.ClientTtlMinSeconds,
+            Distribute = plan.Distribute
         };
 
         List<InstanceCallOutcome<AdminDomainMutationResultDto>> outcomes =
             await FanOutAsync(
-                    targets,
+                    plan.Targets,
                     (inst, ct) => _client.PatchTtlAsync(inst, domain, body, ct),
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -451,9 +513,78 @@ public sealed class AdminFanOutService
         return new FanOutResultDto<object?>
         {
             Data = outcomes.FirstOrDefault(o => o.Succeeded)?.Value,
-            Results = outcomes.Select(o => o.ToResultDto()).ToArray()
+            Results = outcomes.Select(o => o.ToResultDto()).ToArray(),
+            DistributionMode = plan.Mode,
+            DistributionSummary = plan.Summary,
+            BusOriginInstanceId = plan.BusOriginInstanceId,
+            Distribute = plan.Distribute
         };
     }
+
+    /// <summary>
+    /// When target is <c>all</c> and a bus-enabled instance exists → single origin + distribute.
+    /// Explicit <c>instance:x</c> keeps that target; distribute only if that instance reports bus.
+    /// Otherwise classic fan-out with distribute:false.
+    /// </summary>
+    private async Task<WriteDistributionPlan> PlanWriteDistributionAsync(
+        string? target,
+        CancellationToken cancellationToken)
+    {
+        bool targetAll = string.IsNullOrWhiteSpace(target)
+            || string.Equals(target, "all", StringComparison.OrdinalIgnoreCase);
+
+        IReadOnlyList<AdminInstanceOptions> explicitTargets = ResolveTarget(target);
+        ClusterDistributionCapabilityDto capability =
+            await GetDistributionCapabilityAsync(cancellationToken).ConfigureAwait(false);
+
+        if (targetAll && capability.BusAvailable
+            && !string.IsNullOrWhiteSpace(capability.PreferredBusOriginId))
+        {
+            AdminInstanceOptions origin = explicitTargets.First(t =>
+                string.Equals(t.Id, capability.PreferredBusOriginId, StringComparison.OrdinalIgnoreCase));
+
+            return new WriteDistributionPlan(
+                Targets: [origin],
+                Distribute: true,
+                Mode: DistributionModes.BusDistribute,
+                BusOriginInstanceId: origin.Id,
+                Summary:
+                    $"bus-distribute via origin '{origin.Id}' (Admin App → 1 HTTP call with distribute:true; peers apply via cluster bus).");
+        }
+
+        // Explicit single instance: enable distribute only when that instance has a live bus.
+        if (!targetAll && explicitTargets.Count == 1)
+        {
+            InstanceClusterProbeDto? probe = capability.Instances
+                .FirstOrDefault(p => string.Equals(p.Id, explicitTargets[0].Id, StringComparison.OrdinalIgnoreCase));
+            if (probe is { BusEnabled: true })
+            {
+                return new WriteDistributionPlan(
+                    Targets: explicitTargets,
+                    Distribute: true,
+                    Mode: DistributionModes.BusDistribute,
+                    BusOriginInstanceId: explicitTargets[0].Id,
+                    Summary:
+                        $"bus-distribute via origin '{explicitTargets[0].Id}' (distribute:true; peers via cluster bus).");
+            }
+        }
+
+        string ids = string.Join(", ", explicitTargets.Select(t => t.Id));
+        return new WriteDistributionPlan(
+            Targets: explicitTargets,
+            Distribute: false,
+            Mode: DistributionModes.FanOut,
+            BusOriginInstanceId: null,
+            Summary:
+                $"fan-out to {explicitTargets.Count} instance(s) [{ids}] with distribute:false (each process applies locally).");
+    }
+
+    private sealed record WriteDistributionPlan(
+        IReadOnlyList<AdminInstanceOptions> Targets,
+        bool Distribute,
+        string Mode,
+        string? BusOriginInstanceId,
+        string Summary);
 
     private async Task<List<InstanceCallOutcome<T>>> FanOutAsync<T>(
         IReadOnlyList<AdminInstanceOptions> instances,

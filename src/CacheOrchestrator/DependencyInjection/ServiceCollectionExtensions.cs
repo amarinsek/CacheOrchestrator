@@ -130,6 +130,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
         services.TryAddSingleton<ClusterCommandFactory>();
+        services.TryAddSingleton<ClusterCommandDedupeStore>();
         // Bus package may register real implementations in the builder callback before this runs;
         // TryAdd keeps Http/Static bus when already present.
         services.TryAddSingleton<IClusterCommandBus>(_ => NullClusterCommandBus.Instance);

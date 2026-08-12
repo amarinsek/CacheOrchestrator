@@ -81,7 +81,71 @@ public class AdminFanOutServiceTests
     }
 
     [Fact]
-    public async Task InvalidateAsync_FansOutToResolvedTargets()
+    public async Task InvalidateAsync_WhenNoBus_FansOutWithDistributeFalse()
+    {
+        FakeLocalAdminClient client = new();
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        FanOutResultDto<object?> result = await sut.InvalidateAsync(
+            new AdminAppInvalidateRequest
+            {
+                Scope = "domain",
+                Domain = "catalog",
+                Target = "all"
+            },
+            TestContext.Current.CancellationToken);
+
+        result.DistributionMode.Should().Be(DistributionModes.FanOut);
+        result.Distribute.Should().BeFalse();
+        result.Results.Should().HaveCount(2);
+        client.InvalidateCalls.Should().BeEquivalentTo(["a", "b"]);
+        client.LastInvalidateBody!.Distribute.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task InvalidateAsync_WhenBusAvailableAndTargetAll_UsesSingleOriginDistribute()
+    {
+        FakeLocalAdminClient client = new();
+        client.ClusterInfo["a"] = new LocalClusterInfoDto
+        {
+            InstanceId = "a",
+            BusEnabled = true,
+            Membership = "Static",
+            PeerCount = 2
+        };
+        client.ClusterInfo["b"] = new LocalClusterInfoDto
+        {
+            InstanceId = "b",
+            BusEnabled = true,
+            Membership = "Static",
+            PeerCount = 2
+        };
+
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        FanOutResultDto<object?> result = await sut.InvalidateAsync(
+            new AdminAppInvalidateRequest
+            {
+                Scope = "domain",
+                Domain = "catalog",
+                Target = "all"
+            },
+            TestContext.Current.CancellationToken);
+
+        result.DistributionMode.Should().Be(DistributionModes.BusDistribute);
+        result.Distribute.Should().BeTrue();
+        result.BusOriginInstanceId.Should().Be("a");
+        result.Results.Should().ContainSingle(r => r.InstanceId == "a");
+        client.InvalidateCalls.Should().ContainSingle(c => c == "a");
+        client.LastInvalidateBody!.Distribute.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task InvalidateAsync_ExplicitInstanceWithoutBus_FansOutLocalOnly()
     {
         FakeLocalAdminClient client = new();
         AdminFanOutService sut = CreateSut(client,
@@ -97,8 +161,34 @@ public class AdminFanOutServiceTests
             },
             TestContext.Current.CancellationToken);
 
+        result.DistributionMode.Should().Be(DistributionModes.FanOut);
+        result.Distribute.Should().BeFalse();
         result.Results.Should().ContainSingle(r => r.InstanceId == "a" && r.Succeeded);
         client.InvalidateCalls.Should().ContainSingle(c => c == "a");
+    }
+
+    [Fact]
+    public async Task GetDistributionCapabilityAsync_ReportsBusPreferredOrigin()
+    {
+        FakeLocalAdminClient client = new();
+        client.ClusterInfo["b"] = new LocalClusterInfoDto
+        {
+            InstanceId = "b",
+            BusEnabled = true,
+            Membership = "Static",
+            PeerCount = 1
+        };
+
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        ClusterDistributionCapabilityDto cap =
+            await sut.GetDistributionCapabilityAsync(TestContext.Current.CancellationToken);
+
+        cap.BusAvailable.Should().BeTrue();
+        cap.RecommendedMode.Should().Be(DistributionModes.BusDistribute);
+        cap.PreferredBusOriginId.Should().Be("b");
     }
 
     private static AdminFanOutService CreateSut(params AdminInstanceOptions[] instances) =>
@@ -120,6 +210,8 @@ public class AdminFanOutServiceTests
         public Dictionary<string, AdminLiveStatsSnapshot> Stats { get; } = new(StringComparer.Ordinal);
         public HashSet<string> FailStats { get; } = new(StringComparer.Ordinal);
         public List<string> InvalidateCalls { get; } = [];
+        public Dictionary<string, LocalClusterInfoDto> ClusterInfo { get; } = new(StringComparer.Ordinal);
+        public AdminInvalidateRequest? LastInvalidateBody { get; private set; }
 
         public Task<InstanceCallOutcome<AdminHealthDto>> GetHealthAsync(
             AdminInstanceOptions instance,
@@ -168,6 +260,7 @@ public class AdminFanOutServiceTests
             CancellationToken cancellationToken = default)
         {
             InvalidateCalls.Add(instance.Id);
+            LastInvalidateBody = body;
             return Task.FromResult(Ok(instance.Id, CacheInvalidationResult.Skipped("test")));
         }
 
@@ -184,6 +277,17 @@ public class AdminFanOutServiceTests
             AdminTtlPatchRequest body,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
+            AdminInstanceOptions instance,
+            CancellationToken cancellationToken = default)
+        {
+            if (ClusterInfo.TryGetValue(instance.Id, out LocalClusterInfoDto? info))
+                return Task.FromResult(Ok(instance.Id, info));
+
+            // Default: no bus endpoints (simulates bus disabled / not mapped).
+            return Task.FromResult(Fail<LocalClusterInfoDto>(instance.Id, "cluster info unavailable"));
+        }
 
         private static InstanceCallOutcome<T> Ok<T>(string id, T value) =>
             new()

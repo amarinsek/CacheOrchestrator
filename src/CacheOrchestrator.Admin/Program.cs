@@ -53,6 +53,13 @@ api.MapGet("/instances", async (AdminFanOutService fanOut, CancellationToken can
     return Results.Ok(list);
 });
 
+api.MapGet("/distribution", async (AdminFanOutService fanOut, CancellationToken cancellationToken) =>
+{
+    ClusterDistributionCapabilityDto capability =
+        await fanOut.GetDistributionCapabilityAsync(cancellationToken).ConfigureAwait(false);
+    return Results.Ok(capability);
+});
+
 api.MapGet("/stats", async (
     string? scope,
     bool? groupByInstance,

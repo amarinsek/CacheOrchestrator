@@ -67,6 +67,12 @@ public static class CacheOrchestratorMetrics
             unit: "{failure}",
             description: "Cluster peer publish failures (timeout, HTTP error, transport)");
 
+    private static readonly Counter<long> ClusterDedupeHits =
+        Meter.CreateCounter<long>(
+            "cache_orchestrator.cluster.command_dedupe_hits",
+            unit: "{command}",
+            description: "Cluster commands ignored as duplicates within the dedupe window");
+
     /// <summary>
     /// Records a FusionCache operation outcome (and optional duration).
     /// </summary>
@@ -125,4 +131,8 @@ public static class CacheOrchestratorMetrics
     /// <summary>Records a per-peer publish failure.</summary>
     internal static void RecordClusterPublishFailure(string reason) =>
         ClusterPublishFailures.Add(1, new KeyValuePair<string, object?>("reason", reason));
+
+    /// <summary>Records a receive-side CommandId dedupe hit.</summary>
+    internal static void RecordClusterDedupeHit() =>
+        ClusterDedupeHits.Add(1);
 }

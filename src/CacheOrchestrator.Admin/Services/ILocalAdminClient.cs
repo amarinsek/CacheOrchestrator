@@ -49,6 +49,13 @@ public interface ILocalAdminClient
         string domain,
         AdminTtlPatchRequest body,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// GET cluster bus info (<c>…/cluster/info</c>). Fails when bus receive endpoints are not mapped.
+    /// </summary>
+    Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
+        AdminInstanceOptions instance,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Typed outcome of a Local Admin call including latency metadata.</summary>

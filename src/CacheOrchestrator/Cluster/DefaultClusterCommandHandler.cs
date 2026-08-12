@@ -16,6 +16,7 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
     private readonly IDomainRuntimeOverrideStore _overrides;
     private readonly IInstanceIdProvider _instanceId;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
+    private readonly ClusterCommandDedupeStore _dedupe;
     private readonly ILogger<DefaultClusterCommandHandler> _logger;
 
     public DefaultClusterCommandHandler(
@@ -23,18 +24,21 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
         IDomainRuntimeOverrideStore overrides,
         IInstanceIdProvider instanceId,
         IOptionsMonitor<CacheOrchestratorOptions> options,
+        ClusterCommandDedupeStore dedupe,
         ILogger<DefaultClusterCommandHandler> logger)
     {
         ArgumentNullException.ThrowIfNull(invalidator);
         ArgumentNullException.ThrowIfNull(overrides);
         ArgumentNullException.ThrowIfNull(instanceId);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(dedupe);
         ArgumentNullException.ThrowIfNull(logger);
 
         _invalidator = invalidator;
         _overrides = overrides;
         _instanceId = instanceId;
         _options = options;
+        _dedupe = dedupe;
         _logger = logger;
     }
 
@@ -62,6 +66,14 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
                 "Ignoring cluster command {CommandId}: origin is self ({InstanceId})",
                 command.CommandId,
                 _instanceId.InstanceId);
+            return;
+        }
+
+        if (!_dedupe.TryMarkAsNew(command.CommandId))
+        {
+            _logger.LogDebug(
+                "Ignoring cluster command {CommandId}: duplicate within dedupe window",
+                command.CommandId);
             return;
         }
 

@@ -61,6 +61,27 @@ public class ClusterBusRegistrationTests
     }
 
     [Fact]
+    public async Task AddHttpClusterBus_WhenServiceDiscovery_RegistersServiceDiscoveryMembership()
+    {
+        ServiceCollection services = new();
+        IConfiguration config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Cache:OutputCache:Provider"] = "InMemory",
+            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:Cluster:Bus:Enabled"] = "true",
+            ["Cache:Cluster:Bus:Membership"] = "ServiceDiscovery",
+            ["Cache:Cluster:Bus:ServiceDiscovery:ServiceName"] = "app1"
+        }).Build();
+
+        services.AddLogging();
+        services.AddCacheOrchestrator(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+
+        // ServiceEndpointResolver is IAsyncDisposable-only — dispose async.
+        await using ServiceProvider sp = services.BuildServiceProvider();
+        sp.GetRequiredService<IClusterMembership>().Kind.Should().Be("ServiceDiscovery");
+    }
+
+    [Fact]
     public void AddHttpClusterBus_WhenDisabled_IsEnabledFalse()
     {
         ServiceCollection services = new();

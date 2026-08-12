@@ -104,7 +104,14 @@ When the HTTP bus is enabled, Local Admin mutation bodies accept **`distribute`*
 | `POST …/domains/{d}/version` | Local Version overlay | Local + `VersionBumpCommand` |
 | `PATCH …/domains/{d}/ttl` | Local TTL overlay | Local + `TtlPatchCommand` |
 
-Do **not** combine Admin App full fan-out **and** `distribute: true` for the same action. Prefer either multi-target Admin App calls without distribute, or single-target + `distribute: true` when the bus owns peer membership.
+**Admin App** probes `GET …/cluster/info` on each configured instance (`GET /api/distribution`):
+
+| Capability | Write behaviour |
+|------------|-----------------|
+| No bus | **fan-out** — HTTP to every target with `distribute:false` |
+| Bus enabled (Static/ServiceDiscovery) | **bus-distribute** — one healthy origin with `distribute:true` (peers via bus) |
+
+The Operations UI shows a banner and the mode used for the last result. Never combine full Admin App fan-out **and** `distribute:true` for the same action — the App chooses one path automatically.
 
 Receive path for peers: `MapCacheOrchestratorHttpBus()` (not gated on `Admin:Enabled`).
 

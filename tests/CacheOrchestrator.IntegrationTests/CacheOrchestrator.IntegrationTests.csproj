@@ -30,6 +30,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\CacheOrchestrator\CacheOrchestrator.csproj" />
 		<ProjectReference Include="..\..\src\CacheOrchestrator.Redis\CacheOrchestrator.Redis.csproj" />
+		<ProjectReference Include="..\..\src\CacheOrchestrator.Bus\CacheOrchestrator.Bus.csproj" />
 	</ItemGroup>
 
 </Project>

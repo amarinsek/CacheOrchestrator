@@ -62,3 +62,33 @@ app.MapCacheOrchestratorHttpBus();
 Auth for `POST .../cluster/apply`: header `X-Cache-Admin-Key` using `Cache:Cluster:Bus:ApiKey`, or fallback `Cache:Admin:ApiKey`.
 
 Receive endpoints are mapped even when Local Admin is disabled.
+
+### ServiceDiscovery membership
+
+```json
+"Bus": {
+  "Enabled": true,
+  "Membership": "ServiceDiscovery",
+  "ServiceDiscovery": {
+    "ServiceName": "app1",
+    "DefaultScheme": "http",
+    "CacheSeconds": 15
+  }
+}
+```
+
+Uses `Microsoft.Extensions.ServiceDiscovery` (configuration section `Services:{name}`, platform DNS, Aspire, …). Example config endpoints:
+
+```json
+{
+  "Services": {
+    "app1": {
+      "http": [ "10.0.0.1:8080", "10.0.0.2:8080" ]
+    }
+  }
+}
+```
+
+### Admin App
+
+When instances report an enabled bus (`GET …/cluster/info`), the Admin App prefers **single-origin + `distribute:true`** instead of multi-target fan-out. The Operations UI shows the active mode.

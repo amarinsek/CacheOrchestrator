@@ -1,6 +1,7 @@
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -13,7 +14,7 @@ namespace CacheOrchestrator.Bus;
 public static class CacheOrchestratorBusBuilderExtensions
 {
     /// <summary>
-    /// Adds HTTP cluster command transport and membership (Static or Null from configuration).
+    /// Adds HTTP cluster command transport and membership (Static, ServiceDiscovery, or Null from configuration).
     /// Call inside the <c>AddCacheOrchestrator</c> builder callback so registration happens before
     /// core <c>TryAdd</c> Null defaults.
     /// </summary>
@@ -23,11 +24,11 @@ public static class CacheOrchestratorBusBuilderExtensions
     /// <remarks>
     /// <code>
     /// services.AddCacheOrchestrator(configuration, o =&gt; o.AddHttpClusterBus());
-    /// // map receive endpoints (independent of Admin):
     /// app.MapCacheOrchestratorHttpBus();
     /// </code>
     /// When <c>Cache:Cluster:Bus:Enabled</c> is false, the registered bus reports
     /// <see cref="IClusterCommandBus.IsEnabled"/> = false and does not call peers.
+    /// For <c>Membership=ServiceDiscovery</c>, this also calls <c>AddServiceDiscovery()</c>.
     /// </remarks>
     public static ICacheOrchestratorBuilder AddHttpClusterBus(
         this ICacheOrchestratorBuilder builder,
@@ -38,6 +39,12 @@ public static class CacheOrchestratorBusBuilderExtensions
 
         builder.Services.AddHttpClient(HttpClusterCommandBus.HttpClientName);
 
+        // ServiceDiscovery needs IConfiguration (config-based endpoint provider).
+        builder.Services.TryAddSingleton<IConfiguration>(builder.Configuration);
+
+        // ServiceDiscovery resolver is cheap to register; only used when Membership=ServiceDiscovery.
+        builder.Services.AddServiceDiscovery();
+
         // Replace Null defaults registered later via TryAdd (we register first in builder callback).
         builder.Services.AddSingleton<IClusterMembership>(sp =>
         {
@@ -47,10 +54,7 @@ public static class CacheOrchestratorBusBuilderExtensions
                 return ActivatorUtilities.CreateInstance<StaticClusterMembership>(sp);
 
             if (string.Equals(membership, "ServiceDiscovery", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException(
-                    "Cluster:Bus:Membership=ServiceDiscovery is not implemented yet. Use Null or Static.");
-            }
+                return ActivatorUtilities.CreateInstance<ServiceDiscoveryClusterMembership>(sp);
 
             return NullClusterMembership.Instance;
         });
