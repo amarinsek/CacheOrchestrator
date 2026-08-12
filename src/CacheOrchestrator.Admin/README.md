@@ -30,19 +30,27 @@ It does **not** sit on the caching hot path. Instances remain independent; this 
 
 ```json
 "Cache": {
+  "InstanceId": "app-1",
   "Admin": {
     "Enabled": true,
-    "ApiKey": "dev-admin-key",
-    "InstanceId": "app-1"
+    "ApiKey": "dev-admin-key"
   }
 }
 ```
 
 ```csharp
 app.MapCacheOrchestratorAdmin();
+// Optional multi-instance command bus receive (independent of Admin):
+// app.MapCacheOrchestratorHttpBus();
 ```
 
-Local Admin is **off by default** in the library. Target apps may be **net8 or net10**; this Admin App host is **net10**.
+| Setting | Notes |
+|---------|--------|
+| `Cache:InstanceId` | Process id in health/UI (not under `Admin`) |
+| `Cache:Admin:Enabled` | Local Admin **off by default** |
+| `Cache:Admin:ApiKey` | Must match Admin App `CacheAdmin:ApiKey` |
+
+Target apps may be **net8 or net10**; this Admin App host is **net10**.
 
 ## Configure instances
 
@@ -102,7 +110,9 @@ Chrome (top → bottom): brand → **metrics strip** (`N/M up`, hints, pipeline,
 | `#/instances` | Health (search, sort) — status, Req, uptime, latency |
 | `#/instances?id=…` | Instance detail |
 | `#/hints` | Live recommendation hints |
-| `#/operations` | Invalidate / version / TTL fan-out |
+| `#/operations` | Invalidate / version / TTL — **fan-out** or **bus-distribute** (banner + result) |
+
+**Operations distribution mode:** the page loads `GET /api/distribution` (probes each instance’s `…/cluster/info`). Banner shows **HTTP fan-out** vs **Cluster bus (distribute)**; after Run, the result shows the mode actually used. See [docs/admin.md](../../docs/admin.md#cluster-distribute-with-cacheorchestratorbus).
 
 Auto-refresh interval is stored in `localStorage`.
 
@@ -134,17 +144,20 @@ wwwroot/js/
 |--------|------|-------------|
 | GET | `/api/overview` | Overview payload |
 | GET | `/api/instances` | Health fan-out |
+| GET | `/api/distribution` | Bus capability probe (fan-out vs bus-distribute recommendation) |
 | GET | `/api/stats?scope=…` | Aggregated stats |
 | GET | `/api/endpoints?…` | Endpoint list |
 | GET | `/api/domains` | Domain config fan-out |
-| POST | `/api/invalidate` | Fan-out invalidation |
-| POST | `/api/domains/{domain}/version` | Fan-out version overlay |
-| PATCH | `/api/domains/{domain}/ttl` | Fan-out TTL overlay |
+| POST | `/api/invalidate` | Write op (fan-out or single-origin distribute) |
+| POST | `/api/domains/{domain}/version` | Version overlay write |
+| PATCH | `/api/domains/{domain}/ttl` | TTL overlay write |
 
-Partial success appears per instance in `results[]`. These routes are **not** authenticated by the app itself — see [Security](#security-short).
+Write responses include `distributionMode` (`fan-out` \| `bus-distribute`), `distribute`, and per-instance `results[]`.  
+These routes are **not** authenticated by the app itself — see [Security](#security-short).
 
 ## Notes
 
-- Runtime Version/TTL overlays are **process-local** per instance — fan-out must reach every node you care about.  
+- Runtime Version/TTL overlays are **process-local** unless the **cluster bus** delivers them (`distribute: true` / Admin App bus-distribute). Without bus, multi-target fan-out must hit every node.  
 - No sliding-window history here (use OTLP/Prometheus).  
-- How to distribute / harden for production: [docs/admin.md](../../docs/admin.md).  
+- Production hardening: [docs/admin.md](../../docs/admin.md).  
+- Cluster bus deep dive: [docs/cluster-bus.md](../../docs/cluster-bus.md).  

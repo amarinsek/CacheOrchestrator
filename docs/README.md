@@ -56,7 +56,7 @@ Root overview (also lists every advanced feature): [../README.md](../README.md)
 
 | API | Namespace |
 |-----|-----------|
-| `AddCacheOrchestrator` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
+| `AddCacheOrchestrator` / `UseCacheOrchestrator` / `MapCacheOrchestratorAdmin` | `CacheOrchestrator.DependencyInjection` |
 | `CacheOutputWithDomain*` | `CacheOrchestrator.OutputCache` |
 | `[CacheDomain]` | `CacheOrchestrator.OutputCache` |
 | `IDomainFusionCache` | `CacheOrchestrator.FusionCache` |
@@ -65,6 +65,7 @@ Root overview (also lists every advanced feature): [../README.md](../README.md)
 | `IClusterCommandBus` / `IClusterMembership` / `IInstanceIdProvider` | `CacheOrchestrator.Cluster` |
 | `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.Bus` |
 | `AddCacheOrchestrator` (health) | `CacheOrchestrator.Diagnostics` |
+| Admin App host (not NuGet) | `src/CacheOrchestrator.Admin` — [admin.md](admin.md) |
 
 Concrete service classes are **internal** (see [architecture.md — Public API surface](architecture.md#public-api-surface-10-stability)).
 

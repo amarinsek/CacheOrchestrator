@@ -144,6 +144,23 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults).
 
 See **[client-cache-schedule.md](client-cache-schedule.md)** for phases, formula, and operational playbook.
 
+## Local Admin (`Cache:Admin`)
+
+Opt-in ops API on each application process. **Disabled by default** (no routes, no live counters).  
+Guide: [admin.md](admin.md). Map with `MapCacheOrchestratorAdmin()`.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | `false` | When false, Null stats collector and no admin routes |
+| `ApiKey` | empty | `X-Cache-Admin-Key`; empty + Enabled = open (dev only) |
+| `RoutePrefix` | `/cache-admin/local` | Base path for Local Admin (and cluster receive path prefix) |
+| `TrackEndpoints` | `true` | Per-route counters when Enabled |
+| `TrackLatency` | `false` | Sum/count factory latency (extra cost) |
+
+Process id is **`Cache:InstanceId`** (root), not under `Admin`.
+
+Admin App (`CacheAdmin` section) is configured only in `src/CacheOrchestrator.Admin` — see [admin.md](admin.md#admin-app-process).
+
 ## Cluster bus (`Cache:Cluster:Bus`)
 
 Optional multi-instance **command** distribution. Requires package **`CacheOrchestrator.Bus`** + `AddHttpClusterBus()` + `MapCacheOrchestratorHttpBus()`.  

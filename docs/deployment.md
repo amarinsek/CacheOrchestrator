@@ -140,6 +140,12 @@ Install **`CacheOrchestrator.Bus`**, enable `Cache:Cluster:Bus`, use **Static** 
 
 Full setup and Bus vs Redis matrix: **[cluster-bus.md](cluster-bus.md)**.
 
+### Ops dashboard across instances
+
+1. Enable **Local Admin** on each app (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).  
+2. Run **Admin App** (`src/CacheOrchestrator.Admin`) with `CacheAdmin:Instances` pointing at every base URL.  
+3. With Bus enabled, Operations auto-picks **bus-distribute** vs **fan-out** — [admin.md](admin.md).
+
 ---
 
 ## Mixed backends (Output Cache InMemory + FusionCache Redis)

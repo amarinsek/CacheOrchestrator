@@ -39,10 +39,22 @@ curl -i http://localhost:5290/hello
 
 ---
 
+## Local Admin (this sample)
+
+`appsettings.json` enables Local Admin with a **dev** API key (`Cache:Admin:Enabled`, `Cache:InstanceId`).  
+Map: `MapCacheOrchestratorAdmin()` in `Program.cs`.
+
+```bash
+curl -i -H "X-Cache-Admin-Key: dev-admin-key" http://localhost:5290/cache-admin/local/health
+```
+
+Multi-instance UI: run [CacheOrchestrator.Admin](../../src/CacheOrchestrator.Admin) and point `CacheAdmin:Instances` at this port — [docs/admin.md](../../docs/admin.md).
+
 ## Next
 
 | Next step | Where |
 | --- | --- |
 | Day-1 walkthrough | [docs/getting-started.md](../../docs/getting-started.md) |
 | Interactive playground (TTL, schedule, Redis, CRUD) | [../CacheOrchestrator.Sample](../CacheOrchestrator.Sample) |
+| Local Admin / Admin App | [docs/admin.md](../../docs/admin.md) |
 | Full docs | [docs/README.md](../../docs/README.md) |

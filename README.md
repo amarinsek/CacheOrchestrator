@@ -142,6 +142,8 @@ That is the happy path: **domain in config + one endpoint decoration + `GetOrSet
 
 **Multi-instance InMemory later:** install `CacheOrchestrator.Bus`, call `o.AddHttpClusterBus()` + `MapCacheOrchestratorHttpBus()` — see [docs/cluster-bus.md](docs/cluster-bus.md).
 
+**Ops later:** enable Local Admin (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`); for multi-node UI run `src/CacheOrchestrator.Admin` — see [docs/admin.md](docs/admin.md).
+
 **More walkthrough:** [docs/getting-started.md](docs/getting-started.md)
 
 ---
@@ -176,6 +178,8 @@ Everything below is available without opening other pages first. Links go deeper
 | **Named Fusion instances** | Map domains to separate Redis clusters (e.g. PII vs catalog). [deployment](docs/deployment.md) |
 | **Redis package** | `CacheOrchestrator.Redis` — OC store + keyed L2 + backplane. Not in core. |
 | **Cluster command bus** | `CacheOrchestrator.Bus` — optional HTTP fan-out of invalidate / Version / TTL commands across instances (InMemory multi-node). Zero effect if unused. [cluster-bus](docs/cluster-bus.md) |
+| **Local Admin API** | Opt-in on each app (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`) — live stats, health, invalidate, runtime Version/TTL. Off by default (zero cost). [admin](docs/admin.md) |
+| **Admin App** | Separate ops host (`src/CacheOrchestrator.Admin`, not a NuGet package) — multi-instance SPA + fan-out / bus-distribute. [admin](docs/admin.md) · [Admin README](src/CacheOrchestrator.Admin/README.md) |
 | **Custom backends** | `ICacheBackendRegistrar` / `AddBackend` — not a drop-in `"Provider": "SqlServer"` without your registrar. [backends](docs/backends.md) · [comparison](docs/comparison.md) |
 | **Fail-safe / soft-hard TTL** | Fusion fail-safe, soft/hard duration, jitter, eager refresh, factory timeouts — domain-configured. |
 | **Tracking query strip** | `utm_*`, `gclid`, … ignored in cache keys so campaigns do not fragment the cache. |

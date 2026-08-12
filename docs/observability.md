@@ -1,6 +1,7 @@
 # Observability
 
-For multi-instance **Admin App** dashboards, Local Admin health, and live counter aggregation, see [admin.md](admin.md).
+For multi-instance **Admin App** dashboards, **Local Admin** health, and live counter aggregation, see [admin.md](admin.md).  
+Local Admin is optional (`Cache:Admin:Enabled`); it is separate from Meter/OTLP history (lifetime counters only).
 
 ## X-Cache response header
 
