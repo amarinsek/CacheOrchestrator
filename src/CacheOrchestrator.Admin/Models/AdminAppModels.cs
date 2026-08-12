@@ -120,7 +120,14 @@ public sealed class OverviewDto
     /// <summary>Human-readable warnings.</summary>
     public IReadOnlyList<string> Alerts { get; init; } = [];
 
-    /// <summary>Top endpoints by origin / traffic.</summary>
+    /// <summary>
+    /// All aggregated domains for Overview. UI sorts by the selected key, then shows top 5.
+    /// </summary>
+    public IReadOnlyList<AdminDomainStatsDto> TopDomains { get; init; } = [];
+
+    /// <summary>
+    /// All aggregated endpoints for Overview. UI sorts by the selected key, then shows top 5.
+    /// </summary>
     public IReadOnlyList<AdminEndpointStatsDto> TopEndpoints { get; init; } = [];
 
     /// <summary>Domain count with traffic or config.</summary>

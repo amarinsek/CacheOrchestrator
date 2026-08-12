@@ -456,6 +456,67 @@ button.secondary {
   color: var(--muted);
 }
 
+/* Match Apply height/font to filter text inputs */
+.toolbar input[type="text"],
+.toolbar input[type="search"],
+.toolbar input:not([type]),
+.toolbar input[type="number"],
+.toolbar select,
+.toolbar .ms-btn {
+  font-size: 0.85rem;
+  line-height: 1.25;
+  min-height: 2rem;
+  padding: 0.35rem 0.55rem;
+  box-sizing: border-box;
+}
+
+.toolbar-apply {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  color: transparent; /* spacer line aligns with field labels */
+  user-select: none;
+}
+
+.toolbar-apply button[type="submit"] {
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.25;
+  min-height: 2rem;
+  padding: 0.35rem 0.75rem;
+  box-sizing: border-box;
+}
+
+/* Card title + sort control on the right (Overview, etc.) */
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.card-head h2 {
+  margin: 0;
+}
+
+.card-head .inline-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.card-head .inline-sort select {
+  font-size: 0.85rem;
+  line-height: 1.25;
+  min-height: 2rem;
+  padding: 0.35rem 0.55rem;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

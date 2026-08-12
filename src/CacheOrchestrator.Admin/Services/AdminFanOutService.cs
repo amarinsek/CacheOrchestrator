@@ -192,10 +192,10 @@ public sealed class AdminFanOutService
         if (instances.Count > 1)
             alerts.Add("Multiple instances: ensure Local Admin fan-out targets all nodes (L1 is per process).");
 
-        IReadOnlyList<AdminEndpointStatsDto> top = stats.Endpoints
-            .OrderByDescending(e => e.Fc.OriginShare ?? e.Requests)
-            .Take(10)
-            .ToArray();
+        // Full lists for Overview: UI sorts by the user's key, then takes top 5.
+        // Do not pre-filter here — otherwise re-sort only reshuffles a partial pool.
+        IReadOnlyList<AdminDomainStatsDto> topDomains = stats.Domains;
+        IReadOnlyList<AdminEndpointStatsDto> topEndpoints = stats.Endpoints;
 
         IReadOnlyList<AdminHintDto> allHints = RecommendationHints.CollectFromStats(stats.Domains, stats.Endpoints);
         AdminHintSummaryDto clusterHints = RecommendationHints.Summarize(allHints);
@@ -263,7 +263,8 @@ public sealed class AdminFanOutService
             OcHitShare = oc.HitShare,
             OriginShare = fc.OriginShare,
             Alerts = alerts,
-            TopEndpoints = top,
+            TopDomains = topDomains,
+            TopEndpoints = topEndpoints,
             DomainCount = stats.Domains.Count,
             EndpointCount = stats.Endpoints.Count,
             HintSummary = clusterHints,
