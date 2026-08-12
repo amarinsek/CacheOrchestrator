@@ -122,10 +122,35 @@ See [client-cache-schedule.md](client-cache-schedule.md).
 
 | Package | Contains |
 |---------|----------|
-| `CacheOrchestrator` | Policy, InMemory, domain APIs |
+| `CacheOrchestrator` | Policy, InMemory, domain APIs, Null cluster bus |
 | `CacheOrchestrator.Redis` | Redis registrar, connection options, Redis health probe |
+| `CacheOrchestrator.Bus` | HTTP cluster command bus, Static / ServiceDiscovery membership |
 
-Without Redis package + `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
+Without Redis package + `AddRedisBackend()`, `"Provider": "Redis"` fails validation.  
+Without Bus package, multi-instance InMemory invalidation stays process-local (unless you build your own fan-out).
+
+---
+
+## Local Admin vs Admin App
+
+| Piece | What it is |
+|-------|------------|
+| **Local Admin API** | Opt-in HTTP on **each** app process (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`). Stats, health, invalidate, runtime Version/TTL. Ships in core NuGet; **off by default**. |
+| **Admin App** | Separate process (`src/CacheOrchestrator.Admin`) — SPA + fan-out (or bus-distribute) to Local Admins. **Not** a NuGet package. |
+
+Admin is for **operators**, not end-user traffic. Protect with API key + private network. Guide: [admin.md](admin.md).
+
+---
+
+## Bus vs Redis backplane — which do I need?
+
+| Goal | Prefer |
+|------|--------|
+| Shared Fusion L2 + automatic L1 drop on other nodes | **Redis** package (L2 + backplane) |
+| Multi-instance **InMemory**, purge / Version / TTL on all nodes | **Bus** package |
+| Both installed | Safe but often redundant for Fusion tag purge; Bus still useful for OC InMemory + runtime overlays |
+
+Bus does **not** share cache payloads. Details: [cluster-bus.md](cluster-bus.md).
 
 ---
 

@@ -73,6 +73,9 @@ dotnet add package CacheOrchestrator
 
 # Optional — Redis Output Cache store + FusionCache L2 / backplane:
 dotnet add package CacheOrchestrator.Redis
+
+# Optional — multi-instance command bus (invalidate / Version / TTL across InMemory nodes):
+dotnet add package CacheOrchestrator.Bus
 ```
 
 ---
@@ -137,6 +140,10 @@ That is the happy path: **domain in config + one endpoint decoration + `GetOrSet
 
 **Redis later:** install `CacheOrchestrator.Redis`, call `o.AddRedisBackend()`, set `"Provider": "Redis"` — see [docs/backends.md](docs/backends.md).
 
+**Multi-instance InMemory later:** install `CacheOrchestrator.Bus`, call `o.AddHttpClusterBus()` + `MapCacheOrchestratorHttpBus()` — see [docs/cluster-bus.md](docs/cluster-bus.md).
+
+**Ops later:** enable Local Admin (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`); for multi-node UI run `src/CacheOrchestrator.Admin` — see [docs/admin.md](docs/admin.md).
+
 **More walkthrough:** [docs/getting-started.md](docs/getting-started.md)
 
 ---
@@ -170,11 +177,14 @@ Everything below is available without opening other pages first. Links go deeper
 | **Auth controls** | Default: skip Output Cache for authenticated / `Authorization`. Opt-in with `BypassWhenAuthenticated` + `VaryOutputCacheByUser`. |
 | **Named Fusion instances** | Map domains to separate Redis clusters (e.g. PII vs catalog). [deployment](docs/deployment.md) |
 | **Redis package** | `CacheOrchestrator.Redis` — OC store + keyed L2 + backplane. Not in core. |
+| **Cluster command bus** | `CacheOrchestrator.Bus` — optional HTTP fan-out of invalidate / Version / TTL commands across instances (InMemory multi-node). Zero effect if unused. [cluster-bus](docs/cluster-bus.md) |
+| **Local Admin API** | Opt-in on each app (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`) — live stats, health, invalidate, runtime Version/TTL. Off by default (zero cost). [admin](docs/admin.md) |
+| **Admin App** | Separate ops host (`src/CacheOrchestrator.Admin`, not a NuGet package) — multi-instance SPA + fan-out / bus-distribute. [admin](docs/admin.md) · [Admin README](src/CacheOrchestrator.Admin/README.md) |
 | **Custom backends** | `ICacheBackendRegistrar` / `AddBackend` — not a drop-in `"Provider": "SqlServer"` without your registrar. [backends](docs/backends.md) · [comparison](docs/comparison.md) |
 | **Fail-safe / soft-hard TTL** | Fusion fail-safe, soft/hard duration, jitter, eager refresh, factory timeouts — domain-configured. |
 | **Tracking query strip** | `utm_*`, `gclid`, … ignored in cache keys so campaigns do not fragment the cache. |
-| **Multi-instance deployment** | InMemory vs Redis topologies, mixed backends, backplane notes. [deployment](docs/deployment.md) |
-| **Pluggable invalidation observers** | Hook audit/webhooks on successful invalidations. |
+| **Multi-instance deployment** | InMemory vs Redis topologies, mixed backends, backplane, optional Bus. [deployment](docs/deployment.md) · [cluster-bus](docs/cluster-bus.md) |
+| **Pluggable invalidation observers** | Hook audit/webhooks on successful invalidations (not a substitute for Bus fan-out). |
 
 ---
 
@@ -197,6 +207,7 @@ Start here, then go deep only when you need to:
 | FusionCache | [docs/fusion-cache.md](docs/fusion-cache.md) |
 | Cache keys | [docs/cache-keys.md](docs/cache-keys.md) |
 | Invalidation | [docs/invalidation.md](docs/invalidation.md) |
+| Cluster bus (multi-instance commands) | [docs/cluster-bus.md](docs/cluster-bus.md) · [src/CacheOrchestrator.Bus/README.md](src/CacheOrchestrator.Bus/README.md) |
 | Backends | [docs/backends.md](docs/backends.md) |
 | Observability | [docs/observability.md](docs/observability.md) |
 | Admin (Local API + fan-out UI) | [docs/admin.md](docs/admin.md) · [src/CacheOrchestrator.Admin/README.md](src/CacheOrchestrator.Admin/README.md) |
@@ -204,7 +215,7 @@ Start here, then go deep only when you need to:
 | Architecture | [docs/architecture.md](docs/architecture.md) |
 | Benchmarks | [docs/benchmarks/results.md](docs/benchmarks/results.md) |
 
-**API reference:** XML docs ship with the NuGet packages ([CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/), [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/)). DocFX site planned post-1.0.
+**API reference:** XML docs ship with the NuGet packages ([CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/), [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/), [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/)). DocFX site planned post-1.0.
 
 | Project | |
 |---------|--|

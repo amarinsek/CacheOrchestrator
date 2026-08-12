@@ -11,6 +11,7 @@
   <Folder Name="/src/">
     <Project Path="src/CacheOrchestrator/CacheOrchestrator.csproj" />
     <Project Path="src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj" />
+    <Project Path="src/CacheOrchestrator.Bus/CacheOrchestrator.Bus.csproj" />
     <Project Path="src/CacheOrchestrator.Admin/CacheOrchestrator.Admin.csproj" />
   </Folder>
   <Folder Name="/tests/">

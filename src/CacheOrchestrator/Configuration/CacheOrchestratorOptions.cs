@@ -10,6 +10,12 @@ public sealed class CacheOrchestratorOptions
     public string? Namespace { get; set; } = "app-cache";
 
     /// <summary>
+    /// Stable process identity for Local Admin, cluster bus anti-echo, and diagnostics.
+    /// Bound from <c>Cache:InstanceId</c>. When empty, the host machine name is used.
+    /// </summary>
+    public string? InstanceId { get; set; }
+
+    /// <summary>
     /// When <see langword="true"/> (default), emit client-visible diagnostic response headers
     /// such as <c>X-Cache</c>. Set to <see langword="false"/> in production if you prefer not to
     /// expose cache hit/miss and domain details to clients. Does not affect metrics, tracing, or logs.
@@ -50,6 +56,12 @@ public sealed class CacheOrchestratorOptions
     /// </summary>
     public AdminOptions Admin { get; set; } = new();
 
+    /// <summary>
+    /// Cluster command bus settings (optional multi-instance command distribution).
+    /// Bound from <c>Cache:Cluster</c>. Disabled by default; requires <c>CacheOrchestrator.Bus</c> for HTTP transport.
+    /// </summary>
+    public ClusterOptions Cluster { get; set; } = new();
+
     /// <summary>The final namespace used for Output Cache keys.</summary>
     public string OutputNamespace => OutputCache.Namespace ?? (Namespace + "-oc");
 
@@ -71,11 +83,6 @@ public sealed class CacheOrchestratorOptions
         public bool Enabled { get; set; }
 
         /// <summary>
-        /// Stable id returned by Local Admin API. When empty, the host machine name is used.
-        /// </summary>
-        public string? InstanceId { get; set; }
-
-        /// <summary>
         /// Shared secret for header <c>X-Cache-Admin-Key</c>. When empty and <see cref="Enabled"/> is true,
         /// endpoints are open (intended for local development only).
         /// </summary>
@@ -89,6 +96,96 @@ public sealed class CacheOrchestratorOptions
 
         /// <summary>When true, track factory duration sum/count (more expensive). Default false.</summary>
         public bool TrackLatency { get; set; }
+    }
+
+    /// <summary>
+    /// Cluster-wide command distribution. Bound from <c>Cache:Cluster</c>.
+    /// </summary>
+    public sealed class ClusterOptions
+    {
+        /// <summary>HTTP (or other) command bus settings. Bound from <c>Cache:Cluster:Bus</c>.</summary>
+        public ClusterBusOptions Bus { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Optional cluster command bus. Bound from <c>Cache:Cluster:Bus</c>.
+    /// Transport implementations live in <c>CacheOrchestrator.Bus</c>.
+    /// </summary>
+    public sealed class ClusterBusOptions
+    {
+        /// <summary>
+        /// When <see langword="false"/> (default), bus publish is a no-op even if the Bus package is registered.
+        /// </summary>
+        public bool Enabled { get; set; }
+
+        /// <summary>Per-peer HTTP timeout in milliseconds. Default: 2000.</summary>
+        public int PeerTimeoutMs { get; set; } = 2000;
+
+        /// <summary>Max parallel peer deliveries. Default: 32.</summary>
+        public int MaxParallelism { get; set; } = 32;
+
+        /// <summary>
+        /// Membership strategy: <c>Null</c> (default), <c>Static</c>, or <c>ServiceDiscovery</c>.
+        /// </summary>
+        public string Membership { get; set; } = "Null";
+
+        /// <summary>
+        /// Shared secret for cluster receive endpoints (<c>X-Cache-Admin-Key</c>).
+        /// When empty, falls back to <see cref="AdminOptions.ApiKey"/>.
+        /// </summary>
+        public string? ApiKey { get; set; }
+
+        /// <summary>
+        /// Sliding window in seconds for ignoring duplicate <c>CommandId</c> values on receive.
+        /// Default: 60. Set to 0 to disable dedupe.
+        /// </summary>
+        public int DedupeWindowSeconds { get; set; } = 60;
+
+        /// <summary>Static peer list when <see cref="Membership"/> is <c>Static</c>.</summary>
+        public StaticClusterMembershipOptions Static { get; set; } = new();
+
+        /// <summary>Service discovery settings when <see cref="Membership"/> is <c>ServiceDiscovery</c>.</summary>
+        public ServiceDiscoveryMembershipOptions ServiceDiscovery { get; set; } = new();
+    }
+
+    /// <summary>Static peer list for the cluster bus. Bound from <c>Cache:Cluster:Bus:Static</c>.</summary>
+    public sealed class StaticClusterMembershipOptions
+    {
+        /// <summary>Peer instances (id + base URL).</summary>
+        public List<StaticClusterPeerOptions> Instances { get; set; } = [];
+    }
+
+    /// <summary>One static peer entry.</summary>
+    public sealed class StaticClusterPeerOptions
+    {
+        /// <summary>Peer id (should match that process's <c>Cache:InstanceId</c>).</summary>
+        public string? Id { get; set; }
+
+        /// <summary>Base URL (e.g. <c>http://10.0.0.1:8080</c>).</summary>
+        public string? Url { get; set; }
+    }
+
+    /// <summary>
+    /// Service discovery membership. Bound from <c>Cache:Cluster:Bus:ServiceDiscovery</c>.
+    /// Uses <c>Microsoft.Extensions.ServiceDiscovery</c> (config, DNS, platform resolvers).
+    /// </summary>
+    public sealed class ServiceDiscoveryMembershipOptions
+    {
+        /// <summary>
+        /// Logical service name to resolve (e.g. <c>app1</c> or <c>https+http://app1</c>).
+        /// Typically aligns with the application / <c>Cache:Namespace</c> boundary.
+        /// </summary>
+        public string? ServiceName { get; set; }
+
+        /// <summary>
+        /// URI scheme used when resolved endpoints have no scheme (default <c>http</c>).
+        /// </summary>
+        public string DefaultScheme { get; set; } = "http";
+
+        /// <summary>
+        /// How long (seconds) to cache resolved peers in-process. Default: 15. Min 1 when caching.
+        /// </summary>
+        public int CacheSeconds { get; set; } = 15;
     }
 
     /// <summary>

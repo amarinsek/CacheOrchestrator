@@ -127,6 +127,9 @@ Production tip: set `"EmitDiagnosticsHeaders": false` if you do not want this vi
 | OSM cutover vs product CRUD | [domain-profiles.md](domain-profiles.md) |
 | Ramp client `max-age` before deploy | [client-cache-schedule.md](client-cache-schedule.md) |
 | Purge one product or whole domain | [invalidation.md](invalidation.md) |
+| Live stats / ops invalidate on one process | [admin.md](admin.md) (Local Admin) |
+| Multi-instance ops dashboard | [admin.md](admin.md) · run `src/CacheOrchestrator.Admin` |
+| Multi-instance InMemory purge | [cluster-bus.md](cluster-bus.md) |
 | Use Redis | [backends.md](backends.md) · [deployment.md](deployment.md) |
 | Auth / private pages | [output-cache.md](output-cache.md) · [faq.md](faq.md) |
 | Full settings list | [configuration.md](configuration.md) |

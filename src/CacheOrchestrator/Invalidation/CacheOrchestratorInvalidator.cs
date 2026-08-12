@@ -1,4 +1,5 @@
 using CacheOrchestrator.Admin;
+using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using Microsoft.AspNetCore.OutputCaching;
@@ -12,6 +13,8 @@ namespace CacheOrchestrator.Invalidation;
 /// <summary>
 /// Default <see cref="ICacheOrchestratorInvalidator"/> that evicts by tag on FusionCache
 /// (correct instance for domain/entity, all instances for arbitrary tags) and Output Cache.
+/// When a non-null cluster bus is enabled, publishes <see cref="InvalidateCommand"/> after local apply
+/// (unless applying under <see cref="ClusterCommandScope"/> remote).
 /// </summary>
 internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidator
 {
@@ -22,6 +25,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
     private readonly IEnumerable<ICacheInvalidationObserver> _observers;
     private readonly ILogger<CacheOrchestratorInvalidator> _logger;
     private readonly IAdminStatsCollector _adminStats;
+    private readonly IClusterCommandBus _clusterBus;
+    private readonly ClusterCommandFactory? _clusterCommands;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CacheOrchestratorInvalidator"/> class.
@@ -33,7 +38,9 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         IOptionsMonitor<CacheOrchestratorOptions> options,
         IEnumerable<ICacheInvalidationObserver> observers,
         ILogger<CacheOrchestratorInvalidator> logger,
-        IAdminStatsCollector? adminStats = null)
+        IAdminStatsCollector? adminStats = null,
+        IClusterCommandBus? clusterBus = null,
+        ClusterCommandFactory? clusterCommands = null)
     {
         ArgumentNullException.ThrowIfNull(fusionProvider);
         ArgumentNullException.ThrowIfNull(domainOptionsProvider);
@@ -49,6 +56,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         _observers = observers;
         _logger = logger;
         _adminStats = adminStats ?? NoOpAdminStatsCollector.Instance;
+        _clusterBus = clusterBus ?? NullClusterCommandBus.Instance;
+        _clusterCommands = clusterCommands;
     }
 
     /// <inheritdoc />
@@ -250,7 +259,59 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
 
         CacheInvalidationResult result = new(scopeLabel, tags, fusionOk, outputOk, errors);
         await NotifyAfterAsync(observerContext, result, cancellationToken).ConfigureAwait(false);
+
+        await TryPublishClusterAsync(kind, scopeLabel, tags, cancellationToken).ConfigureAwait(false);
+
         return result;
+    }
+
+    private async ValueTask TryPublishClusterAsync(
+        CacheInvalidationKind kind,
+        string scopeLabel,
+        IReadOnlyList<string> tags,
+        CancellationToken cancellationToken)
+    {
+        if (!_clusterBus.IsEnabled || ClusterCommandScope.SuppressPublish || tags.Count == 0)
+            return;
+
+        if (_clusterCommands is null)
+            return;
+
+        string? domain = null;
+        string? entityId = null;
+
+        if (kind == CacheInvalidationKind.Domain)
+        {
+            domain = scopeLabel;
+        }
+        else if (kind == CacheInvalidationKind.Entity)
+        {
+            int slash = scopeLabel.IndexOf('/');
+            if (slash > 0)
+            {
+                domain = scopeLabel[..slash];
+                entityId = scopeLabel[(slash + 1)..];
+            }
+        }
+
+        InvalidateCommand command = _clusterCommands.CreateInvalidate(kind, scopeLabel, tags, domain, entityId);
+
+        try
+        {
+            await _clusterBus.PublishAsync(command, cancellationToken).ConfigureAwait(false);
+            CacheOrchestratorMetrics.RecordClusterPublished(nameof(InvalidateCommand));
+        }
+        catch (Exception ex)
+        {
+            // Local invalidation already finished; peer delivery is best-effort.
+            CacheOrchestratorMetrics.RecordClusterPublishFailure("exception");
+            _logger.LogWarning(
+                ex,
+                "Cluster bus publish failed for scope '{Scope}' kind={Kind} commandId={CommandId}",
+                scopeLabel,
+                kind,
+                command.CommandId);
+        }
     }
 
     private void RecordAdminInvalidation(CacheInvalidationKind kind, string scopeLabel)

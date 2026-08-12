@@ -8,6 +8,7 @@ Root section name defaults to **`Cache`** (override via `AddCacheOrchestrator(co
 {
   "Cache": {
     "Namespace": "app-cache",
+    "InstanceId": "",
     "Distributed": { },
     "OutputCache": { "Provider": "InMemory" },
     "FusionCacheInstances": {
@@ -16,7 +17,9 @@ Root section name defaults to **`Cache`** (override via `AddCacheOrchestrator(co
     "DomainDefaults": { },
     "Domains": {
       "products": { }
-    }
+    },
+    "Admin": { },
+    "Cluster": { "Bus": { } }
   }
 }
 ```
@@ -25,13 +28,16 @@ Root section name defaults to **`Cache`** (override via `AddCacheOrchestrator(co
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `Namespace` | string | `app-cache` | Global key prefix; isolates multi-app shared stores |
+| `Namespace` | string | `app-cache` | Global key prefix; isolates multi-app shared stores **and** cluster command isolation |
+| `InstanceId` | string | machine name | Stable process id (Admin, cluster bus anti-echo, diagnostics) |
 | `EmitDiagnosticsHeaders` | bool | `true` | When `true`, emit client-visible diagnostic headers (currently `X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
 | `Distributed` | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** Fusion providers |
 | `OutputCache` | object | Provider `InMemory` | Output Cache provider + optional namespace |
 | `FusionCacheInstances` | map | `default` instance `InMemory` | Named FusionCache instances |
 | `DomainDefaults` | object | — | Fallbacks for every domain |
 | `Domains` | map | — | Per-domain overrides (keys are domain names) |
+| `Admin` | object | disabled | Local Admin API (see [admin.md](admin.md)) |
+| `Cluster` | object | bus disabled | Cluster command bus options (see below / [cluster-bus.md](cluster-bus.md)) |
 
 **Redis connection settings are not part of core options.** They are owned by **CacheOrchestrator.Redis** (see below).
 
@@ -137,6 +143,43 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults).
 | `ClientMustRevalidateNearUpdate` | false | Append `must-revalidate` at min floor |
 
 See **[client-cache-schedule.md](client-cache-schedule.md)** for phases, formula, and operational playbook.
+
+## Local Admin (`Cache:Admin`)
+
+Opt-in ops API on each application process. **Disabled by default** (no routes, no live counters).  
+Guide: [admin.md](admin.md). Map with `MapCacheOrchestratorAdmin()`.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | `false` | When false, Null stats collector and no admin routes |
+| `ApiKey` | empty | `X-Cache-Admin-Key`; empty + Enabled = open (dev only) |
+| `RoutePrefix` | `/cache-admin/local` | Base path for Local Admin (and cluster receive path prefix) |
+| `TrackEndpoints` | `true` | Per-route counters when Enabled |
+| `TrackLatency` | `false` | Sum/count factory latency (extra cost) |
+
+Process id is **`Cache:InstanceId`** (root), not under `Admin`.
+
+Admin App (`CacheAdmin` section) is configured only in `src/CacheOrchestrator.Admin` — see [admin.md](admin.md#admin-app-process).
+
+## Cluster bus (`Cache:Cluster:Bus`)
+
+Optional multi-instance **command** distribution. Requires package **`CacheOrchestrator.Bus`** + `AddHttpClusterBus()` + `MapCacheOrchestratorHttpBus()`.  
+Without the package, core registers a Null bus (no peer traffic). Full guide: **[cluster-bus.md](cluster-bus.md)**.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | `false` | When false, no peer publish even if the Bus package is registered |
+| `Membership` | `Null` | `Null` · `Static` · `ServiceDiscovery` |
+| `PeerTimeoutMs` | `2000` | Per-peer HTTP timeout |
+| `MaxParallelism` | `32` | Max concurrent peer deliveries |
+| `DedupeWindowSeconds` | `60` | Receive-side `CommandId` window (`0` = off) |
+| `ApiKey` | empty | `X-Cache-Admin-Key` for receive endpoints; falls back to `Admin:ApiKey` |
+| `Static.Instances[]` | `[]` | `{ Id, Url }` peers when Membership is Static |
+| `ServiceDiscovery.ServiceName` | empty | Logical name for SD (normalized to `http://{name}` when bare) |
+| `ServiceDiscovery.DefaultScheme` | `http` | Scheme for peer URLs |
+| `ServiceDiscovery.CacheSeconds` | `15` | In-process peer list cache |
+
+ServiceDiscovery also needs host config endpoints under `Services:{name}` (see [cluster-bus.md](cluster-bus.md#servicediscovery-k8s--aspire--config-endpoints)).
 
 ## Validation
 

@@ -146,6 +146,22 @@ public class AdminRegistrationTests
         doc.RootElement.TryGetProperty("succeeded", out _).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task InvalidateEndpoint_DefaultDistributeFalse_DoesNotRequireBus()
+    {
+        // distribute omitted → local-only; must succeed with Null bus.
+        using IHost host = await CreateHostAsync(enabled: true, apiKey: "k");
+        HttpClient client = host.GetTestClient();
+        client.DefaultRequestHeaders.Add(AdminApiKeyEndpointFilter.HeaderName, "k");
+
+        using StringContent body = new(
+            """{"scope":"domain","domain":"catalog","distribute":false}""",
+            Encoding.UTF8,
+            "application/json");
+        HttpResponseMessage response = await client.PostAsync("/cache-admin/local/invalidate", body, Ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     private static IConfiguration BuildConfig(bool enabled, string? apiKey = null, string? instanceId = null)
     {
         Dictionary<string, string?> data = new()
@@ -159,7 +175,7 @@ public class AdminRegistrationTests
         if (apiKey is not null)
             data["Cache:Admin:ApiKey"] = apiKey;
         if (instanceId is not null)
-            data["Cache:Admin:InstanceId"] = instanceId;
+            data["Cache:InstanceId"] = instanceId;
 
         return new ConfigurationBuilder().AddInMemoryCollection(data).Build();
     }

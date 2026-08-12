@@ -112,6 +112,12 @@ public sealed class LocalAdminClient : ILocalAdminClient
             body,
             cancellationToken);
 
+    /// <inheritdoc />
+    public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
+        AdminInstanceOptions instance,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<LocalClusterInfoDto>(instance, "/cluster/info", cancellationToken);
+
     private async Task<InstanceCallOutcome<T>> GetAsync<T>(
         AdminInstanceOptions instance,
         string relativePath,

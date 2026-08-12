@@ -142,7 +142,8 @@ For **multi-instance fan-out** (publish to a bus so other nodes invalidate local
 | Emergency “everything for products is wrong” | Domain invalidate and/or Version bump |
 | Custom multi-tag purge | `InvalidateTagsAsync` |
 | Audit / Slack / webhook | `ICacheInvalidationObserver` |
-| Multi-instance InMemory, need immediate purge everywhere | Redis backplane **or** app fan-out via observer + bus |
+| Multi-instance InMemory, need immediate purge everywhere | **CacheOrchestrator.Bus** or Redis backplane |
+| Admin Version/TTL on all InMemory nodes | Bus + Admin `distribute: true` (or Admin App fan-out) |
 
 ---
 
@@ -150,15 +151,15 @@ For **multi-instance fan-out** (publish to a bus so other nodes invalidate local
 
 ### What the library does on one call
 
-`ICacheOrchestratorInvalidator` always runs **in the current process**:
+`ICacheOrchestratorInvalidator` always applies **locally** on the calling process. When **`CacheOrchestrator.Bus`** is registered and enabled, it then **publishes** an `InvalidateCommand` to peers (peers ApplyLocal only — no echo).
 
 | Layer | Without Redis | With Redis (OC store and/or Fusion L2 + backplane) |
 |-------|---------------|-----------------------------------------------------|
-| Fusion L1 (memory) | Cleared only here | Cleared here; **other nodes** clear L1 via **backplane** |
+| Fusion L1 (memory) | Cleared only here (unless Bus peers apply too) | Cleared here; **other nodes** clear L1 via **backplane** |
 | Fusion L2 | N/A or local only | Shared store purged |
-| Output Cache | In-process only | Shared if OC provider is Redis |
+| Output Cache | In-process only (unless Bus peers apply too) | Shared if OC provider is Redis |
 
-So: **without a distributed cache + backplane, invalidation is machine-local.** That is expected.
+So: **without a distributed cache + backplane and without Bus, invalidation is machine-local.** That is expected.
 
 Cluster **configuration** management (shared `appsettings.cache.json`, ConfigMap, env) does **not** by itself purge L1/L2 on other nodes. It only keeps **policy** in sync (Version, TTLs). See [deployment.md — Shared configuration](deployment.md#shared-configuration-across-instances).
 
@@ -168,8 +169,9 @@ Cluster **configuration** management (shared `appsettings.cache.json`, ConfigMap
 |----------|-------------------------------|-------------|
 | **1. Bump `Version` (shared config)** | No — new key space; old entries expire by TTL | Snapshot / catalog cutover; simplest multi-node story |
 | **2. Redis Fusion L2 + backplane** (+ optional Redis OC) | Yes for Fusion L1 (backplane) + shared L2 | **Recommended production multi-instance** |
-| **3. Rolling restart of all instances** | Yes (cold process) | Emergency only |
-| **4. App-level fan-out** (`ICacheInvalidationObserver` + message bus) | Yes if every node consumes and calls the invalidator | Multi-instance **InMemory** where you cannot use Redis backplane |
+| **3. CacheOrchestrator.Bus** (HTTP + Static / ServiceDiscovery) | Yes if every peer has receive endpoints | Multi-instance **InMemory**; also Version/TTL overlays via Admin `distribute`. Full guide: [cluster-bus.md](cluster-bus.md) |
+| **4. Rolling restart of all instances** | Yes (cold process) | Emergency only |
+| **5. Custom observer + external bus** | Yes if you implement it | Rare; prefer package Bus |
 
 ```text
 Recommended multi-instance (immediate invalidation):
@@ -179,11 +181,12 @@ Recommended multi-instance (immediate invalidation):
        → Redis L2 + pub/sub backplane
        → other nodes drop L1
 
-Without Redis:
+Without Redis (optional Bus package):
 
-  Invalidate* on node A  →  only A
-  Version bump (shared) → all nodes use new keys after reload/deploy
-  Optional: observer publishes event → other nodes Invalidate* locally
+  Invalidate* on node A
+       → local purge on A
+       → HttpClusterCommandBus → peers ApplyLocal
+  Version/TTL Admin with distribute:true → VersionBumpCommand / TtlPatchCommand
 ```
 
 ### Approach 1 — Version + shared config (no bus)
@@ -204,178 +207,31 @@ Use `CacheOrchestrator.Redis`, `"Provider": "Redis"` for Fusion (and optionally 
 
 Details: [deployment.md](deployment.md), [backends.md](backends.md).
 
-### Approach 4 — Full fan-out sample with `ICacheInvalidationObserver`
+### Approach 3 — CacheOrchestrator.Bus (optional package)
 
-Use when caches are **in-process** on each node but you still want “invalidate everywhere” after an admin action.
+Full reference: **[cluster-bus.md](cluster-bus.md)** (install, membership Static/ServiceDiscovery, commands, Admin App, metrics, security).
 
-Flow:
-
-```text
-Node A: InvalidateDomainAsync("catalog")
-     → local purge on A
-     → Observer.OnAfterInvalidateAsync → publish message
-              │
-              ▼
-     Message bus (RabbitMQ, Azure Service Bus, Redis pub/sub, NATS, …)
-              │
-     ┌────────┴────────┐
-     ▼                 ▼
-  Node B            Node C
-  consumer          consumer
-  → InvalidateTagsAsync (same tags)
-  → local purge     → local purge
-  (gate prevents re-publish → no loop)
+```bash
+dotnet add package CacheOrchestrator.Bus
 ```
-
-The sample below is **application code** (not part of the library). Replace `IClusterBus` with your real bus client.
 
 ```csharp
-using CacheOrchestrator.Invalidation;
-using System.Collections.Concurrent;
+using CacheOrchestrator.Bus;
 
-// ---------- Message ----------
-
-public sealed class CacheInvalidateMessage
-{
-    public required CacheInvalidationKind Kind { get; init; }
-    public required string Scope { get; init; }
-    public required string[] Tags { get; init; }
-    public required string OriginInstanceId { get; init; }
-}
-
-// ---------- Abstract bus (swap for Rabbit / Service Bus / etc.) ----------
-
-public interface IClusterBus
-{
-    Task PublishAsync(CacheInvalidateMessage message, CancellationToken cancellationToken);
-    // In a real app, subscribe in a hosted service and call the consumer.
-}
-
-// ---------- Loop prevention ----------
-
-/// <summary>
-/// Marks invalidation calls that originated from a remote bus message so the
-/// observer does not publish again (avoids A→bus→B→bus→A loops).
-/// </summary>
-public sealed class InvalidationFanoutGate
-{
-    private static readonly AsyncLocal<bool> Remote = new();
-
-    public bool IsRemoteOrigin => Remote.Value;
-
-    public IDisposable EnterRemote()
-    {
-        bool previous = Remote.Value;
-        Remote.Value = true;
-        return new Reset(previous);
-    }
-
-    private sealed class Reset(bool previous) : IDisposable
-    {
-        public void Dispose() => Remote.Value = previous;
-    }
-}
-
-// ---------- Observer: publish after local invalidation ----------
-
-public sealed class ClusterInvalidationPublisher : ICacheInvalidationObserver
-{
-    private readonly IClusterBus _bus;
-    private readonly InvalidationFanoutGate _gate;
-    private readonly string _instanceId;
-
-    public ClusterInvalidationPublisher(IClusterBus bus, InvalidationFanoutGate gate)
-    {
-        _bus = bus;
-        _gate = gate;
-        _instanceId = Environment.MachineName; // or a stable pod/instance id
-    }
-
-    public ValueTask OnBeforeInvalidateAsync(
-        CacheInvalidationContext context,
-        CancellationToken cancellationToken = default)
-        => ValueTask.CompletedTask;
-
-    public async ValueTask OnAfterInvalidateAsync(
-        CacheInvalidationContext context,
-        CacheInvalidationResult result,
-        CancellationToken cancellationToken = default)
-    {
-        // Do not fan out invalidations that we applied because of a remote message.
-        if (_gate.IsRemoteOrigin)
-            return;
-
-        // Optional: only broadcast successful (or always broadcast — product choice).
-        if (context.Tags.Count == 0)
-            return;
-
-        var message = new CacheInvalidateMessage
-        {
-            Kind = context.Kind,
-            Scope = context.Scope,
-            Tags = context.Tags.ToArray(),
-            OriginInstanceId = _instanceId
-        };
-
-        await _bus.PublishAsync(message, cancellationToken).ConfigureAwait(false);
-    }
-}
-
-// ---------- Consumer: apply the same tags locally ----------
-
-public sealed class ClusterInvalidationConsumer
-{
-    private readonly ICacheOrchestratorInvalidator _invalidator;
-    private readonly InvalidationFanoutGate _gate;
-    private readonly string _instanceId;
-
-    public ClusterInvalidationConsumer(
-        ICacheOrchestratorInvalidator invalidator,
-        InvalidationFanoutGate gate)
-    {
-        _invalidator = invalidator;
-        _gate = gate;
-        _instanceId = Environment.MachineName;
-    }
-
-    public async Task HandleAsync(CacheInvalidateMessage message, CancellationToken cancellationToken)
-    {
-        if (string.Equals(message.OriginInstanceId, _instanceId, StringComparison.Ordinal))
-            return;
-
-        if (message.Tags is null || message.Tags.Length == 0)
-            return;
-
-        using (_gate.EnterRemote())
-        {
-            // Tags API hits all Fusion instances + Output Cache on this node.
-            await _invalidator
-                .InvalidateTagsAsync(message.Tags, cancellationToken)
-                .ConfigureAwait(false);
-        }
-    }
-}
-
-// ---------- DI (Program.cs) ----------
-
-builder.Services.AddSingleton<InvalidationFanoutGate>();
-builder.Services.AddSingleton<IClusterBus, /* your bus */ MyRabbitClusterBus>();
-builder.Services.AddSingleton<ICacheInvalidationObserver, ClusterInvalidationPublisher>();
-builder.Services.AddSingleton<ClusterInvalidationConsumer>();
-
-// In a BackgroundService / bus subscription:
-//   var consumer = scope.ServiceProvider.GetRequiredService<ClusterInvalidationConsumer>();
-//   await consumer.HandleAsync(message, stoppingToken);
+builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClusterBus());
+app.UseCacheOrchestrator();
+app.MapCacheOrchestratorHttpBus(); // independent of Admin
 ```
 
-**Notes for production fan-out**
+| Behaviour | Detail |
+|-----------|--------|
+| `Invalidate*` (app code) | Local apply + publish when bus enabled |
+| Admin mutations | `distribute: true` → peers; default local only |
+| Peers | `POST …/cluster/apply` ApplyLocal only (anti-echo) |
 
-- Prefer publishing **`Tags`** (stable, works for domain/entity/custom).  
-- **Idempotent** consumers: double delivery should only re-evict.  
-- **Ordering** is not required for tag purge.  
-- If origin node failed mid-purge, you may still want to broadcast so peers clear.  
-- For Output Cache + Fusion both InMemory, every node must run the consumer.  
-- This pattern is **heavier** than Redis backplane; use Redis when you can.
+**Bus vs Redis:** not a replacement for Fusion L2 + backplane. Prefer Redis for continuous shared data; use Bus for InMemory multi-instance and runtime Version/TTL overlays.
+
+`ICacheInvalidationObserver` remains for **audit/webhooks only** — not a second cluster bus when Bus is registered.
 
 ### Choosing an approach (multi-instance)
 
@@ -383,7 +239,8 @@ builder.Services.AddSingleton<ClusterInvalidationConsumer>();
 |------|--------|
 | Monthly data cutover, long TTL | Shared config **Version** bump ([deployment.md](deployment.md)) |
 | Many nodes, shared cache, immediate purge | **Redis** L2 + backplane |
-| InMemory only, rare admin “clear catalog” | Observer + bus fan-out (sample above) |
+| InMemory only, invalidate everywhere | **CacheOrchestrator.Bus** |
+| Runtime Version/TTL on all InMemory nodes | Bus + Admin `distribute: true` (or Admin App fan-out to each node) |
 | Sticky sessions + TTL-only | Local invalidation may be enough |
 
 ## Related
@@ -395,3 +252,5 @@ builder.Services.AddSingleton<ClusterInvalidationConsumer>();
 - [output-cache.md](output-cache.md)  
 - [fusion-cache.md](fusion-cache.md)  
 - [backends.md](backends.md) — Redis package  
+- [cluster-bus.md](cluster-bus.md) — optional multi-instance command bus  
+

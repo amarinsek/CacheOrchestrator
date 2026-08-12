@@ -22,12 +22,14 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
 
     public InMemoryAdminStatsCollector(
         CacheOrchestratorOptions.AdminOptions adminOptions,
+        string instanceId,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(adminOptions);
+        ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
         TrackEndpoints = adminOptions.TrackEndpoints;
         TrackLatency = adminOptions.TrackLatency;
-        _instanceId = AdminInstanceId.Resolve(adminOptions);
+        _instanceId = instanceId.Trim();
         _time = timeProvider ?? TimeProvider.System;
     }
 

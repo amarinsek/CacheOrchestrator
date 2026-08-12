@@ -45,7 +45,7 @@ Operator and integrator guide for the **Local Admin** API (in-process on each ap
 - Admin App is **never** on the end-user caching hot path.  
 - Each instance keeps its **own** L1 Output Cache / FusionCache counters.  
 - Aggregation is **sum / recompute shares** (`StatsAggregator`, `AdminStatsMath`).  
-- Runtime **Version** and **TTL** overlays are **process-local** on each node — fan-out must hit every instance that should change.
+- Runtime **Version** and **TTL** overlays are **process-local** on each node unless the optional [cluster bus](cluster-bus.md) publishes them (`distribute: true` / Admin App **bus-distribute**). Without bus, Admin App **fan-out** must hit every instance that should change.
 
 ---
 
@@ -66,10 +66,10 @@ Operator and integrator guide for the **Local Admin** API (in-process on each ap
 
 ```json
 "Cache": {
+  "InstanceId": "app-1",
   "Admin": {
     "Enabled": true,
     "ApiKey": "use-a-strong-secret-in-production",
-    "InstanceId": "app-1",
     "RoutePrefix": "/cache-admin/local",
     "TrackEndpoints": true,
     "TrackLatency": false
@@ -85,12 +85,37 @@ app.MapCacheOrchestratorAdmin(); // after routing is available; safe no-op when 
 
 | Option | Default | Notes |
 |--------|---------|--------|
-| `Enabled` | `false` | No routes, no counter cost when false |
-| `ApiKey` | empty | Empty + Enabled ⇒ **open** endpoints (dev only; logs a warning) |
-| `InstanceId` | machine name | Stable id in health / UI |
-| `RoutePrefix` | `/cache-admin/local` | Must match Admin App `LocalPathPrefix` |
-| `TrackEndpoints` | `true` | Per-route counters |
-| `TrackLatency` | `false` | Extra cost if true |
+| `Cache:InstanceId` | machine name | Single process id for Admin, cluster bus, diagnostics |
+| `Admin:Enabled` | `false` | No routes, no counter cost when false |
+| `Admin:ApiKey` | empty | Empty + Enabled ⇒ **open** endpoints (dev only; logs a warning) |
+| `Admin:RoutePrefix` | `/cache-admin/local` | Must match Admin App `LocalPathPrefix` |
+| `Admin:TrackEndpoints` | `true` | Per-route counters |
+| `Admin:TrackLatency` | `false` | Extra cost if true |
+
+Process identity is **`Cache:InstanceId`** (not under Admin). Same id is used by the optional cluster bus.
+
+### Cluster distribute (with CacheOrchestrator.Bus)
+
+When the HTTP bus is enabled, Local Admin mutation bodies accept **`distribute`** (default `false`):
+
+| Endpoint | `distribute: false` | `distribute: true` |
+|----------|---------------------|--------------------|
+| `POST …/invalidate` | This process only | Local + peers via bus |
+| `POST …/domains/{d}/version` | Local Version overlay | Local + `VersionBumpCommand` |
+| `PATCH …/domains/{d}/ttl` | Local TTL overlay | Local + `TtlPatchCommand` |
+
+**Admin App** probes `GET …/cluster/info` on each configured instance (`GET /api/distribution`):
+
+| Capability | Write behaviour |
+|------------|-----------------|
+| No bus | **fan-out** — HTTP to every target with `distribute:false` |
+| Bus enabled (Static/ServiceDiscovery) | **bus-distribute** — one healthy origin with `distribute:true` (peers via bus) |
+
+The Operations UI shows a banner and the mode used for the last result. Never combine full Admin App fan-out **and** `distribute:true` for the same action — the App chooses one path automatically.
+
+Receive path for peers: `MapCacheOrchestratorHttpBus()` (not gated on `Admin:Enabled`).
+
+Deep dive (membership, commands, metrics, security): **[cluster-bus.md](cluster-bus.md)**.
 
 ### Auth header
 
@@ -194,7 +219,8 @@ Quick operator steps: [Admin App README](../src/CacheOrchestrator.Admin/README.m
 
 - Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/Origin, Req, Inv, hints) → **menu**  
 - Overview: instances; **top 5 domains** and **top 5 endpoints** after sorting the **full** aggregated lists  
-- Lists: filters, search, sort; detail pages; Operations fan-out; Hints page  
+- Lists: filters, search, sort; detail pages; Hints page  
+- **Operations** (`#/operations`): invalidate / version / TTL; banner **HTTP fan-out** vs **Cluster bus (distribute)**; cluster probe table; last-run mode in result  
 - Auto-refresh interval in `localStorage`  
 
 ### Recommendation hints
@@ -209,14 +235,15 @@ Details: [admin-hints.md](admin-hints.md).
 |--------|------|-------------|
 | GET | `/api/overview` | Cluster overview + instances + top domains/endpoints + hints |
 | GET | `/api/instances` | Health probe fan-out |
+| GET | `/api/distribution` | Probe `…/cluster/info`; recommended write mode (fan-out vs bus-distribute) |
 | GET | `/api/stats?scope=all\|instance:{id}&groupByInstance=` | Aggregated live stats |
 | GET | `/api/endpoints?…` | Endpoint list (search/sort/page/filters) |
 | GET | `/api/domains` | Domain config fan-out |
-| POST | `/api/invalidate` | Fan-out invalidation |
-| POST | `/api/domains/{domain}/version` | Fan-out version overlay |
-| PATCH | `/api/domains/{domain}/ttl` | Fan-out TTL overlay |
+| POST | `/api/invalidate` | Invalidate (auto fan-out or bus-distribute) |
+| POST | `/api/domains/{domain}/version` | Version overlay write |
+| PATCH | `/api/domains/{domain}/ttl` | TTL overlay write |
 
-Partial success is reported per instance in `results[]`.
+Write responses include `distributionMode`, `distribute`, `distributionSummary`, optional `busOriginInstanceId`, and per-instance `results[]`.
 
 **Warning:** These `/api/*` routes currently have **no application-level authentication**. Anyone who can reach the Admin App can read stats and run operations. Protect the host (see [Security](#security)).
 
@@ -277,7 +304,7 @@ You may enable Local Admin for scripts only. Still set `ApiKey` and lock down ne
 |---------|----------------|
 | All instances **Down** | Wrong URL/port; Local Admin not mapped; firewall; **401** wrong/missing ApiKey |
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
-| Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local**; target was `instance:x` only, or a node was down during fan-out |
+| Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
 | High FC miss rate, everything “fine” | Prefer **origin share** / OC hit share — see shares vs rates |
 | Scalar OpenAPI missing | Only mapped in **Development** on Admin App |
 | CORS issues calling Local Admin from a browser | Prefer Admin App fan-out; Local Admin is for server-side callers |

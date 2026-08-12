@@ -1,5 +1,6 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Backends;
+using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.Invalidation;
@@ -127,6 +128,14 @@ public static class ServiceCollectionExtensions
     private static void RegisterCoreServices(IServiceCollection services)
     {
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
+        services.TryAddSingleton<ClusterCommandFactory>();
+        services.TryAddSingleton<ClusterCommandDedupeStore>();
+        // Bus package may register real implementations in the builder callback before this runs;
+        // TryAdd keeps Http/Static bus when already present.
+        services.TryAddSingleton<IClusterCommandBus>(_ => NullClusterCommandBus.Instance);
+        services.TryAddSingleton<IClusterMembership>(_ => NullClusterMembership.Instance);
+        services.TryAddSingleton<IClusterCommandHandler, DefaultClusterCommandHandler>();
         services.AddSingleton<IDomainCacheOptionsProvider, DomainCacheOptionsProvider>();
         services.AddSingleton<IDomainFusionCache, DomainFusionCacheService>();
         services.AddSingleton<ICacheOrchestratorInvalidator, CacheOrchestratorInvalidator>();
@@ -141,9 +150,14 @@ public static class ServiceCollectionExtensions
         {
             services.AddSingleton<IDomainRuntimeOverrideStore, DomainRuntimeOverrideStore>();
             services.AddSingleton<IAdminStatsCollector>(sp =>
-                new InMemoryAdminStatsCollector(
-                    sp.GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value.Admin,
-                    sp.GetService<TimeProvider>()));
+            {
+                CacheOrchestratorOptions opts = sp.GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
+                string instanceId = sp.GetRequiredService<IInstanceIdProvider>().InstanceId;
+                return new InMemoryAdminStatsCollector(
+                    opts.Admin,
+                    instanceId,
+                    sp.GetService<TimeProvider>());
+            });
             services.AddSingleton<IAdminEndpointCatalog, AdminEndpointCatalog>();
             services.AddSingleton<AdminQueryService>();
             services.AddSingleton<AdminApiKeyEndpointFilter>();
