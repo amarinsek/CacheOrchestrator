@@ -1,23 +1,15 @@
+using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 
 namespace CacheOrchestrator.Admin;
 
-/// <summary>Resolves the Local Admin instance identifier.</summary>
+/// <summary>Resolves the process instance identifier (<c>Cache:InstanceId</c>).</summary>
 internal static class AdminInstanceId
 {
-    public static string Resolve(CacheOrchestratorOptions.AdminOptions admin)
+    /// <summary>Resolves from root cache options (not Admin subsection).</summary>
+    public static string Resolve(CacheOrchestratorOptions options)
     {
-        ArgumentNullException.ThrowIfNull(admin);
-        if (!string.IsNullOrWhiteSpace(admin.InstanceId))
-            return admin.InstanceId.Trim();
-
-        try
-        {
-            return Environment.MachineName;
-        }
-        catch
-        {
-            return "unknown";
-        }
+        ArgumentNullException.ThrowIfNull(options);
+        return DefaultInstanceIdProvider.Resolve(options.InstanceId);
     }
 }

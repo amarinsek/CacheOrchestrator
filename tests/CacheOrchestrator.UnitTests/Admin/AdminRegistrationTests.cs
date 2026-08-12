@@ -159,7 +159,7 @@ public class AdminRegistrationTests
         if (apiKey is not null)
             data["Cache:Admin:ApiKey"] = apiKey;
         if (instanceId is not null)
-            data["Cache:Admin:InstanceId"] = instanceId;
+            data["Cache:InstanceId"] = instanceId;
 
         return new ConfigurationBuilder().AddInMemoryCollection(data).Build();
     }

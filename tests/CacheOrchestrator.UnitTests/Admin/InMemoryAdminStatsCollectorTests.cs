@@ -8,12 +8,13 @@ public class InMemoryAdminStatsCollectorTests
     [Fact]
     public void RecordOutputAndFusion_AggregatesPerDomainAndEndpoint_WithShares()
     {
-        InMemoryAdminStatsCollector collector = new(new CacheOrchestratorOptions.AdminOptions
-        {
-            Enabled = true,
-            InstanceId = "test-1",
-            TrackEndpoints = true
-        });
+        InMemoryAdminStatsCollector collector = new(
+            new CacheOrchestratorOptions.AdminOptions
+            {
+                Enabled = true,
+                TrackEndpoints = true
+            },
+            instanceId: "test-1");
 
         collector.RecordOutput("GET /api/products/{id}", "catalog", "hit");
         collector.RecordOutput("GET /api/products/{id}", "catalog", "miss");
@@ -49,12 +50,13 @@ public class InMemoryAdminStatsCollectorTests
     [Fact]
     public void OcHitsDominate_FcLayerMissRateIsNotShownAsRequestShare()
     {
-        InMemoryAdminStatsCollector collector = new(new CacheOrchestratorOptions.AdminOptions
-        {
-            Enabled = true,
-            InstanceId = "x",
-            TrackEndpoints = true
-        });
+        InMemoryAdminStatsCollector collector = new(
+            new CacheOrchestratorOptions.AdminOptions
+            {
+                Enabled = true,
+                TrackEndpoints = true
+            },
+            instanceId: "x");
 
         for (int i = 0; i < 99; i++)
             collector.RecordOutput("GET /hello", "hello", "hit");

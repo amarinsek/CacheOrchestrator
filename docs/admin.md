@@ -66,10 +66,10 @@ Operator and integrator guide for the **Local Admin** API (in-process on each ap
 
 ```json
 "Cache": {
+  "InstanceId": "app-1",
   "Admin": {
     "Enabled": true,
     "ApiKey": "use-a-strong-secret-in-production",
-    "InstanceId": "app-1",
     "RoutePrefix": "/cache-admin/local",
     "TrackEndpoints": true,
     "TrackLatency": false
@@ -85,12 +85,12 @@ app.MapCacheOrchestratorAdmin(); // after routing is available; safe no-op when 
 
 | Option | Default | Notes |
 |--------|---------|--------|
-| `Enabled` | `false` | No routes, no counter cost when false |
-| `ApiKey` | empty | Empty + Enabled ⇒ **open** endpoints (dev only; logs a warning) |
-| `InstanceId` | machine name | Stable id in health / UI |
-| `RoutePrefix` | `/cache-admin/local` | Must match Admin App `LocalPathPrefix` |
-| `TrackEndpoints` | `true` | Per-route counters |
-| `TrackLatency` | `false` | Extra cost if true |
+| `Cache:InstanceId` | machine name | Single process id for Admin, cluster bus, diagnostics |
+| `Admin:Enabled` | `false` | No routes, no counter cost when false |
+| `Admin:ApiKey` | empty | Empty + Enabled ⇒ **open** endpoints (dev only; logs a warning) |
+| `Admin:RoutePrefix` | `/cache-admin/local` | Must match Admin App `LocalPathPrefix` |
+| `Admin:TrackEndpoints` | `true` | Per-route counters |
+| `Admin:TrackLatency` | `false` | Extra cost if true |
 
 ### Auth header
 

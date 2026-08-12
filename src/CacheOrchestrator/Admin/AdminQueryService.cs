@@ -63,7 +63,7 @@ internal sealed class AdminQueryService
         return new AdminHealthDto
         {
             Healthy = true,
-            InstanceId = AdminInstanceId.Resolve(admin),
+            InstanceId = AdminInstanceId.Resolve(_options.CurrentValue),
             UtcNow = now,
             AdminEnabled = admin.Enabled,
             StartedAtUtc = started,
@@ -74,7 +74,7 @@ internal sealed class AdminQueryService
 
     public AdminLiveStatsSnapshot GetStats()
     {
-        string instanceId = AdminInstanceId.Resolve(_options.CurrentValue.Admin);
+        string instanceId = AdminInstanceId.Resolve(_options.CurrentValue);
         AdminLiveStatsSnapshot raw = _stats.GetSnapshot();
         IReadOnlyList<AdminEndpointInfoDto> discovered = _endpoints.GetEndpoints();
 
