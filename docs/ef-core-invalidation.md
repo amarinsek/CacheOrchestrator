@@ -231,9 +231,11 @@ Operational flags only. Bound from the same root section as `AddCacheOrchestrato
 
 ## Tests
 
-Unit tests (EF InMemory + invalidator spy) cover mapping order, batching, delete PK snapshot, failed save, `OnBulk`, and interceptor exceptions.
+Unit tests cover mapping order, batching, delete PK snapshot, failed save, sync `SaveChanges`, `OnBulk` Kind/Domain, Guid PK vs route normalization, TPH concrete types, Fluent mapping, pooled contexts, two `DbContext` types, `ExecuteUpdate` (no interceptor), and transaction rollback (invalidation already ran — false miss).
 
-Existing Redis multi-node and Bus tests already cover “`InvalidateEntitiesAsync` on one host evicts Fusion/OC on another”. The interceptor is a thin caller of that API, so a second suite of two-host EF + Redis tests would mostly re-run the backplane with a heavier fixture. A more useful extra test, if added later, is **one process**: TestServer + real Fusion + EF `SaveChanges` → next HTTP GET is a MISS.
+Integration (`EfSaveChangesInvalidationHttpTests`): one TestServer host, real Fusion + Output Cache. Tracked `SaveChanges` → next GET is MISS (sibling stays HIT); `GetOrSetEntityAsync` without an explicit domain; Guid route (uppercase) matches EF PK; `ExecuteUpdate` does not evict until a manual `InvalidateEntityAsync`.
+
+Existing Redis multi-node and Bus tests already cover “`InvalidateEntitiesAsync` on one host evicts Fusion/OC on another”. The interceptor is a thin caller of that API.
 
 ---
 

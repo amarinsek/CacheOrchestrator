@@ -1,5 +1,7 @@
 using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.Invalidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -38,7 +40,11 @@ public static class CacheOrchestratorEfCoreServiceExtensions
             options.PostConfigure(configure);
 
         services.TryAddSingleton<IEntityCacheMappingResolver, EntityCacheMappingResolver>();
-        services.TryAddSingleton<CacheInvalidationSaveChangesInterceptor>();
+        services.TryAddSingleton(sp => new CacheInvalidationSaveChangesInterceptor(
+            sp.GetRequiredService<ICacheOrchestratorInvalidator>(),
+            sp.GetRequiredService<IEntityCacheMappingResolver>(),
+            sp.GetRequiredService<IOptionsMonitor<EfCoreInvalidationOptions>>(),
+            sp.GetRequiredService<ILogger<CacheInvalidationSaveChangesInterceptor>>()));
         return services;
     }
 

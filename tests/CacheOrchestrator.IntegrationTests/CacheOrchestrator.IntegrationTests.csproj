@@ -20,6 +20,8 @@
 		<PackageReference Include="FluentAssertions" Version="8.6.0" />
 		<PackageReference Include="Testcontainers.Redis" Version="4.3.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.10" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -31,6 +33,7 @@
 		<ProjectReference Include="..\..\src\CacheOrchestrator\CacheOrchestrator.csproj" />
 		<ProjectReference Include="..\..\src\CacheOrchestrator.Redis\CacheOrchestrator.Redis.csproj" />
 		<ProjectReference Include="..\..\src\CacheOrchestrator.Bus\CacheOrchestrator.Bus.csproj" />
+		<ProjectReference Include="..\..\src\CacheOrchestrator.EFCore.Invalidation\CacheOrchestrator.EFCore.Invalidation.csproj" />
 	</ItemGroup>
 
 </Project>
