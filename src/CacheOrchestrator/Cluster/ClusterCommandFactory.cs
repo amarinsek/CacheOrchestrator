@@ -27,7 +27,9 @@ internal sealed class ClusterCommandFactory
         string scopeLabel,
         IReadOnlyList<string> tags,
         string? domain,
-        string? entityId) =>
+        string? entityKind,
+        string? entityId,
+        IReadOnlyList<string>? resourceIds) =>
         new()
         {
             CommandId = Guid.NewGuid(),
@@ -38,7 +40,9 @@ internal sealed class ClusterCommandFactory
             Scope = scopeLabel,
             Tags = tags is string[] arr ? arr : [.. tags],
             Domain = domain,
-            EntityId = entityId
+            EntityKind = entityKind,
+            EntityId = entityId,
+            ResourceIds = resourceIds
         };
 
     public VersionBumpCommand CreateVersionBump(string domain, string version) =>

@@ -42,12 +42,17 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
 
         try
         {
-            // 0. Explicit resource id (CRUD / entity-scoped keys) — when set, prefer stable id segment.
-            if (http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out object? ridObj)
+            // 0. Entity identity (CRUD) — both kind and id are required; no id-only key shape.
+            if (http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? kindObj)
+                && kindObj is string entityKind
+                && entityKind.Length > 0
+                && http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out object? ridObj)
                 && ridObj is string resourceId
                 && resourceId.Length > 0)
             {
                 AppendRaw(hasher, "id:"u8);
+                AppendString(hasher, entityKind, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
+                AppendRaw(hasher, ":"u8);
                 AppendString(hasher, resourceId, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
 
                 // Still vary on encoding / public address when configured.
@@ -71,7 +76,10 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                 }
 
                 ulong resourceHash = hasher.GetCurrentHashAsUInt64();
-                return string.Create(null, stackalloc char[160], $"{opts.Domain}:{opts.VersionHex}:id:{resourceId}:{resourceHash:x16}");
+                return string.Create(
+                    null,
+                    stackalloc char[256],
+                    $"{opts.Domain}:{opts.VersionHex}:id:{entityKind}:{resourceId}:{resourceHash:x16}");
             }
 
             // 1. Route / path

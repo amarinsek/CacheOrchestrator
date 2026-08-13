@@ -181,6 +181,16 @@ Without the package, core registers a Null bus (no peer traffic). Full guide: **
 
 ServiceDiscovery also needs host config endpoints under `Services:{name}` (see [cluster-bus.md](cluster-bus.md#servicediscovery-k8s--aspire--config-endpoints)).
 
+## EF Core invalidation (`Cache:EFCore:Invalidation`)
+
+Optional. Requires package **`CacheOrchestrator.EFCore.Invalidation`**. Type → `(domain, entityKind)` mapping is **code** (`[CacheEntity]`, Fluent `CacheInvalidate`, or `Map<T>`), not this section. Full guide: [ef-core-invalidation.md](ef-core-invalidation.md).
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | `true` | Master switch |
+| `BulkThreshold` | `20` | Id count that triggers `OnBulk` |
+| `OnBulk` | `Kind` | `Entities` · `Kind` · `Domain` (domain wipes every kind in that policy group) |
+
 ## Validation
 
 `CacheOrchestratorOptionsValidator` runs on start (`ValidateOnStart`):

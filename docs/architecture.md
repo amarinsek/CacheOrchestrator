@@ -64,6 +64,7 @@ Companion packages:
 |---------|------|
 | `CacheOrchestrator.Redis` | Redis OC store + Fusion L2 + backplane |
 | `CacheOrchestrator.Bus` | HTTP cluster command bus + Static / ServiceDiscovery membership |
+| `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation (not an EF cache) — [ef-core-invalidation.md](ef-core-invalidation.md) |
 | `CacheOrchestrator.Admin` | Admin App host (fan-out UI; not a NuGet package) |
 
 Interfaces live **next to** their implementations (no separate `Abstractions` assembly/folder).
@@ -87,7 +88,7 @@ Prefer **interfaces + DI entry points** over concrete services. Implementations 
 | Health: `AddCacheOrchestrator()`, `ICacheOrchestratorHealthProbe` | `CacheOrchestratorHealthCheck` |
 | Meter/activity **names** (`CacheOrchestrator`) | `CacheOrchestratorMetrics.Record*` |
 
-`HttpContext.Items` keys live on **`CacheOrchestratorKeys`** (`DomainOptionsKey`, `ResourceIdKey`, `DispositionKey`).
+`HttpContext.Items` keys live on **`CacheOrchestratorKeys`** (`DomainOptionsKey`, `ResourceIdKey`, `EntityKindKey`, `DispositionKey`).
 
 ## Request flow — Output Cache
 

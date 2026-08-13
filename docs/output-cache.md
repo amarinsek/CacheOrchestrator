@@ -23,7 +23,7 @@ app.MapGet("/api/products", () => /* ... */)
 
 // Fixed domain + entity tag from route (CRUD purge via InvalidateEntityAsync)
 app.MapGet("/api/products/{id}", () => /* ... */)
-   .CacheOutputWithDomain("product-detail", resourceRouteKey: "id");
+   .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
 
 // Per-request domain
 app.MapGet("/api/t/{tenant}/items", (string tenant) => /* ... */)
@@ -58,7 +58,7 @@ public class ProductsController : ControllerBase
     public IActionResult List() => Ok(/* ... */);
 
     [HttpGet("{id}")]
-    [CacheDomain("product-detail", resourceRouteKey: "id")] // action overrides controller
+    [CacheDomain("store", resourceRouteKey: "id", entityKind: "products")] // action overrides controller
     public IActionResult Get(string id) => Ok(/* ... */);
 }
 ```
@@ -127,7 +127,7 @@ Clients send `Authorization: Bearer <map-key>` only for rate-limiting / billing.
 
 See also [configuration.md](configuration.md) and [domain-profiles.md](domain-profiles.md).
 
-**Tags:** `domain:{normalizedDomain}`; if `resourceRouteKey` resolves a route value, also `entity:{domain}:{id}`.
+**Tags:** `domain:{normalizedDomain}`; if `resourceRouteKey` and `entityKind` resolve a route value, also `entity:{domain}:{entityKind}:{id}` and `entitykind:{domain}:{entityKind}`.
 
 **ETag:** controlled by domain `ETagMode` (`Version` = generation stamp, `Resource` = per URL/id, `None` = omit). See [domain-profiles.md](domain-profiles.md).
 

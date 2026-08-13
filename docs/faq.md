@@ -16,6 +16,14 @@ Deep dives stay in the topic docs; this page is the **limitations map**.
 
 ---
 
+## EF Core `ExecuteUpdate` did not invalidate cache
+
+The interceptor only sees `ChangeTracker` (`Added` / `Modified` / `Deleted`) after a successful `SaveChanges`. Bulk `ExecuteUpdate` / `ExecuteDelete` / `ExecuteInsert` never produce those entries.
+
+Call `InvalidateEntitiesAsync` or `InvalidateEntityKindAsync` yourself. Details: [ef-core-invalidation.md](ef-core-invalidation.md).
+
+---
+
 ## Fusion runs uncached — why?
 
 `IDomainFusionCache.GetOrSetAsync` needs a **domain**. Resolution order:

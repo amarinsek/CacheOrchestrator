@@ -772,6 +772,9 @@ export async function renderOperations(params) {
         <label>Domain
           <input id="opDomain" name="domain" type="text" value="${esc(domain)}" required />
         </label>
+        <label id="entityKindLabel" class="${action === "entity" ? "" : "hidden"}">Entity kind
+          <input id="opEntityKind" type="text" placeholder="products" />
+        </label>
         <label id="entityLabel" class="${action === "entity" ? "" : "hidden"}">Entity id
           <input id="opEntity" type="text" placeholder="resource id" />
         </label>
@@ -822,6 +825,7 @@ export async function renderOperations(params) {
   const actionEl = $("#opAction");
   function syncOpFields() {
     const a = actionEl.value;
+    $("#entityKindLabel").classList.toggle("hidden", a !== "entity");
     $("#entityLabel").classList.toggle("hidden", a !== "entity");
     $("#versionLabel").classList.toggle("hidden", a !== "version");
     $("#ttlLabel").classList.toggle("hidden", a !== "ttl");
@@ -867,6 +871,7 @@ export async function renderOperations(params) {
           body: JSON.stringify({
             scope: "entity",
             domain: dom,
+            entityKind: $("#opEntityKind").value.trim(),
             entityId: $("#opEntity").value.trim(),
             target: tgt,
           }),

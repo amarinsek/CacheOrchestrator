@@ -42,13 +42,13 @@ public class FusionCacheEntityInvalidationTests
         int calls1 = 0;
         int calls2 = 0;
 
-        await cache.GetOrSetAsync(http1, "products", "1", _ =>
+        await cache.GetOrSetEntityAsync(http1, "products", "items", "1", _ =>
         {
             calls1++;
             return Task.FromResult("p1-v1");
         }, TestContext.Current.CancellationToken);
 
-        await cache.GetOrSetAsync(http2, "products", "2", _ =>
+        await cache.GetOrSetEntityAsync(http2, "products", "items", "2", _ =>
         {
             calls2++;
             return Task.FromResult("p2-v1");
@@ -58,12 +58,12 @@ public class FusionCacheEntityInvalidationTests
         calls2.Should().Be(1);
 
         // Hits
-        await cache.GetOrSetAsync(http1, "products", "1", _ =>
+        await cache.GetOrSetEntityAsync(http1, "products", "items", "1", _ =>
         {
             calls1++;
             return Task.FromResult("x");
         }, TestContext.Current.CancellationToken);
-        await cache.GetOrSetAsync(http2, "products", "2", _ =>
+        await cache.GetOrSetEntityAsync(http2, "products", "items", "2", _ =>
         {
             calls2++;
             return Task.FromResult("y");
@@ -72,14 +72,14 @@ public class FusionCacheEntityInvalidationTests
         calls2.Should().Be(1);
 
         // Invalidate only product 1 under same Version
-        await inv.InvalidateEntityAsync("products", "1", TestContext.Current.CancellationToken);
+        await inv.InvalidateEntityAsync("products", "items", "1", TestContext.Current.CancellationToken);
 
-        await cache.GetOrSetAsync(http1, "products", "1", _ =>
+        await cache.GetOrSetEntityAsync(http1, "products", "items", "1", _ =>
         {
             calls1++;
             return Task.FromResult("p1-v2");
         }, TestContext.Current.CancellationToken);
-        await cache.GetOrSetAsync(http2, "products", "2", _ =>
+        await cache.GetOrSetEntityAsync(http2, "products", "items", "2", _ =>
         {
             calls2++;
             return Task.FromResult("p2-v2");

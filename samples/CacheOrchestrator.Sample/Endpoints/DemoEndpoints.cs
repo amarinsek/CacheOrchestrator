@@ -151,7 +151,7 @@ public static class DemoEndpoints
 
         app.MapGet("/api/crud/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache) =>
         {
-            var product = await cache.GetOrSetAsync(http, "product-crud", id, async ct =>
+            var product = await cache.GetOrSetEntityAsync(http, "product-crud", "products", id, async ct =>
             {
                 await Task.Delay(40, ct);
                 if (!productStore.TryGetValue(id, out var row))
@@ -167,7 +167,7 @@ public static class DemoEndpoints
             });
 
             return product is null ? Results.NotFound() : Results.Json(product);
-        }).CacheOutputWithDomain("product-crud", resourceRouteKey: "id");
+        }).CacheOutputWithDomain("product-crud", resourceRouteKey: "id", entityKind: "products");
 
         app.MapPut("/api/crud/products/{id}", async (
             string id,
@@ -183,7 +183,7 @@ public static class DemoEndpoints
             productStore[id] = updated;
 
             // Same Version — only this entity is purged from OC + FC.
-            await inv.InvalidateEntityAsync("product-crud", id);
+            await inv.InvalidateEntityAsync("product-crud", "products", id);
             return Results.Json(new
             {
                 saved = true,

@@ -33,6 +33,7 @@ Root overview (also lists every advanced feature): [../README.md](../README.md)
 | [fusion-cache.md](fusion-cache.md) | `IDomainFusionCache`, keys, fail-safe, resource id |
 | [cache-keys.md](cache-keys.md) | FC/OC key identity, Namespace, why domain differs |
 | [invalidation.md](invalidation.md) | Version, domain/entity tags, invalidator API, multi-instance strategies |
+| [ef-core-invalidation.md](ef-core-invalidation.md) | Optional EF Core SaveChanges interceptor (`CacheOrchestrator.EFCore.Invalidation`) |
 | [cluster-bus.md](cluster-bus.md) | Optional `CacheOrchestrator.Bus` — HTTP command bus, membership, Admin distribute |
 | [backends.md](backends.md) | InMemory, Redis package, custom registrars |
 | [observability.md](observability.md) | `X-Cache`, `EmitDiagnosticsHeaders`, metrics, health |
@@ -64,6 +65,7 @@ Root overview (also lists every advanced feature): [../README.md](../README.md)
 | `ICacheOrchestratorInvalidator` / `ICacheInvalidationObserver` | `CacheOrchestrator.Invalidation` |
 | `IClusterCommandBus` / `IClusterMembership` / `IInstanceIdProvider` | `CacheOrchestrator.Cluster` |
 | `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.Bus` |
+| `AddCacheOrchestratorEfCoreInvalidation` / `[CacheEntity]` | `CacheOrchestrator.EFCore` |
 | `AddCacheOrchestrator` (health) | `CacheOrchestrator.Diagnostics` |
 | Admin App host (not NuGet) | `src/CacheOrchestrator.Admin` — [admin.md](admin.md) |
 

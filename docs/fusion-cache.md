@@ -67,21 +67,24 @@ Prefer an explicit domain overload for Fusion-only endpoints so this path is nev
 ### Entity / resource id (dynamic CRUD)
 
 ```csharp
-// Key includes resource id; tags: domain:product-detail + entity:product-detail:42
-var product = await cache.GetOrSetAsync(http, "product-detail", productId, async ct =>
+// Key includes kind + id; tags: domain:store + entity:store:products:42 + entitykind:store:products
+var product = await cache.GetOrSetEntityAsync(http, "store", "products", productId, async ct =>
     await LoadProductAsync(productId, ct), cancellationToken);
 
 // After admin update (same Version):
-await invalidator.InvalidateEntityAsync("product-detail", productId, cancellationToken);
+await invalidator.InvalidateEntityAsync("store", "products", productId, cancellationToken);
 ```
+
+A domain is a policy group. `entityKind` is required — ids are not unique inside a domain.
 
 See [domain-profiles.md](domain-profiles.md) and [invalidation.md](invalidation.md).
 
 | Scenario | What to do |
 |----------|------------|
-| `.CacheOutputWithDomain("x")` or `[CacheDomain("x")]` | `GetOrSetAsync(http, factory)` only |
+| `.CacheOutputWithDomain("x")` or `[CacheDomain("x")]` (list/snapshot) | `GetOrSetAsync(http, factory)` only |
 | Fusion only (no OC metadata) | `GetOrSetAsync(http, "x", factory)` or `EnsureDomainOptions` |
-| Single entity (CRUD) | `GetOrSetAsync(http, domain, resourceId, factory)` |
+| Single entity (CRUD) | `GetOrSetEntityAsync(http, domain, entityKind, resourceId, factory)` |
+| Entity when OC already set the domain | `GetOrSetEntityAsync(http, entityKind, resourceId, factory)` |
 | Custom middleware already called Ensure | `GetOrSetAsync(http, factory)` |
 
 ## When the factory runs uncached
@@ -96,9 +99,9 @@ See [domain-profiles.md](domain-profiles.md) and [invalidation.md](invalidation.
 
 `DefaultDomainKeyGenerator` builds a deterministic key (XxHash3):
 
-**With resource id** (set by `GetOrSetAsync(..., domain, resourceId, ...)` on `HttpContext.Items`):
+**With entity identity** (set by `GetOrSetEntityAsync` on `HttpContext.Items`):
 
-- `domain:versionHex:id:{resourceId}:{hash}` where hash covers id + optional encoding/host  
+- `domain:versionHex:id:{entityKind}:{resourceId}:{hash}` where hash covers kind + id + optional encoding/host  
 
 **Without resource id** (URL-shaped keys):
 

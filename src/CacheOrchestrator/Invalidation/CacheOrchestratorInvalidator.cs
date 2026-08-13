@@ -107,25 +107,114 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
     /// <inheritdoc />
     public ValueTask<CacheInvalidationResult> InvalidateEntityAsync(
         string domain,
+        string entityKind,
         string resourceId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(domain) || string.IsNullOrWhiteSpace(resourceId))
-            return ValueTask.FromResult(CacheInvalidationResult.Skipped("Domain or resourceId was null or whitespace."));
+        if (string.IsNullOrWhiteSpace(domain)
+            || string.IsNullOrWhiteSpace(entityKind)
+            || string.IsNullOrWhiteSpace(resourceId))
+        {
+            return ValueTask.FromResult(
+                CacheInvalidationResult.Skipped("Domain, entityKind, or resourceId was null or whitespace."));
+        }
 
         string normalizedDomain = DomainName.Normalize(domain);
+        string normalizedKind = DomainName.Normalize(entityKind);
         string normalizedResourceId = DomainName.NormalizeResourceId(resourceId);
         if (string.IsNullOrEmpty(normalizedResourceId))
             return ValueTask.FromResult(CacheInvalidationResult.Skipped("ResourceId normalized to empty."));
 
-        string tag = CacheTags.Entity(normalizedDomain, normalizedResourceId);
+        string tag = CacheTags.Entity(normalizedDomain, normalizedKind, normalizedResourceId);
         return InvalidateScopedAsync(
             kind: CacheInvalidationKind.Entity,
-            scopeLabel: $"{normalizedDomain}/{normalizedResourceId}",
+            scopeLabel: $"{normalizedDomain}/{normalizedKind}/{normalizedResourceId}",
             tags: [tag],
             fusionInstanceName: ResolveFusionInstance(normalizedDomain),
             allFusionInstances: false,
-            cancellationToken);
+            cancellationToken,
+            domain: normalizedDomain,
+            entityKind: normalizedKind,
+            entityId: normalizedResourceId,
+            resourceIds: [normalizedResourceId]);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<CacheInvalidationResult> InvalidateEntitiesAsync(
+        string domain,
+        string entityKind,
+        IEnumerable<string> resourceIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resourceIds);
+
+        if (string.IsNullOrWhiteSpace(domain) || string.IsNullOrWhiteSpace(entityKind))
+        {
+            return ValueTask.FromResult(
+                CacheInvalidationResult.Skipped("Domain or entityKind was null or whitespace."));
+        }
+
+        string normalizedDomain = DomainName.Normalize(domain);
+        string normalizedKind = DomainName.Normalize(entityKind);
+
+        List<string> ids = [];
+        HashSet<string> seen = new(StringComparer.Ordinal);
+        foreach (string? raw in resourceIds)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                continue;
+
+            string id = DomainName.NormalizeResourceId(raw);
+            if (id.Length == 0 || !seen.Add(id))
+                continue;
+
+            ids.Add(id);
+        }
+
+        if (ids.Count == 0)
+            return ValueTask.FromResult(CacheInvalidationResult.Skipped("No resourceIds provided."));
+
+        string[] tags = new string[ids.Count];
+        for (int i = 0; i < ids.Count; i++)
+            tags[i] = CacheTags.Entity(normalizedDomain, normalizedKind, ids[i]);
+
+        return InvalidateScopedAsync(
+            kind: CacheInvalidationKind.Entity,
+            scopeLabel: $"{normalizedDomain}/{normalizedKind}",
+            tags: tags,
+            fusionInstanceName: ResolveFusionInstance(normalizedDomain),
+            allFusionInstances: false,
+            cancellationToken,
+            domain: normalizedDomain,
+            entityKind: normalizedKind,
+            entityId: ids.Count == 1 ? ids[0] : null,
+            resourceIds: ids);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<CacheInvalidationResult> InvalidateEntityKindAsync(
+        string domain,
+        string entityKind,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(domain) || string.IsNullOrWhiteSpace(entityKind))
+        {
+            return ValueTask.FromResult(
+                CacheInvalidationResult.Skipped("Domain or entityKind was null or whitespace."));
+        }
+
+        string normalizedDomain = DomainName.Normalize(domain);
+        string normalizedKind = DomainName.Normalize(entityKind);
+        string tag = CacheTags.EntityKind(normalizedDomain, normalizedKind);
+        return InvalidateScopedAsync(
+            kind: CacheInvalidationKind.EntityKind,
+            scopeLabel: $"{normalizedDomain}/{normalizedKind}",
+            tags: [tag],
+            fusionInstanceName: ResolveFusionInstance(normalizedDomain),
+            allFusionInstances: false,
+            cancellationToken,
+            domain: normalizedDomain,
+            entityKind: normalizedKind);
     }
 
     /// <inheritdoc />
@@ -166,7 +255,11 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         IReadOnlyList<string> tags,
         string? fusionInstanceName,
         bool allFusionInstances,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? domain = null,
+        string? entityKind = null,
+        string? entityId = null,
+        IReadOnlyList<string>? resourceIds = null)
     {
         CacheInvalidationContext observerContext = new(kind, scopeLabel, tags);
 
@@ -260,7 +353,16 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         CacheInvalidationResult result = new(scopeLabel, tags, fusionOk, outputOk, errors);
         await NotifyAfterAsync(observerContext, result, cancellationToken).ConfigureAwait(false);
 
-        await TryPublishClusterAsync(kind, scopeLabel, tags, cancellationToken).ConfigureAwait(false);
+        await TryPublishClusterAsync(
+                kind,
+                scopeLabel,
+                tags,
+                domain,
+                entityKind,
+                entityId,
+                resourceIds,
+                cancellationToken)
+            .ConfigureAwait(false);
 
         return result;
     }
@@ -269,6 +371,10 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         CacheInvalidationKind kind,
         string scopeLabel,
         IReadOnlyList<string> tags,
+        string? domain,
+        string? entityKind,
+        string? entityId,
+        IReadOnlyList<string>? resourceIds,
         CancellationToken cancellationToken)
     {
         if (!_clusterBus.IsEnabled || ClusterCommandScope.SuppressPublish || tags.Count == 0)
@@ -277,24 +383,17 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         if (_clusterCommands is null)
             return;
 
-        string? domain = null;
-        string? entityId = null;
-
-        if (kind == CacheInvalidationKind.Domain)
-        {
+        if (kind == CacheInvalidationKind.Domain && string.IsNullOrEmpty(domain))
             domain = scopeLabel;
-        }
-        else if (kind == CacheInvalidationKind.Entity)
-        {
-            int slash = scopeLabel.IndexOf('/');
-            if (slash > 0)
-            {
-                domain = scopeLabel[..slash];
-                entityId = scopeLabel[(slash + 1)..];
-            }
-        }
 
-        InvalidateCommand command = _clusterCommands.CreateInvalidate(kind, scopeLabel, tags, domain, entityId);
+        InvalidateCommand command = _clusterCommands.CreateInvalidate(
+            kind,
+            scopeLabel,
+            tags,
+            domain,
+            entityKind,
+            entityId,
+            resourceIds);
 
         try
         {
@@ -325,7 +424,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             return;
         }
 
-        if (kind == CacheInvalidationKind.Entity)
+        if (kind is CacheInvalidationKind.Entity or CacheInvalidationKind.EntityKind)
         {
             int slash = scopeLabel.IndexOf('/');
             if (slash > 0)

@@ -428,6 +428,7 @@ public sealed class AdminFanOutService
         {
             Scope = request.Scope,
             Domain = request.Domain,
+            EntityKind = request.EntityKind,
             EntityId = request.EntityId,
             Tags = request.Tags,
             Distribute = plan.Distribute

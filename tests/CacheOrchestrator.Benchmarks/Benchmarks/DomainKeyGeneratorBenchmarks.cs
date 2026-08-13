@@ -55,6 +55,7 @@ public class DomainKeyGeneratorBenchmarks
         _varyHost = CreateHttp("/api/catalog", host: "cdn.example.com", scheme: "https");
 
         _resourceId = CreateHttp("/api/products/42");
+        _resourceId.Items[CacheOrchestratorKeys.EntityKindKey] = "products";
         _resourceId.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
 
         _routeEndpoint = CreateHttp("/api/products/42");
