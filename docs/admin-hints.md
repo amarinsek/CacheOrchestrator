@@ -38,13 +38,13 @@ Message   // human text (may include live numbers)
 
 `AdminHintSummaryDto` rolls up counts (`Info` / `Warning` / `Critical`) and exposes `MaxSeverity` for header chips.
 
-**Severity usage today**
+**Severity**
 
-| Severity | Typical meaning |
-|----------|-----------------|
-| `Critical` | Reserved for urgent cluster issues (few/no rules use it yet) |
-| `Warning` | Actionable performance / consistency concern |
-| `Info` | Config smell or metric interpretation tip |
+- **Critical** — the pipeline is failing (origin is at least half of requests, or the factory is mostly throwing).
+- **Warning** — something is wrong and worth fixing (high origin, factory errors, stale covering failures, forgotten hold, instance drift, hard TTL shorter than soft).
+- **Info** — operational note, not a fault (approaching a cutover, recent hold, runtime overlay, frequent invalidations).
+
+Layer hit rates (`Fc.HitRate`, `Oc.HitRate`) are **not** used for Warning. A Fusion layer rate of 0% with a low origin share is normal when Output Cache serves most traffic.
 
 ---
 
@@ -94,31 +94,37 @@ private static AdminHintDto Hint(string severity, string code, string message) =
 
 ## Catalogue of existing rules
 
-Constants: `MinTraffic = 20`. Thresholds below are as implemented (not config-driven today).
+Constants: `MinTraffic = 20`, `MinFactoryRuns = 10`, `HoldLingeringHours = 24`. Thresholds below are as implemented (not config-driven today).
 
-### Domain — `ForDomain` (needs `R >= MinTraffic` unless noted)
+### Domain — `ForDomain`
 
 | Code | Severity | Condition |
 |------|----------|-----------|
-| `low-fc-hit-rate` | Warning | `R >= 20` and `Fc.HitRate < 0.60` |
-| `low-oc-hit-rate` | Warning | `R >= 20` and `Oc.HitRate < 0.60` |
 | `high-origin-share` | Warning | `R >= 20` and `Fc.OriginShare >= 0.25` |
-| `elevated-stale` | Warning | `R >= 20` and `Fc.StaleShare >= 0.05` |
-| `very-high-oc-hit-long-ttl` | Info | `R >= 20` and `Oc.HitRate >= 0.98` and `config.OutputCacheTtlSeconds >= 3600` |
+| `critical-origin-share` | Critical | `R >= 20` and `Fc.OriginShare >= 0.50` |
+| `elevated-stale` | Warning | `R >= 20` and `Fc.StaleShare >= 0.10` |
+| `factory-failures` | Warning | `FactoryRuns >= 10` and `FactoryFailures / FactoryRuns >= 0.10` |
+| `critical-factory-failures` | Critical | `FactoryRuns >= 10` and `FactoryFailures / FactoryRuns >= 0.50` |
 | `frequent-invalidations` | Info | `R >= 20` and `Invalidations >= 10` and `Invalidations >= 0.05 * R` |
-| `client-ttl-gt-output` | Info | config: `ClientTtlSeconds > 0` and `OutputCacheTtlSeconds > 0` and `ClientTtlSeconds > 2 * OutputCacheTtlSeconds` |
-| `schedule-phase` | Info | config: `SchedulePhase` is `hold` or `approaching` |
-| `instance-oc-hit-spread` | Warning | `InstanceSpread.OcHitShare.SampleCount >= 2` and `Stdev >= 0.15` (no MinTraffic gate) |
+| `client-ttl-gt-output` | Info | no Client Cache Schedule, and `ClientTtlSeconds > 2 * OutputCacheTtlSeconds` |
+| `schedule-approaching` | Info | `SchedulePhase` is `approaching` (expected ramp toward the floor) |
+| `schedule-phase` | Info | `SchedulePhase` is `hold` and cutover was less than 24 h ago |
+| `schedule-hold-lingering` | Warning | `hold` and `ScheduledUpdateUtc` is at least 24 h in the past |
+| `schedule-flat` | Info | schedule is set and `ClientTtlMinSeconds >= ClientTtlSeconds` (cannot ramp) |
+| `runtime-override` | Info | Version or a TTL is a runtime overlay (lost on process restart) |
+| `fusion-hard-lt-soft` | Warning | `FusionCacheHardTtlSeconds > 0` and hard &lt; soft (hard wins) |
+| `instance-oc-hit-spread` | Warning | `InstanceSpread.OcHitShare.SampleCount >= 2` and `Stdev >= 0.15` |
 
-### Endpoint — `ForEndpoint` (needs `R >= MinTraffic`)
+### Endpoint — `ForEndpoint`
 
 | Code | Severity | Condition |
 |------|----------|-----------|
-| `low-fc-hit-rate` | Warning | `R >= 20` and `Fc.HitRate < 0.60` and `Fc.LayerSampleSize >= 10` |
 | `high-origin-share` | Warning | `R >= 20` and `Fc.OriginShare >= 0.25` |
-| `elevated-stale` | Warning | `R >= 20` and `Fc.Stale > 0` and `Fc.StaleShare >= 0.05` |
-| `fc-miss-rate-vs-oc-share` | Info | `R >= 20` and `Oc.HitShare >= 0.95` and `Fc.MissRate >= 0.99` and `0 < Fc.LayerSampleSize < LowSampleThreshold` |
-| `instance-origin-spread` | Warning | `R >= 20` and `InstanceSpread.OriginShare.SampleCount >= 2` and `Stdev >= 0.15` |
+| `critical-origin-share` | Critical | `R >= 20` and `Fc.OriginShare >= 0.50` |
+| `elevated-stale` | Warning | `R >= 20` and stale &gt; 0 and `Fc.StaleShare >= 0.10` |
+| `factory-failures` | Warning | `FactoryRuns >= 10` and failure rate ≥ 0.10 |
+| `critical-factory-failures` | Critical | `FactoryRuns >= 10` and failure rate ≥ 0.50 |
+| `instance-origin-spread` | Warning | `R >= 20` and origin-share stdev ≥ 0.15 across instances |
 
 Same `code` may appear on domain and endpoint with different messages; the Hints page dedupes by `Severity|Code|Message`.
 
@@ -154,22 +160,19 @@ if (domain.Requests >= MinTraffic)
 
 **UI:** Warning badge on domain rows; message on domain detail and Hints page.
 
-### 2. `low-fc-hit-rate` (endpoint)
+### 2. Healthy Output Cache must stay quiet
 
-**Intent:** Among Fusion layer traffic, hits are weak — TTL or key cardinality issues on this route.
+**Intent:** If origin is ~6% and Fusion layer hit rate is 0%, do **not** warn.
 
-**Condition:**
+That traffic never needed Fusion: Output Cache already answered. Warning on `Fc.HitRate` would train the operator to ignore badges.
 
-```text
-R >= 20
-and Fc.HitRate < 0.60
-and Fc.LayerSampleSize >= 10
+### 3. `schedule-approaching` (domain)
 
-where Fc.HitRate = hits / (hits + misses) on the FC layer
-  (not of all HTTP requests)
-```
+**Intent:** Approaching is working as designed. Mark it so the operator sees the ramp, without treating it as a fault.
 
-**Why extra sample gate:** Avoid noisy hints when almost all traffic was OC-hit and FC barely ran.
+**Condition:** `SchedulePhase` is `approaching` (from config or live domain stats).
+
+**Severity:** Info. After cutover, `hold` stays Info for 24 h, then becomes Warning (`schedule-hold-lingering`) if the next `ScheduledUpdateUtc` was never set.
 
 ---
 

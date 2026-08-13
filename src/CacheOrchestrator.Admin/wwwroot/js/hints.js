@@ -1,9 +1,8 @@
 /**
  * Recommendation-hint presentation and flattening.
  *
- * Live hints come from the Admin App / Local Admin aggregation
- * (`RecommendationHints` on the server). This module only renders and
- * collects them for the SPA — it does not evaluate rules.
+ * Live hints come from RecommendationHints on the Admin App.
+ * This module only renders them — it does not evaluate rules.
  */
 
 import { esc } from "./format.js";
@@ -42,17 +41,21 @@ export function hintBadges(hints) {
 /** Map rule codes to short row labels. Unknown codes use severity prefix. */
 export function shortHint(h) {
   const map = {
-    "low-fc-hit-rate": "FC↓",
-    "low-oc-hit-rate": "OC↓",
     "high-origin-share": "Origin↑",
+    "critical-origin-share": "Origin‼",
     "elevated-stale": "Stale",
-    "very-high-oc-hit-long-ttl": "TTL?",
     "frequent-invalidations": "Inv↑",
     "client-ttl-gt-output": "ClientTTL",
-    "schedule-phase": "Sched",
+    "schedule-phase": "Hold",
+    "schedule-approaching": "Ramp",
+    "schedule-hold-lingering": "Hold!",
+    "schedule-flat": "Flat",
+    "factory-failures": "Factory",
+    "critical-factory-failures": "Factory‼",
+    "runtime-override": "Overlay",
+    "fusion-hard-lt-soft": "TTL",
     "instance-oc-hit-spread": "Drift",
     "instance-origin-spread": "Drift",
-    "fc-miss-rate-vs-oc-share": "Rate≠share",
   };
   return map[h.code] || (h.severity || "Hint").slice(0, 4);
 }

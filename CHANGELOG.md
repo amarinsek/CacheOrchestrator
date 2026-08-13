@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Admin App hints: approaching schedule (Info), hold older than 24 h (Warning), factory failure rate, runtime overlay reminder, Fusion hard TTL shorter than soft, schedule that cannot ramp.
+
 ## [2.0.0] - 2026-08-13
 
 ### Breaking

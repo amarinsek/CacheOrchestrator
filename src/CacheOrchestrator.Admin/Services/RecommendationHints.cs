@@ -3,12 +3,36 @@ using CacheOrchestrator.Admin;
 namespace CacheOrchestrator.Admin.App.Services;
 
 /// <summary>
-/// Rule-based, read-only recommendations (plan §10). Informational labels on entities.
+/// Read-only operator hints. Warning and Critical mean something is wrong
+/// (too much origin traffic, factory throwing, fail-safe covering failures, forgotten hold, or instance drift).
+/// Info marks a temporary or special but expected state (approaching, recent hold, runtime overlay).
+/// Layer hit rates are not used: a 0% Fusion rate with a healthy origin share is normal
+/// when Output Cache absorbs most requests.
 /// </summary>
 public static class RecommendationHints
 {
-    /// <summary>Minimum requests before rate-based rules fire.</summary>
     public const long MinTraffic = 20;
+
+    /// <summary>Minimum factory runs before a failure-rate rule fires.</summary>
+    public const long MinFactoryRuns = 10;
+
+    /// <summary>Factory share of all requests that warrants a warning.</summary>
+    public const double OriginShareWarning = 0.25;
+
+    /// <summary>Factory share that dominates the pipeline.</summary>
+    public const double OriginShareCritical = 0.50;
+
+    /// <summary>Stale share of all requests that means fail-safe is covering repeated factory trouble.</summary>
+    public const double StaleShareWarning = 0.10;
+
+    /// <summary>FactoryFailures / FactoryRuns that warrants a warning.</summary>
+    public const double FactoryFailureWarning = 0.10;
+
+    /// <summary>FactoryFailures / FactoryRuns that means the origin is mostly failing.</summary>
+    public const double FactoryFailureCritical = 0.50;
+
+    /// <summary>Hold longer than this after ScheduledUpdateUtc is no longer a fresh cutover.</summary>
+    public const int HoldLingeringHours = 24;
 
     public static IReadOnlyList<AdminHintDto> ForDomain(
         AdminDomainStatsDto domain,
@@ -19,45 +43,23 @@ public static class RecommendationHints
 
         if (domain.Requests >= MinTraffic)
         {
-            if (domain.Fc.HitRate is double fcHr && fcHr < 0.60)
+            if (domain.Fc.OriginShare is double origin && origin >= OriginShareWarning)
             {
+                string severity = origin >= OriginShareCritical ? "Critical" : "Warning";
+                string code = origin >= OriginShareCritical ? "critical-origin-share" : "high-origin-share";
                 hints.Add(Hint(
-                    "Warning",
-                    "low-fc-hit-rate",
-                    $"FC layer hit rate {(fcHr * 100):0.#}% with {domain.Requests} requests — consider longer Fusion/Output TTL or fail-safe."));
+                    severity,
+                    code,
+                    $"Origin/factory is {(origin * 100):0.#}% of {domain.Requests} requests — " +
+                    "the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."));
             }
 
-            if (domain.Oc.HitRate is double ocHr && ocHr < 0.60)
-            {
-                hints.Add(Hint(
-                    "Warning",
-                    "low-oc-hit-rate",
-                    $"OC layer hit rate {(ocHr * 100):0.#}% — check Output TTL, auth bypass, or vary rules."));
-            }
-
-            if (domain.Fc.OriginShare is double origin && origin >= 0.25)
-            {
-                hints.Add(Hint(
-                    "Warning",
-                    "high-origin-share",
-                    $"Origin/factory share {(origin * 100):0.#}% of requests — short TTL or frequent misses; consider soft/hard TTL and eager refresh."));
-            }
-
-            if (domain.Fc.StaleShare is double stale && stale >= 0.05)
+            if (domain.Fc.StaleShare is double stale && stale >= StaleShareWarning)
             {
                 hints.Add(Hint(
                     "Warning",
                     "elevated-stale",
-                    $"Stale serves ~{(stale * 100):0.#}% of requests — factory failures or fail-safe in use; inspect factory timeouts."));
-            }
-
-            if (domain.Oc.HitRate is double hot && hot >= 0.98
-                && config?.OutputCacheTtlSeconds is int ot && ot >= 3600)
-            {
-                hints.Add(Hint(
-                    "Info",
-                    "very-high-oc-hit-long-ttl",
-                    $"OC hit rate {(hot * 100):0.#}% with Output TTL {ot}s — consider shorter TTL if fresher data is needed."));
+                    $"Stale serves {(stale * 100):0.#}% of requests — fail-safe is covering factory failures. Inspect timeouts and origin health."));
             }
 
             if (domain.Invalidations >= 10
@@ -67,30 +69,60 @@ public static class RecommendationHints
                 hints.Add(Hint(
                     "Info",
                     "frequent-invalidations",
-                    $"{domain.Invalidations} invalidations vs {domain.Requests} requests — entity-level invalidation / dynamic profile may fit better than domain-wide version bumps."));
+                    $"{domain.Invalidations} invalidations vs {domain.Requests} requests — " +
+                    "entity-level invalidation may fit better than domain-wide Version bumps."));
             }
         }
 
+        AddFactoryFailureHints(hints, domain.Fc, config);
+
+        string? phase = ResolvePhase(domain.SchedulePhase, config?.SchedulePhase);
+        bool hasSchedule = config?.ScheduledUpdateUtc is not null || phase is not null;
+
+        AddScheduleHints(hints, phase, config);
+
         if (config is not null)
         {
-            if (config.ClientTtlSeconds > 0
+            if (!hasSchedule
+                && config.ClientTtlSeconds > 0
                 && config.OutputCacheTtlSeconds > 0
                 && config.ClientTtlSeconds > config.OutputCacheTtlSeconds * 2)
             {
                 hints.Add(Hint(
                     "Info",
                     "client-ttl-gt-output",
-                    $"Client TTL ({config.ClientTtlSeconds}s) ≫ Output TTL ({config.OutputCacheTtlSeconds}s) — align the ratio to avoid stale browser cache."));
+                    $"Client TTL ({config.ClientTtlSeconds}s) is much larger than Output TTL ({config.OutputCacheTtlSeconds}s) — " +
+                    "browsers can stay stale after the server cache expires. Use a schedule or align the TTLs."));
             }
 
-            if (string.Equals(config.SchedulePhase, "hold", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(config.SchedulePhase, "approaching", StringComparison.OrdinalIgnoreCase))
+            if (hasSchedule
+                && config.ClientTtlSeconds > 0
+                && config.ClientTtlMinSeconds >= config.ClientTtlSeconds)
             {
                 hints.Add(Hint(
                     "Info",
-                    "schedule-phase",
-                    $"Client Cache Schedule phase is '{config.SchedulePhase}' — verify ScheduledUpdateUtc is still correct."));
+                    "schedule-flat",
+                    $"Client min TTL ({config.ClientTtlMinSeconds}s) is not below max ({config.ClientTtlSeconds}s) — " +
+                    "the schedule cannot ramp. Lower ClientTtlMinSeconds or raise ClientTtlSeconds."));
             }
+
+            if (config.FusionCacheHardTtlSeconds > 0
+                && config.FusionCacheSoftTtlSeconds > config.FusionCacheHardTtlSeconds)
+            {
+                hints.Add(Hint(
+                    "Warning",
+                    "fusion-hard-lt-soft",
+                    $"Fusion hard TTL ({config.FusionCacheHardTtlSeconds}s) is shorter than soft ({config.FusionCacheSoftTtlSeconds}s) — " +
+                    "hard wins. Raise hard or lower soft."));
+            }
+        }
+
+        if (HasRuntimeOverlay(domain, config))
+        {
+            hints.Add(Hint(
+                "Info",
+                "runtime-override",
+                "A runtime overlay is in effect (Version and/or TTLs) — persist it in configuration if it should survive process restart."));
         }
 
         if (domain.InstanceSpread?.OcHitShare is { SampleCount: >= 2, Stdev: double sd }
@@ -99,7 +131,7 @@ public static class RecommendationHints
             hints.Add(Hint(
                 "Warning",
                 "instance-oc-hit-spread",
-                $"OC hit share varies across instances (stdev {(sd * 100):0.#}%) — check L1 consistency / uneven traffic."));
+                $"OC hit share varies across instances (stdev {(sd * 100):0.#}%) — InMemory OC is not shared, or traffic is uneven."));
         }
 
         return hints;
@@ -112,38 +144,22 @@ public static class RecommendationHints
 
         if (ep.Requests >= MinTraffic)
         {
-            if (ep.Fc.HitRate is double fcHr && fcHr < 0.60 && (ep.Fc.LayerSampleSize >= MinTraffic / 2))
+            if (ep.Fc.OriginShare is double origin && origin >= OriginShareWarning)
             {
+                string severity = origin >= OriginShareCritical ? "Critical" : "Warning";
+                string code = origin >= OriginShareCritical ? "critical-origin-share" : "high-origin-share";
                 hints.Add(Hint(
-                    "Warning",
-                    "low-fc-hit-rate",
-                    $"FC layer hit rate {(fcHr * 100):0.#}% on this route — review Fusion TTL or key cardinality."));
+                    severity,
+                    code,
+                    $"Origin is {(origin * 100):0.#}% of requests on this route — factory runs too often."));
             }
 
-            if (ep.Fc.OriginShare is double origin && origin >= 0.25)
-            {
-                hints.Add(Hint(
-                    "Warning",
-                    "high-origin-share",
-                    $"Origin share {(origin * 100):0.#}% — factory runs often; consider longer soft TTL or eager refresh."));
-            }
-
-            if (ep.Fc.Stale > 0 && ep.Fc.StaleShare is double ss && ss >= 0.05)
+            if (ep.Fc.Stale > 0 && ep.Fc.StaleShare is double ss && ss >= StaleShareWarning)
             {
                 hints.Add(Hint(
                     "Warning",
                     "elevated-stale",
-                    $"Stale share {(ss * 100):0.#}% — fail-safe serving after factory issues."));
-            }
-
-            if (ep.Oc.HitShare is double ocHit && ocHit >= 0.95
-                && ep.Fc.MissRate is double fmr && fmr >= 0.99
-                && ep.Fc.LayerSampleSize is > 0 and < AdminStatsMath.LowSampleThreshold)
-            {
-                hints.Add(Hint(
-                    "Info",
-                    "fc-miss-rate-vs-oc-share",
-                    "FC miss rate looks high only on rare OC misses — prefer Origin/FC miss share of requests, not layer miss rate alone."));
+                    $"Stale share {(ss * 100):0.#}% — fail-safe after factory issues."));
             }
 
             if (ep.InstanceSpread?.OriginShare is { SampleCount: >= 2, Stdev: double sd } && sd >= 0.15)
@@ -155,7 +171,111 @@ public static class RecommendationHints
             }
         }
 
+        AddFactoryFailureHints(hints, ep.Fc, config: null);
+
         return hints;
+    }
+
+    private static void AddFactoryFailureHints(
+        List<AdminHintDto> hints,
+        AdminFusionLayerDto fc,
+        AdminDomainConfigDto? config)
+    {
+        if (fc.FactoryRuns < MinFactoryRuns || fc.FactoryFailures <= 0)
+            return;
+
+        double failRate = (double)fc.FactoryFailures / fc.FactoryRuns;
+        if (failRate < FactoryFailureWarning)
+            return;
+
+        bool failSafeOff = config is { FusionCacheFailSafeSeconds: <= 0 };
+        string failSafeNote = failSafeOff
+            ? " Fail-safe is off, so these misses are not covered by stale."
+            : " Inspect origin errors; fail-safe may be covering them as stale.";
+
+        if (failRate >= FactoryFailureCritical)
+        {
+            hints.Add(Hint(
+                "Critical",
+                "critical-factory-failures",
+                $"Factory failed {(failRate * 100):0.#}% of {fc.FactoryRuns} runs.{failSafeNote}"));
+        }
+        else
+        {
+            hints.Add(Hint(
+                "Warning",
+                "factory-failures",
+                $"Factory failed {(failRate * 100):0.#}% of {fc.FactoryRuns} runs.{failSafeNote}"));
+        }
+    }
+
+    private static void AddScheduleHints(
+        List<AdminHintDto> hints,
+        string? phase,
+        AdminDomainConfigDto? config)
+    {
+        if (string.Equals(phase, "approaching", StringComparison.OrdinalIgnoreCase))
+        {
+            hints.Add(Hint(
+                "Info",
+                "schedule-approaching",
+                "Client Cache Schedule is approaching the cutover — client max-age is ramping down. This is expected."));
+            return;
+        }
+
+        if (!string.Equals(phase, "hold", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (config?.ScheduledUpdateUtc is DateTimeOffset scheduled
+            && DateTimeOffset.UtcNow - scheduled >= TimeSpan.FromHours(HoldLingeringHours))
+        {
+            hints.Add(Hint(
+                "Warning",
+                "schedule-hold-lingering",
+                $"Client Cache Schedule has been in hold since {scheduled:u} — " +
+                "set the next ScheduledUpdateUtc or clear the schedule so clients can return to a long max-age."));
+            return;
+        }
+
+        hints.Add(Hint(
+            "Info",
+            "schedule-phase",
+            "Client Cache Schedule is in hold — set the next ScheduledUpdateUtc when the cutover is done."));
+    }
+
+    private static string? ResolvePhase(string? domainPhase, string? configPhase)
+    {
+        string? phase = FirstNonEmpty(configPhase, domainPhase);
+        if (string.IsNullOrEmpty(phase)
+            || string.Equals(phase, "n/a", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return phase;
+    }
+
+    private static string? FirstNonEmpty(string? a, string? b) =>
+        !string.IsNullOrEmpty(a) ? a : !string.IsNullOrEmpty(b) ? b : null;
+
+    private static bool HasRuntimeOverlay(AdminDomainStatsDto domain, AdminDomainConfigDto? config)
+    {
+        if (domain.VersionIsRuntimeOverride)
+            return true;
+        if (config is null)
+            return false;
+        if (config.VersionIsRuntimeOverride)
+            return true;
+
+        AdminRuntimeOverrideFlagsDto? flags = config.RuntimeOverrides;
+        return flags is not null
+            && (flags.Version
+                || flags.OutputCacheTtl
+                || flags.FusionCacheSoftTtl
+                || flags.FusionCacheHardTtl
+                || flags.FusionCacheFailSafe
+                || flags.ClientTtl
+                || flags.ClientTtlMin);
     }
 
     public static AdminDomainStatsDto WithHints(
@@ -197,7 +317,6 @@ public static class RecommendationHints
             Hints = ForEndpoint(ep)
         };
 
-    /// <summary>Aggregate hint counts from a flat list.</summary>
     public static AdminHintSummaryDto Summarize(IEnumerable<AdminHintDto> hints)
     {
         int info = 0, warning = 0, critical = 0;
@@ -225,7 +344,6 @@ public static class RecommendationHints
         };
     }
 
-    /// <summary>Collect all domain + nested endpoint hints (dedupe by code+message).</summary>
     public static IReadOnlyList<AdminHintDto> CollectFromStats(
         IReadOnlyList<AdminDomainStatsDto> domains,
         IReadOnlyList<AdminEndpointStatsDto>? endpoints = null)
