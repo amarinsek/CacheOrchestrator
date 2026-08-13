@@ -74,7 +74,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `ICacheOrchestratorInvalidator` / `ICacheInvalidationObserver` / `CacheInvalidationResult` | `CacheOrchestrator.Invalidation` |
 | `CacheTags` | `CacheOrchestrator.Configuration` |
 | Health: `AddCacheOrchestrator` on `IHealthChecksBuilder` | `CacheOrchestrator.Diagnostics` |
-| `MapCacheOrchestratorAdmin` / Local Admin API | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Admin` |
+| `MapCacheOrchestratorAdmin` / Admin API | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Admin` |
 | `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.Bus` |
 | `AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation` / `[CacheEntity]` | `CacheOrchestrator.EFCore` |
 | `IClusterCommandBus` / `IClusterMembership` / `IInstanceIdProvider` | `CacheOrchestrator.Cluster` |
@@ -118,7 +118,7 @@ src/CacheOrchestrator/          core (InMemory only; no Redis/Bus packages)
   Invalidation/      tag purge
   Cluster/           Null bus/membership, InstanceId, command handler (HTTP in Bus package)
   Diagnostics/       metrics, activities, health
-  Admin/             Local Admin API (feature-flagged; stats, invalidate, version/TTL overlay)
+  Admin/             Admin API (feature-flagged; stats, invalidate, version/TTL overlay)
   DependencyInjection/ AddCacheOrchestrator, MapCacheOrchestratorAdmin, ICacheOrchestratorBuilder
   Utilities/
 src/CacheOrchestrator.Redis/    Redis package: registrar, RedisConnectionOptions, config resolve, validation

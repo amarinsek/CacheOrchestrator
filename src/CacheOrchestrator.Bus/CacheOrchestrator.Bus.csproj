@@ -5,7 +5,7 @@
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
 		<PackageId>CacheOrchestrator.Bus</PackageId>
-		<Description>Optional HTTP cluster command bus for CacheOrchestrator: multi-instance invalidation fan-out with Static membership (ServiceDiscovery later).</Description>
+		<Description>HTTP cluster command bus for CacheOrchestrator: invalidate, Version, and TTL commands across instances (Static or ServiceDiscovery membership).</Description>
 		<PackageTags>cache;caching;cluster;bus;invalidation;cacheorchestrator;aspnetcore</PackageTags>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>logo-small.png</PackageIcon>

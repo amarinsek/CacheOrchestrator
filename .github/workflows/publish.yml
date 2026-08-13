@@ -80,6 +80,8 @@ jobs:
         # Create the GitHub Release from the version tag (e.g. v1.0.0).
         dotnet pack src/CacheOrchestrator/CacheOrchestrator.csproj --configuration Release --output ./nupkg
         dotnet pack src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj --configuration Release --output ./nupkg
+        dotnet pack src/CacheOrchestrator.Bus/CacheOrchestrator.Bus.csproj --configuration Release --output ./nupkg
+        dotnet pack src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj --configuration Release --output ./nupkg
         ls -la ./nupkg
         echo "Packed with MinVer-derived version (see nupkg file names)."
 

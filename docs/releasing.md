@@ -32,8 +32,10 @@ dotnet build src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -v:m
 | Surface | File |
 |---------|------|
 | GitHub (full story, logo) | Root [README.md](../README.md) |
-| NuGet `CacheOrchestrator` | [src/CacheOrchestrator/README.md](../src/CacheOrchestrator/README.md) — short + links to GitHub |
-| NuGet `CacheOrchestrator.Redis` | [src/CacheOrchestrator.Redis/README.md](../src/CacheOrchestrator.Redis/README.md) — Redis-specific + links to GitHub |
+| NuGet `CacheOrchestrator` | [src/CacheOrchestrator/README.md](../src/CacheOrchestrator/README.md) |
+| NuGet `CacheOrchestrator.Redis` | [src/CacheOrchestrator.Redis/README.md](../src/CacheOrchestrator.Redis/README.md) |
+| NuGet `CacheOrchestrator.Bus` | [src/CacheOrchestrator.Bus/README.md](../src/CacheOrchestrator.Bus/README.md) |
+| NuGet `CacheOrchestrator.EFCore.Invalidation` | [src/CacheOrchestrator.EFCore.Invalidation/README.md](../src/CacheOrchestrator.EFCore.Invalidation/README.md) |
 
 Do **not** pack the root README into the core package (HTML/logo does not render well on nuget.org).
 
@@ -55,7 +57,7 @@ Do **not** pack the root README into the core package (HTML/logo does not render
    - `dotnet pack` → `.nupkg` + `.snupkg`
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)
 
-6. Confirm nuget.org for both packages; optionally **unlist** old pre-release versions.
+6. Confirm nuget.org for **CacheOrchestrator**, **.Redis**, **.Bus**, and **.EFCore.Invalidation**; optionally **unlist** old pre-release versions.
 
 ### NuGet Trusted Publishing
 
@@ -73,4 +75,6 @@ Not enabled in CI. See historical notes: sign locally with `dotnet nuget sign` i
 ```bash
 dotnet pack src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -o ./nupkg
 dotnet pack src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj -c Release -o ./nupkg
+dotnet pack src/CacheOrchestrator.Bus/CacheOrchestrator.Bus.csproj -c Release -o ./nupkg
+dotnet pack src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj -c Release -o ./nupkg
 ```

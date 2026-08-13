@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-08-13
+
 ### Breaking
 
 - Entity identity is now `(domain, entityKind, resourceId)`. A domain is a cache **policy** group and does not uniquely identify a row.
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Entity tags are `entity:{domain}:{entityKind}:{resourceId}` (was `entity:{domain}:{resourceId}`). Kind-wide tag: `entitykind:{domain}:{entityKind}`.
   - Fusion resource keys include `entityKind`: `{domain}:{versionHex}:id:{entityKind}:{resourceId}:{hash}`.
   - `CacheOutputWithDomain` / `[CacheDomain]` require `entityKind` when `resourceRouteKey` is set.
-  - Local Admin `scope=entity` requires `entityKind`. New `scope=entityKind` purges the kind tag.
+  - Admin API `scope=entity` requires `entityKind`. New `scope=entityKind` purges the kind tag.
   - In-flight 1.0.0 entity entries are not evicted by the new APIs; they expire by TTL, or purge the domain / bump Version on deploy. Upgrade all cluster nodes together before relying on entity Bus commands.
 
 ### Added
@@ -31,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Admin `distribute` flag on invalidate / version / TTL; programmatic invalidator publishes when bus enabled
   - **Admin App**: auto bus-distribute vs HTTP fan-out; Operations UI shows distribution mode; `GET /api/distribution`
   - Metrics: `cache_orchestrator.cluster.commands_*` / `publish_failures` / `command_dedupe_hits`
-- **Local Admin API** (core package, opt-in) — process-local HTTP surface under `/cache-admin/local` via `MapCacheOrchestratorAdmin()` when `Cache:Admin:Enabled` is true
+- **Admin API** (core package, opt-in) — process-local HTTP surface under `/cache-admin/local` via `MapCacheOrchestratorAdmin()` when `Cache:Admin:Enabled` is true
   - Live stats (domains / endpoints) with **request shares** and layer rates, discovered routes, domain config snapshot
   - Health probe: instance id, process start / uptime, lifetime request sum
   - Write ops: domain / entity invalidation, runtime **Version** and **TTL** overlays (process-local)
@@ -40,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aggregate overview (cluster pipeline, OC hit / origin shares, alerts, `N/M` instance health)
   - Multi-page SPA (hash routes): Overview, Instances, Domains, Endpoints, Hints, Operations
   - Filters / search / sort; Overview **top 5** domains and endpoints ranked over the **full** aggregated sets
-  - Instance health columns (status, Req, uptime, latency) from Local Admin `/health`
+  - Instance health columns (status, Req, uptime, latency) from Admin API `/health`
   - Rule-based **recommendation hints** in the Admin App (`RecommendationHints`); UI badges and Hints page
   - Modular static UI (`wwwroot/js/*` ES modules); Scalar OpenAPI in Development
 
@@ -57,10 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- Polished the main **README.md**, sample docs, and fixed minor typos
-- **Deployment.md** — multi-instance topologies; shared configuration across instances (`appsettings.cache.json` / ConfigMap pattern; do not hand-edit per machine)
+- Rewrote **README** files (GitHub, NuGet packages, samples, Admin App) and **docs/**: shorter classical tone, purpose-first openings, Install / Register / Configure split, Admin API naming, hand-rolled vs CacheOrchestrator [comparison](docs/comparison.md)
+- **Deployment.md** — multi-instance topologies; shared configuration across instances (`appsettings.cache.json` / ConfigMap pattern)
 - **Invalidation.md** — multi-instance behaviour (local vs Redis backplane vs **CacheOrchestrator.Bus**); Version cutover via shared config
-- **Admin** — [docs/admin.md](docs/admin.md) (Local Admin + Admin App architecture), [docs/admin-hints.md](docs/admin-hints.md) (hint rules / how to add), `src/CacheOrchestrator.Admin/README.md`
+- **Admin** — [docs/admin.md](docs/admin.md) (Admin API + Admin App), [docs/admin-hints.md](docs/admin-hints.md)
 
 ## [1.0.0] - 2026-08-08
 
@@ -85,5 +87,6 @@ First stable release.
 - **Quality** — unit tests (net8 + net10), integration tests (net10 + Testcontainers Redis), Minimal sample CI smoke, SourceLink + snupkg, MinVer (`v*` tags), custom-backend E2E, config-reload snapshot tests, Fusion fail-safe STALE integration tests
 
 
-[Unreleased]: https://github.com/amarinsek/CacheOrchestrator/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/amarinsek/CacheOrchestrator/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/amarinsek/CacheOrchestrator/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/amarinsek/CacheOrchestrator/releases/tag/v1.0.0

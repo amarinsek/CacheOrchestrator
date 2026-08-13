@@ -1,11 +1,9 @@
-CacheOrchestrator 2.0.0 — breaking: entity identity requires entityKind.
+CacheOrchestrator 2.0.0
 
-A domain is a cache policy group. Row identity is (domain, entityKind, resourceId).
+Breaking: entity identity is (domain, entityKind, resourceId). Use GetOrSetEntityAsync and InvalidateEntityAsync(domain, entityKind, id). Tags are entity:{domain}:{entityKind}:{id}.
 
-- GetOrSetEntityAsync + InvalidateEntityAsync(domain, entityKind, id)
-- Tags: entity:{domain}:{entityKind}:{id} and entitykind:{domain}:{entityKind}
-- CacheOutputWithDomain(..., resourceRouteKey, entityKind)
+New packages: CacheOrchestrator.Bus (HTTP command bus) and CacheOrchestrator.EFCore.Invalidation (purge after SaveChanges).
 
-Migrate call sites; old entity entries expire by TTL or InvalidateDomainAsync / Version bump.
+Also: Admin API (opt-in, MapCacheOrchestratorAdmin), Output Cache auth-bypass header fix, integration tests on net8 and net10, rewritten README and docs.
 
 Full notes: https://github.com/amarinsek/CacheOrchestrator/blob/main/CHANGELOG.md

@@ -22,7 +22,7 @@
     <!--
       NuGet "Release Notes" tab: content is read from PACKAGE_RELEASE_NOTES.md
       (repo root, next to this file). Update that file before each release — see CONTRIBUTING.md.
-      Both CacheOrchestrator and CacheOrchestrator.Redis inherit the same notes.
+      All packable library projects inherit the same notes.
     -->
     <PackageReleaseNotes>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)PACKAGE_RELEASE_NOTES.md').Trim())</PackageReleaseNotes>
 

@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>CacheOrchestrator.Admin.App</RootNamespace>
     <AssemblyName>CacheOrchestrator.Admin</AssemblyName>
-    <Description>CacheOrchestrator Admin App — multi-instance fan-out UI and orchestration API for Local Admin endpoints.</Description>
+    <Description>CacheOrchestrator Admin App — multi-instance fan-out UI over the Admin API on each application instance.</Description>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 

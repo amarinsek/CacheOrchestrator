@@ -5,7 +5,7 @@
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
 		<PackageId>CacheOrchestrator.EFCore.Invalidation</PackageId>
-		<Description>EF Core SaveChanges invalidation for CacheOrchestrator: map CLR types to (domain, entityKind) and purge entity tags after a successful save. Not an EF cache provider.</Description>
+		<Description>EF Core SaveChanges hook for CacheOrchestrator: map CLR types to (domain, entityKind) and purge entity tags after a successful save.</Description>
 		<PackageTags>cache;caching;efcore;entityframework;invalidation;cacheorchestrator;aspnetcore</PackageTags>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>logo-small.png</PackageIcon>
