@@ -1,15 +1,8 @@
 # Cluster command bus (`CacheOrchestrator.Bus`)
 
-Optional **multi-instance command distribution** for CacheOrchestrator: invalidate (and runtime Version/TTL overlays) on peers without carrying cache payloads.
+When several instances must apply the same invalidate, Version, or TTL change, this package delivers those **commands** over HTTP. It does not move cache payloads. Peers run the same local purge or overlay they would have run if the call had been made on that process.
 
-| | |
-|--|--|
-| **Package** | `CacheOrchestrator.Bus` (NuGet) |
-| **Core without package** | Null bus — **zero effect** on the hot path |
-| **Does not replace** | Redis Fusion L2 + backplane for shared data / L1 coherence |
-
-Short package readme: [src/CacheOrchestrator.Bus/README.md](../src/CacheOrchestrator.Bus/README.md).  
-Related: [invalidation.md](invalidation.md) · [deployment.md](deployment.md) · [admin.md](admin.md) · [configuration.md](configuration.md).
+Package README: [src/CacheOrchestrator.Bus/README.md](../src/CacheOrchestrator.Bus/README.md). See also [invalidation.md](invalidation.md), [deployment.md](deployment.md), [admin.md](admin.md), [configuration.md](configuration.md).
 
 ---
 
@@ -36,12 +29,14 @@ Origin: Invalidate* / Admin distribute
 
 ---
 
-## Install and register
+## Install
 
 ```bash
 dotnet add package CacheOrchestrator
 dotnet add package CacheOrchestrator.Bus
 ```
+
+## Register
 
 ```csharp
 using CacheOrchestrator.DependencyInjection;
@@ -49,15 +44,16 @@ using CacheOrchestrator.Bus;
 
 builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 {
-    o.AddHttpClusterBus();   // optional; same builder callback as AddRedisBackend()
+    o.AddHttpClusterBus();
 });
 
 var app = builder.Build();
 app.UseRouting();
 app.UseCacheOrchestrator();
-app.MapCacheOrchestratorHttpBus(); // receive endpoints — independent of Admin
-// app.MapCacheOrchestratorAdmin(); // optional Local Admin
+app.MapCacheOrchestratorHttpBus();
 ```
+
+Receive endpoints are independent of the Admin API. Call `AddHttpClusterBus()` inside the `AddCacheOrchestrator` builder callback so it registers before the core Null defaults.
 
 | API | Assembly / namespace |
 |-----|----------------------|
@@ -127,7 +123,7 @@ Root identity and bus options live under **`Cache`**:
 ### `Cache:InstanceId`
 
 Single process identity for Admin, bus anti-echo, and diagnostics.  
-When empty → machine name. **Not** under `Admin` (removed).
+When empty, the machine name is used. Process identity lives at `Cache:InstanceId`.
 
 ### `Cache:Namespace`
 
@@ -214,7 +210,7 @@ Base path = `Cache:Admin:RoutePrefix` (default `/cache-admin/local`), **even if 
 
 ### Auth
 
-Header **`X-Cache-Admin-Key`** (same as Local Admin):
+Header **`X-Cache-Admin-Key`** (same as Admin API):
 
 1. `Cache:Cluster:Bus:ApiKey` if set  
 2. Else `Cache:Admin:ApiKey`  
@@ -294,7 +290,7 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 - [ ] Set `Cluster:Bus:ApiKey` or `Admin:ApiKey` outside local dev  
 - [ ] Restrict peer HTTP to private networks / mesh  
 - [ ] Treat apply endpoints as admin-level (can purge cache)  
-- [ ] Do not expose Local Admin / cluster routes on the public internet without auth  
+- [ ] Do not expose Admin API / cluster routes on the public internet without auth  
 
 ---
 
@@ -302,7 +298,7 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 
 - [invalidation.md](invalidation.md) — multi-instance strategies  
 - [deployment.md](deployment.md) — topologies  
-- [admin.md](admin.md) — Local Admin + Admin App  
+- [admin.md](admin.md) — Admin API + Admin App  
 - [configuration.md](configuration.md) — options tables  
 - [backends.md](backends.md) — Redis package  
 - [architecture.md](architecture.md) — layout  

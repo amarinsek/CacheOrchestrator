@@ -1,8 +1,6 @@
 # Admin recommendation hints
 
-How **rule-based hints** are defined, evaluated, and shown in the Admin App.
-
-Hints are **read-only recommendations** derived from live cache counters and (for some rules) domain config. They do not change runtime cache behaviour.
+How the Admin App turns live counters (and, for some rules, domain config) into **read-only recommendations**. Hints leave cache behaviour unchanged. This page is for adding or changing a rule.
 
 ---
 
@@ -11,7 +9,7 @@ Hints are **read-only recommendations** derived from live cache counters and (fo
 | Layer | Location | Role |
 |-------|----------|------|
 | **Rule engine** | `src/CacheOrchestrator.Admin/Services/RecommendationHints.cs` | All conditions and messages |
-| **DTO shape** | `src/CacheOrchestrator/Admin/AdminDtos.cs` → `AdminHintDto`, `AdminHintSummaryDto` | Wire format shared with Local Admin types |
+| **DTO shape** | `src/CacheOrchestrator/Admin/AdminDtos.cs` → `AdminHintDto`, `AdminHintSummaryDto` | Wire format shared with Admin API types |
 | **Attachment** | `AdminFanOutService` (after stats aggregation) | Calls `WithHints` on domain/endpoint rows |
 | **Share / rate math** | `src/CacheOrchestrator/Admin/AdminStatsMath.cs` | `HitRate`, `HitShare`, `OriginShare`, `StaleShare`, … |
 | **UI** | `src/CacheOrchestrator.Admin/wwwroot/js/hints.js` | Badges, severity stack, Hints page flatten — **no rules** |
@@ -19,7 +17,7 @@ Hints are **read-only recommendations** derived from live cache counters and (fo
 Flow:
 
 ```
-Local Admin /stats  →  fan-out aggregate (StatsAggregator)
+Admin API /stats  →  fan-out aggregate (StatsAggregator)
                     →  RecommendationHints.WithHints(domain, config?)
                     →  entity.Hints[] + cluster HintSummary
                     →  SPA (badges / Hints page)
@@ -233,7 +231,7 @@ Without this, the badge falls back to the first characters of severity.
 2. Confirm badge + detail list + Hints page row.  
 3. Unit-test style (optional): pure static methods — feed a fabricated `AdminDomainStatsDto` into `ForDomain` and assert `Code` / `Severity`.
 
-No SPA rule logic and no Local Admin changes are required unless you need new counters not already on the stats DTO.
+No SPA rule logic and no Admin API changes are required unless you need new counters not already on the stats DTO.
 
 ---
 

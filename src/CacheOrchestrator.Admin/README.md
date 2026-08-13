@@ -2,31 +2,13 @@
 
 ![Admin App overview](../../docs/assets/admin-overview.png)
 
-Separate **Admin App** that fans out to **Local Admin** APIs on your application instances.
+An operator host for CacheOrchestrator. You get one place to see hit rates, domain settings, and health across instances, and to invalidate or adjust Version and TTL without opening each process.
 
-It does **not** sit on the caching hot path. Instances remain independent; this app only aggregates HTTP results and hosts a lightweight SPA.
+The **Admin API** on the application (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`) is what this host calls. This project is the UI and the fan-out. It targets **.NET 10**; the applications themselves may be .NET 8 or .NET 10.
 
-| Item | Path |
-|------|------|
-| Project | `src/CacheOrchestrator.Admin` (**net10.0**; not a NuGet package) |
-| UI | `wwwroot/` — ES modules under `wwwroot/js/` |
-| Full docs | [docs/admin.md](../../docs/admin.md) · [docs/admin-hints.md](../../docs/admin-hints.md) |
-| Local Admin (in core library) | Ships with NuGet **CacheOrchestrator** — enable per app |
+Full guide: [docs/admin.md](../../docs/admin.md). Hint rules: [docs/admin-hints.md](../../docs/admin-hints.md).
 
-## Security (short)
-
-| Trust boundary | Today |
-|----------------|--------|
-| Admin App → each app’s Local Admin | Shared secret header **`X-Cache-Admin-Key`** (`CacheAdmin:ApiKey` must match `Cache:Admin:ApiKey`) |
-| Browser → Admin App (`/` and `/api/*`) | **No built-in login** — treat as internal; put VPN / SSO reverse-proxy in front in production |
-
-- Sample key `dev-admin-key` is for **local development only**.  
-- Empty API key on an enabled Local Admin leaves that instance’s admin routes **open** (dev warning in logs).  
-- Operations (invalidate / version / TTL) **mutate** live cache state.
-
-**Production:** strong secrets from a secret store, private network for Local Admin, TLS, and access control for humans on this host. Details and checklist: **[docs/admin.md — Security](../../docs/admin.md#security)**.
-
-## Prerequisites (each target app)
+## Enable the Admin API on each instance
 
 ```json
 "Cache": {
@@ -40,21 +22,9 @@ It does **not** sit on the caching hot path. Instances remain independent; this 
 
 ```csharp
 app.MapCacheOrchestratorAdmin();
-// Optional multi-instance command bus receive (independent of Admin):
-// app.MapCacheOrchestratorHttpBus();
 ```
 
-| Setting | Notes |
-|---------|--------|
-| `Cache:InstanceId` | Process id in health/UI (not under `Admin`) |
-| `Cache:Admin:Enabled` | Local Admin **off by default** |
-| `Cache:Admin:ApiKey` | Must match Admin App `CacheAdmin:ApiKey` |
-
-Target apps may be **net8 or net10**; this Admin App host is **net10**.
-
-## Configure instances
-
-`appsettings.json` → `CacheAdmin`:
+## Configure this host
 
 ```json
 {
@@ -71,16 +41,11 @@ Target apps may be **net8 or net10**; this Admin App host is **net10**.
 }
 ```
 
-| Option | Meaning |
-|--------|---------|
-| `ApiKey` | Shared secret sent to Local Admin (`X-Cache-Admin-Key`) |
-| `RequestTimeoutMs` | Per-instance HTTP timeout |
-| `Parallelism` | Max concurrent fan-out calls |
-| `LocalPathPrefix` | Must match each app’s `Cache:Admin:RoutePrefix` |
-| `Instances[].id` | Stable id in the UI and `scope=instance:{id}` |
-| `Instances[].url` | Base URL only (no admin path) |
+- **ApiKey** is sent to each instance as `X-Cache-Admin-Key`. It must match `Cache:Admin:ApiKey`.
+- **Instances[].url** is the application base URL only.
+- **LocalPathPrefix** must match `Cache:Admin:RoutePrefix` on the instances.
 
-Use environment variables / secret mounts for production keys (do not commit real secrets).
+Keep production keys in a secret store. The sample value `dev-admin-key` is for local work. This host has no built-in login; put a VPN or SSO proxy in front of it. Invalidate, Version, and TTL operations change live cache state. Checklist: [docs/admin.md — Security](../../docs/admin.md#security).
 
 ## Run
 
@@ -88,76 +53,12 @@ Use environment variables / secret mounts for production keys (do not commit rea
 dotnet run --project src/CacheOrchestrator.Admin
 ```
 
-| URL | Purpose |
-|-----|---------|
-| http://localhost:5188/ | SPA UI |
-| http://localhost:5188/scalar/v1 | OpenAPI (Development only) |
-| http://localhost:5188/health | Admin App process health |
+- http://localhost:5188/ — UI
+- http://localhost:5188/health — process health
+- http://localhost:5188/scalar/v1 — OpenAPI, Development only
 
-Typical local pairing: Minimal sample with Local Admin enabled, then point `Instances` at that port.
+A convenient pair is the Minimal sample with the Admin API enabled, and `Instances` pointed at that port.
 
-## UI (hash routes)
+Pages (hash routes): Overview, Instances, Domains, Endpoints, Hints, Operations. Operations use HTTP fan-out or the cluster bus (`distribute`), whichever the instances support.
 
-Chrome (top → bottom): brand → **metrics strip** (`N/M up`, hints, pipeline, OC, Origin, Req, Inv) → **menu**.
-
-| Route | Page |
-|-------|------|
-| `#/overview` | KPIs, pipeline, alerts; instances; top **5** domains & endpoints (sort over **all** rows) |
-| `#/endpoints` | List (search, multi-instance/domain, sort, page) |
-| `#/endpoints?route=…` | Endpoint detail |
-| `#/domains` | List (search, instance filter, sort) |
-| `#/domains?name=…` | Domain detail + config |
-| `#/instances` | Health (search, sort) — status, Req, uptime, latency |
-| `#/instances?id=…` | Instance detail |
-| `#/hints` | Live recommendation hints |
-| `#/operations` | Invalidate / version / TTL — **fan-out** or **bus-distribute** (banner + result) |
-
-**Operations distribution mode:** the page loads `GET /api/distribution` (probes each instance’s `…/cluster/info`). Banner shows **HTTP fan-out** vs **Cluster bus (distribute)**; after Run, the result shows the mode actually used. See [docs/admin.md](../../docs/admin.md#cluster-distribute-with-cacheorchestratorbus).
-
-Auto-refresh interval is stored in `localStorage`.
-
-### Metrics mental model
-
-- Prefer **request shares** in the primary UI.  
-- Layer **rates** are secondary (high FC miss rate with low origin share is often fine).  
-- Health: Local Admin `GET …/health` → Healthy / Degraded / Down.
-
-## Frontend modules
-
-```
-wwwroot/js/
-  app.js       entry
-  dom.js       query helpers
-  api.js       /api/* client
-  format.js    units, pipeline bar
-  hints.js     badges / Hints page (render only)
-  filters.js   multi-select, sort, search
-  tables.js    entity tables
-  router.js    hash routes
-  shell.js     header + auto-refresh
-  views.js     pages
-```
-
-## Admin App API
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/overview` | Overview payload |
-| GET | `/api/instances` | Health fan-out |
-| GET | `/api/distribution` | Bus capability probe (fan-out vs bus-distribute recommendation) |
-| GET | `/api/stats?scope=…` | Aggregated stats |
-| GET | `/api/endpoints?…` | Endpoint list |
-| GET | `/api/domains` | Domain config fan-out |
-| POST | `/api/invalidate` | Write op (fan-out or single-origin distribute) |
-| POST | `/api/domains/{domain}/version` | Version overlay write |
-| PATCH | `/api/domains/{domain}/ttl` | TTL overlay write |
-
-Write responses include `distributionMode` (`fan-out` \| `bus-distribute`), `distribute`, and per-instance `results[]`.  
-These routes are **not** authenticated by the app itself — see [Security](#security-short).
-
-## Notes
-
-- Runtime Version/TTL overlays are **process-local** unless the **cluster bus** delivers them (`distribute: true` / Admin App bus-distribute). Without bus, multi-target fan-out must hit every node.  
-- No sliding-window history here (use OTLP/Prometheus).  
-- Production hardening: [docs/admin.md](../../docs/admin.md).  
-- Cluster bus deep dive: [docs/cluster-bus.md](../../docs/cluster-bus.md).  
+Further detail: [docs/admin.md](../../docs/admin.md) · [docs/cluster-bus.md](../../docs/cluster-bus.md).

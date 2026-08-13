@@ -1,12 +1,10 @@
 # Client Cache Schedule
 
-> **Prerequisite:** [getting-started.md](getting-started.md). Try the [playground sample](../samples/CacheOrchestrator.Sample) to watch phases live.
+Browsers and CDNs keep a **long `max-age`** for most of the life of a dataset, then that lifetime **falls toward a floor** as a planned cutover (`ScheduledUpdateUtc`) approaches. After the cutover they stay on the floor until you open the next window. Clients revalidate in time for the new generation, without a tiny `max-age` all month.
 
-**What it does:** Keeps browsers and CDNs on a **long `max-age` most of the time**, then **linearly shortens client cache lifetime** as a planned content cutover (`ScheduledUpdateUtc`) approaches—so clients revalidate in time for the update. After cutover, clients stay on a **short floor TTL** until you deliberately open the window again.
+This changes only the **client** `Cache-Control` header. Output Cache and FusionCache keep their own TTLs (`OutputCacheTtlSeconds`, `FusionCacheSoftTtlSeconds`, …).
 
-This feature only affects the **client** `Cache-Control` header. Server-side Output Cache and FusionCache use their own TTLs (`OutputCacheTtlSeconds`, `FusionCacheSoftTtlSeconds`, …).
-
-Implementation: `ClientCacheHeaderGenerator` · phases: `ClientCacheSchedulePhase`.
+The playground sample shows the phases live. Implementation: `ClientCacheHeaderGenerator`, `ClientCacheSchedulePhase`.
 
 ---
 
@@ -39,32 +37,25 @@ min │                ●────────────── HOLD ──
 
 ---
 
-## Observability (phase is not only internal)
+## Observability
 
-The schedule phase is exposed on **every** eligible response that goes through the output-cache policy headers path:
+Every eligible response that goes through the Output Cache header path reports the phase:
 
-| Channel | How |
-|---------|-----|
-| **`X-Cache` header** | Token `phase=` — e.g. `phase=calm`, `phase=approaching`, `phase=hold`, `phase=n/a` |
-| **Metrics** | Counter `cache_orchestrator.client.schedule` with tags `domain`, `phase` (same wire strings as X-Cache) |
+- **X-Cache** — `phase=calm`, `phase=approaching`, `phase=hold`, or `phase=n/a`.
+- **Metrics** — counter `cache_orchestrator.client.schedule` with tags `domain` and `phase` (same strings).
 
-Meter name: `CacheOrchestrator`. Subscribe via OpenTelemetry / `MeterListener`.  
-See also [observability.md](observability.md).
-
----
+Meter name: `CacheOrchestrator`. See [observability.md](observability.md).
 
 ## Settings
 
-| Setting | Role |
-|---------|------|
-| `ClientCacheability` | `Public` / `Private` / `NoStore` (NoStore disables the whole schedule) |
-| `ClientTtlSeconds` | **Target** client `max-age` when far from cutover (and when no schedule) |
-| `ClientTtlMinSeconds` | **Floor** `max-age` near cutover, after cutover, and during post-version hold |
-| `ScheduledUpdateUtc` | Planned content cutover (UTC). `null` = no schedule (always max) |
-| `ClientMustRevalidateNearUpdate` | When at floor, append `must-revalidate` |
-| `Version` | Content generation stamp (also used for server keys/ETag) |
+All under `Cache:DomainDefaults` / `Cache:Domains:{name}`:
 
-All live under `Cache:DomainDefaults` / `Cache:Domains:{name}`.
+- **ClientCacheability** — `Public`, `Private`, or `NoStore`. `NoStore` turns the schedule off.
+- **ClientTtlSeconds** — target `max-age` when far from cutover, and when there is no schedule.
+- **ClientTtlMinSeconds** — floor `max-age` near cutover, after cutover, and during the hold after a Version change.
+- **ScheduledUpdateUtc** — planned cutover (UTC). Omit it for a constant `ClientTtlSeconds`.
+- **ClientMustRevalidateNearUpdate** — at the floor, append `must-revalidate`.
+- **Version** — generation stamp (also used for server keys and ETag).
 
 ### Example (map tiles / periodic dataset)
 

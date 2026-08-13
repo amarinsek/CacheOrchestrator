@@ -1,8 +1,8 @@
 # Benchmark results
 
-How to run and what the CacheOrchestrator micro-benchmarks measure (`tests/CacheOrchestrator.Benchmarks`).
+How to run the micro-benchmarks in `tests/CacheOrchestrator.Benchmarks`, and what they measure.
 
-> **Disclaimer:** absolute numbers (mean ns) depend on CPU, .NET runtime, power plan, and load. They are **not** SLAs and are **not** comparable across machines. Prefer **ratios** (baseline methods), **Allocated**, and before/after on the **same** machine.
+Absolute times depend on CPU, runtime, and load. Compare **ratios**, **Allocated**, and before/after on the **same** machine.
 
 ## How to run
 

@@ -1,14 +1,8 @@
 # CacheOrchestrator.Redis
 
-Optional **Redis** backends for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
+Redis backends for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
 
-| | |
-|--|--|
-| **Provides** | Output Cache store, FusionCache L2 + backplane, Redis health probe |
-| **Requires** | `CacheOrchestrator` core package + `AddRedisBackend()` |
-| **Full docs** | **[GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)** · [backends.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/backends.md) |
-
-This package owns Redis connection options (not the core package).
+Add this package when several application instances must share cache data. You get Redis as the Output Cache store, as FusionCache L2, and as the Fusion backplane, plus a health probe for the connection.
 
 ## Install
 
@@ -20,9 +14,6 @@ dotnet add package CacheOrchestrator.Redis
 ## Register
 
 ```csharp
-using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.Redis;
-
 builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 {
     o.AddRedisBackend();
@@ -46,12 +37,9 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 }
 ```
 
-| Surface | Override | Fallback |
-|---------|----------|----------|
-| Output Cache | `Cache:OutputCache:Redis` | `Cache:Redis` |
-| Fusion instance `{name}` | `Cache:FusionCacheInstances:{name}:Redis` | `Cache:Redis` |
+A connection under `Cache:Redis` is the default. Output Cache may use `Cache:OutputCache:Redis`; a named Fusion instance may use `Cache:FusionCacheInstances:{name}:Redis`.
 
-More (multi-instance, backplane, custom backends): [documentation on GitHub](https://github.com/amarinsek/CacheOrchestrator/tree/main/docs).
+Guide: [backends.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/backends.md). Overview: [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme).
 
 ## License
 

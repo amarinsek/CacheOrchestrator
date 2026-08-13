@@ -1,78 +1,52 @@
 # CacheOrchestrator documentation
 
-Domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
-
-Technical reference for consumers and maintainers.  
-**New here?** Start with the path below — you do not need to read every page.
+Technical reference. The [root README](../README.md) is the product overview. You do not need every page below.
 
 ## Start here
 
-| Step | Doc / sample | Why |
-|------|----------------|-----|
-| 1 | [Minimal sample](../samples/CacheOrchestrator.Minimal) | Run → MISS then HIT in one minute |
-| 2 | [getting-started.md](getting-started.md) | Install, mental model, first endpoint |
-| 3 | [Playground sample](../samples/CacheOrchestrator.Sample) | TTL, schedule, Redis, CRUD UI |
-| 4 | [faq.md](faq.md) | Common gotchas and limitations |
+1. [Minimal sample](../samples/CacheOrchestrator.Minimal) — a miss, then a hit.
+2. [Getting started](getting-started.md) — install, first endpoint, `X-Cache`.
+3. [Playground sample](../samples/CacheOrchestrator.Sample) — TTLs, schedule, Redis, CRUD.
+4. [FAQ](faq.md) — common mistakes.
 
-Root overview (also lists every advanced feature): [../README.md](../README.md)
+## Core ideas
 
-## Core ideas (when you need them)
+- [Domain profiles](domain-profiles.md) — snapshot datasets versus changing records; Version versus TTL.
+- [Client Cache Schedule](client-cache-schedule.md) — client `max-age` before a planned cutover.
+- [Comparison](comparison.md) — this library versus hand-rolled Output Cache and FusionCache.
 
-| Document | Description |
-|----------|-------------|
-| [domain-profiles.md](domain-profiles.md) | Snapshot (OSM) vs dynamic (CRUD); Version vs TTL |
-| [client-cache-schedule.md](client-cache-schedule.md) | Client `max-age` ramp before cutover |
-| [comparison.md](comparison.md) | vs manual Output Cache + Fusion; vs Redis OC only |
+## HTTP and data
 
-## Reference
+- [Configuration](configuration.md) — `appsettings` schema and defaults.
+- [Output Cache](output-cache.md) — HTTP policies, authentication flags, Minimal APIs and MVC.
+- [FusionCache](fusion-cache.md) — `IDomainFusionCache`, keys, fail-safe, entity identity.
+- [Cache keys](cache-keys.md) — how Output Cache and Fusion keys are built.
 
-| Document | Description |
-|----------|-------------|
-| [configuration.md](configuration.md) | Full `appsettings` schema and defaults |
-| [output-cache.md](output-cache.md) | HTTP policies, auth flags, Minimal API & MVC |
-| [fusion-cache.md](fusion-cache.md) | `IDomainFusionCache`, keys, fail-safe, resource id |
-| [cache-keys.md](cache-keys.md) | FC/OC key identity, Namespace, why domain differs |
-| [invalidation.md](invalidation.md) | Version, domain/entity tags, invalidator API, multi-instance strategies |
-| [ef-core-invalidation.md](ef-core-invalidation.md) | Optional EF Core SaveChanges interceptor (`CacheOrchestrator.EFCore.Invalidation`) |
-| [cluster-bus.md](cluster-bus.md) | Optional `CacheOrchestrator.Bus` — HTTP command bus, membership, Admin distribute |
-| [backends.md](backends.md) | InMemory, Redis package, custom registrars |
-| [observability.md](observability.md) | `X-Cache`, `EmitDiagnosticsHeaders`, metrics, health |
-| [admin.md](admin.md) | Local Admin API + Admin App fan-out SPA |
-| [admin-hints.md](admin-hints.md) | Recommendation hints: formulas, catalogue, how to add |
-| [deployment.md](deployment.md) | Multi-instance, Redis, backplane, optional Bus |
-| [architecture.md](architecture.md) | Layers, request flow, public API surface |
-| [benchmarks/results.md](benchmarks/results.md) | How to run BDN + hot-path notes |
+## Invalidation
 
-## Repo guides (root)
+- [Invalidation](invalidation.md) — Version, tags, `ICacheOrchestratorInvalidator`.
+- [EF Core](ef-core-invalidation.md) — purge after `SaveChanges`.
+- [Cluster bus](cluster-bus.md) — commands across instances.
 
-| Document | Description |
-|----------|-------------|
-| [../CHANGELOG.md](../CHANGELOG.md) | Release history |
-| [releasing.md](releasing.md) | MinVer tags, NuGet publish, optional signing |
-| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Build, test, coding conventions, PRs |
-| [../SECURITY.md](../SECURITY.md) | How to report vulnerabilities |
-| [../LICENSE.md](../LICENSE.md) | MIT License |
+## Operations
 
-## Library entry points
+- [Backends](backends.md) — InMemory, Redis, custom registrars.
+- [Deployment](deployment.md) — several instances, Redis, backplane, bus.
+- [Observability](observability.md) — `X-Cache`, metrics, health.
+- [Admin](admin.md) — Admin API and Admin App.
+- [Admin hints](admin-hints.md) — recommendation rules.
 
-| API | Namespace |
-|-----|-----------|
-| `AddCacheOrchestrator` / `UseCacheOrchestrator` / `MapCacheOrchestratorAdmin` | `CacheOrchestrator.DependencyInjection` |
-| `CacheOutputWithDomain*` | `CacheOrchestrator.OutputCache` |
-| `[CacheDomain]` | `CacheOrchestrator.OutputCache` |
-| `IDomainFusionCache` | `CacheOrchestrator.FusionCache` |
-| `IDomainCacheOptionsProvider` / `DomainName` | `CacheOrchestrator.Configuration` |
-| `ICacheOrchestratorInvalidator` / `ICacheInvalidationObserver` | `CacheOrchestrator.Invalidation` |
-| `IClusterCommandBus` / `IClusterMembership` / `IInstanceIdProvider` | `CacheOrchestrator.Cluster` |
-| `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.Bus` |
-| `AddCacheOrchestratorEfCoreInvalidation` / `[CacheEntity]` | `CacheOrchestrator.EFCore` |
-| `AddCacheOrchestrator` (health) | `CacheOrchestrator.Diagnostics` |
-| Admin App host (not NuGet) | `src/CacheOrchestrator.Admin` — [admin.md](admin.md) |
+## Internals
 
-Concrete service classes are **internal** (see [architecture.md — Public API surface](architecture.md#public-api-surface-10-stability)).
+- [Architecture](architecture.md) — layers, request flow, public surface.
+- [Benchmarks](benchmarks/results.md) — how to run them.
 
-## API reference
+## Repository
 
-XML documentation is included in the NuGet packages. Browse
-[CacheOrchestrator on nuget.org](https://www.nuget.org/packages/CacheOrchestrator/)
-for package docs. A dedicated DocFX / GitHub Pages API site is planned after 1.0.
+- [CHANGELOG](../CHANGELOG.md)
+- [Releasing](releasing.md)
+- [Contributing](../CONTRIBUTING.md)
+- [Security](../SECURITY.md)
+- [License](../LICENSE.md)
+
+XML documentation ships with the NuGet packages: [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/), [Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/), [Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/), [EF Core](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/).

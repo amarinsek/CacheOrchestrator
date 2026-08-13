@@ -1,14 +1,6 @@
-# Cache Backends
+# Cache backends
 
-**CacheOrchestrator** separates *caching policy* (domains, TTLs, invalidation, client headers) from *storage*.  
-Providers are pluggable via `ICacheBackendRegistrar`.
-
-> **Not a drop-in SQL/Memcached switch:** only **InMemory** (core) and **Redis** (`CacheOrchestrator.Redis`)
-> ship first-party. Any other `"Provider": "…"` name requires you to implement and register a backend.
-> See [comparison.md](comparison.md) and [faq.md](faq.md).
-
-**Reference test:** `tests/CacheOrchestrator.UnitTests/Backends/CustomBackendEndToEndTests.cs` — a Fusion-only
-`FakeDb` registrar with keyed in-process L2, proving `AddBackend` + `GetOrSetAsync` across two hosts (empty L1, shared L2).
+Policy (domains, TTLs, invalidation, client headers) is separate from **storage**. InMemory ships in the core package. Redis is `CacheOrchestrator.Redis`. Any other provider name is a registrar you implement and pass to `AddBackend`. See [comparison.md](comparison.md) and [faq.md](faq.md).
 
 ## First-party backends
 
@@ -17,11 +9,13 @@ Providers are pluggable via `ICacheBackendRegistrar`.
 | **InMemory** | `CacheOrchestrator` | Automatic | ASP.NET in-process store (+ size limits) | None (L1 only) |
 | **Redis** | `CacheOrchestrator.Redis` | `o.AddRedisBackend()` | Redis Output Cache store | Keyed Redis L2 + backplane |
 
-### Redis package
+## Install
 
 ```bash
 dotnet add package CacheOrchestrator.Redis
 ```
+
+## Register
 
 ```csharp
 using CacheOrchestrator.DependencyInjection;
@@ -30,10 +24,11 @@ using CacheOrchestrator.Redis;
 builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 {
     o.AddRedisBackend();
-    // Optional: further OutputCacheOptions after backend defaults
     o.ConfigureOutputCache(oc => oc.DefaultExpirationTimeSpan = TimeSpan.FromMinutes(5));
 });
 ```
+
+## Configure
 
 ```json
 "Cache": {
@@ -53,7 +48,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 `Cache:Redis` (and optional `…:OutputCache:Redis` / `…:FusionCacheInstances:{name}:Redis`) is read by the **Redis package**, not by core `CacheOrchestratorOptions`.  
 Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
 
-## What a backend must implement
+## What a backend implements
 
 | Responsibility | Required? | How |
 |----------------|-----------|-----|
@@ -67,16 +62,13 @@ Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
    Do **not** call `services.AddOutputCache` yourself — the host does that once.  
 2. Prefer `context.RegisterStore(() => …)` for store packages that must run **after** `AddOutputCache`  
    (e.g. `AddStackExchangeRedisOutputCache`).  
-3. If the technology has **no** Output Cache store (common for SQL Server), set  
-   `SupportsOutputCacheStore => false` and use that provider **only** for FusionCache.  
-   Keep Output Cache on `InMemory` or `Redis`.
+3. If the store has no ASP.NET Output Cache adapter, set `SupportsOutputCacheStore` to `false` and use that provider only for FusionCache. Keep Output Cache on `InMemory` or `Redis`. The SQL Server example below does this.
 
 ### FusionCache L2 rules (multi-instance safe)
 
 1. Register a **keyed** `IDistributedCache` with key = `context.InstanceName`.  
 2. Call `context.FusionBuilder.WithRegisteredKeyedDistributedCache(context.InstanceName)`.  
-3. **Never** use a single global `AddDistributedSqlServerCache` / `AddStackExchangeRedisCache`  
-   for multiple named Fusion instances — the last registration would win.  
+3. Register a **keyed** `IDistributedCache` per Fusion instance name. A single global `AddDistributedSqlServerCache` or `AddStackExchangeRedisCache` would let the last instance overwrite the others.
 4. Optional backplane: attach on `context.FusionBuilder` (Redis package does this).  
 5. Bind settings from `context.BackendSection`  
    (`Cache:FusionCacheInstances:{instance}:{Provider}`).
@@ -99,12 +91,9 @@ or `context.BackendSection` on registration contexts.
 
 ---
 
-## Recommended custom pattern: Fusion L2 only (SQL Server)
+## Example: Fusion L2 on SQL Server
 
-ASP.NET Core has **no** first-party SQL Output Cache store. The blessed approach:
-
-- **Output Cache:** `InMemory` (or Redis)  
-- **FusionCache L2:** your SQL / Memcached / Cosmos registrar  
+ASP.NET Core does not ship an Output Cache store for SQL Server. This example therefore keeps Output Cache on `InMemory` (or Redis) and uses SQL Server only as FusionCache L2. The same shape works for Memcached, Cosmos, or another `IDistributedCache`.
 
 ```csharp
 using CacheOrchestrator.Backends;
@@ -119,13 +108,11 @@ public sealed class SqlServerFusionBackendRegistrar : ICacheBackendRegistrar
 {
     public string Name => "SqlServer";
 
-    // Fusion-only: do not select as OutputCache.Provider
     public bool SupportsOutputCacheStore => false;
 
     public void RegisterOutputCache(OutputCacheRegistrationContext context)
     {
-        // Never called if SupportsOutputCacheStore is false and validation is correct.
-        throw new NotSupportedException("SqlServer backend does not provide an Output Cache store.");
+        throw new NotSupportedException("This registrar is Fusion L2 only.");
     }
 
     public void RegisterFusionCache(FusionCacheRegistrationContext context)

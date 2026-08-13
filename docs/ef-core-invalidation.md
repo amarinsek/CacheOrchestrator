@@ -1,21 +1,12 @@
 # EF Core SaveChanges invalidation
 
-Optional package **`CacheOrchestrator.EFCore.Invalidation`**: after a successful EF Core `SaveChanges` / `SaveChangesAsync`, purge CacheOrchestrator entity tags via the public invalidator.
+Package **`CacheOrchestrator.EFCore.Invalidation`**. After a successful `SaveChanges` / `SaveChangesAsync`, the cache for the rows that changed is purged through `ICacheOrchestratorInvalidator`.
 
-| | |
-|--|--|
-| **Package** | `CacheOrchestrator.EFCore.Invalidation` (NuGet) |
-| **Requires** | `CacheOrchestrator` 2.0+ (`entityKind` on row identity) |
-| **Is not** | An EF second-level cache, a query cache, or a cluster transport |
+Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../src/CacheOrchestrator.EFCore.Invalidation/README.md). See also [invalidation.md](invalidation.md), [domain-profiles.md](domain-profiles.md), [fusion-cache.md](fusion-cache.md), [configuration.md](configuration.md).
 
-Short package readme (install, mapping snippets, HTTP+EF samples): [src/CacheOrchestrator.EFCore.Invalidation/README.md](../src/CacheOrchestrator.EFCore.Invalidation/README.md).  
-Related: [invalidation.md](invalidation.md) · [domain-profiles.md](domain-profiles.md) · [fusion-cache.md](fusion-cache.md) · [configuration.md](configuration.md).
+## How it works
 
----
-
-## Mental model
-
-A **domain** is a cache **policy** group (TTL, Version, Fusion instance). It is not a table and not a namespace in which ids are unique.
+A **domain** is a cache policy group (TTL, Version, Fusion instance). Ids are unique together with `entityKind`, not inside the domain alone.
 
 Row identity is always `(domain, entityKind, resourceId)`:
 
@@ -55,12 +46,14 @@ InvalidateEntitiesAsync  or  InvalidateEntityKindAsync (OnBulk)
 
 ---
 
-## Install and register
+## Install
 
 ```bash
 dotnet add package CacheOrchestrator
 dotnet add package CacheOrchestrator.EFCore.Invalidation
 ```
+
+## Register
 
 ```csharp
 using CacheOrchestrator.DependencyInjection;
@@ -82,7 +75,7 @@ builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
 | `AddEfCoreInvalidation` | Same registration on `ICacheOrchestratorBuilder` |
 | `AddCacheOrchestratorInvalidation` | Attaches the interceptor to **this** `DbContext` only |
 
-The first call does **not** attach to every context. You must call `AddCacheOrchestratorInvalidation` on each options builder that should invalidate.
+`AddCacheOrchestratorEfCoreInvalidation` binds options and registers the interceptor as a singleton. `AddCacheOrchestratorInvalidation` attaches that interceptor to **this** `DbContext` only. Call it on each options builder that should invalidate.
 
 ---
 
@@ -219,30 +212,18 @@ Operational flags only. Bound from the same root section as `AddCacheOrchestrato
 
 ---
 
-## Limitations
+## Limits
 
-- Not a cache of EF entities. Reads still go through `GetOrSetEntityAsync` / Output Cache as usual.  
-- List/index entries tagged only `domain:{name}` are not evicted by row or kind invalidation.  
-- `Execute*` and raw SQL stay manual.  
-- Composite / binary PKs must match the HTTP resource id convention.  
-- No `Suppress()` ambient scope yet (disable with `Enabled: false` or omit the interceptor on that context).
-
----
-
-## Tests
-
-Unit tests cover mapping order, batching, delete PK snapshot, failed save, sync `SaveChanges`, `OnBulk` Kind/Domain, Guid PK vs route normalization, TPH concrete types, Fluent mapping, pooled contexts, two `DbContext` types, `ExecuteUpdate` (no interceptor), and transaction rollback (invalidation already ran — false miss).
-
-Integration (`EfSaveChangesInvalidationHttpTests`): one TestServer host, real Fusion + Output Cache. Tracked `SaveChanges` → next GET is MISS (sibling stays HIT); `GetOrSetEntityAsync` without an explicit domain; Guid route (uppercase) matches EF PK; `ExecuteUpdate` does not evict until a manual `InvalidateEntityAsync`.
-
-Existing Redis multi-node and Bus tests already cover “`InvalidateEntitiesAsync` on one host evicts Fusion/OC on another”. The interceptor is a thin caller of that API.
-
----
+- Reads still go through `GetOrSetEntityAsync` and Output Cache as usual.
+- List and index entries tagged only `domain:{name}` stay until TTL, Version, or `InvalidateDomainAsync`.
+- `Execute*` and raw SQL need a manual `Invalidate*` call.
+- Composite and binary primary keys must match the HTTP resource id convention.
+- There is no ambient `Suppress()` yet; turn the feature off with `Enabled: false` or omit the interceptor on that context.
 
 ## Related
 
 - [invalidation.md](invalidation.md) — tags, invalidator, multi-instance strategies  
 - [fusion-cache.md](fusion-cache.md) — `GetOrSetEntityAsync`  
 - [output-cache.md](output-cache.md) — `resourceRouteKey` + `entityKind`  
-- [faq.md](faq.md) — `ExecuteUpdate` gotcha  
+- [faq.md](faq.md) — `ExecuteUpdate`
 - Package README — copy-paste samples  

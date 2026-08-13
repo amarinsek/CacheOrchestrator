@@ -1,6 +1,6 @@
-# Deployment scenarios
+# Deployment
 
-Multi-instance and distributed deployment guidance for CacheOrchestrator.
+How to run CacheOrchestrator on one process or on several: in-memory stores, Redis, the backplane, and the cluster bus.
 
 **Redis package:** any topology below that uses `"Provider": "Redis"` requires:
 
@@ -50,10 +50,7 @@ The simplest topology. One process, no Redis, no cross-process coordination.
 
 ## Multiple instances with Redis
 
-> **Custom backends:** Redis is the only first-party distributed backend (`CacheOrchestrator.Redis`).
-> SQL Server, Memcached, Cosmos DB, and similar stores require a **custom** `ICacheBackendRegistrar`
-> that you register with `AddBackend(...)`. Setting `"Provider": "SqlServer"` alone is **not** a drop-in;
-> see [backends.md](backends.md) and [comparison.md](comparison.md).
+Redis is the distributed backend that ships with the library (`CacheOrchestrator.Redis`). For SQL Server, Memcached, or Cosmos, implement `ICacheBackendRegistrar` and call `AddBackend`. [backends.md](backends.md) includes an example of Fusion L2 on SQL Server.
 
 Multiple replicas share both Output Cache data and FusionCache data through Redis.
 FusionCache also receives **backplane** invalidation signals so L1 (in-memory) is cleared on all nodes
@@ -142,7 +139,7 @@ Full setup and Bus vs Redis matrix: **[cluster-bus.md](cluster-bus.md)**.
 
 ### Ops dashboard across instances
 
-1. Enable **Local Admin** on each app (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).  
+1. Enable the **Admin API** on each app (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).  
 2. Run **Admin App** (`src/CacheOrchestrator.Admin`) with `CacheAdmin:Instances` pointing at every base URL.  
 3. With Bus enabled, Operations auto-picks **bus-distribute** vs **fan-out** — [admin.md](admin.md).
 

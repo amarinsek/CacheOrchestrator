@@ -1,24 +1,19 @@
 # Architecture
 
-## Purpose
+How the library is put together. Product overview: [root README](../README.md).
 
-**CacheOrchestrator** is domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
+A **domain** is a named group of data (`products`, `reports`, …) with its own TTLs, flags, and Version. Output Cache, FusionCache, and client headers all resolve the same `DomainCacheOptions`.
 
-It is a **configuration-driven orchestration layer** on top of:
-
-1. **ASP.NET Core Output Caching** — store full GET/HEAD responses  
-2. **ZiggyCreatures FusionCache** — hybrid L1 (memory) + optional L2 (Redis) for application objects (with full support for **multiple named instances** for isolation)  
-3. **Client Cache-Control (CC)** — browser/CDN headers (including optional Client Cache Schedule)
-
-Both systems share the idea of a **domain**: a named group of data (`products`, `reports`, …) with its own TTLs, flags, and version stamp.
+1. **ASP.NET Core Output Caching** — full GET/HEAD responses.
+2. **FusionCache** — objects from your factory (L1 memory, optional L2, optional backplane; named instances for isolation).
+3. **Client Cache-Control** — browser and CDN headers, including Client Cache Schedule.
 
 ## Design principles
 
-- **Configuration over code** — change TTLs and providers without redeploying business logic where possible  
-- **One domain model** — Output Cache and FusionCache resolve the same `DomainCacheOptions`  
-- **Safe defaults** — fail-safe, stampede protection, jitter come from FusionCache + sensible domain defaults  
-- **Observable** — optional `X-Cache` header (`EmitDiagnosticsHeaders`), metrics meter `CacheOrchestrator`, activity source `CacheOrchestrator`
-- **Library-friendly** — `ConfigureAwait(false)`, sealed types, validated options on start  
+- **Configuration over code** — change TTLs and providers without redeploying handlers.
+- **One domain model** — Output Cache and FusionCache share `DomainCacheOptions`.
+- **Safe defaults** — fail-safe, stampede protection, and jitter come from FusionCache and the domain defaults.
+- **Observable** — `X-Cache` (when enabled), meter and activity source `CacheOrchestrator`.
 
 ## High-level diagram
 
@@ -53,7 +48,7 @@ Both systems share the idea of a **domain**: a named group of data (`products`, 
 | `Backends/` | InMemory / Redis registration strategy (`ICacheBackendRegistrar`) |
 | `Invalidation/` | Tag-based eviction across OC + FC |
 | `Cluster/` | Command bus contracts, Null bus/membership, InstanceId, handler (HTTP in Bus package) |
-| `Admin/` | Local Admin API (feature-flagged) |
+| `Admin/` | Admin API (feature-flagged) |
 | `Diagnostics/` | Metrics, activities, health probes |
 | `DependencyInjection/` | `AddCacheOrchestrator`, `UseCacheOrchestrator`, `MapCacheOrchestratorAdmin` |
 | `Utilities/` | Domain templates, HTTP helpers |
@@ -64,14 +59,12 @@ Companion packages:
 |---------|------|
 | `CacheOrchestrator.Redis` | Redis OC store + Fusion L2 + backplane |
 | `CacheOrchestrator.Bus` | HTTP cluster command bus + Static / ServiceDiscovery membership |
-| `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation (not an EF cache) — [ef-core-invalidation.md](ef-core-invalidation.md) |
+| `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation — [ef-core-invalidation.md](ef-core-invalidation.md) |
 | `CacheOrchestrator.Admin` | Admin App host (fan-out UI; not a NuGet package) |
 
-Interfaces live **next to** their implementations (no separate `Abstractions` assembly/folder).
+## Public API surface
 
-## Public API surface (1.0 stability)
-
-Prefer **interfaces + DI entry points** over concrete services. Implementations are `internal` so they can change without a major version bump.
+Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 
 | Public (stable contract) | Internal (not for app code) |
 |--------------------------|-----------------------------|
@@ -83,7 +76,7 @@ Prefer **interfaces + DI entry points** over concrete services. Implementations 
 | `ICacheBackendRegistrar`, `InMemoryCacheBackendRegistrar` | — |
 | Redis: `AddRedisBackend` / `RedisCacheBackendRegistrar` (**CacheOrchestrator.Redis**) | `RedisCacheHealthProbe` |
 | Bus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` / `HttpClusterCommandBus` (**CacheOrchestrator.Bus**) | `ClusterEndpointAuth` |
-| `MapCacheOrchestratorAdmin` / Local Admin DTOs (when Admin enabled) | `InMemoryAdminStatsCollector`, `AdminLocalApi`, … |
+| `MapCacheOrchestratorAdmin` / Admin API DTOs (when Admin is enabled) | `InMemoryAdminStatsCollector`, `AdminLocalApi`, … |
 | `DomainOutputCachePolicy`, `[CacheDomain]`, endpoint extensions | `CacheDomainConvention` |
 | Health: `AddCacheOrchestrator()`, `ICacheOrchestratorHealthProbe` | `CacheOrchestratorHealthCheck` |
 | Meter/activity **names** (`CacheOrchestrator`) | `CacheOrchestratorMetrics.Record*` |

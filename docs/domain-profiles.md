@@ -1,28 +1,19 @@
-# Domain profiles: Snapshot vs Dynamic
+# Domain profiles: snapshot and dynamic
 
-> **Prerequisite:** [getting-started.md](getting-started.md) (or the [Minimal sample](../samples/CacheOrchestrator.Minimal)).
+How fresh data enters the cache, and how to configure two common worlds:
 
-This page explains **how fresh data gets into the cache** and how to configure domains for two common worlds:
+1. **Snapshot** (map tiles, a monthly extract) — content is frozen until a planned cutover.
+2. **Dynamic** (a product detail) — individual records change under the same `Version`.
 
-1. **Snapshot** (e.g. OSM tiles) — data is frozen until a planned cutover  
-2. **Dynamic / CRUD** (e.g. product detail) — individual records change under the same `Version`
+## Model
 
----
+A **domain** is a named package of rules (TTLs, client headers, which Fusion instance). Each response or Fusion object has its own **key**. `Version` is a **generation stamp** for the whole package, not the version of one product.
 
-## Plain-language model
-
-Think of a **domain** as a *named package of caching rules* (TTLs, client headers, which Redis, …).
-
-Inside that package, each HTTP response (or Fusion object) is stored under its own **key** (URL / resource id).  
-`Version` is **not** “the only version of the product”. It is a **generation stamp** for the whole package:
-
-| Concept | Meaning |
-|---------|---------|
-| **Domain** | Group of endpoints that share cache rules (`maps-osm`, `product-detail`) |
-| **Version** | Generation of the package (`2026-08`, `v1`). Changing it opens a **new key space** |
-| **TTL** | How long one cache entry may live before it expires (MISS → load from DB) |
-| **Tag invalidation** | Explicit delete: whole domain, one kind, or one entity (`entity:store:products:42`) |
-| **ETag** | Hint for browsers/CDNs when revalidating — see [ETag modes](#etag-modes) |
+- **Domain** — endpoints that share rules (`maps-osm`, `product-detail`).
+- **Version** — generation (`2026-08`, `v1`). Changing it opens a new key space.
+- **TTL** — how long one entry may live before the factory runs again.
+- **Tag invalidation** — an explicit delete: a domain, a kind, or one id (`entity:store:products:42`).
+- **ETag** — hint for browsers and CDNs. See [ETag modes](#etag-modes).
 
 ### Three ways a request becomes a MISS (fresh data from the DB)
 
@@ -34,13 +25,13 @@ Same Version, same URL
         └─► Version bumped?        → new key → MISS → factory/DB
 ```
 
-So: **if a product changes under the same Version and you do nothing**, the cache **correctly** keeps serving the old body until TTL expires or you invalidate. That is not a bug — that is caching.
+If a product changes under the same Version and you neither wait for TTL nor invalidate, the cache keeps serving the old body. That is caching working as designed.
 
 ---
 
 ## Snapshot profile (OSM tiles, batch datasets)
 
-**Rules of the game**
+**Rules**
 
 - Within one `Version`, content **must not** change.  
 - Cutover = bump `Version` (+ often [Client Cache Schedule](client-cache-schedule.md)).  
@@ -85,7 +76,7 @@ No per-tile invalidation is required.
 
 ## Dynamic / CRUD profile (product detail)
 
-**Rules of the game**
+**Rules**
 
 - `Version` stays stable (`"1"`) most of the time.  
 - Individual rows change → **short TTLs** and/or **entity invalidation**.  
@@ -182,7 +173,7 @@ Safe default for mixed public/private APIs.
 | Cache private per-user pages | `BypassWhenAuthenticated: false`, `VaryOutputCacheByUser: true`, `ClientCacheability: Private` |
 | Public assets with API key | `BypassWhenAuthenticated: false`, `VaryOutputCacheByUser: false`, `ClientCacheability: Public` |
 
-Full detail and plastic examples: [output-cache.md](output-cache.md#authenticated-caching-optional).
+Full examples: [output-cache.md](output-cache.md#authenticated-caching-optional).
 
 ---
 

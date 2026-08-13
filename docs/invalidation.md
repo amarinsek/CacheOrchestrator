@@ -1,12 +1,10 @@
 # Invalidation
 
-Three complementary strategies:
+How to drop cached data so the next request loads it again. Snapshot versus changing records: [domain-profiles.md](domain-profiles.md).
 
-1. **Version stamp** — change `Version` so new keys never match old ones (bulk cutover)  
-2. **Domain tag eviction** — remove all entries tagged `domain:{name}`  
-3. **Entity tag eviction** — remove one resource tagged `entity:{domain}:{entityKind}:{resourceId}` (CRUD under the same Version)
-
-For a plain-language explanation of Snapshot vs Dynamic domains, see **[domain-profiles.md](domain-profiles.md)**.
+1. **Version stamp** — change `Version` so new keys never match old ones (a bulk cutover).
+2. **Domain tag** — remove everything tagged `domain:{name}`.
+3. **Entity tag** — remove one resource tagged `entity:{domain}:{entityKind}:{resourceId}`.
 
 ## Version (preferred for bulk cutovers)
 
@@ -22,7 +20,7 @@ When you deploy a content update, bump `Version` (and reload configuration).
 
 - Output Cache vary value `data-version` changes  
 - Fusion keys include the version hex  
-- Old entries age out by TTL (no thundering delete storm)
+- Old entries expire by TTL (no mass delete)
 
 If `Version` is omitted, the library uses `"1"` and logs a warning (keys stable across restarts).
 
@@ -150,7 +148,7 @@ For **multi-instance fan-out** (publish to a bus so other nodes invalidate local
 
 ## EF Core SaveChanges (`CacheOrchestrator.EFCore.Invalidation`)
 
-Optional package. Not an EF cache provider. After a **successful** `SaveChanges` it calls the public invalidator (and Bus, if configured).
+After a successful `SaveChanges` the package calls the public invalidator (and the Bus, if configured). Mapping lives in code. Full guide: [ef-core-invalidation.md](ef-core-invalidation.md).
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
@@ -188,7 +186,7 @@ List/index endpoints tagged only `domain:{name}` are not refreshed by row invali
 | Fusion L2 | N/A or local only | Shared store purged |
 | Output Cache | In-process only (unless Bus peers apply too) | Shared if OC provider is Redis |
 
-So: **without a distributed cache + backplane and without Bus, invalidation is machine-local.** That is expected.
+Without a distributed store, a backplane, or the Bus, invalidation applies on the calling process only.
 
 Cluster **configuration** management (shared `appsettings.cache.json`, ConfigMap, env) does **not** by itself purge L1/L2 on other nodes. It only keeps **policy** in sync (Version, TTLs). See [deployment.md — Shared configuration](deployment.md#shared-configuration-across-instances).
 
@@ -255,10 +253,10 @@ app.MapCacheOrchestratorHttpBus(); // independent of Admin
 | Behaviour | Detail |
 |-----------|--------|
 | `Invalidate*` (app code) | Local apply + publish when bus enabled |
-| Admin mutations | `distribute: true` → peers; default local only |
+| Admin API mutations | `distribute: true` → peers; default is this process only |
 | Peers | `POST …/cluster/apply` ApplyLocal only (anti-echo) |
 
-**Bus vs Redis:** not a replacement for Fusion L2 + backplane. Prefer Redis for continuous shared data; use Bus for InMemory multi-instance and runtime Version/TTL overlays.
+Prefer Redis L2 and the backplane when instances share Fusion data. Use the Bus when stores are in-memory and you still need commands on every node, including runtime Version and TTL overlays.
 
 `ICacheInvalidationObserver` remains for **audit/webhooks only** — not a second cluster bus when Bus is registered.
 

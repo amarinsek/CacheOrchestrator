@@ -1,6 +1,8 @@
 # Configuration reference
 
-Root section name defaults to **`Cache`** (override via `AddCacheOrchestrator(config, "MySection")`).
+Every setting under the `Cache` section (or another root you pass to `AddCacheOrchestrator`). Tables below are the schema: property, type or default, and meaning.
+
+Root section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(config, "MySection")`.
 
 ## Root shape
 
@@ -36,7 +38,7 @@ Root section name defaults to **`Cache`** (override via `AddCacheOrchestrator(co
 | `FusionCacheInstances` | map | `default` instance `InMemory` | Named FusionCache instances |
 | `DomainDefaults` | object | — | Fallbacks for every domain |
 | `Domains` | map | — | Per-domain overrides (keys are domain names) |
-| `Admin` | object | disabled | Local Admin API (see [admin.md](admin.md)) |
+| `Admin` | object | disabled | Admin API API (see [admin.md](admin.md)) |
 | `Cluster` | object | bus disabled | Cluster command bus options (see below / [cluster-bus.md](cluster-bus.md)) |
 
 **Redis connection settings are not part of core options.** They are owned by **CacheOrchestrator.Redis** (see below).
@@ -144,7 +146,7 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults).
 
 See **[client-cache-schedule.md](client-cache-schedule.md)** for phases, formula, and operational playbook.
 
-## Local Admin (`Cache:Admin`)
+## Admin API (`Cache:Admin`)
 
 Opt-in ops API on each application process. **Disabled by default** (no routes, no live counters).  
 Guide: [admin.md](admin.md). Map with `MapCacheOrchestratorAdmin()`.
@@ -153,7 +155,7 @@ Guide: [admin.md](admin.md). Map with `MapCacheOrchestratorAdmin()`.
 |----------|---------|-------------|
 | `Enabled` | `false` | When false, Null stats collector and no admin routes |
 | `ApiKey` | empty | `X-Cache-Admin-Key`; empty + Enabled = open (dev only) |
-| `RoutePrefix` | `/cache-admin/local` | Base path for Local Admin (and cluster receive path prefix) |
+| `RoutePrefix` | `/cache-admin/local` | Base path for Admin API (and cluster receive path prefix) |
 | `TrackEndpoints` | `true` | Per-route counters when Enabled |
 | `TrackLatency` | `false` | Sum/count factory latency (extra cost) |
 

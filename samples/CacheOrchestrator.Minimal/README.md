@@ -1,60 +1,38 @@
 # CacheOrchestrator Minimal sample
 
-This sample: one endpoint, InMemory only, no Redis. **Goal:** see a cache **MISS** then **HIT** in under a minute.
+The smallest application that uses CacheOrchestrator. One endpoint, in-memory stores, no extra packages. You get a working miss and then a hit in `X-Cache` before you open a larger sample.
 
 ## Run
-
-1. Start the application:
 
 ```bash
 dotnet run --project samples/CacheOrchestrator.Minimal
 ```
 
-2. In a second terminal, execute these requests:
+In another terminal:
 
 ```bash
 curl -i http://localhost:5290/hello
 curl -i http://localhost:5290/hello
 ```
 
-> **Optional: Using a browser.** If you prefer using a browser instead of curl, you must open your DevTools (F12) and check **Disable cache** on the Network tab first. Otherwise, the browser will serve its own local cache and you won't see the second server-side hit.
+The first response waits about 200 ms (`output=miss`). The second is served from Output Cache (`output=hit`).
 
+In a browser, open DevTools, enable **Disable cache** on the Network tab, and request the same URL twice. Otherwise the browser’s own cache hides the server hit.
 
----
+The domain lives in `appsettings.json` (`Cache:Domains:hello`). The endpoint uses `.CacheOutputWithDomain("hello")` and `IDomainFusionCache.GetOrSetAsync`.
 
-## What to look for
+## Admin API
 
-| Request | Typical `X-Cache` | Feel |
-| --- | --- | --- |
-| 1st | `output=miss` (and often `data=miss`) | ~200 ms delay (simulated work) |
-| 2nd | `output=hit` | Instant full response from Output Cache |
-
----
-
-## What this shows
-
-* Domain rules defined in `appsettings.json` (`Cache:Domains:hello`)
-* Service registration and middleware wiring (`AddCacheOrchestrator` + `UseCacheOrchestrator`)
-* Endpoint decoration and data fetching (`.CacheOutputWithDomain("hello")` + `IDomainFusionCache.GetOrSetAsync`)
-
----
-
-## Local Admin (this sample)
-
-`appsettings.json` enables Local Admin with a **dev** API key (`Cache:Admin:Enabled`, `Cache:InstanceId`).  
-Map: `MapCacheOrchestratorAdmin()` in `Program.cs`.
+This sample turns the Admin API on with a development key. `Program.cs` calls `MapCacheOrchestratorAdmin()`.
 
 ```bash
 curl -i -H "X-Cache-Admin-Key: dev-admin-key" http://localhost:5290/cache-admin/local/health
 ```
 
-Multi-instance UI: run [CacheOrchestrator.Admin](../../src/CacheOrchestrator.Admin) and point `CacheAdmin:Instances` at this port — [docs/admin.md](../../docs/admin.md).
+For a multi-instance UI, run [CacheOrchestrator.Admin](../../src/CacheOrchestrator.Admin) and point `CacheAdmin:Instances` at this port. See [docs/admin.md](../../docs/admin.md).
 
 ## Next
 
-| Next step | Where |
-| --- | --- |
-| Day-1 walkthrough | [docs/getting-started.md](../../docs/getting-started.md) |
-| Interactive playground (TTL, schedule, Redis, CRUD) | [../CacheOrchestrator.Sample](../CacheOrchestrator.Sample) |
-| Local Admin / Admin App | [docs/admin.md](../../docs/admin.md) |
-| Full docs | [docs/README.md](../../docs/README.md) |
+- [Getting started](../../docs/getting-started.md)
+- [Playground sample](../CacheOrchestrator.Sample) — TTLs, schedule, Redis, CRUD
+- [Documentation index](../../docs/README.md)

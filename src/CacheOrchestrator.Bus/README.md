@@ -1,17 +1,8 @@
 # CacheOrchestrator.Bus
 
-Optional **cluster command bus** for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
+Cluster command bus for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
 
-| | |
-|--|--|
-| **Provides** | HTTP fan-out of invalidate / version-bump / TTL-patch commands across instances |
-| **Requires** | `CacheOrchestrator` core + `AddHttpClusterBus()` + `MapCacheOrchestratorHttpBus()` |
-| **Does not** | Replace Redis Fusion backplane for L1/L2 coherence |
-| **Full docs** | **[cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md)** · [invalidation.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/invalidation.md) · [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme) |
-
-Without this package the core uses a **Null** bus (zero effect on the hot path).
-
-Programmatic `Invalidate*` always publishes when the bus is **enabled**. Local Admin uses `distribute: true` to publish; default is local-only.
+Add this package when you run more than one instance and you need an invalidation, a Version change, or a TTL change to take effect on every node. You get an HTTP bus that delivers those commands to the peers you configure.
 
 ## Install
 
@@ -23,15 +14,11 @@ dotnet add package CacheOrchestrator.Bus
 ## Register
 
 ```csharp
-using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.Bus;
-
 builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 {
     o.AddHttpClusterBus();
 });
 
-// After UseRouting / UseCacheOrchestrator:
 app.MapCacheOrchestratorHttpBus();
 ```
 
@@ -46,8 +33,7 @@ app.MapCacheOrchestratorHttpBus();
       "Bus": {
         "Enabled": true,
         "Membership": "Static",
-        "PeerTimeoutMs": 2000,
-        "MaxParallelism": 32,
+        "ApiKey": "…",
         "Static": {
           "Instances": [
             { "Id": "app1-a", "Url": "http://10.0.0.1:8080" },
@@ -60,32 +46,10 @@ app.MapCacheOrchestratorHttpBus();
 }
 ```
 
-Auth for `POST .../cluster/apply`: header `X-Cache-Admin-Key` using `Cache:Cluster:Bus:ApiKey`, or fallback `Cache:Admin:ApiKey`.
+`Membership` may also be `ServiceDiscovery` (`Microsoft.Extensions.ServiceDiscovery`). Peers authenticate `POST …/cluster/apply` with `X-Cache-Admin-Key` (`Cache:Cluster:Bus:ApiKey`, or `Cache:Admin:ApiKey` if the bus key is empty).
 
-Receive endpoints are mapped even when Local Admin is disabled.
+Guide: [cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md). Overview: [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme).
 
-### ServiceDiscovery membership
+## License
 
-```json
-"Bus": {
-  "Enabled": true,
-  "Membership": "ServiceDiscovery",
-  "ServiceDiscovery": {
-    "ServiceName": "app1",
-    "DefaultScheme": "http",
-    "CacheSeconds": 15
-  }
-}
-```
-
-Uses `Microsoft.Extensions.ServiceDiscovery` (configuration section `Services:{name}`, platform DNS, Aspire, …).
-
-### Admin App
-
-When instances report an enabled bus (`GET …/cluster/info`), the Admin App prefers **single-origin + `distribute:true`** instead of multi-target fan-out. The Operations UI shows the active mode.
-
-## More
-
-- Full technical guide: [docs/cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md)
-- Configuration tables: [docs/configuration.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/configuration.md)
-- Deployment topologies: [docs/deployment.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/deployment.md)
+MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)

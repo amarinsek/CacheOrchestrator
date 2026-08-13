@@ -1,24 +1,12 @@
 # Cache keys
 
-How **FusionCache** and **Output Cache** keys are built, what each segment means, and why the designs differ.
+How FusionCache and Output Cache decide that two requests are the **same** resource. That is lookup identity. Eviction — tags and Version — is [invalidation.md](invalidation.md).
 
-This document covers **lookup identity** (what makes two requests share or miss an entry). For **eviction**, see [invalidation.md](invalidation.md) — tags and Version stamps are related but not the same mechanism as keys.
+- **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` and `my-app-fc`.
+- **Domain** — the policy group (`products`, `product-detail`).
+- **Request material** — what varies inside a domain: path, route, query, host, encoding, resource id.
 
-## Mental model
-
-Cache keys answer one question:
-
-> Is this the **same** logical resource as a previous request, so we may reuse a stored value?
-
-Three layers appear in the overall system:
-
-| Layer | Role | Typical value |
-|-------|------|----------------|
-| **Namespace** | App / store keyspace isolation (shared Redis, multi-app) | `my-app` → `my-app-oc`, `my-app-fc` |
-| **Domain** | Named policy group (TTLs, Version, provider instance) | `products`, `product-detail` |
-| **Request material** | What varies *within* a domain | path, route values, query, host, encoding, resource id |
-
-**Tags** (`domain:{name}`, `entity:{domain}:{entityKind}:{id}`) group entries for **purge**. They do not participate in lookup. A tag can delete an entry whose key never embeds the domain name.
+**Tags** (`domain:{name}`, `entity:{domain}:{entityKind}:{id}`) group entries for purge. They are not part of lookup. A tag can delete an entry whose key never contains the domain name.
 
 ```
 Lookup  → key identity (this document)

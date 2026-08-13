@@ -1,16 +1,8 @@
 # CacheOrchestrator
 
-Domain-based caching for ASP.NET Core that orchestrates **Output Cache**, **FusionCache**, and client **Cache-Control** under the same model.
+**CacheOrchestrator** is domain-based caching for ASP.NET Core: define rules once per domain in configuration, then apply them on endpoints with a single attribute or extension. It orchestrates Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) under the same model.
 
-| | |
-|--|--|
-| **NuGet** | [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/) |
-| **Targets** | `net8.0`, `net10.0` |
-| **Redis (optional)** | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) |
-| **Cluster bus (optional)** | [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/) |
-| **EF SaveChanges invalidation (optional)** | [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) |
-| **Local Admin (opt-in)** | `Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin` — [admin.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/admin.md) |
-| **Full documentation** | **[GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)** · [cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md) |
+The package targets **.NET 8** and **.NET 10**.
 
 ## Install
 
@@ -18,47 +10,35 @@ Domain-based caching for ASP.NET Core that orchestrates **Output Cache**, **Fusi
 dotnet add package CacheOrchestrator
 ```
 
-```bash
-# Optional Redis backends (Output Cache store + Fusion L2 / backplane):
-dotnet add package CacheOrchestrator.Redis
+Related packages, when you need them:
 
-# Optional multi-instance command bus (InMemory peer invalidation / Version-TTL):
-dotnet add package CacheOrchestrator.Bus
+- [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) — Redis for Output Cache and FusionCache L2 / backplane
+- [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/) — invalidate, Version, and TTL commands across instances
+- [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) — the cache follows your EF Core saves
 
-# Optional EF Core SaveChanges invalidation (not an EF cache):
-dotnet add package CacheOrchestrator.EFCore.Invalidation
-```
-
-## Quick start
+## Register
 
 ```csharp
-using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
-using CacheOrchestrator.OutputCache;
-
 builder.Services.AddCacheOrchestrator(builder.Configuration);
-// Redis: builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBackend());
 
 var app = builder.Build();
 app.UseCacheOrchestrator();
 
 app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
 {
-    var data = await cache.GetOrSetAsync(http, ct => LoadProductsAsync(ct));
+    var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
     return Results.Json(data);
 })
 .CacheOutputWithDomain("catalog");
 ```
 
-Configure domains under `"Cache"` in `appsettings.json` — see the full examples on GitHub.
+Declare the `catalog` domain under `"Cache"` in `appsettings.json`. On a controller, use `[CacheDomain("catalog")]`.
 
 ## Documentation
 
-Everything else (why domains, Client Cache Schedule, invalidation, deployment, samples) lives in the repository:
-
-- **[README (full)](https://github.com/amarinsek/CacheOrchestrator#readme)**
+- [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)
 - [Getting started](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/getting-started.md)
-- [Docs index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
+- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
 - [Minimal sample](https://github.com/amarinsek/CacheOrchestrator/tree/main/samples/CacheOrchestrator.Minimal)
 
 ## License

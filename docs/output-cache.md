@@ -1,52 +1,43 @@
 # Output Cache
 
-Caches **full HTTP responses** for GET/HEAD using ASP.NET Core Output Caching, controlled per **domain**.
+Output Cache stores the **full HTTP response** for GET and HEAD. CacheOrchestrator applies ASP.NET Core Output Caching per **domain**: TTL, tags, vary rules, `Cache-Control`, and ETag all come from that domain.
 
-## Registration
+## Register
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
-// For Redis Output Cache store: install CacheOrchestrator.Redis and
-// AddCacheOrchestrator(config, o => o.AddRedisBackend());
-// ...
-app.UseCacheOrchestrator(); // UseOutputCache under the hood
+app.UseCacheOrchestrator();
 ```
+
+`UseCacheOrchestrator` calls `UseOutputCache`. For a Redis store, install `CacheOrchestrator.Redis` and call `AddRedisBackend()` — see [backends.md](backends.md).
 
 ## Minimal APIs
 
 ```csharp
 using CacheOrchestrator.OutputCache;
 
-// Fixed domain
 app.MapGet("/api/products", () => /* ... */)
    .CacheOutputWithDomain("products");
 
-// Fixed domain + entity tag from route (CRUD purge via InvalidateEntityAsync)
 app.MapGet("/api/products/{id}", () => /* ... */)
    .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
 
-// Per-request domain
 app.MapGet("/api/t/{tenant}/items", (string tenant) => /* ... */)
    .CacheOutputWithDomain(http => $"tenant-{http.Request.RouteValues["tenant"]}");
 
-// Template domain (host, route, header, query, custom)
-app.MapGet("/api/tiles/{z}/{x}/{y}", () => /* ... */)
+app.MapGet("/tiles/{z}/{x}/{y}", () => /* ... */)
    .CacheOutputWithDomainTemplate("maps-{host}-{route:z}");
 ```
 
-### Domain templates
+`resourceRouteKey` and `entityKind` tag the entry so `InvalidateEntityAsync` can purge that row. Templates expand these tokens:
 
-Supported tokens (see `DomainTemplateCompiler`):
+- `{host}` — host without port
+- `{route:name}` — route value
+- `{header:Name}` — request header
+- `{query:key}` — query parameter
+- `{custom:key}` — value from the `customProviders` map
 
-| Token | Meaning |
-|-------|---------|
-| `{host}` | Host without port |
-| `{route:name}` | Route value |
-| `{header:Name}` | Request header |
-| `{query:key}` | Query parameter |
-| `{custom:key}` | From `customProviders` map |
-
-## Controllers / MVC
+## Controllers
 
 ```csharp
 using CacheOrchestrator.OutputCache;
@@ -58,46 +49,49 @@ public class ProductsController : ControllerBase
     public IActionResult List() => Ok(/* ... */);
 
     [HttpGet("{id}")]
-    [CacheDomain("store", resourceRouteKey: "id", entityKind: "products")] // action overrides controller
+    [CacheDomain("store", resourceRouteKey: "id", entityKind: "products")]
     public IActionResult Get(string id) => Ok(/* ... */);
 }
 ```
 
-`AddCacheOrchestrator` adds `CacheDomainConvention`, which attaches `DomainOutputCachePolicy` as a filter when `[CacheDomain]` is present.
+The action attribute overrides the controller. `AddCacheOrchestrator` registers `CacheDomainConvention`, which attaches `DomainOutputCachePolicy` when `[CacheDomain]` is present.
 
-For Minimal endpoints that only have the attribute metadata:
+If a Minimal endpoint only has the attribute in metadata:
 
 ```csharp
 app.MapGet(...).CacheOutputWithDomainAttribute();
 ```
 
-## Policy behaviour (`DomainOutputCachePolicy`)
+## Policy
+
+`DomainOutputCachePolicy` decides lookup and store:
 
 | Condition | Result |
 |-----------|--------|
 | Not GET/HEAD | No output caching |
-| Request `Cache-Control: no-store` | Bypass + client no-store |
-| Authenticated / `Authorization` **and** `BypassWhenAuthenticated: true` (default) | Bypass + client blocked |
-| Authenticated / `Authorization` **and** `BypassWhenAuthenticated: false` | Cache allowed; optional `auth-user` vary |
-| `OutputCacheEnabled: false` | Bypass (client headers still applied) |
-| Enabled | Lookup + store, locking, TTL from domain |
-| Response status not in `CacheableStatusCodes` | No store |
-| Response has `Set-Cookie` / response `Authorization` | No store; client blocked |
-| Logged-in user + domain `ClientCacheability: Public` | Client header forced to **private** |
+| Request `Cache-Control: no-store` | Bypass; client `no-store` |
+| Authenticated / `Authorization` and `BypassWhenAuthenticated: true` (default) | Bypass; client blocked |
+| Authenticated / `Authorization` and `BypassWhenAuthenticated: false` | Cache allowed; optional `auth-user` vary |
+| `OutputCacheEnabled: false` | Bypass; client headers still applied |
+| Enabled | Lookup and store, locking, TTL from the domain |
+| Status not in `CacheableStatusCodes` | No store |
+| `Set-Cookie` or response `Authorization` | No store; client blocked |
+| Signed-in user and `ClientCacheability: Public` | Client header forced to **private** |
 
-**Vary:** host, query keys (tracking params stripped), optional `Accept-Encoding`, `data-version` from `Version`, and when auth is allowed through with `VaryOutputCacheByUser: true`, **`auth-user`** (name / `sub` / hash of Authorization).  
+**Vary:** host, query keys (tracking parameters omitted), optional `Accept-Encoding`, `data-version` from `Version`. When authenticated traffic is cached and `VaryOutputCacheByUser` is true, also **`auth-user`** (name / `sub` / hash of `Authorization`).
 
-### Authenticated caching (optional)
+**Tags:** `domain:{name}`. If `resourceRouteKey` and `entityKind` resolve, also `entity:{domain}:{entityKind}:{id}` and `entitykind:{domain}:{entityKind}`.
 
-By default the policy is **strict**: any signed-in user or `Authorization` header skips Output Cache.  
-That is correct for most apps. Two domain flags open safer exceptions:
+**ETag:** domain `ETagMode` — `Version` (generation), `Resource` (per URL or id), `None`. See [domain-profiles.md](domain-profiles.md).
 
-| Setting | Default | Meaning |
-|---------|---------|---------|
-| `BypassWhenAuthenticated` | `true` | Skip OC + block client cache for auth traffic |
-| `VaryOutputCacheByUser` | `true` | When not bypassing, partition OC by user / API key |
+### Authenticated traffic
 
-**Example A — private dashboard (per-user server cache)**
+By default any signed-in user or `Authorization` header skips Output Cache. That is the safe setting for mixed public and private APIs.
+
+- **BypassWhenAuthenticated** (default `true`) — skip Output Cache and block client cache for authenticated traffic.
+- **VaryOutputCacheByUser** (default `true`) — when you allow caching, partition Output Cache by user or API key.
+
+**Private dashboard (per-user server cache):**
 
 ```json
 "user-dashboard": {
@@ -109,9 +103,9 @@ That is correct for most apps. Two domain flags open safer exceptions:
 }
 ```
 
-Alice and Bob both hit `GET /api/me/summary` with cookies. Server stores **two** Output Cache entries (vary `auth-user=u:alice` vs `u:bob`). Browser may cache privately for 60s. Shared CDNs should not treat the response as public.
+Alice and Bob both call `GET /api/me/summary`. The server stores two entries (`auth-user=u:alice` and `u:bob`). The browser may cache privately for 60 seconds. A shared CDN must not treat the response as public.
 
-**Example B — public map tiles with API key (shared cache)**
+**Public tiles with an API key (one shared entry):**
 
 ```json
 "osm-tiles": {
@@ -123,25 +117,20 @@ Alice and Bob both hit `GET /api/me/summary` with cookies. Server stores **two**
 }
 ```
 
-Clients send `Authorization: Bearer <map-key>` only for rate-limiting / billing. The **response body is the same for everyone**. With `VaryOutputCacheByUser: false`, one OC entry serves all keys. Do **not** use this pattern for user-specific JSON.
+Clients send `Authorization: Bearer <map-key>` for rate limits or billing. The body is the same for everyone. Use this only when the payload does not depend on the caller.
 
-See also [configuration.md](configuration.md) and [domain-profiles.md](domain-profiles.md).
-
-**Tags:** `domain:{normalizedDomain}`; if `resourceRouteKey` and `entityKind` resolve a route value, also `entity:{domain}:{entityKind}:{id}` and `entitykind:{domain}:{entityKind}`.
-
-**ETag:** controlled by domain `ETagMode` (`Version` = generation stamp, `Resource` = per URL/id, `None` = omit). See [domain-profiles.md](domain-profiles.md).
+See [configuration.md](configuration.md) and [domain-profiles.md](domain-profiles.md).
 
 ## Headers
 
 On response start the policy sets:
 
-- **`Cache-Control`** — from `ClientCacheHeaderGenerator` (or no-store), including **[Client Cache Schedule](client-cache-schedule.md)** ramp-down when `ScheduledUpdateUtc` is set  
-- **`X-Cache`** — domain + client + output (+ data/ms when not OC hit) + version  
-  (only when `Cache:EmitDiagnosticsHeaders` is `true`, the default — see [observability.md](observability.md))
+- **Cache-Control** — from `ClientCacheHeaderGenerator`, including the [Client Cache Schedule](client-cache-schedule.md) ramp when `ScheduledUpdateUtc` is set.
+- **X-Cache** — domain, client, output (and data / ms when Output Cache missed). Written when `Cache:EmitDiagnosticsHeaders` is `true` (the default). See [observability.md](observability.md).
 
 ## Related
 
-- [cache-keys.md](cache-keys.md) — OC key material, Namespace, domain vs tags  
-- [configuration.md](configuration.md)  
-- [invalidation.md](invalidation.md)  
-- [observability.md](observability.md)  
+- [cache-keys.md](cache-keys.md)
+- [configuration.md](configuration.md)
+- [invalidation.md](invalidation.md)
+- [observability.md](observability.md)

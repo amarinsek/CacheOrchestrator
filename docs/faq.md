@@ -1,18 +1,10 @@
-# FAQ and limitations
+# FAQ
 
-Short answers to common “gotchas” when adopting CacheOrchestrator.  
-Deep dives stay in the topic docs; this page is the **limitations map**.
+Short answers. The topic pages hold the full story.
 
----
+## Scope
 
-## What this library is (and is not)
-
-| It is | It is not |
-|-------|-----------|
-| Domain-based caching for ASP.NET Core (Output Cache + FusionCache + client Cache-Control) | A generic cache façade for non-HTTP apps without `HttpContext` |
-| Configuration and scoping around FusionCache | A replacement for FusionCache features |
-| Pluggable storage via `ICacheBackendRegistrar` | An ops product that owns Redis topology for you |
-| One domain model across HTTP responses, app data, and client headers | Drop-in SQL Output Cache “just set Provider” without a registrar |
+The library is for ASP.NET Core HTTP apps: Output Cache, FusionCache, and client headers under one domain model. FusionCache itself stays the object cache; this package configures and scopes it. Storage other than InMemory and Redis is a registrar you write. Redis topology remains yours.
 
 ---
 
@@ -104,15 +96,7 @@ Details: [deployment.md](deployment.md#using-multiple-fusioncache-instances).
 
 ## Custom backends (SQL Server, Memcached, …)
 
-`ICacheBackendRegistrar` lets you plug **your** Output Cache store and/or Fusion L2.
-
-**Not** a drop-in:
-
-- Setting `"Provider": "SqlServer"` alone does nothing until you register a registrar that implements that name
-- You must wire the correct ASP.NET / FusionCache extensions yourself (connection, serializer, etc.)
-- There is no first-party SQL Output Cache package in this repo
-
-See [backends.md](backends.md) and [comparison.md](comparison.md).
+`ICacheBackendRegistrar` is how you add a store the library does not ship. Register the registrar, then set `Provider` to its name. [backends.md](backends.md) has a full example of Fusion L2 on SQL Server (Output Cache stays InMemory or Redis).
 
 ---
 
@@ -139,14 +123,12 @@ Without Bus package, multi-instance InMemory invalidation stays process-local (u
 
 ---
 
-## Local Admin vs Admin App
+## Admin API vs Admin App
 
-| Piece | What it is |
-|-------|------------|
-| **Local Admin API** | Opt-in HTTP on **each** app process (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`). Stats, health, invalidate, runtime Version/TTL. Ships in core NuGet; **off by default**. |
-| **Admin App** | Separate process (`src/CacheOrchestrator.Admin`) — SPA + fan-out (or bus-distribute) to Local Admins. **Not** a NuGet package. |
+- **Admin API** — opt-in HTTP on **each** process (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`). Stats, health, invalidate, runtime Version and TTL. Ships in the core package; off by default.
+- **Admin App** — a separate process (`src/CacheOrchestrator.Admin`) that fans out to those APIs. It is not a NuGet package.
 
-Admin is for **operators**, not end-user traffic. Protect with API key + private network. Guide: [admin.md](admin.md).
+These surfaces are for operators. Protect them with an API key and a private network. Guide: [admin.md](admin.md).
 
 ---
 

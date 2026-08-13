@@ -1,52 +1,43 @@
 # Getting started
 
-**CacheOrchestrator** is domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
-
-This page is **day 1**: get a working endpoint, understand the main pieces, then choose what to learn next.
+This page takes you from an empty project to a working domain endpoint, then points to the rest of the documentation.
 
 If you have not run anything yet:
 
 ```bash
 dotnet run --project samples/CacheOrchestrator.Minimal
-curl -i http://localhost:5290/hello   # twice
+curl -i http://localhost:5290/hello
+curl -i http://localhost:5290/hello
 ```
 
 See [samples/CacheOrchestrator.Minimal](../samples/CacheOrchestrator.Minimal).
 
----
+## How the pieces fit
 
-## Mental model (one minute)
+A **domain** is a name in configuration (`catalog`, `osm-tiles`, …). It holds TTLs, Version, client headers, and which Fusion instance to use. You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. `IDomainFusionCache.GetOrSetAsync` uses the same options.
 
-```text
-Domain (config name, e.g. "catalog")
-  → TTLs, Version, client Cache-Control, which Fusion instance
-  → applied on HTTP with .CacheOutputWithDomain / [CacheDomain]
-  → IDomainFusionCache.GetOrSetAsync uses the same domain options
-```
+- **Output Cache** stores the full HTTP response. You enable it by putting the domain on the endpoint.
+- **FusionCache** stores the object your factory produced. You call `IDomainFusionCache`.
+- **Client Cache-Control** is written from the domain on the way out. You do not set those headers by hand.
 
-| Layer | What it stores | You touch it via |
-|-------|----------------|------------------|
-| **Output Cache** | Full HTTP responses | Endpoint policy (domain) |
-| **FusionCache** | Objects from your factory | `IDomainFusionCache` |
-| **Client headers** | Browser/CDN `Cache-Control` | Domain settings (automatic on response) |
+The core package uses in-memory stores. Redis is a separate package.
 
-You do **not** need Redis for the happy path. InMemory is built into the core package.
-
----
-
-## Install and wire-up
+## Install
 
 ```bash
 dotnet add package CacheOrchestrator
 ```
 
+## Register
+
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
-// …
+
+var app = builder.Build();
 app.UseCacheOrchestrator();
 ```
 
-### Minimal config
+## Configure
 
 ```json
 {
@@ -69,20 +60,20 @@ app.UseCacheOrchestrator();
 }
 ```
 
-### Minimal endpoint
+## An endpoint
 
 ```csharp
 app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
 {
-    var data = await cache.GetOrSetAsync(http, ct => LoadProductsAsync(ct));
+    var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
     return Results.Json(data);
 })
 .CacheOutputWithDomain("catalog");
 ```
 
-Domain is declared **once** on the endpoint. Fusion resolves options from the request / metadata — no manual `EnsureDomainOptions` on this path.
+The domain on the endpoint is enough. Fusion reads it from the request (or from endpoint metadata).
 
-### Controllers
+On a controller:
 
 ```csharp
 [CacheDomain("catalog")]
@@ -99,54 +90,23 @@ public sealed class ProductsController : ControllerBase
 }
 ```
 
----
+If the endpoint has no domain, pass the name: `GetOrSetAsync(http, "catalog", factory, cancellationToken)`. Without a domain the factory runs uncached. Details: [fusion-cache.md](fusion-cache.md).
 
 ## Reading `X-Cache`
 
-On domain endpoints (with `EmitDiagnosticsHeaders: true`, the default):
+On domain endpoints, with `EmitDiagnosticsHeaders` at its default of `true`:
 
 ```http
 X-Cache: domain=catalog; version=1; client=public; phase=n/a; output=miss; data=miss; ms=12
 ```
 
-| Token | Meaning |
-|-------|---------|
-| `output=miss` / `hit` / `bypass` | Output Cache |
-| `data=miss` / `hit` / … | Fusion (omitted when `output=hit`) |
-| `phase=` | Client Cache Schedule (or `n/a`) |
+- **output** — `miss`, `hit`, or `bypass` for Output Cache.
+- **data** — Fusion (`hit`, `miss`, …). Omitted when Output Cache already hit.
+- **phase** — Client Cache Schedule, or `n/a`.
 
-Production tip: set `"EmitDiagnosticsHeaders": false` if you do not want this visible to clients — metrics still work. See [observability.md](observability.md).
+To hide this header from clients, set `"EmitDiagnosticsHeaders": false`. Metrics continue. See [observability.md](observability.md).
 
----
-
-## Common next steps
-
-| I want to… | Read / do |
-|------------|-----------|
-| Play with TTLs and schedule in a UI | [Sample playground](../samples/CacheOrchestrator.Sample) |
-| OSM cutover vs product CRUD | [domain-profiles.md](domain-profiles.md) |
-| Ramp client `max-age` before deploy | [client-cache-schedule.md](client-cache-schedule.md) |
-| Purge one product or whole domain | [invalidation.md](invalidation.md) |
-| Live stats / ops invalidate on one process | [admin.md](admin.md) (Local Admin) |
-| Multi-instance ops dashboard | [admin.md](admin.md) · run `src/CacheOrchestrator.Admin` |
-| Multi-instance InMemory purge | [cluster-bus.md](cluster-bus.md) |
-| Invalidate after EF `SaveChanges` | [ef-core-invalidation.md](ef-core-invalidation.md) |
-| Use Redis | [backends.md](backends.md) · [deployment.md](deployment.md) |
-| Auth / private pages | [output-cache.md](output-cache.md) · [faq.md](faq.md) |
-| Full settings list | [configuration.md](configuration.md) |
-| Why this vs hand-rolled cache | [comparison.md](comparison.md) |
-
-### Fusion without Output Cache
-
-Pass the domain explicitly:
-
-```csharp
-await cache.GetOrSetAsync(http, "catalog", factory, cancellationToken);
-```
-
-If no domain is resolved, the factory runs **uncached** (Warning log + `data=unresolved`). Details: [fusion-cache.md](fusion-cache.md).
-
-### Redis (optional package)
+## Redis
 
 ```bash
 dotnet add package CacheOrchestrator.Redis
@@ -163,14 +123,17 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 "Redis": { "Configuration": "localhost:6379" }
 ```
 
----
+## Next
 
-## Learning path
+- [Playground sample](../samples/CacheOrchestrator.Sample) — TTLs and schedule in a UI
+- [Domain profiles](domain-profiles.md) — published datasets versus changing records
+- [Client Cache Schedule](client-cache-schedule.md) — client `max-age` before a cutover
+- [Invalidation](invalidation.md) — Version, tags, a single id
+- [Admin](admin.md) — Admin API on one process; Admin App across instances
+- [Cluster bus](cluster-bus.md) — commands to every instance
+- [EF Core](ef-core-invalidation.md) — purge after `SaveChanges`
+- [Output Cache](output-cache.md) — authenticated traffic
+- [Configuration](configuration.md) — full settings list
+- [Comparison](comparison.md) — when this library is the right tool
 
-```text
-Minimal sample  →  this page  →  playground sample
-                              →  domain-profiles / client-cache-schedule
-                              →  configuration + deployment (production)
-```
-
-Full catalog: [docs/README.md](README.md).
+Index: [docs/README.md](README.md).

@@ -1,29 +1,17 @@
 # CacheOrchestrator Admin
 
-Operator and integrator guide for the **Local Admin** API (in-process on each app) and the separate **Admin App** (fan-out + SPA).
+Two pieces work together:
 
-| Component | Location | Distributed as | Role |
-|-----------|----------|----------------|------|
-| **Local Admin API** | `src/CacheOrchestrator/Admin/` | **NuGet** `CacheOrchestrator` (opt-in at runtime) | Per-process stats, health, invalidate, version/TTL overlays |
-| **Admin App** | `src/CacheOrchestrator.Admin/` | **Not** a NuGet package (`IsPackable=false`) | Multi-instance fan-out host + browser UI |
+- **Admin API** — opt-in HTTP on each application process (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`). Stats, health, invalidate, Version and TTL overlays. Ships in the core NuGet package; off by default.
+- **Admin App** — a separate host (`src/CacheOrchestrator.Admin`) that calls those APIs and serves the operator UI. It is not a NuGet package.
 
-| Doc | Audience |
-|-----|----------|
-| This page | Architecture, security, production checklist |
-| [Admin App README](../src/CacheOrchestrator.Admin/README.md) | Run, configure instances, UI map |
-| [admin-hints.md](admin-hints.md) | Recommendation rules: formulas, catalogue, how to add |
+This page covers architecture, security, and production. To run the App: [Admin README](../src/CacheOrchestrator.Admin/README.md). Hint rules: [admin-hints.md](admin-hints.md).
 
----
+- One process, curl or a script — enable the Admin API.
+- A dashboard across instances — Admin App, with the Admin API on each target.
+- Time series (“last hour”) — OpenTelemetry or Prometheus. Admin counters are lifetime totals.
 
-## Who should use what
-
-| You want… | Use |
-|-----------|-----|
-| Counters / invalidate / runtime Version·TTL **on one process** | Local Admin only (curl, script, your own tool) |
-| Cluster dashboard, multi-node ops UI, recommendation hints | Admin App + Local Admin on **each** target |
-| Metrics / time series (“last 1h”) | OTLP / Prometheus — **not** Admin (lifetime counters only) |
-
-**Warning:** Admin is an **ops** surface. Writes (invalidate, version, TTL) change cache behaviour on live processes. Restrict who can reach it.
+Writes (invalidate, Version, TTL) change live cache state. Restrict who can reach these endpoints.
 
 ---
 
@@ -53,14 +41,14 @@ Operator and integrator guide for the **Local Admin** API (in-process on each ap
 
 | Piece | How users get it |
 |-------|------------------|
-| Local Admin | Ships inside **`CacheOrchestrator`** NuGet. No extra package. Default **disabled** (`Cache:Admin:Enabled` = false). |
+| Admin API | Ships inside **`CacheOrchestrator`** NuGet. No extra package. Default **disabled** (`Cache:Admin:Enabled` = false). |
 | Admin App | Source in repo; run with `dotnet run` / `dotnet publish`, or ship your own **container / release zip**. Not published to nuget.org. |
 
-**Good practice:** document Local Admin in the library README; run Admin App as an internal ops service (Docker/Helm, VPN-only), not as a public SaaS endpoint.
+Run the Admin App as an internal ops service (Docker or Helm, VPN only).
 
 ---
 
-## Local Admin (library)
+## Admin API (library)
 
 ### Enable (each app instance)
 
@@ -96,7 +84,7 @@ Process identity is **`Cache:InstanceId`** (not under Admin). Same id is used by
 
 ### Cluster distribute (with CacheOrchestrator.Bus)
 
-When the HTTP bus is enabled, Local Admin mutation bodies accept **`distribute`** (default `false`):
+When the HTTP bus is enabled, Admin API mutation bodies accept **`distribute`** (default `false`):
 
 | Endpoint | `distribute: false` | `distribute: true` |
 |----------|---------------------|--------------------|
@@ -119,7 +107,7 @@ Deep dive (membership, commands, metrics, security): **[cluster-bus.md](cluster-
 
 ### Auth header
 
-When `ApiKey` is set, every Local Admin call must send:
+When `ApiKey` is set, every Admin API call must send:
 
 ```http
 X-Cache-Admin-Key: <same-as-Cache:Admin:ApiKey>
@@ -165,11 +153,11 @@ Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
 `Requests` / uptime on the instance row come from health when the probe succeeds.
 
-### Limitations (Local Admin)
+### Limitations (Admin API)
 
 - Counters are **process lifetime** (reset on restart), not sliding windows.  
 - Version/TTL overlays do **not** replicate to other nodes by themselves.  
-- Not a substitute for Redis backplane / shared config for multi-instance cache coherence.
+- Several instances stay coherent through Redis L2 and the backplane, shared configuration, or the [cluster bus](cluster-bus.md).
 
 ---
 
@@ -211,7 +199,7 @@ Section: `CacheAdmin` → `CacheAdminOptions`.
 dotnet run --project src/CacheOrchestrator.Admin
 ```
 
-Default UI: `http://localhost:5188/` (see launchSettings). Pair with Minimal sample + Local Admin on the port listed under `Instances`.
+Default UI: `http://localhost:5188/` (see launchSettings). Pair with Minimal sample + Admin API on the port listed under `Instances`.
 
 Quick operator steps: [Admin App README](../src/CacheOrchestrator.Admin/README.md).
 
@@ -251,13 +239,13 @@ Write responses include `distributionMode`, `distribute`, `distributionSummary`,
 
 ## Security
 
-API key is the **intended** machine-to-machine credential for Local Admin — not a temporary mock. Sample values like `dev-admin-key` are **dev-only**.
+API key is the **intended** machine-to-machine credential for Admin API — not a temporary mock. Sample values like `dev-admin-key` are **dev-only**.
 
 ### Two different trust boundaries
 
 | Path | Protected by today? |
 |------|---------------------|
-| **Admin App → Local Admin** on each app | Optional shared secret `X-Cache-Admin-Key` (required in production) |
+| **Admin App → Admin API** on each app | Optional shared secret `X-Cache-Admin-Key` (required in production) |
 | **Browser / user → Admin App** | **No built-in login** — network / reverse-proxy auth only |
 
 So: the key stops strangers from calling `/cache-admin/local` on your apps **if** they cannot reach Admin App *or* guess the key. It does **not** by itself decide which humans may open the dashboard.
@@ -265,17 +253,17 @@ So: the key stops strangers from calling `/cache-admin/local` on your apps **if*
 ### Production checklist
 
 1. **Network**  
-   - Local Admin: **not** on the public internet (private mesh, allowlist Admin App only).  
+   - Admin API: **not** on the public internet (private mesh, allowlist Admin App only).  
    - Admin App: VPN, bastion, internal ingress, or zero-trust access — not a public anonymous URL.
 
 2. **Shared API key**  
    - Strong random secret (e.g. 32+ bytes, base64).  
    - Same value on every instance (`Cache:Admin:ApiKey`) and Admin App (`CacheAdmin:ApiKey`).  
    - From a secret store (K8s Secret, Key Vault, …) — **never** commit production keys.  
-   - Empty `ApiKey` with `Enabled=true` leaves Local Admin **open** (logs a warning) — do not do this outside local dev.
+   - Empty `ApiKey` with `Enabled=true` leaves Admin API **open** (logs a warning) — do not do this outside local dev.
 
 3. **Human access to Admin App**  
-   Because SPA/`/api` has no first-party auth, put in front of it one of:  
+   The Admin App has no built-in login. Put one of these in front of `/` and `/api`:  
    - OAuth2 / OIDC proxy (e.g. oauth2-proxy, Azure App Service auth, Cloudflare Access)  
    - mTLS / service mesh only for operators  
    - VPN-only deployment  
@@ -292,9 +280,9 @@ So: the key stops strangers from calling `/cache-admin/local` on your apps **if*
    - Sample `dev-admin-key` in shared environments  
    - Shipping Admin App as an unauthenticated public cloud URL  
 
-### Local Admin without Admin App
+### Admin API without Admin App
 
-You may enable Local Admin for scripts only. Still set `ApiKey` and lock down network if the process is reachable outside localhost.
+You may enable Admin API for scripts only. Still set `ApiKey` and lock down network if the process is reachable outside localhost.
 
 ---
 
@@ -302,12 +290,12 @@ You may enable Local Admin for scripts only. Still set `ApiKey` and lock down ne
 
 | Symptom | Likely cause |
 |---------|----------------|
-| All instances **Down** | Wrong URL/port; Local Admin not mapped; firewall; **401** wrong/missing ApiKey |
+| All instances **Down** | Wrong URL/port; Admin API not mapped; firewall; **401** wrong/missing ApiKey |
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
 | Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
 | High FC miss rate, everything “fine” | Prefer **origin share** / OC hit share — see shares vs rates |
 | Scalar OpenAPI missing | Only mapped in **Development** on Admin App |
-| CORS issues calling Local Admin from a browser | Prefer Admin App fan-out; Local Admin is for server-side callers |
+| CORS issues calling Admin API from a browser | Prefer Admin App fan-out; Admin API is for server-side callers |
 
 ---
 

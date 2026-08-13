@@ -1,7 +1,6 @@
 # Observability
 
-For multi-instance **Admin App** dashboards, **Local Admin** health, and live counter aggregation, see [admin.md](admin.md).  
-Local Admin is optional (`Cache:Admin:Enabled`); it is separate from Meter/OTLP history (lifetime counters only).
+Dashboards, health, and live counters across instances: [admin.md](admin.md). The Admin API (`Cache:Admin:Enabled`) reports lifetime totals. Time series belong on the `CacheOrchestrator` meter (OpenTelemetry / Prometheus).
 
 ## X-Cache response header
 
