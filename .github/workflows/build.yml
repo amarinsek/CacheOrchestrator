@@ -10,7 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     # Integration suite pulls redis:7-alpine via Testcontainers (first run is slower).
-    timeout-minutes: 30
+    # Two TFMs run Redis sequentially — allow extra time after the image is cached.
+    timeout-minutes: 50
 
     steps:
     - uses: actions/checkout@v5
@@ -21,8 +22,8 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
-        # Library targets net8.0 + net10.0; unit tests run on both.
-        # Integration tests / samples stay net10.0-only.
+        # Library, unit tests, and integration tests target net8.0 + net10.0.
+        # Samples stay net10.0-only.
         dotnet-version: |
           8.0.x
           10.0.x
@@ -52,12 +53,22 @@ jobs:
         docker version
         docker info
 
-    # Integration: net10.0 only. Redis tests start redis:7-alpine via Testcontainers
+    # Integration: both packaged TFMs. Redis tests start redis:7-alpine via Testcontainers
     # (shared RedisFixture collection + multi-instance dual-container tests).
-    - name: Integration tests (net10.0 + Redis Testcontainers)
+    - name: Integration tests (net8.0 + Redis Testcontainers)
       timeout-minutes: 20
       env:
         # Clearer logs if a container fails to start.
+        TESTCONTAINERS_RYUK_DISABLED: "false"
+      run: >
+        dotnet test tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj
+        --no-build --configuration Release --framework net8.0
+        --verbosity normal
+        --logger "console;verbosity=detailed"
+
+    - name: Integration tests (net10.0 + Redis Testcontainers)
+      timeout-minutes: 20
+      env:
         TESTCONTAINERS_RYUK_DISABLED: "false"
       run: >
         dotnet test tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj

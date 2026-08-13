@@ -26,10 +26,13 @@ dotnet test tests/CacheOrchestrator.UnitTests -c Release
 dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net8.0
 dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net10.0
 
-# Integration tests — net10.0 only
+# Integration tests — multi-target net8.0 + net10.0 (matches published library TFMs)
 # - InMemory tests: no Docker
 # - Redis tests: Testcontainers starts redis:7-alpine (Docker required)
 dotnet test tests/CacheOrchestrator.IntegrationTests -c Release
+# Or one TFM:
+dotnet test tests/CacheOrchestrator.IntegrationTests -c Release -f net8.0
+dotnet test tests/CacheOrchestrator.IntegrationTests -c Release -f net10.0
 ```
 
 ### Redis integration tests (Testcontainers)

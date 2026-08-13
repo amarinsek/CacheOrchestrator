@@ -8,7 +8,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     # Required for NuGet Trusted Publishing (OIDC → short-lived API key).
     # No long-lived NUGET_API_KEY secret needed.
@@ -35,7 +35,7 @@ jobs:
     - name: Build
       run: dotnet build CacheOrchestrator.slnx --no-restore --configuration Release
 
-    # Same coverage as build.yml: unit tests on net8 + net10; integration on net10.
+    # Same coverage as build.yml: unit + integration on net8 + net10.
     - name: Unit tests (net8.0)
       run: >
         dotnet test tests/CacheOrchestrator.UnitTests/CacheOrchestrator.UnitTests.csproj
@@ -52,6 +52,13 @@ jobs:
       run: |
         docker version
         docker info
+
+    - name: Integration tests (net8.0 + Redis Testcontainers)
+      timeout-minutes: 20
+      run: >
+        dotnet test tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj
+        --no-build --configuration Release --framework net8.0
+        --verbosity normal
 
     - name: Integration tests (net10.0 + Redis Testcontainers)
       timeout-minutes: 20

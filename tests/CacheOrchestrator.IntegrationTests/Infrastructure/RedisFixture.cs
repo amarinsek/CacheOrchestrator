@@ -36,8 +36,7 @@ public sealed class RedisFixture : IAsyncLifetime
 
     /// <summary>Creates a Redis container with the project-standard image and wait strategy.</summary>
     public static RedisContainer CreateContainer() =>
-        new RedisBuilder()
-            .WithImage(RedisImage)
+        new RedisBuilder(RedisImage)
             .WithCleanUp(true)
             .Build();
 }
