@@ -89,8 +89,6 @@ await fusionCache.RemoveByTagAsync("domain:osm-tiles", cancellationToken);
 await outputCache.EvictByTagAsync("domain:osm-tiles", cancellationToken);
 ```
 
-A second domain (catalog, PII, live positions) means another named Output Cache policy, another Fusion entry-options block, another key scheme, and another copy of the header logic.
-
 ### With CacheOrchestrator
 
 ```json
@@ -133,10 +131,11 @@ Invalidation with CacheOrchestrator:
 await invalidator.InvalidateDomainAsync("osm-tiles", cancellationToken);
 ```
 
-A second domain is another entry under `Domains` and `.CacheOutputWithDomain("…")` on the route. Auth bypass, tags, Version, Client Cache Schedule, and `X-Cache` stay in the library.
+## Further comparison
 
 | Concern | Manual | CacheOrchestrator |
 |---------|--------|-------------------|
+| Second and more domains | Another policy, Fusion options, key scheme, and header block | Another `Domains` entry and `.CacheOutputWithDomain("…")` |
 | Per-domain TTLs | Many named policies or magic numbers | One domain entry in config |
 | Client `max-age` near cutover | Hand-written or forgotten | **Client Cache Schedule** |
 | Fusion + OC same domain | Duplicate config | Shared `DomainCacheOptions` |
@@ -145,19 +144,14 @@ A second domain is another entry under `Domains` and `.CacheOutputWithDomain("�
 | Multi Redis for PII vs catalog | Easy to get L2 wrong | Named instances + keyed L2 |
 | `X-Cache` diagnostics | You write the header | Built-in |
 
-## Smaller cases
+## Starting small
 
-One or two endpoints, Output Cache on Redis alone, or FusionCache in a worker with no HTTP, can look simpler if you wire the platform APIs yourself. Even then CacheOrchestrator is worth taking:
-
-- **Configuration** — TTLs, Version, and client headers live in `appsettings`, not in the handler.
-- **Clean endpoints** — the route loads data; the domain owns caching.
-- **Topology** — InMemory to Redis, or a second Fusion instance, is a provider change, not a rewrite.
-- **Room to grow** — a second domain, Client Cache Schedule, entity invalidation, or the cluster bus sit on the same model when you need them.
-
-Custom storage (SQL, Memcached, …) is a registrar you add. See [backends.md](backends.md) for a Fusion L2 example on SQL Server.
+If you are working on a smaller app — one or two endpoints, or Output Cache alone — wiring the platform APIs yourself can look shorter. CacheOrchestrator is still worth using. You get a lot immediately (TTLs and `Cache-Control` in settings, auth bypass, tags, `X-Cache`, and so on). You also have a base you can use later (a second domain, a planned cutover, Redis, the cluster bus, and so on).
 
 ## Related
 
+- [getting-started.md](getting-started.md)
 - [faq.md](faq.md)
 - [architecture.md](architecture.md)
 - [backends.md](backends.md)
+- [domain-profiles.md](domain-profiles.md)
