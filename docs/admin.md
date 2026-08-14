@@ -194,6 +194,7 @@ Section: `CacheAdmin` → `CacheAdminOptions`.
 | `Instances[].id` | Stable UI / filter id |
 | `Instances[].url` | **Base URL only** (scheme + host + port) — no `/cache-admin/...` path |
 | `Metrics` | Optional Prometheus-compatible store for the **Metrics** page (see below) |
+| `Hints` | Declarative rule packs + disable list ([admin-hints.md](admin-hints.md), operator guide [Admin hints/README](../src/CacheOrchestrator.Admin/hints/README.md)) |
 
 ### Metrics store (time series)
 
@@ -250,9 +251,11 @@ Quick operator steps: [Admin App README](../src/CacheOrchestrator.Admin/README.m
 
 ### Recommendation hints
 
-Evaluated **only in the Admin App** after fan-out aggregation (`RecommendationHints`). UI does not invent rules.
+Evaluated **only in the Admin App** after fan-out aggregation (`HintEngine` + JSON packs).  
+**Customizable:** product defaults in `hints/core-hints.json`; extra packs via `CacheAdmin:Hints:RuleFiles`; enable/disable in **Settings**. UI does not invent rules.
 
-Details: [admin-hints.md](admin-hints.md).
+Step-by-step custom rules (ships with Admin): [hints/README.md](../src/CacheOrchestrator.Admin/hints/README.md).  
+Repo overview: [admin-hints.md](admin-hints.md).
 
 ### Admin App HTTP API (for the SPA / automation)
 
@@ -352,7 +355,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 
 ## Related docs
 
-- [admin-hints.md](admin-hints.md) — recommendation rule formulas  
+- [admin-hints.md](admin-hints.md) — recommendation hints + customization  
 - [observability.md](observability.md) — metrics / `X-Cache` / health checks  
 - [invalidation.md](invalidation.md) — domain/entity invalidation model  
 - [configuration.md](configuration.md) — domain options binding  

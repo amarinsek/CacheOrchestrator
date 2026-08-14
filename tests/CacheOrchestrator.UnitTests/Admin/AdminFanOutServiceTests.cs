@@ -2,6 +2,7 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.Admin.App.Models;
 using CacheOrchestrator.Admin.App.Options;
 using CacheOrchestrator.Admin.App.Services;
+using CacheOrchestrator.Admin.App.Services.Hints;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
@@ -232,7 +233,8 @@ public class AdminFanOutServiceTests
         };
         Microsoft.Extensions.Options.IOptions<CacheAdminOptions> options = Options.Create(opts);
         InstanceReachabilityCache reachability = new(options, TimeProvider.System);
-        return new AdminFanOutService(client, options, reachability);
+        HintEngine hints = TestHintEngine.Create(opts);
+        return new AdminFanOutService(client, options, reachability, hints);
     }
 
     private sealed class FakeLocalAdminClient : ILocalAdminClient

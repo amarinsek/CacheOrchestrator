@@ -39,6 +39,11 @@ public sealed class CacheAdminOptions
     /// Leave unset (or <c>Enabled: false</c>) when not used.
     /// </summary>
     public MetricsStoreOptions Metrics { get; set; } = new();
+
+    /// <summary>
+    /// Operator recommendation rules (built-in + optional declarative JSON files).
+    /// </summary>
+    public HintOptions Hints { get; set; } = new();
 }
 
 /// <summary>One target instance in the Admin App instance list.</summary>

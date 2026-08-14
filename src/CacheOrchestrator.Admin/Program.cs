@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using CacheOrchestrator.Admin.App.Models;
 using CacheOrchestrator.Admin.App.Options;
 using CacheOrchestrator.Admin.App.Services;
+using CacheOrchestrator.Admin.App.Services.Hints;
 using CacheOrchestrator.Admin.App.Services.Metrics;
 using Scalar.AspNetCore;
 
@@ -45,6 +46,9 @@ builder.Services.AddHttpClient(PrometheusMetricsQueryClient.HttpClientName)
     });
 
 builder.Services.AddSingleton<ILocalAdminClient, LocalAdminClient>();
+builder.Services.AddSingleton<IHintRuleDisableStore, HintRuleDisableStore>();
+builder.Services.AddSingleton<HintRuleRegistry>();
+builder.Services.AddSingleton<HintEngine>();
 builder.Services.AddSingleton<AdminFanOutService>();
 builder.Services.AddSingleton<IMetricsQueryClient, PrometheusMetricsQueryClient>();
 builder.Services.AddSingleton<MetricsQueryService>();
@@ -255,6 +259,36 @@ api.MapGet("/metrics/summary", async (
 {
     MetricsSummaryDto summary = await metrics.GetSummaryAsync(range, cancellationToken).ConfigureAwait(false);
     return Results.Ok(summary);
+});
+
+api.MapGet("/hints/rules", (HintEngine engine, HintRuleRegistry registry) =>
+{
+    return Results.Ok(new
+    {
+        load = registry.GetLoadStatus(),
+        rules = engine.GetCatalog(),
+        knownPaths = CacheOrchestrator.Admin.App.Services.Hints.Declarative.HintPathCatalog.All
+            .OrderBy(p => p)
+            .ToArray()
+    });
+});
+
+api.MapPost("/hints/reload", (HintRuleRegistry registry) =>
+{
+    HintRuleLoadStatus status = registry.Reload();
+    return Results.Ok(status);
+});
+
+api.MapPut("/hints/rules/{code}/enabled", async (
+    string code,
+    HintRuleEnableRequest body,
+    IHintRuleDisableStore disable,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(code))
+        return Results.BadRequest(new { error = "code is required." });
+    await disable.SetEnabledAsync(code, body.Enabled, cancellationToken).ConfigureAwait(false);
+    return Results.Ok(new { code, enabled = body.Enabled });
 });
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "CacheOrchestrator.Admin" }));

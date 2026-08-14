@@ -725,6 +725,94 @@ body.chart-modal-open { overflow: hidden; }
   margin: 0.45rem 0 0;
 }
 
+/* Settings: collapsible hint rule groups (per file) */
+.hint-rule-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.65rem;
+  overflow: hidden;
+  background: #121820;
+}
+
+.hint-group-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: left;
+  background: #1a222c !important;
+  border: none !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 0.55rem 0.75rem !important;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hint-group-toggle:hover {
+  filter: brightness(1.06);
+}
+
+.hint-group-chevron {
+  width: 1rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.hint-group-body {
+  padding: 0.35rem 0.5rem 0.5rem;
+}
+
+.hint-group-body.hidden {
+  display: none;
+}
+
+.hint-sev-label {
+  font-weight: 650;
+  font-size: 0.85rem;
+}
+.hint-sev-label.sev-Critical { color: var(--bad); }
+.hint-sev-label.sev-Warning { color: var(--warn); }
+.hint-sev-label.sev-Info { color: var(--accent); }
+
+.hint-rule-row { cursor: pointer; }
+.hint-rule-row:hover td { background: #1a2430; }
+.hint-rule-code-link { color: var(--accent); }
+
+.hint-compile-error-card {
+  border-color: color-mix(in srgb, var(--bad) 55%, var(--border)) !important;
+  background: #1c1214 !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bad) 25%, transparent);
+}
+
+.hint-compile-error-lead {
+  color: #f0b4b8;
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.hint-compile-error-table td {
+  vertical-align: top;
+}
+
+.badge.bad {
+  background: color-mix(in srgb, var(--bad) 28%, #243041);
+  color: #ffb4b8;
+}
+
+.hint-rule-detail-modal {
+  width: min(720px, 100%);
+}
+
+.hint-rule-json {
+  max-height: min(60vh, 28rem);
+  overflow: auto;
+  margin: 0;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .metrics-ov-chart .chart-wrap { min-height: 7rem; }
 .metrics-ov-chart .chart-svg { min-height: 6.5rem; }
 

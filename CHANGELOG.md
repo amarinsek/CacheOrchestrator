@@ -13,33 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - BFF: `GET /api/metrics/status|catalog|series|summary` (allowlisted panels; no free-form PromQL from the browser)
   - SPA page `#/metrics` (range / domain filters, window KPIs, SVG charts) plus Overview “last 1h” embed when connected
   - Detail embeds: domain / instance / endpoint pages (scoped series; endpoint empty-range notice is sample-based, not a hard feature flag)
+  - Enlarge chart modal (denser Y grid) with hover snap along the polyline (interpolated segment values + vertex snap, including sloped segments); expand control on chart cards
   - Graceful `NotConfigured` / `Disconnected` / `Connected` (no fake zeros when storage is missing)
-  - Local dev stack: `deploy/prometheus` (Docker) scrapes **Playground** `/metrics`; docs in Admin / observability
+  - Local dev stack: `deploy/prometheus` (Docker) scrapes **Playground** `/metrics`
 - **Core `Cache:Metrics:IncludeEndpointLabel`** (default `true`) — optional stable `route` tag on OC/FC meter instruments (`METHOD` + route template, same as Admin endpoint keys); set `false` to lower Prometheus cardinality
 - Playground sample: OpenTelemetry Prometheus scrape endpoint (`/metrics`, Output Cache NoStore), Local Admin enabled, `IncludeEndpointLabel` on
 - Admin App: `InstanceReachabilityCache` + `DownReprobeSeconds` — skip HTTP to known-down instances until re-probe (avoids stacking timeouts)
-- Admin App unit tests for metrics catalog / query service and fan-out skip-down behaviour
-- Admin App Metrics charts: enlarge modal (denser Y grid) with hover snap along the polyline (interpolated segment values + vertex snap); expand control on chart cards
-- Local Admin `GET …/cluster/info` when Admin is enabled (works without CacheOrchestrator.Bus; avoids SPA HTML fallback on probe)
-
-- Admin App hints: approaching schedule (Info), hold older than 24 h (Warning), factory failure rate, runtime overlay reminder, Fusion hard TTL shorter than soft, schedule that cannot ramp.
+- Local Admin `GET …/cluster/info` when Admin is enabled (works without CacheOrchestrator.Bus)
+- **Admin App customizable hints** — declarative JSON rule packs evaluated after fan-out (not on the instance hot path)
+  - Product pack `hints/core-hints.json` (always loaded) plus optional packs via `CacheAdmin:Hints:RuleFiles`
+  - Compiler/checker (errors include rule code + path inside the rule); enable/disable per code (config and Settings UI)
+  - Settings page `#/settings` (catalog by file, severity colors, view rule JSON, reload packs)
+  - Default recommendations expanded beyond 2.0.0: approaching schedule (Info), hold older than 24 h (Warning), factory failure rate, runtime overlay reminder, Fusion hard TTL shorter than soft, schedule that cannot ramp, instance drift, …
+- Admin App unit tests for metrics catalog / query service, fan-out skip-down behaviour, and declarative hint compiler
 
 ### Changed
 
-- **Admin App SPA soft refresh** — auto-refresh and header refresh repaint without a full “Loading…” flash; concurrent soft runs coalesce; GET `/api/overview` is deduped in-flight
-- Admin App Metrics soft refresh: patch KPIs and SVG path data in place (no full chart remount / flicker)
-- Admin App Hints page: severity KPIs show **visible/total** when filters are applied
+- **Admin App SPA soft refresh** — auto-refresh and header refresh repaint without a full “Loading…” flash; concurrent soft runs coalesce; GET `/api/overview` is deduped in-flight; Metrics charts soft-refresh by patching KPIs and SVG path data in place (no full chart remount / flicker)
 - Admin App instance health: KPI / header show error styling unless **all** configured instances are healthy; JSON enums as strings (`JsonStringEnumConverter`) for SPA status handling
+- Admin App Hints page: severity KPIs show **visible/total** when filters are applied
 - Admin App fan-out: stats + domains load in parallel; overview uses a single stats pass with `ByInstance` (no second full stats fetch for hints)
 - Core: endpoint key (`METHOD` + route template) resolved once per request (`HttpContext.Items`) and shared by Local Admin counters and optional metrics `route` tag
 - Bus: skip duplicate `GET …/cluster/info` when Local Admin already maps it (same route prefix)
-- Documentation revised: root README, package and sample READMEs, and `docs/` aligned with the same tone and structure; Admin Metrics store and Prometheus dev guide
 
 ### Fixed
 
 - Admin App: partial instance outage no longer blocks the whole dashboard on repeated request timeouts (down targets are marked and re-probed on an interval)
 - Admin App cluster probe: non-JSON / HTML responses (e.g. `MapFallbackToFile`) no longer surface raw `JsonException` (`'<' is an invalid start of a value`); clearer error text
-- Admin App chart hover: snap follows sloped polyline segments (not only discrete samples by time)
+
+### Documentation
+
+- Documentation revised after 2.0.0: root README, package and sample READMEs, and `docs/` further aligned in tone and structure
+- Admin Metrics store and Prometheus dev guide (`deploy/prometheus`, Playground `/metrics`, Admin / observability docs)
+- Admin hints customization: operator guide ships with the Admin App as `hints/README.md`; monorepo overview in `docs/admin-hints.md`; Admin App README presents hints as a first-class feature (Settings, packs, `CacheAdmin:Hints`)
 
 ## [2.0.0] - 2026-08-13
 

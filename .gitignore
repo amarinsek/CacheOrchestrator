@@ -8,6 +8,9 @@ artifacts/
 appsettings.*.local.json
 .env
 
+# Admin App: operator runtime toggles for hint rules (local machine only)
+**/hints/disabled.local.json
+
 # Local machine outputs (traces, bench artifacts, scratch)
 _local/
 nupkg/

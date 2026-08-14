@@ -1,6 +1,7 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Admin.App.Models;
 using CacheOrchestrator.Admin.App.Options;
+using CacheOrchestrator.Admin.App.Services.Hints;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
@@ -15,19 +16,23 @@ public sealed class AdminFanOutService
     private readonly CacheAdminOptions _options;
     private readonly TimeProvider _time;
     private readonly InstanceReachabilityCache _reachability;
+    private readonly HintEngine _hints;
 
     public AdminFanOutService(
         ILocalAdminClient client,
         IOptions<CacheAdminOptions> options,
         InstanceReachabilityCache reachability,
+        HintEngine hints,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(reachability);
+        ArgumentNullException.ThrowIfNull(hints);
         _client = client;
         _options = options.Value;
         _reachability = reachability;
+        _hints = hints;
         _time = timeProvider ?? TimeProvider.System;
     }
 
@@ -159,16 +164,16 @@ public sealed class AdminFanOutService
             .Select(d =>
             {
                 configByName.TryGetValue(d.Name, out AdminDomainConfigDto? c);
-                return RecommendationHints.WithHints(d, c);
+                return _hints.WithHints(d, c);
             })
             .ToArray();
 
         IReadOnlyList<AdminEndpointStatsDto> endpoints = StatsAggregator.MergeEndpoints(ok, groupByInstance)
-            .Select(RecommendationHints.WithHints)
+            .Select(_hints.WithHints)
             .ToArray();
 
         IReadOnlyList<AdminEndpointStatsDto> unassigned = StatsAggregator.MergeUnassignedEndpoints(ok, groupByInstance)
-            .Select(RecommendationHints.WithHints)
+            .Select(_hints.WithHints)
             .ToArray();
 
         string scopeLabel = string.IsNullOrWhiteSpace(scope) ? "all" : scope.Trim();
@@ -228,8 +233,8 @@ public sealed class AdminFanOutService
         IReadOnlyList<AdminDomainStatsDto> topDomains = stats.Domains;
         IReadOnlyList<AdminEndpointStatsDto> topEndpoints = stats.Endpoints;
 
-        IReadOnlyList<AdminHintDto> allHints = RecommendationHints.CollectFromStats(stats.Domains, stats.Endpoints);
-        AdminHintSummaryDto clusterHints = RecommendationHints.Summarize(allHints);
+        IReadOnlyList<AdminHintDto> allHints = HintEngine.CollectFromStats(stats.Domains, stats.Endpoints);
+        AdminHintSummaryDto clusterHints = HintEngine.Summarize(allHints);
 
         // Per-instance hint rollup from ByInstance rows (same stats fetch).
         Dictionary<string, List<AdminHintDto>> instHintLists = new(StringComparer.OrdinalIgnoreCase);
@@ -247,7 +252,7 @@ public sealed class AdminFanOutService
                     instHintLists[row.InstanceId] = list;
                 }
 
-                list.AddRange(RecommendationHints.CollectFromStats([row], row.Endpoints));
+                list.AddRange(HintEngine.CollectFromStats([row], row.Endpoints));
             }
         }
 
@@ -265,7 +270,7 @@ public sealed class AdminFanOutService
                 StartedAtUtc = i.StartedAtUtc,
                 UptimeSeconds = i.UptimeSeconds,
                 Requests = i.Requests,
-                HintSummary = hl is null ? new AdminHintSummaryDto() : RecommendationHints.Summarize(hl)
+                HintSummary = hl is null ? new AdminHintSummaryDto() : HintEngine.Summarize(hl)
             };
         }).ToArray();
 

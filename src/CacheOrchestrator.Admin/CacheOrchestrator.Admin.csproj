@@ -20,4 +20,10 @@
     <ProjectReference Include="..\CacheOrchestrator\CacheOrchestrator.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Ship rule packs + operator handbook with publish/output -->
+    <Content Update="hints\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="README.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
