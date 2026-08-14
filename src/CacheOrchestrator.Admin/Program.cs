@@ -230,13 +230,15 @@ api.MapGet("/metrics/series", async (
     string? range,
     string? panels,
     string? domains,
+    string? instances,
+    string? routes,
     MetricsQueryService metrics,
     CancellationToken cancellationToken) =>
 {
     try
     {
         MetricsSeriesResponseDto result = await metrics
-            .GetSeriesAsync(range, panels, domains, cancellationToken)
+            .GetSeriesAsync(range, panels, domains, instances, routes, cancellationToken)
             .ConfigureAwait(false);
         return Results.Ok(result);
     }

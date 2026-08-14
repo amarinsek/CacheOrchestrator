@@ -440,13 +440,19 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             OutputCacheResult.Miss => "miss",
             _ => "miss"
         };
-        CacheOrchestratorMetrics.RecordOutput(config.Domain, ocMetric);
-
         IAdminStatsCollector? adminStats = httpContext.RequestServices.GetService<IAdminStatsCollector>();
-        if (adminStats is { IsEnabled: true })
+        bool adminOn = adminStats is { IsEnabled: true };
+        CacheOrchestratorMetrics.ResolveEndpointKeys(
+            httpContext,
+            forAdminStats: adminOn,
+            out string? endpointKey,
+            out string? metricsRoute);
+        CacheOrchestratorMetrics.RecordOutput(config.Domain, ocMetric, metricsRoute);
+
+        if (adminOn)
         {
-            adminStats.RecordOutput(
-                AdminEndpointKey.TryGet(httpContext),
+            adminStats!.RecordOutput(
+                endpointKey,
                 config.Domain,
                 ocMetric);
         }

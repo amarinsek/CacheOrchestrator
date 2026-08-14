@@ -72,6 +72,8 @@ Named Fusion instances and a second Redis: [deployment.md](../../docs/deployment
 
 This sample enables the Local Admin API (`Cache:Admin`) and exports meter `CacheOrchestrator` at **http://localhost:5289/metrics** for Prometheus.
 
+`Cache:Metrics:IncludeEndpointLabel` is **true** so OC/FC series include a stable `route` label (Admin endpoint key shape). Domain detail, instance detail, and endpoint detail in the Admin App can show window charts when Metrics storage is connected.
+
 ```bash
 # Prometheus (UI http://localhost:9090)
 docker compose -f deploy/prometheus/docker-compose.yml up -d

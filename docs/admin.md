@@ -227,6 +227,8 @@ When **not configured**, the Metrics page explains how to enable it; Overview om
 
 Admin App API: `GET /api/metrics/status`, `/catalog`, `/series`, `/summary`.
 
+`GET /api/metrics/series` query params: `range`, `panels`, `domains`, `instances` (scrape label `instance_id`), `routes` (stable endpoint key, e.g. `GET /api/catalog`). Detail pages embed scoped charts (domain / instance / endpoint). Endpoint series need core `Cache:Metrics:IncludeEndpointLabel` (default true) and samples in the selected range—empty charts show a neutral notice, not a hard “feature disabled” claim.
+
 ### Run (local)
 
 ```bash

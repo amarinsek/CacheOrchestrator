@@ -23,6 +23,19 @@ public class MetricsPanelCatalogTests
     }
 
     [Fact]
+    public void BuildPromQl_route_and_instance_filters()
+    {
+        string q = MetricsPanelCatalog.BuildPromQl(
+            "request_rate",
+            domains: null,
+            instanceIds: ["app-1"],
+            routes: ["GET /api/catalog"]);
+        Assert.Contains("instance_id=~\"app-1\"", q, StringComparison.Ordinal);
+        Assert.Contains("route=~\"GET /api/catalog\"", q, StringComparison.Ordinal);
+        Assert.Contains("sum by (route)", q, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BuildPromQl_unknown_panel_throws()
     {
         Assert.Throws<ArgumentException>(() => MetricsPanelCatalog.BuildPromQl("nope", null));

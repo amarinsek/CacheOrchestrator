@@ -24,6 +24,11 @@ public sealed class CacheOrchestratorOptions
     public bool EmitDiagnosticsHeaders { get; set; } = true;
 
     /// <summary>
+    /// Meter / Prometheus label options. Bound from <c>Cache:Metrics</c>.
+    /// </summary>
+    public MetricsOptions Metrics { get; set; } = new();
+
+    /// <summary>
     /// Soft/hard timeouts and circuit breaker for distributed FusionCache L2 (any non-InMemory provider).
     /// Bound from <c>Cache:Distributed</c>.
     /// </summary>
@@ -71,6 +76,20 @@ public sealed class CacheOrchestratorOptions
     // ---------------------------------------------------------------------------
     // Nested types
     // ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Options for <c>CacheOrchestrator</c> meter labels (OpenTelemetry / Prometheus).
+    /// Bound from <c>Cache:Metrics</c>.
+    /// </summary>
+    public sealed class MetricsOptions
+    {
+        /// <summary>
+        /// When <see langword="true"/> (default), OC/FC instruments include a stable
+        /// <c>route</c> tag (<c>METHOD</c> + route template, same shape as Admin endpoint keys).
+        /// Set <see langword="false"/> to emit only <c>domain</c> / <c>result</c> (lower cardinality).
+        /// </summary>
+        public bool IncludeEndpointLabel { get; set; } = true;
+    }
 
     /// <summary>
     /// Local Admin API feature flags and auth. Bound from <c>Cache:Admin</c>.

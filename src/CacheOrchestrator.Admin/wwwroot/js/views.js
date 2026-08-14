@@ -57,7 +57,7 @@ import {
   layerDetailOc,
   noInstancesConfigured,
 } from "./tables.js";
-import { metricsOverviewSectionHtml, renderMetrics } from "./views-metrics.js";
+import { metricsOverviewSectionHtml, mountDetailMetrics, renderMetrics } from "./views-metrics.js";
 
 /** First paint may show loading; soft refresh keeps previous content until data arrives. */
 function beginPageLoad(soft, loadingHtml) {
@@ -378,12 +378,18 @@ export async function renderEndpointDetail(routeName, opts = {}) {
         </tbody>
       </table>
     </div>` : ""}
+    <div id="epMetricsMount"></div>
     <p><a href="#/endpoints">← All endpoints</a>
       ${ep.configuredDomain ? ` · <a href="#/operations?domain=${encodeURIComponent(ep.configuredDomain)}">Operations for domain</a>` : ""}
     </p>`, soft);
 
   main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
     tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
+  });
+  mountDetailMetrics("epMetricsMount", {
+    scope: "endpoint",
+    route: ep.route,
+    domain: ep.configuredDomain || undefined,
   });
 }
 
@@ -542,12 +548,14 @@ export async function renderDomainDetail(name, opts = {}) {
       <h2>Endpoints in domain</h2>
       ${endpointTableHtml(domain.endpoints || [])}
     </div>
+    <div id="domMetricsMount"></div>
     <p><a href="#/domains">← Domains</a> · <a href="#/operations?domain=${encodeURIComponent(name)}">Operations</a></p>`, soft);
 
   main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
     tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
   });
   bindEntityTableClicks(main());
+  mountDetailMetrics("domMetricsMount", { scope: "domain", domain: name });
 }
 
 // —— Instances ——
@@ -645,10 +653,12 @@ export async function renderInstanceDetail(id, opts = {}) {
       <h2>Endpoints on instance</h2>
       ${endpointTableHtml((stats.endpoints || []).slice(0, 50))}
     </div>
+    <div id="instMetricsMount"></div>
     <p><a href="#/instances">← Instances</a>
       · <a href="#/operations?target=instance:${encodeURIComponent(id)}">Operations on this instance</a></p>`, soft);
 
   bindEntityTableClicks(main());
+  mountDetailMetrics("instMetricsMount", { scope: "instance", instanceId: id });
 }
 
 // —— Hints ——

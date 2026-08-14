@@ -33,7 +33,18 @@ Root section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(c
 | `Namespace` | string | `app-cache` | Global key prefix; isolates multi-app shared stores **and** cluster command isolation |
 | `InstanceId` | string | machine name | Stable process id (Admin, cluster bus anti-echo, diagnostics) |
 | `EmitDiagnosticsHeaders` | bool | `true` | When `true`, emit client-visible diagnostic headers (currently `X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
+| `Metrics` | object | see below | Meter label options (OpenTelemetry / Prometheus) |
 | `Distributed` | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** Fusion providers |
+
+### Metrics (core package)
+
+Bound from `Cache:Metrics`. Controls labels on the `CacheOrchestrator` meter (not Admin App storage).
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `IncludeEndpointLabel` | bool | `true` | When `true`, OC/FC instruments include a stable `route` tag (`METHOD` + route template, same shape as Admin endpoint keys). Set `false` to emit only `domain` / `result` (lower Prometheus cardinality). Keep the same value on all cluster nodes. |
+
+Endpoint time series need a scrape of the meter and Admin App Metrics store; empty charts mean no samples in range (traffic, flag off for part of the window, or label mismatch)—not a separate “feature bit” from Prometheus history.
 | `OutputCache` | object | Provider `InMemory` | Output Cache provider + optional namespace |
 | `FusionCacheInstances` | map | `default` instance `InMemory` | Named FusionCache instances |
 | `DomainDefaults` | object | — | Fallbacks for every domain |

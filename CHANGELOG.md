@@ -12,9 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Admin App Metrics** — optional Prometheus-compatible time series (`CacheAdmin:Metrics`: typically `Enabled`, `Provider`, `BaseUrl`)
   - BFF: `GET /api/metrics/status|catalog|series|summary` (allowlisted panels; no free-form PromQL from the browser)
   - SPA page `#/metrics` (range / domain filters, window KPIs, SVG charts) plus Overview “last 1h” embed when connected
+  - Detail embeds: domain / instance / endpoint pages (scoped series; endpoint empty-range notice is sample-based, not a hard feature flag)
   - Graceful `NotConfigured` / `Disconnected` / `Connected` (no fake zeros when storage is missing)
   - Local dev stack: `deploy/prometheus` (Docker) scrapes **Playground** `/metrics`; docs in Admin / observability
-- Playground sample: OpenTelemetry Prometheus scrape endpoint (`/metrics`, Output Cache NoStore), Local Admin enabled for fan-out demos
+- **Core `Cache:Metrics:IncludeEndpointLabel`** (default `true`) — optional stable `route` tag on OC/FC meter instruments (`METHOD` + route template, same as Admin endpoint keys); set `false` to lower Prometheus cardinality
+- Playground sample: OpenTelemetry Prometheus scrape endpoint (`/metrics`, Output Cache NoStore), Local Admin enabled, `IncludeEndpointLabel` on
 - Admin App: `InstanceReachabilityCache` + `DownReprobeSeconds` — skip HTTP to known-down instances until re-probe (avoids stacking timeouts)
 - Admin App unit tests for metrics catalog / query service and fan-out skip-down behaviour
 
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Admin App SPA soft refresh** — auto-refresh and header refresh repaint without a full “Loading…” flash; concurrent soft runs coalesce; GET `/api/overview` is deduped in-flight
 - Admin App instance health: KPI / header show error styling unless **all** configured instances are healthy; JSON enums as strings (`JsonStringEnumConverter`) for SPA status handling
 - Admin App fan-out: stats + domains load in parallel; overview uses a single stats pass with `ByInstance` (no second full stats fetch for hints)
+- Core: endpoint key (`METHOD` + route template) resolved once per request (`HttpContext.Items`) and shared by Local Admin counters and optional metrics `route` tag
 - Documentation revised: root README, package and sample READMEs, and `docs/` aligned with the same tone and structure; Admin Metrics store and Prometheus dev guide
 
 ### Fixed

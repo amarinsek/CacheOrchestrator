@@ -7,6 +7,8 @@ namespace CacheOrchestrator.Admin.App.Services.Metrics;
 /// Allowlisted Metrics panels and PromQL builders.
 /// Metric names match OpenTelemetry → Prometheus export of the CacheOrchestrator meter
 /// (<c>cache_orchestrator.*</c> instruments → <c>cache_orchestrator_*_total</c> counters).
+/// Optional <c>route</c> label when apps enable <c>Cache:Metrics:IncludeEndpointLabel</c>.
+/// Instance filter uses scrape label <c>instance_id</c> (align with Admin App instance ids).
 /// </summary>
 public static class MetricsPanelCatalog
 {
@@ -19,6 +21,12 @@ public static class MetricsPanelCatalog
 
     /// <summary>Histogram buckets for Fusion duration (unit ms → milliseconds in OTel export).</summary>
     public const string FcDurationBucket = "cache_orchestrator_fc_duration_milliseconds_bucket";
+
+    /// <summary>Scrape label for Admin App instance id (see deploy/prometheus).</summary>
+    public const string InstanceIdLabel = "instance_id";
+
+    /// <summary>OTel tag for stable endpoint key.</summary>
+    public const string RouteLabel = "route";
 
     private static readonly IReadOnlyList<MetricsPanelInfoDto> All =
     [
@@ -73,6 +81,49 @@ public static class MetricsPanelCatalog
         },
     ];
 
+    /// <summary>Default Metrics page panels.</summary>
+    public static readonly IReadOnlyList<string> DefaultPagePanels =
+    [
+        "request_rate",
+        "oc_hit_share",
+        "fc_hit_rate",
+        "invalidation_rate",
+        "schedule_phase",
+        "cluster_publish_failures",
+        "fc_p95_ms",
+    ];
+
+    /// <summary>Domain detail panels.</summary>
+    public static readonly IReadOnlyList<string> DomainDetailPanels =
+    [
+        "request_rate",
+        "oc_hit_share",
+        "fc_hit_rate",
+        "invalidation_rate",
+        "schedule_phase",
+        "fc_p95_ms",
+    ];
+
+    /// <summary>Instance detail panels.</summary>
+    public static readonly IReadOnlyList<string> InstanceDetailPanels =
+    [
+        "request_rate",
+        "oc_hit_share",
+        "fc_hit_rate",
+        "invalidation_rate",
+        "fc_p95_ms",
+        "cluster_publish_failures",
+    ];
+
+    /// <summary>Endpoint detail panels (require <c>route</c> label samples).</summary>
+    public static readonly IReadOnlyList<string> EndpointDetailPanels =
+    [
+        "request_rate",
+        "oc_hit_share",
+        "fc_hit_rate",
+        "fc_p95_ms",
+    ];
+
     /// <summary>All allowlisted panels.</summary>
     public static IReadOnlyList<MetricsPanelInfoDto> Panels => All;
 
@@ -86,42 +137,50 @@ public static class MetricsPanelCatalog
     }
 
     /// <summary>
-    /// Builds PromQL for a panel. <paramref name="domains"/> is an optional allow-list (OR regex).
-    /// Empty/null domains → aggregate by domain label when the metric has one; schedule uses phase.
+    /// Builds PromQL for a panel with optional domain, instance_id, and route filters.
     /// </summary>
-    public static string BuildPromQl(string panelId, IReadOnlyList<string>? domains, string rateWindow = "5m")
+    public static string BuildPromQl(
+        string panelId,
+        IReadOnlyList<string>? domains,
+        IReadOnlyList<string>? instanceIds = null,
+        IReadOnlyList<string>? routes = null,
+        string rateWindow = "5m")
     {
         MetricsPanelInfoDto panel = Find(panelId)
             ?? throw new ArgumentException($"Unknown metrics panel '{panelId}'.", nameof(panelId));
 
-        string domainMatcher = BuildDomainMatcher(domains);
+        string selector = BuildLabelSelector(domains, instanceIds, routes);
+        string selectorHit = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"hit\"");
         string rw = SanitizeDuration(rateWindow);
+        string by = ChooseByClause(panel.Id, domains, routes);
 
         return panel.Id switch
         {
             "request_rate" =>
-                $"sum by (domain) (rate({OcRequests}{{{domainMatcher}}}[{rw}]))",
+                $"{by} (rate({OcRequests}{selector}[{rw}]))",
 
             "oc_hit_share" =>
-                $"sum by (domain) (rate({OcRequests}{{result=\"hit\"{AndDomain(domainMatcher)}}}[{rw}]))" +
-                $" / clamp_min(sum by (domain) (rate({OcRequests}{{{domainMatcher}}}[{rw}])), 1e-9)",
+                $"{by} (rate({OcRequests}{selectorHit}[{rw}]))" +
+                $" / clamp_min({by} (rate({OcRequests}{selector}[{rw}])), 1e-9)",
 
             "fc_hit_rate" =>
-                $"sum by (domain) (rate({FcRequests}{{result=\"hit\"{AndDomain(domainMatcher)}}}[{rw}]))" +
-                $" / clamp_min(sum by (domain) (rate({FcRequests}{{{domainMatcher}}}[{rw}])), 1e-9)",
+                $"{by} (rate({FcRequests}{selectorHit}[{rw}]))" +
+                $" / clamp_min({by} (rate({FcRequests}{selector}[{rw}])), 1e-9)",
 
             "invalidation_rate" =>
-                $"sum by (domain) (rate({Invalidations}{{{domainMatcher}}}[{rw}]))",
+                $"{by} (rate({Invalidations}{selector}[{rw}]))",
 
             "schedule_phase" =>
-                $"sum by (phase) (rate({ClientSchedule}{{{domainMatcher}}}[{rw}]))",
+                // phase breakdown; domain/instance filters only (no route on this instrument)
+                $"sum by (phase) (rate({ClientSchedule}{BuildLabelSelector(domains, instanceIds, routes: null)}[{rw}]))",
 
             "cluster_publish_failures" =>
-                $"sum by (reason) (rate({ClusterPublishFailures}[{rw}]))",
+                $"sum by (reason) (rate({ClusterPublishFailures}{BuildLabelSelector(domains: null, instanceIds, routes: null)}[{rw}]))",
 
             "fc_p95_ms" =>
                 "histogram_quantile(0.95, " +
-                $"sum by (le, domain) (rate({FcDurationBucket}{{{domainMatcher}}}[{rw}])))",
+                $"sum by (le{(routes is { Count: > 0 } ? ", route" : domains is { Count: > 0 } ? ", domain" : "")}) " +
+                $"(rate({FcDurationBucket}{selector}[{rw}])))",
 
             _ => throw new ArgumentException($"Unknown metrics panel '{panelId}'.", nameof(panelId)),
         };
@@ -145,33 +204,71 @@ public static class MetricsPanelCatalog
         };
     }
 
-    private static string BuildDomainMatcher(IReadOnlyList<string>? domains)
+    private static string ChooseByClause(
+        string panelId,
+        IReadOnlyList<string>? domains,
+        IReadOnlyList<string>? routes)
     {
-        if (domains is null || domains.Count == 0)
+        if (panelId is "schedule_phase" or "cluster_publish_failures")
+            return "sum by (phase)"; // overridden in switch for reason/phase
+
+        if (routes is { Count: > 0 })
+            return "sum by (route)";
+        if (domains is { Count: 1 })
+            return "sum";
+        return "sum by (domain)";
+    }
+
+    private static string BuildLabelSelector(
+        IReadOnlyList<string>? domains,
+        IReadOnlyList<string>? instanceIds,
+        IReadOnlyList<string>? routes,
+        string? extra = null)
+    {
+        List<string> parts = [];
+        if (extra is { Length: > 0 })
+            parts.Add(extra);
+
+        string d = BuildRegexMatcher("domain", domains);
+        if (d.Length > 0) parts.Add(d);
+
+        string i = BuildRegexMatcher(InstanceIdLabel, instanceIds);
+        if (i.Length > 0) parts.Add(i);
+
+        // Route values contain spaces (METHOD pattern) — quote carefully.
+        string r = BuildRegexMatcher(RouteLabel, routes, allowSpace: true);
+        if (r.Length > 0) parts.Add(r);
+
+        if (parts.Count == 0)
+            return "";
+        return "{" + string.Join(",", parts) + "}";
+    }
+
+    private static string BuildRegexMatcher(string label, IReadOnlyList<string>? values, bool allowSpace = false)
+    {
+        if (values is null || values.Count == 0)
             return "";
 
-        StringBuilder sb = new("domain=~\"");
+        StringBuilder sb = new();
+        sb.Append(label).Append("=~\"");
         bool first = true;
-        foreach (string raw in domains)
+        foreach (string raw in values)
         {
-            string d = SanitizeLabelValue(raw);
-            if (d.Length == 0)
+            string v = allowSpace ? SanitizeRouteLabelValue(raw) : SanitizeLabelValue(raw);
+            if (v.Length == 0)
                 continue;
             if (!first)
                 sb.Append('|');
-            sb.Append(d);
+            // Escape regex metacharacters for exact-ish match of fixed keys.
+            sb.Append(RegexEscape(v));
             first = false;
         }
 
         if (first)
             return "";
-
         sb.Append('"');
         return sb.ToString();
     }
-
-    private static string AndDomain(string domainMatcher) =>
-        string.IsNullOrEmpty(domainMatcher) ? "" : "," + domainMatcher;
 
     /// <summary>Only allow safe label fragments (alnum, underscore, hyphen, dot).</summary>
     public static string SanitizeLabelValue(string? value)
@@ -188,12 +285,26 @@ public static class MetricsPanelCatalog
         return sb.ToString();
     }
 
+    /// <summary>Sanitize Admin endpoint keys: <c>GET /api/foo/{id}</c>.</summary>
+    public static string SanitizeRouteLabelValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "";
+        StringBuilder sb = new();
+        foreach (char c in value.Trim())
+        {
+            if (char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.' or '/' or ' ' or '{' or '}' or ':')
+                sb.Append(c);
+        }
+
+        return sb.ToString();
+    }
+
     internal static string SanitizeDuration(string? duration)
     {
         if (string.IsNullOrWhiteSpace(duration))
             return "5m";
         string d = duration.Trim();
-        // 15s, 5m, 1h, 7d
         if (d.Length is < 2 or > 8)
             return "5m";
         for (int i = 0; i < d.Length - 1; i++)
@@ -206,5 +317,19 @@ public static class MetricsPanelCatalog
         if (unit is not ('s' or 'm' or 'h' or 'd'))
             return "5m";
         return d;
+    }
+
+    private static string RegexEscape(string s)
+    {
+        // Escape PromQL/RE2 metacharacters in fixed route/domain keys.
+        StringBuilder sb = new(s.Length * 2);
+        foreach (char c in s)
+        {
+            if (c is '.' or '+' or '*' or '?' or '(' or ')' or '[' or ']' or '{' or '}' or '|' or '^' or '$' or '\\')
+                sb.Append('\\');
+            sb.Append(c);
+        }
+
+        return sb.ToString();
     }
 }

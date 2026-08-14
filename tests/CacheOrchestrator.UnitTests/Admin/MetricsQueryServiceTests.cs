@@ -32,7 +32,7 @@ public class MetricsQueryServiceTests
     {
         MetricsQueryService svc = CreateService(new MetricsStoreOptions { Enabled = false });
         MetricsSeriesResponseDto series = await svc.GetSeriesAsync(
-            "1h", null, null, TestContext.Current.CancellationToken);
+            "1h", null, null, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(MetricsStoreStatusCodes.NotConfigured, series.Status);
         Assert.Empty(series.Panels);
     }
@@ -88,7 +88,7 @@ public class MetricsQueryServiceTests
             client);
 
         MetricsSeriesResponseDto series = await svc.GetSeriesAsync(
-            "1h", "request_rate", null, TestContext.Current.CancellationToken);
+            "1h", "request_rate", null, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(MetricsStoreStatusCodes.Connected, series.Status);
         Assert.Single(series.Panels);
         Assert.Equal("request_rate", series.Panels[0].Id);

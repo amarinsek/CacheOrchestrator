@@ -214,6 +214,102 @@ export function metricsStatusBanner(status) {
 }
 
 /**
+ * Load time-series charts into a detail-page mount.
+ * @param {string} mountId element id
+ * @param {{ scope: "domain"|"instance"|"endpoint", domain?: string, instanceId?: string, route?: string, range?: string }} opts
+ */
+export async function mountDetailMetrics(mountId, opts) {
+  const el = document.getElementById(mountId);
+  if (!el) return;
+
+  const range = opts.range || "1h";
+  let status;
+  try {
+    status = await api("/api/metrics/status");
+  } catch {
+    el.innerHTML = "";
+    return;
+  }
+
+  if (status.status === "NotConfigured") {
+    el.innerHTML = "";
+    return;
+  }
+  if (status.status === "Disconnected") {
+    el.innerHTML = `<div class="card"><h2>Metrics <span class="badge">last ${esc(range)}</span></h2>
+      <p class="muted">Metrics storage not connected${status.error ? `: ${esc(status.error)}` : "."}</p>
+      <p><a href="#/metrics">Open Metrics →</a></p></div>`;
+    return;
+  }
+
+  const panels = opts.scope === "domain"
+    ? "request_rate,oc_hit_share,fc_hit_rate,invalidation_rate,schedule_phase,fc_p95_ms"
+    : opts.scope === "instance"
+      ? "request_rate,oc_hit_share,fc_hit_rate,invalidation_rate,fc_p95_ms,cluster_publish_failures"
+      : "request_rate,oc_hit_share,fc_hit_rate,fc_p95_ms";
+
+  const q = new URLSearchParams({ range, panels });
+  if (opts.domain) q.set("domains", opts.domain);
+  if (opts.instanceId) q.set("instances", opts.instanceId);
+  if (opts.route) q.set("routes", opts.route);
+
+  let series;
+  try {
+    series = await api("/api/metrics/series?" + q.toString());
+  } catch (err) {
+    el.innerHTML = `<div class="card"><h2>Metrics</h2><p class="muted">${esc(err.message)}</p></div>`;
+    return;
+  }
+
+  if (series.status !== "Connected") {
+    el.innerHTML = `<div class="card"><h2>Metrics</h2><p class="muted">${esc(series.error || "Not connected")}</p></div>`;
+    return;
+  }
+
+  const list = series.panels || [];
+  const anyPoints = list.some((p) => (p.series || []).some((s) => (s.points || []).length > 0));
+  const title =
+    opts.scope === "domain" ? `Domain metrics`
+      : opts.scope === "instance" ? `Instance metrics`
+        : `Endpoint metrics`;
+
+  if (!anyPoints) {
+    const note = opts.scope === "endpoint"
+      ? "No samples for this route in the selected range. Possible causes: no traffic, " +
+        "<code>Cache:Metrics:IncludeEndpointLabel</code> off on some/all instances during this window, " +
+        "or scrape labels do not match. Lifetime counters above are from Local Admin, not Prometheus."
+      : "No samples in this range for the current filter. Check scrape config and traffic.";
+    el.innerHTML = `<div class="card">
+      <div class="card-head"><h2>${esc(title)} <span class="badge">last ${esc(range)}</span></h2>
+        <a href="#/metrics">Open Metrics →</a></div>
+      <p class="muted">${note}</p>
+    </div>`;
+    return;
+  }
+
+  const cards = list.map((p) => {
+    const warn = p.warning ? `<p class="muted chart-warn">${esc(p.warning)}</p>` : "";
+    return `<div class="card chart-card">
+      <div class="card-head">
+        <h2>${esc(p.title)} <span class="badge">${esc(series.range)}</span></h2>
+        <span class="muted small">${esc(unitLabel(p.unit))}</span>
+      </div>
+      ${lineChartHtml(p.series || [], { unit: p.unit, height: 140, width: 520 })}
+      ${warn}
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `<div class="card">
+    <div class="card-head">
+      <h2>${esc(title)} <span class="badge">last ${esc(range)}</span></h2>
+      <a href="#/metrics">Open Metrics →</a>
+    </div>
+    <p class="muted small metrics-note">Window series from external metrics storage (not lifetime Admin counters).</p>
+    <div class="grid-2 metrics-grid">${cards}</div>
+  </div>`;
+}
+
+/**
  * Compact Overview card when metrics are connected (or a one-line note when disconnected).
  */
 export async function metricsOverviewSectionHtml() {

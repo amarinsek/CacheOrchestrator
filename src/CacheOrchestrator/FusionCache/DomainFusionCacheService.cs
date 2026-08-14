@@ -117,8 +117,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             }
 
             SetData(http, DataCacheResult.Unresolved);
-            CacheOrchestratorMetrics.RecordFusion(domain: "_", result: "unresolved");
-            RecordAdminFusion(http, domain: null, "unresolved", elapsedTicks: null);
+            RecordFusionAndAdmin(http, metricsDomain: "_", adminDomain: null, result: "unresolved", durationMs: null, elapsedTicks: null);
 
             using Activity? unresolvedActivity =
                 CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
@@ -160,8 +159,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
                 _logger.LogDebug("FusionCache skipped due to Cache-Control: no-store");
 
             SetData(http, DataCacheResult.Bypass);
-            CacheOrchestratorMetrics.RecordFusion(opts.Domain, "bypass");
-            RecordAdminFusion(http, opts.Domain, "bypass", elapsedTicks: null);
+            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "bypass", durationMs: null, elapsedTicks: null);
 
             using Activity? bypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
             bypassActivity?.SetTag("domain", opts.Domain);
@@ -246,8 +244,13 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         string resultCode = DataToMetric(dataResult);
         activity?.SetTag("cache.result", resultCode);
-        CacheOrchestratorMetrics.RecordFusion(opts.Domain, resultCode, elapsed);
-        RecordAdminFusion(http, opts.Domain, resultCode, sw.ElapsedTicks);
+        RecordFusionAndAdmin(
+            http,
+            opts.Domain,
+            opts.Domain,
+            resultCode,
+            durationMs: elapsed,
+            elapsedTicks: sw.ElapsedTicks);
 
         if (dataResult == DataCacheResult.Stale)
         {
@@ -346,13 +349,28 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         _ => "miss"
     };
 
-    private void RecordAdminFusion(HttpContext http, string? domain, string result, long? elapsedTicks)
+    /// <summary>
+    /// Single endpoint-key resolution for meter + Local Admin Fusion counters.
+    /// </summary>
+    private void RecordFusionAndAdmin(
+        HttpContext http,
+        string metricsDomain,
+        string? adminDomain,
+        string result,
+        double? durationMs,
+        long? elapsedTicks)
     {
+        CacheOrchestratorMetrics.ResolveEndpointKeys(
+            http,
+            forAdminStats: _adminStats.IsEnabled,
+            out string? endpointKey,
+            out string? metricsRoute);
+        CacheOrchestratorMetrics.RecordFusion(metricsDomain, result, durationMs, metricsRoute);
+
         if (!_adminStats.IsEnabled)
             return;
 
-        string? endpointKey = AdminEndpointKey.TryGet(http);
         long? ticks = _adminStats.TrackLatency ? elapsedTicks : null;
-        _adminStats.RecordFusion(endpointKey, domain, result, ticks);
+        _adminStats.RecordFusion(endpointKey, adminDomain, result, ticks);
     }
 }

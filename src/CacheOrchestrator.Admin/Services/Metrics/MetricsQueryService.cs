@@ -111,11 +111,15 @@ public sealed class MetricsQueryService
     /// <summary>
     /// Loads one or more panels. <paramref name="panels"/> is a comma-separated list of panel ids;
     /// null/empty loads the default set for the Metrics page.
+    /// Optional <paramref name="domains"/>, <paramref name="instances"/> (<c>instance_id</c> scrape label),
+    /// and <paramref name="routes"/> (stable endpoint keys) filter PromQL.
     /// </summary>
     public async Task<MetricsSeriesResponseDto> GetSeriesAsync(
         string? range,
         string? panels,
         string? domains,
+        string? instances = null,
+        string? routes = null,
         CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = _time.GetUtcNow();
@@ -138,7 +142,10 @@ public sealed class MetricsQueryService
 
         IReadOnlyList<string> panelIds = ParsePanelList(panels);
         IReadOnlyList<string> domainList = ParseCsv(domains);
+        IReadOnlyList<string> instanceList = ParseCsv(instances);
+        IReadOnlyList<string> routeList = ParseRouteCsv(routes);
         DateTimeOffset start = now - MetricsRange.ToTimeSpan(resolvedRange);
+        bool routeScoped = routeList.Count > 0;
 
         List<MetricsPanelDto> results = [];
         foreach (string panelId in panelIds)
@@ -159,7 +166,7 @@ public sealed class MetricsQueryService
 
             try
             {
-                string promQl = MetricsPanelCatalog.BuildPromQl(info.Id, domainList);
+                string promQl = MetricsPanelCatalog.BuildPromQl(info.Id, domainList, instanceList, routeList);
                 IReadOnlyList<PrometheusMatrixSeries> matrix = await _client
                     .QueryRangeAsync(promQl, start, now, step, cancellationToken)
                     .ConfigureAwait(false);
@@ -181,7 +188,7 @@ public sealed class MetricsQueryService
                     Unit = info.Unit,
                     Series = series,
                     Warning = series.Count == 0
-                        ? "No samples in this range (is the CacheOrchestrator meter scraped?)."
+                        ? EmptySeriesWarning(routeScoped)
                         : null,
                 });
             }
@@ -207,6 +214,13 @@ public sealed class MetricsQueryService
             Panels = results,
         };
     }
+
+    private static string EmptySeriesWarning(bool routeScoped) =>
+        routeScoped
+            ? "No samples for this route in the selected range. Possible causes: no traffic, " +
+              "Cache:Metrics:IncludeEndpointLabel off on some/all instances during this window, " +
+              "or scrape labels do not match."
+            : "No samples in this range (is the CacheOrchestrator meter scraped?).";
 
     /// <summary>Instant KPI snapshot for the Metrics toolbar.</summary>
     public async Task<MetricsSummaryDto> GetSummaryAsync(
@@ -270,18 +284,7 @@ public sealed class MetricsQueryService
     private static IReadOnlyList<string> ParsePanelList(string? panels)
     {
         if (string.IsNullOrWhiteSpace(panels))
-        {
-            return
-            [
-                "request_rate",
-                "oc_hit_share",
-                "fc_hit_rate",
-                "invalidation_rate",
-                "schedule_phase",
-                "cluster_publish_failures",
-                "fc_p95_ms",
-            ];
-        }
+            return MetricsPanelCatalog.DefaultPagePanels.ToList();
 
         List<string> list = [];
         foreach (string part in panels.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
@@ -290,7 +293,7 @@ public sealed class MetricsQueryService
                 list.Add(part);
         }
 
-        return list.Count > 0 ? list : ParsePanelList(null);
+        return list.Count > 0 ? list : MetricsPanelCatalog.DefaultPagePanels.ToList();
     }
 
     private static IReadOnlyList<string> ParseCsv(string? csv)
@@ -304,14 +307,35 @@ public sealed class MetricsQueryService
             .ToList();
     }
 
+    private static IReadOnlyList<string> ParseRouteCsv(string? csv)
+    {
+        if (string.IsNullOrWhiteSpace(csv))
+            return [];
+        // Single route may contain commas rarely; treat whole string as one if no multi-encode.
+        // Prefer one route per query (endpoint detail).
+        string one = MetricsPanelCatalog.SanitizeRouteLabelValue(csv);
+        if (one.Length > 0 && !csv.Contains(',', StringComparison.Ordinal))
+            return [one];
+
+        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(MetricsPanelCatalog.SanitizeRouteLabelValue)
+            .Where(s => s.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
     private static string SeriesName(string panelId, IReadOnlyDictionary<string, string> metric)
     {
         if (panelId is "schedule_phase" && metric.TryGetValue("phase", out string? phase) && phase.Length > 0)
             return phase;
         if (panelId is "cluster_publish_failures" && metric.TryGetValue("reason", out string? reason) && reason.Length > 0)
             return reason;
+        if (metric.TryGetValue("route", out string? route) && route.Length > 0)
+            return route;
         if (metric.TryGetValue("domain", out string? domain) && domain.Length > 0)
             return domain;
+        if (metric.TryGetValue("instance_id", out string? iid) && iid.Length > 0)
+            return iid;
         return "cluster";
     }
 
