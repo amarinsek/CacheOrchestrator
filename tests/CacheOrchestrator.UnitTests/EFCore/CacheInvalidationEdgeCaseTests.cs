@@ -39,9 +39,9 @@ public class CacheInvalidationEdgeCaseTests
 
         await inv.Received(1).InvalidateDomainAsync("store", Arg.Any<CancellationToken>());
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateEntitiesAsync(default!, default!, default!, default);
+            .InvalidateEntitiesAsync(default!, default!, default!, TestContext.Current.CancellationToken);
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateEntityKindAsync(default!, default!, default);
+            .InvalidateEntityKindAsync(default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -63,11 +63,11 @@ public class CacheInvalidationEdgeCaseTests
 
         updated.Should().Be(1);
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateEntitiesAsync(default!, default!, default!, default);
+            .InvalidateEntitiesAsync(default!, default!, default!, TestContext.Current.CancellationToken);
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateEntityKindAsync(default!, default!, default);
+            .InvalidateEntityKindAsync(default!, default!, TestContext.Current.CancellationToken);
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateDomainAsync(default!, default);
+            .InvalidateDomainAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -219,7 +219,7 @@ public class CacheInvalidationEdgeCaseTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateEntitiesAsync(default!, default!, default!, default);
+            .InvalidateEntitiesAsync(default!, default!, default!, TestContext.Current.CancellationToken);
     }
 
     private static (HarnessDbContext Db, ICacheOrchestratorInvalidator Inv) CreateHarness(
@@ -240,11 +240,11 @@ public class CacheInvalidationEdgeCaseTests
     {
         ICacheOrchestratorInvalidator inv = Substitute.For<ICacheOrchestratorInvalidator>();
         CacheInvalidationResult ok = new("ok", [], true, true, []);
-        inv.InvalidateEntitiesAsync(default!, default!, default!, default)
+        inv.InvalidateEntitiesAsync(default!, default!, default!, Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(ValueTask.FromResult(ok));
-        inv.InvalidateEntityKindAsync(default!, default!, default)
+        inv.InvalidateEntityKindAsync(default!, default!, Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(ValueTask.FromResult(ok));
-        inv.InvalidateDomainAsync(default!, default)
+        inv.InvalidateDomainAsync(default!, Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(ValueTask.FromResult(ok));
         return inv;
     }

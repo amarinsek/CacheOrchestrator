@@ -13,8 +13,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.14.0-beta.1" />
-		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.14.0" />
+		<!-- Keep OpenTelemetry stack aligned; 1.15.3+ patches OpenTelemetry.Api GHSA-g94r-2vxg-569j -->
+		<PackageReference Include="OpenTelemetry.Api" Version="1.15.3" />
+		<PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.15.3-beta.1" />
+		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
 	</ItemGroup>
 
 </Project>

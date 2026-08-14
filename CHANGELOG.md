@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Admin App multi-targets `net8.0` and `net10.0`** (same as core libraries) so the ops host can run on either runtime; instance TFMs stay independent (HTTP only). Development OpenAPI/Scalar: Microsoft.AspNetCore.OpenApi on net10, Swashbuckle document source on net8
 - **Admin App Metrics** — optional Prometheus-compatible time series (`CacheAdmin:Metrics`: typically `Enabled`, `Provider`, `BaseUrl`)
   - BFF: `GET /api/metrics/status|catalog|series|summary` (allowlisted panels; no free-form PromQL from the browser)
   - SPA page `#/metrics` (range / domain filters, window KPIs, SVG charts) plus Overview “last 1h” embed when connected

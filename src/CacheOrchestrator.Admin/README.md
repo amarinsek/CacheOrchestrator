@@ -6,7 +6,8 @@ Operator UI for multi-instance CacheOrchestrator: live stats, domain settings, i
 
 It calls the **Admin API** on each instance you list (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).
 
-This host is **not** a NuGet package. It targets **.NET 10**; the applications may be .NET 8 or .NET 10.
+This host is **not** a NuGet package. It multi-targets **.NET 8** and **.NET 10** (same as the core libraries).  
+Monitored app instances may use either TFM independently — Admin talks **HTTP only**, so Admin TFM does not need to match instance TFMs.
 
 | Guide | |
 |-------|--|
@@ -72,12 +73,21 @@ app.MapCacheOrchestratorAdmin();
 ## Run
 
 ```bash
+# Default (multi-target: picks the TFM from launch profile / latest)
 dotnet run --project src/CacheOrchestrator.Admin
+
+# Explicit TFM (useful when only one runtime is installed)
+dotnet run --project src/CacheOrchestrator.Admin -f net8.0
+dotnet run --project src/CacheOrchestrator.Admin -f net10.0
+
+# Publish
+dotnet publish src/CacheOrchestrator.Admin -c Release -f net8.0 -o ./publish/admin-net8
+dotnet publish src/CacheOrchestrator.Admin -c Release -f net10.0 -o ./publish/admin-net10
 ```
 
 - http://localhost:5188/ — UI  
 - http://localhost:5188/health — process health  
-- http://localhost:5188/scalar/v1 — OpenAPI (Development)
+- http://localhost:5188/scalar/v1 — OpenAPI UI (Development; OpenAPI document via Microsoft.AspNetCore.OpenApi on net10, Swashbuckle on net8)
 
 Default `Instances` point at the **Playground** sample (`:5289`), which also exposes `/metrics` for Prometheus.
 

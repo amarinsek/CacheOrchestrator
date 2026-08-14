@@ -18,8 +18,8 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 - Redis package: `src/CacheOrchestrator.Redis` (`AddRedisBackend`)  
 - Bus package: `src/CacheOrchestrator.Bus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
 - EF invalidation package: `src/CacheOrchestrator.EFCore.Invalidation` (`AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation`)  
-- Admin App: `src/CacheOrchestrator.Admin` (fan-out UI/API; not a NuGet package)  
-- Target frameworks: `net8.0` and `net10.0` (multi-target, see `.csproj`)  
+- Admin App: `src/CacheOrchestrator.Admin` (fan-out UI/API; not a NuGet package; multi-targets `net8.0` + `net10.0`)  
+- Target frameworks: `net8.0` and `net10.0` (libraries + Admin App multi-target, see `.csproj`)  
 - Version: **MinVer** from Git tags `v*` (do not hardcode `<Version>` in Directory.Build.props)  
 - Samples: `samples/CacheOrchestrator.Minimal` (1-minute InMemory), `samples/CacheOrchestrator.Sample` (playground; Redis package)  
 - Tests: `tests/CacheOrchestrator.UnitTests` (net8+net10), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`

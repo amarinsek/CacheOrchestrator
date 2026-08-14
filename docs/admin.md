@@ -163,7 +163,7 @@ Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
 ## Admin App (process)
 
-Standalone **net10.0** host (ops tool; target apps may still be net8/net10).
+Standalone host multi-targeting **net8.0** and **net10.0** (ops tool). Target apps may use either TFM independently — Admin does not need to match instance runtimes (HTTP fan-out only).
 
 ### Configuration
 
@@ -338,7 +338,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
 | Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
 | High FC miss rate, everything “fine” | Prefer **origin share** / OC hit share — see shares vs rates |
-| Scalar OpenAPI missing | Only mapped in **Development** on Admin App |
+| Scalar OpenAPI missing | Only mapped in **Development** on Admin App (OpenAPI document: Microsoft.AspNetCore.OpenApi on net10, Swashbuckle on net8) |
 | CORS issues calling Admin API from a browser | Prefer Admin App fan-out; Admin API is for server-side callers |
 
 ---
