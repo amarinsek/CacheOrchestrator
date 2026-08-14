@@ -2,9 +2,9 @@
 
 ![Admin App overview](../../docs/assets/admin-overview.png)
 
-An operator host for CacheOrchestrator. You get one place to see hit rates, domain settings, and health across instances, and to invalidate or adjust Version and TTL without opening each process.
+Operator UI: live stats, domain settings, invalidation, Version and TTL. It calls the **Admin API** on each instance you list (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).
 
-The **Admin API** on the application (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`) is what this host calls. This project is the UI and the fan-out. It targets **.NET 10**; the applications themselves may be .NET 8 or .NET 10.
+This host is not a NuGet package. It targets **.NET 10**; the applications may be .NET 8 or .NET 10.
 
 Full guide: [docs/admin.md](../../docs/admin.md). Hint rules: [docs/admin-hints.md](../../docs/admin-hints.md).
 

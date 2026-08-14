@@ -16,6 +16,29 @@ Related packages, when you need them:
 - [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/) — invalidate, Version, and TTL commands across instances
 - [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) — the cache follows your EF Core saves
 
+## Configure
+
+```json
+{
+  "Cache": {
+    "Namespace": "my-app",
+    "OutputCache": { "Provider": "InMemory" },
+    "FusionCacheInstances": {
+      "default": { "Provider": "InMemory" }
+    },
+    "Domains": {
+      "catalog": {
+        "Version": "1",
+        "ClientCacheability": "Public",
+        "ClientTtlSeconds": 60,
+        "OutputCacheTtlSeconds": 120,
+        "FusionCacheSoftTtlSeconds": 300
+      }
+    }
+  }
+}
+```
+
 ## Register
 
 ```csharp
@@ -23,7 +46,11 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 
 var app = builder.Build();
 app.UseCacheOrchestrator();
+```
 
+## Apply
+
+```csharp
 app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
@@ -32,7 +59,7 @@ app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =
 .CacheOutputWithDomain("catalog");
 ```
 
-Declare the `catalog` domain under `"Cache"` in `appsettings.json`. On a controller, use `[CacheDomain("catalog")]`.
+On a controller, use `[CacheDomain("catalog")]` and inject `IDomainFusionCache` in the same way.
 
 ## Documentation
 

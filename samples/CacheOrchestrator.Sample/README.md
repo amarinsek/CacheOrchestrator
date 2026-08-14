@@ -67,3 +67,9 @@ docker run -d --name redis-demo -p 6379:6379 redis:7-alpine
 ```
 
 Named Fusion instances and a second Redis: [deployment.md](../../docs/deployment.md).
+
+## Next
+
+- [Getting started](../../docs/getting-started.md)
+- [Client Cache Schedule](../../docs/client-cache-schedule.md)
+- [Documentation index](../../docs/README.md)

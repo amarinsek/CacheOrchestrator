@@ -28,15 +28,6 @@ The core package uses in-memory stores. Redis is a separate package.
 dotnet add package CacheOrchestrator
 ```
 
-## Register
-
-```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration);
-
-var app = builder.Build();
-app.UseCacheOrchestrator();
-```
-
 ## Configure
 
 ```json
@@ -60,7 +51,16 @@ app.UseCacheOrchestrator();
 }
 ```
 
-## An endpoint
+## Register
+
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration);
+
+var app = builder.Build();
+app.UseCacheOrchestrator();
+```
+
+## Apply
 
 ```csharp
 app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
@@ -134,6 +134,6 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 - [EF Core](ef-core-invalidation.md) — purge after `SaveChanges`
 - [Output Cache](output-cache.md) — authenticated traffic
 - [Configuration](configuration.md) — full settings list
-- [Comparison](comparison.md) — when this library is the right tool
+- [Comparison](comparison.md) — the usual stack versus CacheOrchestrator
 
 Index: [docs/README.md](README.md).

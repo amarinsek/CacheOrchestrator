@@ -2,7 +2,7 @@
 
 This page compares the usual way of wiring ASP.NET Core Output Cache and FusionCache yourself with the same work done through CacheOrchestrator.
 
-The same tile endpoint is written both ways. The first listing is the hand-rolled stack. The second is what the library already does.
+The same endpoint is written both ways, without and with CacheOrchestrator.
 
 ### Without CacheOrchestrator
 
@@ -82,7 +82,7 @@ static int ClientMaxAge(
 }
 ```
 
-Invalidation is another pair of calls you keep in sync:
+Invalidation without CacheOrchestrator:
 
 ```csharp
 await fusionCache.RemoveByTagAsync("domain:osm-tiles", cancellationToken);
@@ -126,6 +126,8 @@ app.MapGet("/tiles/{z}/{x}/{y}", async (
 })
 .CacheOutputWithDomain("osm-tiles");
 ```
+
+Invalidation with CacheOrchestrator:
 
 ```csharp
 await invalidator.InvalidateDomainAsync("osm-tiles", cancellationToken);

@@ -18,61 +18,34 @@ The picture is the path a request can take:
 - **Output Cache (OC)** — serves the stored HTTP response so the endpoint need not run.
 - **FusionCache (L1/L2)** — serves the stored object so the factory (your database or service) need not run.
 
-Applications mix these layers: in-memory Output Cache on one service, Redis FusionCache on another, different lifetimes for different kinds of data. If the layers disagree — a long client lifetime beside a short server lifetime, a Version change that never reaches the CDN — one of them undoes the other. CacheOrchestrator holds the mix in one place, the **domain**, so they stay in step.
+Applications mix these layers: in-memory Output Cache on one service, Redis FusionCache and a backplane on another, different TTLs for different data. If the layers disagree, one undoes the other.
+
+Invalidation is the same coordination problem. Clearing FusionCache while Output Cache or the Client still holds the old response leaves callers on stale bytes. A coordinated invalidation retires that generation in every layer that still has it.
+
+CacheOrchestrator holds the mix in one place, the **domain**, so lifetimes and invalidation stay in step.
 
 ---
 
-## Why domains
+## Benefits
 
-A domain is a named set of cache rules. You declare it in configuration and apply it with `.CacheOutputWithDomain("…")` or `[CacheDomain("…")]`.
+- **Less code on the endpoint.** Output Cache policy, Fusion options, Client `Cache-Control` and other settings live on the domain. The route just loads data. 
+- **Policy and topology in settings.** TTLs, client cacheability, InMemory versus Redis, a second Fusion instance, or a planned cutover are configuration. You do not change the handler.
+- **One generation, one invalidation.** A coordinated invalidation or a new generation stamp retires the old bytes in every layer that still has them.
 
-Different data wants different rules:
-
-- **Satellite imagery** changes perhaps once a year. Long server and client lifetimes are appropriate.
-- **Map tiles** change on a published schedule. Lifetimes stay long, then client `max-age` is shortened as the cutover approaches.
-- **Floating car data** ages in minutes. A short lifetime, a memory cache, and a shared Redis store with a backplane keep several instances consistent.
-- **Live vehicle positions** age in seconds. FusionCache locking and fail-safe stop a stampede when many callers miss at once.
-
-The endpoint code is the same shape in every case. The domain is what differs.
+For a line-count comparison of the same endpoint both ways, see [comparison](docs/comparison.md).
 
 ---
 
-## A one-minute trial
+## Quick start
 
-```bash
-dotnet run --project samples/CacheOrchestrator.Minimal
-```
-
-In another terminal:
-
-```bash
-curl -i http://localhost:5290/hello
-curl -i http://localhost:5290/hello
-```
-
-The first response is an Output Cache miss (the sample waits about 200 ms). The second is a hit. Look at the `X-Cache` header: `output=miss`, then `output=hit`.
-
-Notes for the sample: [samples/CacheOrchestrator.Minimal](samples/CacheOrchestrator.Minimal). For a playground with TTLs, schedule, Redis, and CRUD, see [samples/CacheOrchestrator.Sample](samples/CacheOrchestrator.Sample).
-
----
-
-## Installation
+Install the core package:
 
 ```bash
 dotnet add package CacheOrchestrator
 ```
 
-Optional packages, when you need them:
 
-- **CacheOrchestrator.Redis** — Redis for Output Cache and for FusionCache L2 / backplane, when instances must share those stores.
-- **CacheOrchestrator.Bus** — invalidate, Version, and TTL commands delivered to every instance.
-- **CacheOrchestrator.EFCore.Invalidation** — the cache follows your EF Core saves.
-
----
-
-## A domain and an endpoint
-
-`appsettings.json`:
+Configure a domain in `appsettings.json`:
 
 ```json
 {
@@ -94,15 +67,18 @@ Optional packages, when you need them:
   }
 }
 ```
-
-`Program.cs`:
+Register the library:
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
 
 var app = builder.Build();
 app.UseCacheOrchestrator();
+```
 
+Apply the domain to an endpoint:
+
+```csharp
 app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
@@ -117,21 +93,74 @@ A longer walkthrough is in [docs/getting-started.md](docs/getting-started.md). F
 
 ---
 
-## What the library covers
+## A one-minute trial
 
-**Three layers, one domain.** Output Cache stores the HTTP response. FusionCache stores the object your factory produced. The client receives `Cache-Control` from the same domain settings. [Output Cache](docs/output-cache.md) · [FusionCache](docs/fusion-cache.md)
+Clone the repository and run the minimal sample:
 
-**A planned cutover.** Change `Version` and old keys are simply left behind. Before a known publish time, [Client Cache Schedule](docs/client-cache-schedule.md) lowers browser and CDN `max-age` so clients revalidate when the new generation appears. Server TTLs are not altered. Snapshot versus CRUD domains: [domain profiles](docs/domain-profiles.md).
+```bash
+dotnet run --project samples/CacheOrchestrator.Minimal
+```
 
-**In-memory stores, or Redis.** The core package is self-contained. Redis is a separate package: set `Provider` to `Redis` and call `AddRedisBackend()`. Named Fusion instances may use different Redis connections (for example catalog versus PII). [Backends](docs/backends.md) · [Deployment](docs/deployment.md)
+In another terminal:
 
-**Several instances.** Shared Fusion data uses Redis L2 and the backplane. In-memory Output Cache on each node, plus the [cluster bus](docs/cluster-bus.md), covers invalidation and runtime Version / TTL when you do not share those stores.
+```bash
+curl -i http://localhost:5290/hello
+curl -i http://localhost:5290/hello
+```
 
-**Seeing what happened.** Responses may carry an `X-Cache` header (domain, hit or miss, schedule phase). There is a meter and an activity source named `CacheOrchestrator`, and a health-check extension. The **Admin API** (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`) exposes stats and operations on each process; it is off by default. The **Admin App** is a separate host that talks to those APIs. [Observability](docs/observability.md) · [Admin](docs/admin.md)
+The first response is an Output Cache miss (the sample waits about 200 ms). The second is a hit. Look at the `X-Cache` header: `output=miss`, then `output=hit`.
 
-**After EF Core `SaveChanges`.** An optional package maps an entity type to a domain. When the save succeeds, the cache for those rows is cleared. You can also invalidate a domain, a kind, or a single id from your own code. [EF Core](docs/ef-core-invalidation.md) · [Invalidation](docs/invalidation.md)
+Notes for the sample: [samples/CacheOrchestrator.Minimal](samples/CacheOrchestrator.Minimal). For a playground with TTLs, schedule, Redis, and CRUD, see [samples/CacheOrchestrator.Sample](samples/CacheOrchestrator.Sample).
 
-Authenticated requests skip Output Cache unless you say otherwise. Known tracking query parameters (`utm_*`, `gclid`, and the like) are omitted from cache keys. Custom stores are registered with `ICacheBackendRegistrar`.
+---
+
+## Why domains
+
+A domain is a named set of cache rules. Different data wants different rules:
+
+- **Satellite imagery** changes perhaps once a year. Long server and client lifetimes are appropriate.
+- **Map tiles** change on a published schedule. Lifetimes stay long, then client `max-age` is shortened as the cutover approaches.
+- **Floating car data** ages in minutes. A short lifetime, a memory cache, and a shared Redis store with a backplane keep several instances consistent.
+- **Live vehicle positions** age in seconds. FusionCache locking and fail-safe stop a stampede when many callers miss at once.
+
+The endpoint code is the same shape in every case. The domain is what differs.
+
+---
+
+## Also included
+
+- **Coordinated policies.** One domain owns all client and backend cache policies. [Output Cache](docs/output-cache.md) · [FusionCache](docs/fusion-cache.md)·
+
+- **Coordinated invalidation.** Domain, kind, or a single id invalidation is coordinated across Output Cache and FusionCache. [Invalidation](docs/invalidation.md)
+
+- **Variety of cache topologies.** InMemory only; InMemory Output Cache with Redis Fusion L2; Redis for both plus a backplane; or InMemory nodes with Cluster bus. [Backends](docs/backends.md) · [Deployment](docs/deployment.md) · [Cluster bus](docs/cluster-bus.md)
+
+- **A planned cutover.** A Version bump starts a new generation, or [Client Cache Schedule](docs/client-cache-schedule.md) eases clients into the cutover.
+
+- **Multiple instances.** Shared Fusion data uses Redis L2 and the backplane. When Output Cache stays per process, the [cluster bus](docs/cluster-bus.md) carries invalidation and runtime Version / TTL.
+
+- **Diagnostics.** `X-Cache` on the response (domain, hit or miss, schedule phase), a meter, an activity source, and a health check. [Observability](docs/observability.md)
+
+- **Admin API** and a separate **Admin App** for monitoring and administrating instances. [Admin](docs/admin.md)
+
+---
+
+## Optional packages
+
+| Package | Purpose |
+|---------|---------|
+| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) | Redis for Output Cache and for FusionCache L2 / backplane. |
+| [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/) | Invalidate, Version, and TTL commands delivered to every instance. |
+| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) | Invalidate after a successful EF Core `SaveChanges`. |
+
+---
+
+## Applications
+
+| Application | Purpose |
+|---------|---------|
+| [CacheOrchestrator.Admin](src/CacheOrchestrator.Admin/) | Operator UI: live stats, domain settings, invalidation, Version and TTL. It calls the Admin API on each instance you list. |
+
 
 ---
 
@@ -141,8 +170,6 @@ Authenticated requests skip Output Cache unless you say otherwise. Known trackin
 - [Documentation index](docs/README.md) — configuration, keys, deployment, architecture
 - [FAQ](docs/faq.md) — common mistakes and limits
 - [Comparison](docs/comparison.md) — the usual stack versus CacheOrchestrator
-
-Packages on NuGet include XML documentation: [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/), [Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/), [Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/), [EF Core](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/).
 
 - [CHANGELOG](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)
