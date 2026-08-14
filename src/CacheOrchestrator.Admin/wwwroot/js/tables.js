@@ -7,6 +7,7 @@
  * - Instances: Id | Hints | Status | URL | Req | Uptime | Latency | Error
  */
 
+import { instanceStatus } from "./api.js";
 import {
   esc,
   formatLatencyMs,
@@ -106,10 +107,11 @@ export function instanceRowHtml(i) {
     ? new Date(i.startedAtUtc).toISOString().replace("T", " ").replace(/\.\d+Z$/, "Z")
     : "";
   const up = formatUptime(i.uptimeSeconds);
+  const st = instanceStatus(i.status);
   return `<tr class="clickable entity-row" data-entity="instance" data-id="${esc(i.id)}">
     <td class="col-name"><code>${esc(i.id)}</code></td>
     <td class="col-hints">${severityStack(i.hintSummary)}</td>
-    <td class="status-${esc(i.status)}">${esc(i.status)}</td>
+    <td class="status-${esc(st)}">${esc(st)}</td>
     <td><code>${esc(i.url)}</code></td>
     <td class="col-num">${num(i.requests)}</td>
     <td title="${esc(started || "start time unknown")}">${esc(up)}</td>
@@ -188,6 +190,26 @@ export function emptyStateHtml(kind, ctx = {}) {
       title: ctx.title || "Failed to load",
       detail: ctx.detail || "Request failed. Check Admin App logs and instance URLs.",
     },
+    "metrics-config": {
+      cls: "config",
+      icon: "◎",
+      title: ctx.title || "Metrics storage not configured",
+      detail: ctx.detail
+        || "Set CacheAdmin:Metrics:Enabled, Provider (Prometheus), and BaseUrl.",
+    },
+    "metrics-offline": {
+      cls: "offline",
+      icon: "⏻",
+      title: ctx.title || "Metrics storage not connected",
+      detail: ctx.detail || "Prometheus probe failed. Check URL, network, and auth.",
+    },
+    "metrics-empty": {
+      cls: "filter",
+      icon: "◫",
+      title: ctx.title || "No metric samples",
+      detail: ctx.detail
+        || "Connected, but no series in this range. Confirm the CacheOrchestrator meter is scraped.",
+    },
   };
   const m = map[kind] || map.filter;
   const actions = ctx.actions || [
@@ -217,9 +239,9 @@ export function connectivityBanner(instances) {
       <span class="banner-actions"><button type="button" class="secondary" data-es-refresh>Refresh</button></span>
     </div>`;
   }
-  const up = list.filter((i) => i.status === "Healthy").length;
-  const down = list.filter((i) => i.status === "Down").length;
-  const deg = list.filter((i) => i.status === "Degraded").length;
+  const up = list.filter((i) => instanceStatus(i.status) === "Healthy").length;
+  const down = list.filter((i) => instanceStatus(i.status) === "Down").length;
+  const deg = list.filter((i) => instanceStatus(i.status) === "Degraded").length;
   if (down === list.length) {
     return `<div class="banner err">
       <span><strong>All instances down</strong> — entity data cannot be loaded from Local Admin APIs.
@@ -247,7 +269,7 @@ export function bindEmptyStateActions(root) {
 
 export function allInstancesDown(instances) {
   const list = instances || [];
-  return list.length > 0 && list.every((i) => i.status === "Down");
+  return list.length > 0 && list.every((i) => instanceStatus(i.status) === "Down");
 }
 
 export function noInstancesConfigured(instances) {

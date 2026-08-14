@@ -1,6 +1,6 @@
 # Observability
 
-Dashboards, health, and live counters across instances: [admin.md](admin.md). The Admin API (`Cache:Admin:Enabled`) reports lifetime totals. Time series belong on the `CacheOrchestrator` meter (OpenTelemetry / Prometheus).
+Dashboards, health, and live counters across instances: [admin.md](admin.md). The Admin API (`Cache:Admin:Enabled`) reports lifetime totals. Time series belong on the `CacheOrchestrator` meter (OpenTelemetry / Prometheus). The Admin App can plot scraped series via optional `CacheAdmin:Metrics` (Prometheus HTTP API) — see [admin.md — Metrics store](admin.md#metrics-store-time-series). Local dev scrape of the Playground sample: [deploy/prometheus/README.md](../deploy/prometheus/README.md).
 
 ## X-Cache response header
 

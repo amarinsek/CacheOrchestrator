@@ -35,6 +35,7 @@ Technical reference. The [root README](../README.md) is the product overview. Yo
 - [Observability](observability.md) — `X-Cache`, metrics, health.
 - [Admin](admin.md) — Admin API and Admin App.
 - [Admin hints](admin-hints.md) — recommendation rules.
+- [Local Prometheus](../deploy/prometheus/README.md) — Docker scrape for Admin Metrics + Playground sample.
 
 ## Internals
 

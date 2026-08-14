@@ -6,7 +6,7 @@
  */
 
 import { api } from "./api.js";
-import { $, main } from "./dom.js";
+import { $, main, mainHasContent, paintMain } from "./dom.js";
 import {
   esc,
   formatLatencyMs,
@@ -57,26 +57,55 @@ import {
   layerDetailOc,
   noInstancesConfigured,
 } from "./tables.js";
+import { metricsOverviewSectionHtml, renderMetrics } from "./views-metrics.js";
+
+/** First paint may show loading; soft refresh keeps previous content until data arrives. */
+function beginPageLoad(soft, loadingHtml) {
+  if (!soft || !mainHasContent()) {
+    main().innerHTML = loadingHtml;
+  }
+}
+
+/** Soft refresh preserves scroll; hard navigation replaces immediately. */
+function paintPage(html, soft) {
+  if (soft) paintMain(html);
+  else main().innerHTML = html;
+}
 
 // —— Overview ——
 
-export async function renderOverview(params = new URLSearchParams()) {
+export async function renderOverview(params = new URLSearchParams(), opts = {}) {
+  const soft = !!opts.soft;
   setBreadcrumb([{ label: "Overview" }]);
-  main().innerHTML = `<div class="card"><p class="muted">Loading overview…</p></div>`;
+
+  // Prefer last overview for instant paint (header may already have fetched it).
+  const cached = shell.getLastOverview();
+  if (cached && (!soft || !mainHasContent())) {
+    paintOverviewBody(cached, params, soft);
+  } else if (!soft && !mainHasContent()) {
+    beginPageLoad(false, `<div class="card"><p class="muted">Loading overview…</p></div>`);
+  }
+
   let o;
   try {
     o = await api("/api/overview");
   } catch (err) {
-    main().innerHTML = `<div class="card">${emptyStateHtml("error", {
+    if (soft && mainHasContent()) return; // keep previous page on soft failure
+    if (cached) return; // keep cached paint
+    paintPage(`<div class="card">${emptyStateHtml("error", {
       title: "Cannot load overview",
       detail: err.message,
-    })}</div>`;
+    })}</div>`, soft);
     bindEmptyStateActions(main());
     return;
   }
   shell.setLastOverview(o);
   shell.renderHeader(o);
   shell.updateNavHintsBadge(o.hintSummary);
+  paintOverviewBody(o, params, soft);
+}
+
+function paintOverviewBody(o, params, soft) {
 
   const offline = allInstancesDown(o.instances);
   const noCfg = noInstancesConfigured(o.instances);
@@ -92,10 +121,10 @@ export async function renderOverview(params = new URLSearchParams()) {
   const offlineDetail =
     "Start target apps with Cache:Admin:Enabled and matching ApiKey, then refresh.";
 
-  main().innerHTML = `
+  paintPage(`
     ${connectivityBanner(o.instances)}
     <div class="kpi-row">
-      <div class="kpi"><div class="label">Instances up</div><div class="value ${offline ? "status-Down" : "status-Healthy"}">${o.healthyCount}/${(o.instances || []).length}\u2009up</div></div>
+      <div class="kpi"><div class="label">Instances up</div><div class="value ${instancesUpClass(o)}">${o.healthyCount}/${(o.instances || []).length}\u2009up</div></div>
       <div class="kpi"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>
       <div class="kpi"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
       <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
@@ -144,7 +173,8 @@ export async function renderOverview(params = new URLSearchParams()) {
         })}
       </div>
       ${!offline && (o.topEndpoints || []).length ? `<p style="margin:0.75rem 0 0"><a href="#/endpoints">All endpoints →</a></p>` : ""}
-    </div>`;
+    </div>
+    <div id="ovMetricsMount">${soft ? "" : `<p class="muted small">Checking metrics store…</p>`}</div>`, soft);
 
   bindEntityTableClicks(main());
   bindEmptyStateActions(main());
@@ -164,11 +194,18 @@ export async function renderOverview(params = new URLSearchParams()) {
   $("#ovEpSort")?.addEventListener("change", (ev) => {
     navigate("overview", ovSortParams({ epSort: ev.target.value }));
   });
+
+  // Optional external metrics (non-blocking for lifetime overview).
+  metricsOverviewSectionHtml().then((html) => {
+    const mount = $("#ovMetricsMount");
+    if (mount) mount.innerHTML = html || "";
+  });
 }
 
 // —— Endpoints ——
 
-export async function renderEndpointsList(params) {
+export async function renderEndpointsList(params, opts = {}) {
+  const soft = !!opts.soft;
   setBreadcrumb([{ label: "Endpoints", href: "#/endpoints" }]);
   const search = params.get("search") || "";
   const sort = params.get("sort") || "requests";
@@ -177,13 +214,14 @@ export async function renderEndpointsList(params) {
   const selInstances = parseCsvParam(params, "instances");
   const selDomains = parseCsvParam(params, "domains");
 
-  main().innerHTML = `<div class="card"><p class="muted">Loading endpoints…</p></div>`;
+  beginPageLoad(soft, `<div class="card"><p class="muted">Loading endpoints…</p></div>`);
 
   let instanceList = [];
   try {
     instanceList = await api("/api/instances");
   } catch (err) {
-    main().innerHTML = `<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`;
+    if (soft && mainHasContent()) return;
+    paintPage(`<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`, soft);
     bindEmptyStateActions(main());
     return;
   }
@@ -222,7 +260,7 @@ export async function renderEndpointsList(params) {
       || (offline ? "All target apps are down. Start them with Local Admin enabled." : undefined),
   };
 
-  main().innerHTML = `
+  paintPage(`
     ${connectivityBanner(instanceList)}
     <div class="card">
       <h2>Endpoints <span class="badge">primary unit</span></h2>
@@ -244,7 +282,7 @@ export async function renderEndpointsList(params) {
           <button type="button" class="secondary" id="epNext" ${list.length < Number(take) ? "disabled" : ""}>Next</button>
         </div>` : ""}
       </div>
-    </div>`;
+    </div>`, soft);
 
   bindEmptyStateActions(main());
   bindEntityTableClicks($("#epTable") || main());
@@ -282,21 +320,24 @@ export async function renderEndpointsList(params) {
   }));
 }
 
-export async function renderEndpointDetail(routeName) {
+export async function renderEndpointDetail(routeName, opts = {}) {
+  const soft = !!opts.soft;
   setBreadcrumb([
     { label: "Endpoints", href: "#/endpoints" },
     { label: routeName },
   ]);
-  main().innerHTML = `<p class="muted">Loading ${esc(routeName)}…</p>`;
+  beginPageLoad(soft, `<p class="muted">Loading ${esc(routeName)}…</p>`);
 
   const stats = await api("/api/stats?scope=all&groupByInstance=true");
   let ep = (stats.endpoints || []).find((e) => e.route === routeName);
   if (!ep) {
-    main().innerHTML = `<div class="card"><p class="status-Down">Endpoint not found: <code>${esc(routeName)}</code></p>
-      <a href="#/endpoints">← Back</a></div>`;
+    if (!(soft && mainHasContent())) {
+      paintPage(`<div class="card"><p class="status-Down">Endpoint not found: <code>${esc(routeName)}</code></p>
+      <a href="#/endpoints">← Back</a></div>`, soft);
+    }
     return;
   }
-  main().innerHTML = `
+  paintPage(`
     <div class="card">
       <h2><code>${esc(ep.route)}</code>
         ${ep.configuredDomain ? `<a class="badge" href="#/domains?name=${encodeURIComponent(ep.configuredDomain)}">${esc(ep.configuredDomain)}</a>` : ""}
@@ -339,7 +380,7 @@ export async function renderEndpointDetail(routeName) {
     </div>` : ""}
     <p><a href="#/endpoints">← All endpoints</a>
       ${ep.configuredDomain ? ` · <a href="#/operations?domain=${encodeURIComponent(ep.configuredDomain)}">Operations for domain</a>` : ""}
-    </p>`;
+    </p>`, soft);
 
   main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
     tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
@@ -348,19 +389,21 @@ export async function renderEndpointDetail(routeName) {
 
 // —— Domains ——
 
-export async function renderDomainsList(params) {
+export async function renderDomainsList(params, opts = {}) {
+  const soft = !!opts.soft;
   setBreadcrumb([{ label: "Domains", href: "#/domains" }]);
   const search = params.get("search") || "";
   const sort = params.get("sort") || "requests";
   const selInstances = parseCsvParam(params, "instances");
 
-  main().innerHTML = `<div class="card"><p class="muted">Loading domains…</p></div>`;
+  beginPageLoad(soft, `<div class="card"><p class="muted">Loading domains…</p></div>`);
 
   let instanceList = [];
   try {
     instanceList = await api("/api/instances");
   } catch (err) {
-    main().innerHTML = `<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`;
+    if (soft && mainHasContent()) return;
+    paintPage(`<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`, soft);
     bindEmptyStateActions(main());
     return;
   }
@@ -385,7 +428,7 @@ export async function renderDomainsList(params) {
   domains = sortDomains(filterDomainsBySearch(domains, search), sort);
   const emptyKind = noCfg ? "config" : offline ? "offline" : loadError ? "error" : "domains";
 
-  main().innerHTML = `
+  paintPage(`
     ${connectivityBanner(instanceList)}
     <div class="card">
       <h2>Domains</h2>
@@ -401,7 +444,7 @@ export async function renderDomainsList(params) {
         title: loadError ? "Failed to load domains" : undefined,
         detail: loadError || (offline ? "All target apps are down." : undefined),
       })}
-    </div>`;
+    </div>`, soft);
 
   bindEmptyStateActions(main());
   const form = $("#domFilters");
@@ -420,12 +463,13 @@ export async function renderDomainsList(params) {
   bindEntityTableClicks(main());
 }
 
-export async function renderDomainDetail(name) {
+export async function renderDomainDetail(name, opts = {}) {
+  const soft = !!opts.soft;
   setBreadcrumb([
     { label: "Domains", href: "#/domains" },
     { label: name },
   ]);
-  main().innerHTML = `<p class="muted">Loading domain ${esc(name)}…</p>`;
+  beginPageLoad(soft, `<p class="muted">Loading domain ${esc(name)}…</p>`);
 
   const [stats, cfgFan] = await Promise.all([
     api("/api/stats?scope=all&groupByInstance=true"),
@@ -435,13 +479,13 @@ export async function renderDomainDetail(name) {
   const cfg = (cfgFan.data || []).find((x) => x.name === name);
 
   if (!d && !cfg) {
-    main().innerHTML = `<div class="card"><p class="status-Down">Domain not found</p></div>`;
+    if (!(soft && mainHasContent())) paintPage(`<div class="card"><p class="status-Down">Domain not found</p></div>`, soft);
     return;
   }
 
   const domain = d || { name, requests: 0, oc: {}, fc: {}, pipeline: {}, endpoints: [], hints: [] };
 
-  main().innerHTML = `
+  paintPage(`
     <div class="card">
       <h2><code>${esc(name)}</code>
         ${domain.versionIsRuntimeOverride ? '<span class="badge">runtime version</span>' : ""}
@@ -498,7 +542,7 @@ export async function renderDomainDetail(name) {
       <h2>Endpoints in domain</h2>
       ${endpointTableHtml(domain.endpoints || [])}
     </div>
-    <p><a href="#/domains">← Domains</a> · <a href="#/operations?domain=${encodeURIComponent(name)}">Operations</a></p>`;
+    <p><a href="#/domains">← Domains</a> · <a href="#/operations?domain=${encodeURIComponent(name)}">Operations</a></p>`, soft);
 
   main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
     tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
@@ -508,17 +552,19 @@ export async function renderDomainDetail(name) {
 
 // —— Instances ——
 
-export async function renderInstancesList(params = new URLSearchParams()) {
+export async function renderInstancesList(params = new URLSearchParams(), opts = {}) {
+  const soft = !!opts.soft;
   setBreadcrumb([{ label: "Instances", href: "#/instances" }]);
   const search = params.get("search") || "";
   const sort = params.get("sort") || "status";
 
-  main().innerHTML = `<div class="card"><p class="muted">Loading instances…</p></div>`;
+  beginPageLoad(soft, `<div class="card"><p class="muted">Loading instances…</p></div>`);
   let overview;
   try {
     overview = await api("/api/overview");
   } catch (err) {
-    main().innerHTML = `<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`;
+    if (soft && mainHasContent()) return;
+    paintPage(`<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`, soft);
     bindEmptyStateActions(main());
     return;
   }
@@ -526,7 +572,7 @@ export async function renderInstancesList(params = new URLSearchParams()) {
   shell.updateNavHintsBadge(overview.hintSummary);
   const list = sortInstances(filterInstancesBySearch(overview.instances || [], search), sort);
 
-  main().innerHTML = `
+  paintPage(`
     ${connectivityBanner(overview.instances || [])}
     <div class="card">
       <h2>Instances ${severityStack(overview.hintSummary)}</h2>
@@ -536,7 +582,7 @@ export async function renderInstancesList(params = new URLSearchParams()) {
         ${applyButtonHtml()}
       </form>
       ${instanceTableHtml(list)}
-    </div>`;
+    </div>`, soft);
 
   bindEntityTableClicks(main());
   bindEmptyStateActions(main());
@@ -551,12 +597,13 @@ export async function renderInstancesList(params = new URLSearchParams()) {
   });
 }
 
-export async function renderInstanceDetail(id) {
+export async function renderInstanceDetail(id, opts = {}) {
+  const soft = !!opts.soft;
   setBreadcrumb([
     { label: "Instances", href: "#/instances" },
     { label: id },
   ]);
-  main().innerHTML = `<p class="muted">Loading instance ${esc(id)}…</p>`;
+  beginPageLoad(soft, `<p class="muted">Loading instance ${esc(id)}…</p>`);
 
   const [instances, stats] = await Promise.all([
     api("/api/instances"),
@@ -567,10 +614,14 @@ export async function renderInstanceDetail(id) {
     ? new Date(inst.startedAtUtc).toISOString()
     : "";
 
-  main().innerHTML = `
+  const st = (inst?.status === 0 || inst?.status === "Healthy") ? "Healthy"
+    : (inst?.status === 1 || inst?.status === "Degraded") ? "Degraded"
+    : (inst?.status === 2 || inst?.status === "Down") ? "Down"
+    : (inst?.status || "unknown");
+  paintPage(`
     <div class="card">
       <h2>Instance <code>${esc(id)}</code>
-        <span class="status-${esc(inst?.status || "Down")}">${esc(inst?.status || "unknown")}</span>
+        <span class="status-${esc(st)}">${esc(st)}</span>
         ${severityStack(inst?.hintSummary)}
       </h2>
       <p class="muted"><code>${esc(inst?.url || "")}</code>
@@ -595,21 +646,22 @@ export async function renderInstanceDetail(id) {
       ${endpointTableHtml((stats.endpoints || []).slice(0, 50))}
     </div>
     <p><a href="#/instances">← Instances</a>
-      · <a href="#/operations?target=instance:${encodeURIComponent(id)}">Operations on this instance</a></p>`;
+      · <a href="#/operations?target=instance:${encodeURIComponent(id)}">Operations on this instance</a></p>`, soft);
 
   bindEntityTableClicks(main());
 }
 
 // —— Hints ——
 
-export async function renderHintsPage(params) {
+export async function renderHintsPage(params, opts = {}) {
+  const soft = !!opts.soft;
   setBreadcrumb([{ label: "Hints" }]);
   const selInstances = parseCsvParam(params, "instances");
   const selDomains = parseCsvParam(params, "domains");
   const selEndpoints = parseCsvParam(params, "endpoints");
   const severity = params.get("severity") || "";
 
-  main().innerHTML = `<div class="card"><p class="muted">Loading hints…</p></div>`;
+  beginPageLoad(soft, `<div class="card"><p class="muted">Loading hints…</p></div>`);
 
   const [instanceList, stats] = await Promise.all([
     api("/api/instances"),
@@ -643,7 +695,7 @@ export async function renderHintsPage(params) {
   const rank = { Critical: 0, Warning: 1, Info: 2 };
   rows.sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9) || a.code.localeCompare(b.code));
 
-  main().innerHTML = `
+  paintPage(`
     <div class="card">
       <h2>Hints ${severityStack(summary)}</h2>
       <p class="muted">Rule-based recommendations from live stats. Filters combine (AND). Empty hint mark is <strong>○</strong>.</p>
@@ -690,7 +742,7 @@ export async function renderHintsPage(params) {
         title: "No hints to show",
         detail: "No recommendations from live data for the current filters. Generate traffic on healthy apps or clear filters.",
       })}
-    </div>`;
+    </div>`, soft);
   bindEmptyStateActions(main());
 
   const form = $("#hintFilters");
@@ -904,41 +956,73 @@ export async function renderOperations(params) {
   });
 }
 
+/** KPI color: green only when every configured instance is healthy. */
+function instancesUpClass(o) {
+  const total = (o.instances || []).length;
+  const up = o.healthyCount ?? 0;
+  const down = o.downCount ?? 0;
+  const deg = o.degradedCount ?? 0;
+  if (total === 0 || down > 0 || up < total) return "status-Down";
+  if (deg > 0) return "status-Degraded";
+  return "status-Healthy";
+}
+
 // —— Route dispatch ——
 
 /**
- * Map current hash to a view. Called on load, hashchange, and auto-refresh.
+ * Map current hash to a view.
+ * @param {{ soft?: boolean }} [opts] soft: background refresh without Loading flash
  */
-export async function route() {
+export async function route(opts = {}) {
+  const soft = !!opts.soft;
   const { path, params } = parseHash();
   const root = path.split("/")[0] || "overview";
   setNavActive(root);
 
+  // Soft refresh: keep Operations form intact (mutations in progress).
+  if (soft && root === "operations") {
+    await shell.refreshHeader({ silent: true });
+    return;
+  }
+
+  // Soft non-overview pages: refresh chrome header in parallel with page data.
+  const headerTask = soft && root !== "overview"
+    ? shell.refreshHeader({ silent: true })
+    : Promise.resolve();
+
   try {
-    if (root === "overview" || path === "") {
-      await renderOverview(params);
-    } else if (root === "endpoints") {
-      const routeName = params.get("route");
-      if (routeName) await renderEndpointDetail(routeName);
-      else await renderEndpointsList(params);
-    } else if (root === "domains") {
-      const name = params.get("name");
-      if (name) await renderDomainDetail(name);
-      else await renderDomainsList(params);
-    } else if (root === "instances") {
-      const id = params.get("id");
-      if (id) await renderInstanceDetail(id);
-      else await renderInstancesList(params);
-    } else if (root === "operations") {
-      await renderOperations(params);
-    } else if (root === "hints") {
-      await renderHintsPage(params);
-    } else {
-      navigate("overview");
-    }
+    await Promise.all([
+      headerTask,
+      (async () => {
+        if (root === "overview" || path === "") {
+          await renderOverview(params, { soft });
+        } else if (root === "endpoints") {
+          const routeName = params.get("route");
+          if (routeName) await renderEndpointDetail(routeName, { soft });
+          else await renderEndpointsList(params, { soft });
+        } else if (root === "domains") {
+          const name = params.get("name");
+          if (name) await renderDomainDetail(name, { soft });
+          else await renderDomainsList(params, { soft });
+        } else if (root === "instances") {
+          const id = params.get("id");
+          if (id) await renderInstanceDetail(id, { soft });
+          else await renderInstancesList(params, { soft });
+        } else if (root === "operations") {
+          await renderOperations(params);
+        } else if (root === "hints") {
+          await renderHintsPage(params, { soft });
+        } else if (root === "metrics") {
+          await renderMetrics(params, { soft });
+        } else if (!soft) {
+          navigate("overview");
+        }
+      })(),
+    ]);
   } catch (err) {
     // Browser console only — Admin App process logs do not capture SPA errors.
     console.error("[Admin UI] route failed", err);
+    if (soft && mainHasContent()) return;
     main().innerHTML = `<div class="card">${emptyStateHtml("error", {
       title: "Page failed to load",
       detail: err?.message || String(err),

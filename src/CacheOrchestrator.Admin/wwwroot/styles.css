@@ -20,6 +20,27 @@ html {
   color-scheme: dark;
 }
 
+/* Soft refresh indicator (background fetch — page content stays visible). */
+html.is-refreshing .chrome-metrics {
+  position: relative;
+}
+html.is-refreshing .chrome-metrics::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 0.35rem;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+  animation: soft-refresh-pulse 0.9s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes soft-refresh-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
 body {
   margin: 0;
   font-family: var(--font);
@@ -555,6 +576,96 @@ button.secondary {
   line-height: 1.25;
   min-height: 2rem;
   padding: 0.35rem 0.55rem;
+}
+
+/* —— Metrics time series —— */
+.banner.metrics-banner.ok {
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+  background: #122018;
+  color: var(--text);
+}
+
+.metrics-note { margin: 0 0 0.85rem; }
+
+.metrics-grid { margin-top: 0.25rem; }
+
+.chart-card .card-head { margin-bottom: 0.35rem; }
+
+.chart-wrap { width: 100%; }
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #121820;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.chart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.chart-axis {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: var(--font);
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chart-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.chart-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: #121820;
+}
+
+.chart-warn { margin: 0.5rem 0 0; font-size: 0.82rem; }
+
+.metrics-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.metrics-ov-block .label {
+  font-size: 0.78rem;
+  margin-bottom: 0.25rem;
+}
+
+.sparkline {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  height: 28px;
+}
+
+@media (max-width: 640px) {
+  .metrics-grid { grid-template-columns: 1fr; }
 }
 
 .form-grid {

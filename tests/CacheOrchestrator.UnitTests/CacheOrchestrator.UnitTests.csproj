@@ -63,6 +63,8 @@
     <Compile Remove="Admin\StatsAggregatorTests.cs" />
     <Compile Remove="Admin\AdminFanOutServiceTests.cs" />
     <Compile Remove="Admin\RecommendationHintsTests.cs" />
+    <Compile Remove="Admin\MetricsPanelCatalogTests.cs" />
+    <Compile Remove="Admin\MetricsQueryServiceTests.cs" />
   </ItemGroup>
 
 </Project>

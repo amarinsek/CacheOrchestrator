@@ -272,7 +272,7 @@ export function sortDomains(list, sort) {
   return arr;
 }
 
-const STATUS_RANK = { Healthy: 0, Degraded: 1, Down: 2 };
+const STATUS_RANK = { Healthy: 0, Degraded: 1, Down: 2, 0: 0, 1: 1, 2: 2 };
 
 export function sortInstances(list, sort) {
   const arr = [...(list || [])];

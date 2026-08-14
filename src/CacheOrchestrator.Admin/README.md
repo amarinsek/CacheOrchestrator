@@ -57,8 +57,32 @@ dotnet run --project src/CacheOrchestrator.Admin
 - http://localhost:5188/health — process health
 - http://localhost:5188/scalar/v1 — OpenAPI, Development only
 
-A convenient pair is the Minimal sample with the Admin API enabled, and `Instances` pointed at that port.
+Default `Instances` point at the **Playground** sample (`:5289`), which also exposes `/metrics` for Prometheus.
 
-Pages (hash routes): Overview, Instances, Domains, Endpoints, Hints, Operations. Operations use HTTP fan-out or the cluster bus (`distribute`), whichever the instances support.
+Pages (hash routes): Overview, Instances, Domains, Endpoints, **Metrics**, Hints, Operations. Operations use HTTP fan-out or the cluster bus (`distribute`), whichever the instances support.
+
+### Metrics (Prometheus)
+
+`appsettings.json` points Metrics at local Prometheus:
+
+```json
+"CacheAdmin": {
+  "Metrics": {
+    "Enabled": true,
+    "Provider": "Prometheus",
+    "BaseUrl": "http://localhost:9090"
+  }
+}
+```
+
+Bring up Prometheus + **Playground** (scrapes `/metrics` on port 5289), then open **Metrics** in the UI:
+
+```bash
+docker compose -f deploy/prometheus/docker-compose.yml up -d
+dotnet run --project samples/CacheOrchestrator.Sample
+dotnet run --project src/CacheOrchestrator.Admin
+```
+
+Guide: [deploy/prometheus/README.md](../../deploy/prometheus/README.md) · [docs/admin.md](../../docs/admin.md).
 
 Further detail: [docs/admin.md](../../docs/admin.md) · [docs/cluster-bus.md](../../docs/cluster-bus.md).

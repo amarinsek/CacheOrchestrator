@@ -9,7 +9,7 @@ This page covers architecture, security, and production. To run the App: [Admin 
 
 - One process, curl or a script — enable the Admin API.
 - A dashboard across instances — Admin App, with the Admin API on each target.
-- Time series (“last hour”) — OpenTelemetry or Prometheus. Admin counters are lifetime totals.
+- Time series (“last hour”) — optional **Admin App → Prometheus** (`CacheAdmin:Metrics`). Lifetime counters stay on Local Admin; sliding windows come from scraped `CacheOrchestrator` meter series.
 
 Writes (invalidate, Version, TTL) change live cache state. Restrict who can reach these endpoints.
 
@@ -189,9 +189,43 @@ Section: `CacheAdmin` → `CacheAdminOptions`.
 | `ApiKey` | Sent as `X-Cache-Admin-Key` to every instance (**must match** each app’s `Cache:Admin:ApiKey`) |
 | `RequestTimeoutMs` | Per-call timeout (1–120000) |
 | `Parallelism` | Max concurrent fan-out (1–64) |
+| `DownReprobeSeconds` | After an instance is Down, skip HTTP to it for this many seconds (5–300, default 15), then re-probe |
 | `LocalPathPrefix` | Path on each instance (must match `RoutePrefix`) |
 | `Instances[].id` | Stable UI / filter id |
 | `Instances[].url` | **Base URL only** (scheme + host + port) — no `/cache-admin/...` path |
+| `Metrics` | Optional Prometheus-compatible store for the **Metrics** page (see below) |
+
+### Metrics store (time series)
+
+Admin App can query an external Prometheus-compatible HTTP API (Prometheus, Mimir, VictoriaMetrics, Thanos Query) for windowed charts. **No core library changes** — the apps only need the usual OTel/Prometheus scrape of meter `CacheOrchestrator`.
+
+Minimal config (everything else has defaults). The Admin App in this repo defaults to local Prometheus:
+
+```json
+"CacheAdmin": {
+  "Metrics": {
+    "Enabled": true,
+    "Provider": "Prometheus",
+    "BaseUrl": "http://localhost:9090"
+  }
+}
+```
+
+Dev stack (Docker Prometheus + Playground `/metrics` on port 5289): [deploy/prometheus/README.md](../deploy/prometheus/README.md).
+
+| Key | Default | Notes |
+|-----|---------|--------|
+| `Enabled` | `false` | Off → UI shows “not configured”, no probe |
+| `Provider` | `Prometheus` | Only Prometheus HTTP API v1 today |
+| `BaseUrl` | empty | Required when enabled |
+| `TimeoutMs` | `5000` | Probe / query timeout |
+| `DefaultRange` | `1h` | UI default (`15m` / `1h` / `6h` / `24h` / `7d`) |
+| `BearerToken` | empty | Optional `Authorization: Bearer` |
+| `PathPrefix` | empty | e.g. `/prometheus` behind a reverse proxy |
+
+When **not configured**, the Metrics page explains how to enable it; Overview omits history cards. When **configured but unreachable**, the UI shows **Disconnected** (no fake zeros).
+
+Admin App API: `GET /api/metrics/status`, `/catalog`, `/series`, `/summary`.
 
 ### Run (local)
 
@@ -199,15 +233,16 @@ Section: `CacheAdmin` → `CacheAdminOptions`.
 dotnet run --project src/CacheOrchestrator.Admin
 ```
 
-Default UI: `http://localhost:5188/` (see launchSettings). Pair with Minimal sample + Admin API on the port listed under `Instances`.
+Default UI: `http://localhost:5188/` (see launchSettings). Default `Instances` point at the Playground sample (`:5289`). Metrics time series use Playground scrape via Prometheus.
 
 Quick operator steps: [Admin App README](../src/CacheOrchestrator.Admin/README.md).
 
 ### What the SPA shows
 
-- Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/Origin, Req, Inv, hints) → **menu**  
-- Overview: instances; **top 5 domains** and **top 5 endpoints** after sorting the **full** aggregated lists  
+- Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/Origin, Req, Inv, hints, optional metrics store pill) → **menu**  
+- Overview: instances; **top 5 domains** and **top 5 endpoints** after sorting the **full** aggregated lists; optional **last 1h** embed when Metrics store is connected  
 - Lists: filters, search, sort; detail pages; Hints page  
+- **Metrics** (`#/metrics`): window charts from Prometheus (req rate, OC/FC shares, invalidations, schedule phase, cluster failures, FC p95)  
 - **Operations** (`#/operations`): invalidate / version / TTL; banner **HTTP fan-out** vs **Cluster bus (distribute)**; cluster probe table; last-run mode in result  
 - Auto-refresh interval in `localStorage`  
 
@@ -227,6 +262,10 @@ Details: [admin-hints.md](admin-hints.md).
 | GET | `/api/stats?scope=all\|instance:{id}&groupByInstance=` | Aggregated live stats |
 | GET | `/api/endpoints?…` | Endpoint list (search/sort/page/filters) |
 | GET | `/api/domains` | Domain config fan-out |
+| GET | `/api/metrics/status` | Metrics store probe (`NotConfigured` / `Disconnected` / `Connected`) |
+| GET | `/api/metrics/catalog` | Allowlisted chart panels |
+| GET | `/api/metrics/series?range=&panels=&domains=` | Range series for panels |
+| GET | `/api/metrics/summary?range=` | Window KPI snapshot |
 | POST | `/api/invalidate` | Invalidate (auto fan-out or bus-distribute) |
 | POST | `/api/domains/{domain}/version` | Version overlay write |
 | PATCH | `/api/domains/{domain}/ttl` | TTL overlay write |
@@ -301,7 +340,8 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 
 ## Out of scope
 
-- Sliding-window / “last 1h” history (use Prometheus / OTLP).  
+- Built-in time-series database inside Admin App (use Prometheus / compatible store).  
+- Free-form PromQL from the browser (panels are allowlisted server-side).  
 - Redis topology management.  
 - Publishing Admin App as a NuGet library.  
 - Built-in OIDC login UI inside Admin App (use edge auth for now).

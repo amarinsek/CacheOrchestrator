@@ -68,6 +68,25 @@ docker run -d --name redis-demo -p 6379:6379 redis:7-alpine
 
 Named Fusion instances and a second Redis: [deployment.md](../../docs/deployment.md).
 
+## Admin API + Prometheus metrics
+
+This sample enables the Local Admin API (`Cache:Admin`) and exports meter `CacheOrchestrator` at **http://localhost:5289/metrics** for Prometheus.
+
+```bash
+# Prometheus (UI http://localhost:9090)
+docker compose -f deploy/prometheus/docker-compose.yml up -d
+
+# This playground (scraped at host.docker.internal:5289)
+dotnet run --project samples/CacheOrchestrator.Sample
+
+# Traffic (UI or curl), then Admin App Metrics page
+curl -i http://localhost:5289/api/catalog
+dotnet run --project src/CacheOrchestrator.Admin
+# open http://localhost:5188/#/metrics
+```
+
+Details: [deploy/prometheus/README.md](../../deploy/prometheus/README.md) · [docs/admin.md](../../docs/admin.md).
+
 ## Next
 
 - [Getting started](../../docs/getting-started.md)
