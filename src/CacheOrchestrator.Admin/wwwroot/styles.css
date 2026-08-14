@@ -587,20 +587,146 @@ button.secondary {
 
 .metrics-note { margin: 0 0 0.85rem; }
 
-.metrics-grid { margin-top: 0.25rem; }
+.metrics-grid {
+  margin-top: 0.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
 
 .chart-card .card-head { margin-bottom: 0.35rem; }
 
-.chart-wrap { width: 100%; }
+.chart-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.chart-expand-btn {
+  min-width: 2rem !important;
+  padding: 0.2rem 0.45rem !important;
+  font-size: 0.85rem !important;
+  line-height: 1.1;
+}
+
+.chart-wrap {
+  width: 100%;
+  min-height: 12rem;
+}
 
 .chart-svg {
   width: 100%;
   height: auto;
+  min-height: 11rem;
   display: block;
   background: #121820;
   border-radius: 8px;
   border: 1px solid var(--border);
 }
+
+/* Enlarge chart modal */
+body.chart-modal-open { overflow: hidden; }
+
+.chart-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(6, 10, 14, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.chart-modal {
+  width: min(1100px, 100%);
+  max-height: min(92vh, 900px);
+  overflow: auto;
+  background: var(--panel, #151c24);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  padding: 0.85rem 1rem 1rem;
+}
+
+.chart-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.chart-modal-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.chart-modal-body .chart-wrap { min-height: 22rem; }
+.chart-modal-body .chart-svg { min-height: 20rem; }
+
+.chart-wrap-interactive {
+  position: relative;
+  cursor: crosshair;
+}
+
+.chart-crosshair {
+  stroke: color-mix(in srgb, var(--accent) 70%, #fff);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.85;
+}
+
+.chart-tooltip {
+  position: absolute;
+  z-index: 5;
+  min-width: 10rem;
+  max-width: 18rem;
+  padding: 0.45rem 0.6rem;
+  background: #0f1520;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.chart-tip-time {
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+  font-size: 0.72rem;
+}
+
+.chart-tip-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.35rem 0.45rem;
+  align-items: center;
+}
+
+.chart-tip-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.chart-tip-name {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-tip-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.chart-hover-hint {
+  margin: 0.45rem 0 0;
+}
+
+.metrics-ov-chart .chart-wrap { min-height: 7rem; }
+.metrics-ov-chart .chart-svg { min-height: 6.5rem; }
 
 .chart-grid {
   stroke: var(--border);

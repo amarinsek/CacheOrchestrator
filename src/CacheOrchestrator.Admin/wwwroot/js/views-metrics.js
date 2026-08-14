@@ -3,13 +3,16 @@
  */
 
 import { api } from "./api.js";
-import { lineChartHtml } from "./charts.js";
+import { bindChartExpand, lineChartHtml, updateChartInPlace } from "./charts.js";
 import { $, main, mainHasContent, paintMain } from "./dom.js";
 import { esc, num, pct } from "./format.js";
 import { navigate, setBreadcrumb, setNavActive } from "./router.js";
 import { bindEmptyStateActions, emptyStateHtml } from "./tables.js";
 
 const RANGE_OPTS = ["15m", "1h", "6h", "24h", "7d"];
+
+/** @type {Map<string, { title: string, series: Array, unit?: string }>} */
+let lastPanelMap = new Map();
 
 /**
  * @param {URLSearchParams} params
@@ -97,15 +100,16 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
     return;
   }
 
-  // Soft path: only swap live KPI + chart regions when layout already matches.
+  lastPanelMap = buildPanelMap(series);
+
+  // Soft path: patch live regions only — avoid remounting the whole chart grid.
   if (soft && $("#metricsLiveRoot") && $("#metricsRange")?.value === range) {
     const banner = $("#metricsBannerHost");
     if (banner) banner.innerHTML = metricsStatusBanner(status);
-    const kpis = $("#metricsKpis");
-    if (kpis) kpis.innerHTML = metricsKpiHtml(summary, series);
-    const grid = $("#metricsGrid");
-    if (grid) grid.innerHTML = metricsPanelsHtml(series);
+    softUpdateKpis(summary, series);
+    softUpdateMetricsGrid(series);
     bindEmptyStateActions(main());
+    ensureChartExpandBound();
     return;
   }
 
@@ -138,6 +142,7 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
     </div>`, soft);
 
   bindEmptyStateActions(main());
+  ensureChartExpandBound();
   $("#metricsToolbar")?.addEventListener("submit", (ev) => {
     ev.preventDefault();
     navigate("metrics", {
@@ -147,37 +152,127 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
   });
 }
 
+function ensureChartExpandBound() {
+  bindChartExpand(main(), () => lastPanelMap);
+}
+
 function paint(html, soft) {
   if (soft) paintMain(html);
   else main().innerHTML = html;
 }
 
+function softUpdateKpis(summary, series) {
+  const root = $("#metricsKpis");
+  if (!root) return;
+  const vals = root.querySelectorAll("[data-kpi]");
+  if (vals.length < 5) {
+    root.innerHTML = metricsKpiHtml(summary, series);
+    return;
+  }
+  const map = {
+    req: fmtRate(summary?.requestRate),
+    oc: fmtShare(summary?.ocHitShare),
+    fc: fmtShare(summary?.fcHitRate),
+    inv: fmtRate(summary?.invalidationRate),
+    step: series?.step || "—",
+  };
+  for (const el of vals) {
+    const key = el.getAttribute("data-kpi");
+    if (key && map[key] != null && el.textContent !== String(map[key])) {
+      el.textContent = map[key];
+    }
+  }
+}
+
+function softUpdateMetricsGrid(series) {
+  const grid = $("#metricsGrid");
+  if (!grid) return;
+  const panels = series.panels || [];
+  if (!panels.length) {
+    if (!grid.querySelector(".chart-card")) {
+      grid.innerHTML = `<div class="card">${emptyStateHtml("metrics-empty")}</div>`;
+    }
+    return;
+  }
+
+  // Ensure cards exist for each panel id (first paint structure).
+  const existing = new Set([...grid.querySelectorAll(".chart-card")].map((c) => c.dataset.panel));
+  const wanted = panels.map((p) => p.id);
+  const structureOk = wanted.length === existing.size && wanted.every((id) => existing.has(id));
+  if (!structureOk) {
+    grid.innerHTML = metricsPanelsHtml(series);
+    return;
+  }
+
+  for (const p of panels) {
+    const card = grid.querySelector(`.chart-card[data-panel="${cssEscape(p.id)}"]`);
+    if (!card) continue;
+    const badge = card.querySelector("[data-chart-range]");
+    if (badge) badge.textContent = series.range || "";
+    const host = card.querySelector("[data-chart-host]");
+    if (host) {
+      updateChartInPlace(host, p.series || [], { unit: p.unit, height: 200, width: 640 });
+    }
+    let warn = card.querySelector(".chart-warn");
+    if (p.warning) {
+      if (!warn) {
+        warn = document.createElement("p");
+        warn.className = "muted chart-warn";
+        card.appendChild(warn);
+      }
+      if (warn.textContent !== p.warning) warn.textContent = p.warning;
+    } else if (warn) {
+      warn.remove();
+    }
+  }
+}
+
+function cssEscape(id) {
+  // data-panel values are allowlisted ids (snake_case); avoid CSS.escape dependency.
+  return String(id).replace(/"/g, "");
+}
+
 function metricsKpiHtml(summary, series) {
   return `
-      <div class="kpi"><div class="label">Req / s</div><div class="value">${fmtRate(summary?.requestRate)}</div></div>
-      <div class="kpi"><div class="label">OC hit (window)</div><div class="value">${fmtShare(summary?.ocHitShare)}</div></div>
-      <div class="kpi"><div class="label">FC hit rate</div><div class="value">${fmtShare(summary?.fcHitRate)}</div></div>
-      <div class="kpi"><div class="label">Inv / s</div><div class="value">${fmtRate(summary?.invalidationRate)}</div></div>
-      <div class="kpi"><div class="label">Step</div><div class="value" style="font-size:1rem">${esc(series?.step || "—")}</div></div>`;
+      <div class="kpi"><div class="label">Req / s</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
+      <div class="kpi"><div class="label">OC hit (window)</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
+      <div class="kpi"><div class="label">FC hit rate</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
+      <div class="kpi"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
+      <div class="kpi"><div class="label">Step</div><div class="value" data-kpi="step" style="font-size:1rem">${esc(series?.step || "—")}</div></div>`;
 }
 
 function metricsPanelsHtml(series) {
-  const panelCards = (series.panels || []).map((p) => {
-    const badge = `<span class="badge">${esc(series.range)}</span>`;
-    const warn = p.warning
-      ? `<p class="muted chart-warn">${esc(p.warning)}</p>`
-      : "";
-    return `
+  const panelCards = (series.panels || []).map((p) => panelCardHtml(p, series.range)).join("");
+  return panelCards || `<div class="card">${emptyStateHtml("metrics-empty")}</div>`;
+}
+
+function panelCardHtml(p, range, chartOpts = {}) {
+  const height = chartOpts.height || 200;
+  const width = chartOpts.width || 640;
+  const warn = p.warning
+    ? `<p class="muted chart-warn">${esc(p.warning)}</p>`
+    : "";
+  return `
       <div class="card chart-card" data-panel="${esc(p.id)}">
         <div class="card-head">
-          <h2>${esc(p.title)} ${badge}</h2>
-          <span class="muted small">${esc(unitLabel(p.unit))}</span>
+          <h2>${esc(p.title)} <span class="badge" data-chart-range>${esc(range || "")}</span></h2>
+          <div class="chart-card-actions">
+            <span class="muted small">${esc(unitLabel(p.unit))}</span>
+            <button type="button" class="secondary chart-expand-btn" data-chart-expand="${esc(p.id)}" title="Enlarge chart">⛶</button>
+          </div>
         </div>
-        ${lineChartHtml(p.series || [], { unit: p.unit })}
+        <div data-chart-host>${lineChartHtml(p.series || [], { unit: p.unit, height, width })}</div>
         ${warn}
       </div>`;
-  }).join("");
-  return panelCards || `<div class="card">${emptyStateHtml("metrics-empty")}</div>`;
+}
+
+function buildPanelMap(series) {
+  /** @type {Map<string, { title: string, series: Array, unit?: string }>} */
+  const map = new Map();
+  for (const p of series?.panels || []) {
+    map.set(p.id, { title: p.title, series: p.series || [], unit: p.unit });
+  }
+  return map;
 }
 
 /**
@@ -223,19 +318,22 @@ export async function mountDetailMetrics(mountId, opts) {
   if (!el) return;
 
   const range = opts.range || "1h";
+  const soft = el.dataset.metricsReady === "1" && el.querySelector(".metrics-grid");
+
   let status;
   try {
     status = await api("/api/metrics/status");
   } catch {
-    el.innerHTML = "";
+    if (!soft) el.innerHTML = "";
     return;
   }
 
   if (status.status === "NotConfigured") {
-    el.innerHTML = "";
+    if (!soft) el.innerHTML = "";
     return;
   }
   if (status.status === "Disconnected") {
+    if (soft) return;
     el.innerHTML = `<div class="card"><h2>Metrics <span class="badge">last ${esc(range)}</span></h2>
       <p class="muted">Metrics storage not connected${status.error ? `: ${esc(status.error)}` : "."}</p>
       <p><a href="#/metrics">Open Metrics →</a></p></div>`;
@@ -257,11 +355,13 @@ export async function mountDetailMetrics(mountId, opts) {
   try {
     series = await api("/api/metrics/series?" + q.toString());
   } catch (err) {
+    if (soft) return;
     el.innerHTML = `<div class="card"><h2>Metrics</h2><p class="muted">${esc(err.message)}</p></div>`;
     return;
   }
 
   if (series.status !== "Connected") {
+    if (soft) return;
     el.innerHTML = `<div class="card"><h2>Metrics</h2><p class="muted">${esc(series.error || "Not connected")}</p></div>`;
     return;
   }
@@ -274,6 +374,7 @@ export async function mountDetailMetrics(mountId, opts) {
         : `Endpoint metrics`;
 
   if (!anyPoints) {
+    if (soft) return;
     const note = opts.scope === "endpoint"
       ? "No samples for this route in the selected range. Possible causes: no traffic, " +
         "<code>Cache:Metrics:IncludeEndpointLabel</code> off on some/all instances during this window, " +
@@ -287,18 +388,25 @@ export async function mountDetailMetrics(mountId, opts) {
     return;
   }
 
-  const cards = list.map((p) => {
-    const warn = p.warning ? `<p class="muted chart-warn">${esc(p.warning)}</p>` : "";
-    return `<div class="card chart-card">
-      <div class="card-head">
-        <h2>${esc(p.title)} <span class="badge">${esc(series.range)}</span></h2>
-        <span class="muted small">${esc(unitLabel(p.unit))}</span>
-      </div>
-      ${lineChartHtml(p.series || [], { unit: p.unit, height: 140, width: 520 })}
-      ${warn}
-    </div>`;
-  }).join("");
+  const panelMap = buildPanelMap(series);
+  lastPanelMap = new Map([...lastPanelMap, ...panelMap]);
 
+  if (soft) {
+    const grid = el.querySelector(".metrics-grid");
+    if (grid) {
+      for (const p of list) {
+        const card = grid.querySelector(`.chart-card[data-panel="${cssEscape(p.id)}"]`);
+        const host = card?.querySelector("[data-chart-host]");
+        if (host) updateChartInPlace(host, p.series || [], { unit: p.unit, height: 180, width: 560 });
+      }
+      ensureChartExpandBound();
+      return;
+    }
+  }
+
+  const cards = list.map((p) => panelCardHtml(p, series.range, { height: 180, width: 560 })).join("");
+
+  el.dataset.metricsReady = "1";
   el.innerHTML = `<div class="card">
     <div class="card-head">
       <h2>${esc(title)} <span class="badge">last ${esc(range)}</span></h2>
@@ -307,12 +415,14 @@ export async function mountDetailMetrics(mountId, opts) {
     <p class="muted small metrics-note">Window series from external metrics storage (not lifetime Admin counters).</p>
     <div class="grid-2 metrics-grid">${cards}</div>
   </div>`;
+  ensureChartExpandBound();
 }
 
 /**
  * Compact Overview card when metrics are connected (or a one-line note when disconnected).
+ * @param {{ soft?: boolean }} [opts]
  */
-export async function metricsOverviewSectionHtml() {
+export async function metricsOverviewSectionHtml(opts = {}) {
   try {
     const status = await api("/api/metrics/status");
     if (status.status === "NotConfigured")
@@ -333,24 +443,33 @@ export async function metricsOverviewSectionHtml() {
     const spark = (panel) => {
       if (!panel?.series?.length) return `<span class="muted">—</span>`;
       const merged = mergeSeriesPoints(panel.series);
-      return lineChartHtml([{ name: "cluster", points: merged }], { unit: panel.unit, height: 100, width: 420 });
+      return `<div data-chart-host class="metrics-ov-chart">${lineChartHtml([{ name: "cluster", points: merged }], { unit: panel.unit, height: 120, width: 480 })}</div>`;
     };
 
-    return `<div class="card">
+    // Soft path caller may patch hosts instead of replacing the whole card.
+    if (opts.soft && opts.mountEl) {
+      const mount = opts.mountEl;
+      if (mount.querySelector(".metrics-overview-grid")) {
+        softPatchOverviewSparks(mount, byId);
+        return null; // signal: already patched
+      }
+    }
+
+    return `<div class="card" data-ov-metrics-card>
       <div class="card-head">
         <h2>Metrics <span class="badge">last 1h</span></h2>
         <a href="#/metrics">Open Metrics →</a>
       </div>
       <div class="metrics-overview-grid">
-        <div class="metrics-ov-block">
+        <div class="metrics-ov-block" data-ov-spark="request_rate">
           <div class="label muted">Request rate</div>
           ${spark(byId.request_rate)}
         </div>
-        <div class="metrics-ov-block">
+        <div class="metrics-ov-block" data-ov-spark="oc_hit_share">
           <div class="label muted">OC hit share</div>
           ${spark(byId.oc_hit_share)}
         </div>
-        <div class="metrics-ov-block">
+        <div class="metrics-ov-block" data-ov-spark="invalidation_rate">
           <div class="label muted">Invalidations</div>
           ${spark(byId.invalidation_rate)}
         </div>
@@ -358,6 +477,21 @@ export async function metricsOverviewSectionHtml() {
     </div>`;
   } catch {
     return "";
+  }
+}
+
+function softPatchOverviewSparks(mount, byId) {
+  for (const id of ["request_rate", "oc_hit_share", "invalidation_rate"]) {
+    const block = mount.querySelector(`[data-ov-spark="${id}"]`);
+    const host = block?.querySelector("[data-chart-host]");
+    const panel = byId[id];
+    if (!host || !panel?.series?.length) continue;
+    const merged = mergeSeriesPoints(panel.series);
+    updateChartInPlace(host, [{ name: "cluster", points: merged }], {
+      unit: panel.unit,
+      height: 120,
+      width: 480,
+    });
   }
 }
 

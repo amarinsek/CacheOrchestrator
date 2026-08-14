@@ -173,21 +173,41 @@ public sealed class LocalAdminClient : ILocalAdminClient
                 .ConfigureAwait(false);
 
             sw.Stop();
+            string raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                string errBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                 return Fail<TResponse>(
                     instance.Id,
                     (int)response.StatusCode,
-                    string.IsNullOrWhiteSpace(errBody)
-                        ? $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}"
-                        : errBody,
+                    FormatHttpError((int)response.StatusCode, response.ReasonPhrase, raw),
                     sw.Elapsed.TotalMilliseconds);
             }
 
-            TResponse? value = await response.Content
-                .ReadFromJsonAsync<TResponse>(JsonOptions, cancellationToken)
-                .ConfigureAwait(false);
+            if (LooksLikeHtmlOrNonJson(raw, response.Content.Headers.ContentType?.MediaType))
+            {
+                return Fail<TResponse>(
+                    instance.Id,
+                    (int)response.StatusCode,
+                    "Non-JSON response (often SPA MapFallbackToFile HTML). " +
+                    "Endpoint may be missing — enable Local Admin and/or map the cluster bus receive endpoints.",
+                    sw.Elapsed.TotalMilliseconds);
+            }
+
+            TResponse? value;
+            try
+            {
+                value = string.IsNullOrWhiteSpace(raw)
+                    ? default
+                    : JsonSerializer.Deserialize<TResponse>(raw, JsonOptions);
+            }
+            catch (JsonException ex)
+            {
+                return Fail<TResponse>(
+                    instance.Id,
+                    (int)response.StatusCode,
+                    "Invalid JSON from instance: " + ex.Message,
+                    sw.Elapsed.TotalMilliseconds);
+            }
 
             return new InstanceCallOutcome<TResponse>
             {
@@ -223,4 +243,40 @@ public sealed class LocalAdminClient : ILocalAdminClient
             Error = error,
             LatencyMs = latencyMs
         };
+
+    private static bool LooksLikeHtmlOrNonJson(string raw, string? mediaType)
+    {
+        if (!string.IsNullOrEmpty(mediaType)
+            && mediaType.Contains("json", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        ReadOnlySpan<char> trimmed = raw.AsSpan().TrimStart();
+        if (trimmed.IsEmpty)
+            return false;
+
+        if (trimmed[0] is '<' or '!')
+            return true;
+
+        if (!string.IsNullOrEmpty(mediaType)
+            && (mediaType.Contains("html", StringComparison.OrdinalIgnoreCase)
+                || mediaType.Contains("text/plain", StringComparison.OrdinalIgnoreCase))
+            && trimmed[0] is not '{' and not '[')
+            return true;
+
+        return false;
+    }
+
+    private static string FormatHttpError(int statusCode, string? reason, string body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+            return $"HTTP {statusCode} {reason}".Trim();
+
+        string trimmed = body.Trim();
+        if (trimmed.StartsWith('<') || trimmed.StartsWith("<!"))
+            return $"HTTP {statusCode}: non-JSON body (HTML). Check Local Admin path and that the target is not an SPA fallback.";
+
+        if (trimmed.Length > 280)
+            trimmed = trimmed[..280] + "…";
+        return trimmed;
+    }
 }

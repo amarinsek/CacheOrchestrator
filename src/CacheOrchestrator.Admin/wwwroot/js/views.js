@@ -121,22 +121,69 @@ function paintOverviewBody(o, params, soft) {
   const offlineDetail =
     "Start target apps with Cache:Admin:Enabled and matching ApiKey, then refresh.";
 
+  const tableKind = noCfg ? "config" : offline ? "offline" : "domains";
+  const epKind = noCfg ? "config" : offline ? "offline" : "endpoints";
+
+  // Soft refresh: patch live regions only so charts / tables do not remount every interval.
+  if (soft && $("#ovRoot")) {
+    const bannerHost = $("#ovBannerHost");
+    if (bannerHost) bannerHost.innerHTML = connectivityBanner(o.instances);
+    const kpis = $("#ovKpis");
+    if (kpis) kpis.innerHTML = overviewKpiHtml(o);
+    const pipe = $("#ovPipeline");
+    if (pipe) pipe.innerHTML = pipelineBar(o.pipeline, true);
+    const alerts = $("#ovAlerts");
+    if (alerts) {
+      alerts.innerHTML = o.alerts?.length
+        ? `<div class="card"><h2>Alerts</h2><ul class="alert-list">${o.alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>`
+        : "";
+    }
+    const instTable = $("#ovInstTable");
+    if (instTable) instTable.innerHTML = instanceTableHtml(instancesSorted, { kind: "config" });
+    const domTable = $("#ovDomTable");
+    if (domTable) {
+      domTable.innerHTML = domainTableHtml(top5Domains, {
+        kind: tableKind,
+        title: offline ? "No domain data — apps offline" : undefined,
+        detail: offline ? offlineDetail : undefined,
+      });
+    }
+    const epTable = $("#ovEpTable");
+    if (epTable) {
+      epTable.innerHTML = endpointTableHtml(top5Endpoints, {
+        kind: epKind,
+        title: offline ? "No endpoint data — apps offline" : undefined,
+        detail: offline ? offlineDetail : undefined,
+      });
+    }
+    bindEntityTableClicks(main());
+    bindEmptyStateActions(main());
+    const mount = $("#ovMetricsMount");
+    metricsOverviewSectionHtml({ soft: true, mountEl: mount }).then((html) => {
+      const m = $("#ovMetricsMount");
+      if (!m) return;
+      if (html === null) {
+        m.dataset.ready = "1";
+        return;
+      }
+      if (html) {
+        m.innerHTML = html;
+        m.dataset.ready = "1";
+      }
+    });
+    return;
+  }
+
   paintPage(`
-    ${connectivityBanner(o.instances)}
-    <div class="kpi-row">
-      <div class="kpi"><div class="label">Instances up</div><div class="value ${instancesUpClass(o)}">${o.healthyCount}/${(o.instances || []).length}\u2009up</div></div>
-      <div class="kpi"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>
-      <div class="kpi"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
-      <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
-      <div class="kpi"><div class="label">Origin share</div><div class="value">${pct(o.originShare)}</div></div>
-      <div class="kpi"><div class="label">Domains / EP</div><div class="value" style="font-size:1rem">${num(o.domainCount)} / ${num(o.endpointCount)}</div></div>
-    </div>
+    <div id="ovRoot">
+    <div id="ovBannerHost">${connectivityBanner(o.instances)}</div>
+    <div class="kpi-row" id="ovKpis">${overviewKpiHtml(o)}</div>
     <div class="card">
       <h2>Cluster pipeline</h2>
-      ${pipelineBar(o.pipeline, true)}
+      <div id="ovPipeline">${pipelineBar(o.pipeline, true)}</div>
       <p class="muted" style="margin:0.5rem 0 0;font-size:0.85rem">OC hit · FC hit · Origin · Bypass — shares of total requests</p>
     </div>
-    ${o.alerts?.length ? `<div class="card"><h2>Alerts</h2><ul class="alert-list">${o.alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}
+    <div id="ovAlerts">${o.alerts?.length ? `<div class="card"><h2>Alerts</h2><ul class="alert-list">${o.alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}</div>
     <div class="card">
       <div class="card-head">
         <h2>Instances</h2>
@@ -153,7 +200,7 @@ function paintOverviewBody(o, params, soft) {
       </div>
       <div id="ovDomTable">
         ${domainTableHtml(top5Domains, {
-          kind: noCfg ? "config" : offline ? "offline" : "domains",
+          kind: tableKind,
           title: offline ? "No domain data — apps offline" : undefined,
           detail: offline ? offlineDetail : undefined,
         })}
@@ -167,14 +214,15 @@ function paintOverviewBody(o, params, soft) {
       </div>
       <div id="ovEpTable">
         ${endpointTableHtml(top5Endpoints, {
-          kind: noCfg ? "config" : offline ? "offline" : "endpoints",
+          kind: epKind,
           title: offline ? "No endpoint data — apps offline" : undefined,
           detail: offline ? offlineDetail : undefined,
         })}
       </div>
       ${!offline && (o.topEndpoints || []).length ? `<p style="margin:0.75rem 0 0"><a href="#/endpoints">All endpoints →</a></p>` : ""}
     </div>
-    <div id="ovMetricsMount">${soft ? "" : `<p class="muted small">Checking metrics store…</p>`}</div>`, soft);
+    <div id="ovMetricsMount"><p class="muted small">Checking metrics store…</p></div>
+    </div>`, soft);
 
   bindEntityTableClicks(main());
   bindEmptyStateActions(main());
@@ -195,11 +243,28 @@ function paintOverviewBody(o, params, soft) {
     navigate("overview", ovSortParams({ epSort: ev.target.value }));
   });
 
-  // Optional external metrics (non-blocking for lifetime overview).
-  metricsOverviewSectionHtml().then((html) => {
-    const mount = $("#ovMetricsMount");
-    if (mount) mount.innerHTML = html || "";
+  const mount = $("#ovMetricsMount");
+  metricsOverviewSectionHtml({ soft: false, mountEl: mount }).then((html) => {
+    const m = $("#ovMetricsMount");
+    if (!m) return;
+    if (html) {
+      m.innerHTML = html;
+      m.dataset.ready = "1";
+    } else {
+      m.innerHTML = "";
+      delete m.dataset.ready;
+    }
   });
+}
+
+function overviewKpiHtml(o) {
+  return `
+      <div class="kpi"><div class="label">Instances up</div><div class="value ${instancesUpClass(o)}">${o.healthyCount}/${(o.instances || []).length}\u2009up</div></div>
+      <div class="kpi"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>
+      <div class="kpi"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
+      <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
+      <div class="kpi"><div class="label">Origin share</div><div class="value">${pct(o.originShare)}</div></div>
+      <div class="kpi"><div class="label">Domains / EP</div><div class="value" style="font-size:1rem">${num(o.domainCount)} / ${num(o.endpointCount)}</div></div>`;
 }
 
 // —— Endpoints ——
@@ -337,7 +402,40 @@ export async function renderEndpointDetail(routeName, opts = {}) {
     }
     return;
   }
+  // Soft: only refresh counters above metrics — keep chart DOM alive.
+  if (soft && $("#epMetricsMount")?.dataset?.metricsReady === "1") {
+    const head = $("#epDetailHead");
+    if (head) head.innerHTML = endpointDetailHeadHtml(ep);
+    main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
+      tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
+    });
+    mountDetailMetrics("epMetricsMount", {
+      scope: "endpoint",
+      route: ep.route,
+      domain: ep.configuredDomain || undefined,
+    });
+    return;
+  }
+
   paintPage(`
+    <div id="epDetailHead">${endpointDetailHeadHtml(ep)}</div>
+    <div id="epMetricsMount"></div>
+    <p><a href="#/endpoints">← All endpoints</a>
+      ${ep.configuredDomain ? ` · <a href="#/operations?domain=${encodeURIComponent(ep.configuredDomain)}">Operations for domain</a>` : ""}
+    </p>`, soft);
+
+  main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
+    tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
+  });
+  mountDetailMetrics("epMetricsMount", {
+    scope: "endpoint",
+    route: ep.route,
+    domain: ep.configuredDomain || undefined,
+  });
+}
+
+function endpointDetailHeadHtml(ep) {
+  return `
     <div class="card">
       <h2><code>${esc(ep.route)}</code>
         ${ep.configuredDomain ? `<a class="badge" href="#/domains?name=${encodeURIComponent(ep.configuredDomain)}">${esc(ep.configuredDomain)}</a>` : ""}
@@ -377,20 +475,7 @@ export async function renderEndpointDetail(routeName, opts = {}) {
             </tr>`).join("")}
         </tbody>
       </table>
-    </div>` : ""}
-    <div id="epMetricsMount"></div>
-    <p><a href="#/endpoints">← All endpoints</a>
-      ${ep.configuredDomain ? ` · <a href="#/operations?domain=${encodeURIComponent(ep.configuredDomain)}">Operations for domain</a>` : ""}
-    </p>`, soft);
-
-  main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
-    tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
-  });
-  mountDetailMetrics("epMetricsMount", {
-    scope: "endpoint",
-    route: ep.route,
-    domain: ep.configuredDomain || undefined,
-  });
+    </div>` : ""}`;
 }
 
 // —— Domains ——
@@ -491,7 +576,31 @@ export async function renderDomainDetail(name, opts = {}) {
 
   const domain = d || { name, requests: 0, oc: {}, fc: {}, pipeline: {}, endpoints: [], hints: [] };
 
+  if (soft && $("#domMetricsMount")?.dataset?.metricsReady === "1") {
+    const head = $("#domDetailHead");
+    if (head) head.innerHTML = domainDetailHeadHtml(name, domain, cfg);
+    bindEntityTableClicks(main());
+    main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
+      tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
+    });
+    mountDetailMetrics("domMetricsMount", { scope: "domain", domain: name });
+    return;
+  }
+
   paintPage(`
+    <div id="domDetailHead">${domainDetailHeadHtml(name, domain, cfg)}</div>
+    <div id="domMetricsMount"></div>
+    <p><a href="#/domains">← Domains</a> · <a href="#/operations?domain=${encodeURIComponent(name)}">Operations</a></p>`, soft);
+
+  main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
+    tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
+  });
+  bindEntityTableClicks(main());
+  mountDetailMetrics("domMetricsMount", { scope: "domain", domain: name });
+}
+
+function domainDetailHeadHtml(name, domain, cfg) {
+  return `
     <div class="card">
       <h2><code>${esc(name)}</code>
         ${domain.versionIsRuntimeOverride ? '<span class="badge">runtime version</span>' : ""}
@@ -547,15 +656,7 @@ export async function renderDomainDetail(name, opts = {}) {
     <div class="card">
       <h2>Endpoints in domain</h2>
       ${endpointTableHtml(domain.endpoints || [])}
-    </div>
-    <div id="domMetricsMount"></div>
-    <p><a href="#/domains">← Domains</a> · <a href="#/operations?domain=${encodeURIComponent(name)}">Operations</a></p>`, soft);
-
-  main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
-    tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
-  });
-  bindEntityTableClicks(main());
-  mountDetailMetrics("domMetricsMount", { scope: "domain", domain: name });
+    </div>`;
 }
 
 // —— Instances ——
@@ -626,7 +727,27 @@ export async function renderInstanceDetail(id, opts = {}) {
     : (inst?.status === 1 || inst?.status === "Degraded") ? "Degraded"
     : (inst?.status === 2 || inst?.status === "Down") ? "Down"
     : (inst?.status || "unknown");
+
+  if (soft && $("#instMetricsMount")?.dataset?.metricsReady === "1") {
+    const head = $("#instDetailHead");
+    if (head) head.innerHTML = instanceDetailHeadHtml(id, inst, stats, st, startedTitle);
+    bindEntityTableClicks(main());
+    mountDetailMetrics("instMetricsMount", { scope: "instance", instanceId: id });
+    return;
+  }
+
   paintPage(`
+    <div id="instDetailHead">${instanceDetailHeadHtml(id, inst, stats, st, startedTitle)}</div>
+    <div id="instMetricsMount"></div>
+    <p><a href="#/instances">← Instances</a>
+      · <a href="#/operations?target=instance:${encodeURIComponent(id)}">Operations on this instance</a></p>`, soft);
+
+  bindEntityTableClicks(main());
+  mountDetailMetrics("instMetricsMount", { scope: "instance", instanceId: id });
+}
+
+function instanceDetailHeadHtml(id, inst, stats, st, startedTitle) {
+  return `
     <div class="card">
       <h2>Instance <code>${esc(id)}</code>
         <span class="status-${esc(st)}">${esc(st)}</span>
@@ -652,13 +773,7 @@ export async function renderInstanceDetail(id, opts = {}) {
     <div class="card">
       <h2>Endpoints on instance</h2>
       ${endpointTableHtml((stats.endpoints || []).slice(0, 50))}
-    </div>
-    <div id="instMetricsMount"></div>
-    <p><a href="#/instances">← Instances</a>
-      · <a href="#/operations?target=instance:${encodeURIComponent(id)}">Operations on this instance</a></p>`, soft);
-
-  bindEntityTableClicks(main());
-  mountDetailMetrics("instMetricsMount", { scope: "instance", instanceId: id });
+    </div>`;
 }
 
 // —— Hints ——
@@ -683,8 +798,11 @@ export async function renderHintsPage(params, opts = {}) {
   const endpointOpts = (stats.endpoints || []).map((e) => ({ id: e.route, label: e.route }));
 
   let rows = collectHintRows(stats);
-  const summary = summarizeHints(rows);
-  shell.updateNavHintsBadge(summary);
+  const totalSummary = summarizeHints(rows);
+  // Nav badge always reflects unfiltered cluster totals.
+  shell.updateNavHintsBadge(totalSummary);
+
+  const filtersActive = selInstances !== null || selDomains !== null || selEndpoints !== null || !!severity;
 
   if (selInstances !== null) {
     if (selInstances.length === 0) rows = [];
@@ -702,13 +820,20 @@ export async function renderHintsPage(params, opts = {}) {
     rows = rows.filter((r) => r.severity === severity);
   }
 
+  const shownSummary = summarizeHints(rows);
+  const ratio = (shown, total) => (filtersActive ? `${shown}/${total}` : String(shown));
+
   const rank = { Critical: 0, Warning: 1, Info: 2 };
   rows.sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9) || a.code.localeCompare(b.code));
 
   paintPage(`
     <div class="card">
-      <h2>Hints ${severityStack(summary)}</h2>
-      <p class="muted">Rule-based recommendations from live stats. Filters combine (AND). Empty hint mark is <strong>○</strong>.</p>
+      <h2>Hints ${severityStack(filtersActive ? shownSummary : totalSummary)}
+        ${filtersActive ? `<span class="badge muted" title="Visible / all">${shownSummary.total}/${totalSummary.total}</span>` : ""}
+      </h2>
+      <p class="muted">Rule-based recommendations from live stats. Filters combine (AND). Empty hint mark is <strong>○</strong>.
+        ${filtersActive ? " Severity KPIs show <strong>visible/total</strong> for the current filter." : ""}
+      </p>
       <form class="toolbar" id="hintFilters">
         ${multiSelectHtml("hInst", "Instances", instanceOpts, selInstances)}
         ${multiSelectHtml("hDom", "Domains", domainOpts, selDomains)}
@@ -723,10 +848,10 @@ export async function renderHintsPage(params, opts = {}) {
         ${applyButtonHtml()}
       </form>
       <div class="kpi-row">
-        <div class="kpi"><div class="label">Critical</div><div class="value status-Down">${summary.critical}</div></div>
-        <div class="kpi"><div class="label">Warning</div><div class="value" style="color:var(--warn)">${summary.warning}</div></div>
-        <div class="kpi"><div class="label">Info</div><div class="value" style="color:var(--accent)">${summary.info}</div></div>
-        <div class="kpi"><div class="label">Shown</div><div class="value">${rows.length}</div></div>
+        <div class="kpi"><div class="label">Critical</div><div class="value status-Down">${ratio(shownSummary.critical, totalSummary.critical)}</div></div>
+        <div class="kpi"><div class="label">Warning</div><div class="value" style="color:var(--warn)">${ratio(shownSummary.warning, totalSummary.warning)}</div></div>
+        <div class="kpi"><div class="label">Info</div><div class="value" style="color:var(--accent)">${ratio(shownSummary.info, totalSummary.info)}</div></div>
+        <div class="kpi"><div class="label">Shown</div><div class="value">${ratio(shownSummary.total, totalSummary.total)}</div></div>
       </div>
       ${rows.length ? `
       <table class="dense entity-table hints-table">
@@ -802,7 +927,7 @@ export async function renderOperations(params) {
       <td>${bus}</td>
       <td>${mem}</td>
       <td>${peers}</td>
-      <td class="muted">${p.error ? esc(p.error) : ""}</td>
+      <td class="muted" title="${p.error ? esc(p.error) : ""}">${p.error ? esc(shortError(p.error)) : ""}</td>
     </tr>`;
   }).join("");
 
@@ -975,6 +1100,13 @@ function instancesUpClass(o) {
   if (total === 0 || down > 0 || up < total) return "status-Down";
   if (deg > 0) return "status-Degraded";
   return "status-Healthy";
+}
+
+/** Truncate long probe errors (e.g. accidental HTML bodies) for the Operations table. */
+function shortError(msg) {
+  const s = String(msg || "").replace(/\s+/g, " ").trim();
+  if (s.length <= 120) return s;
+  return s.slice(0, 117) + "…";
 }
 
 // —— Route dispatch ——

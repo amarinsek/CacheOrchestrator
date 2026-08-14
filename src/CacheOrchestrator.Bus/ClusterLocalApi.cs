@@ -110,26 +110,31 @@ public static class ClusterLocalApi
             });
         });
 
-        group.MapGet("/cluster/info", async (
-            IInstanceIdProvider instanceId,
-            IClusterMembership membership,
-            IClusterCommandBus busSvc,
-            IOptionsMonitor<CacheOrchestratorOptions> options,
-            CancellationToken cancellationToken) =>
+        // When Local Admin is enabled it already maps GET …/cluster/info (same prefix).
+        // Skip a second registration to avoid ambiguous routes.
+        if (!opts.Admin.Enabled)
         {
-            IReadOnlyList<ClusterPeer> peers =
-                await membership.GetPeersAsync(cancellationToken).ConfigureAwait(false);
-
-            return Results.Ok(new
+            group.MapGet("/cluster/info", async (
+                IInstanceIdProvider instanceId,
+                IClusterMembership membership,
+                IClusterCommandBus busSvc,
+                IOptionsMonitor<CacheOrchestratorOptions> options,
+                CancellationToken cancellationToken) =>
             {
-                instanceId = instanceId.InstanceId,
-                @namespace = options.CurrentValue.Namespace,
-                busEnabled = busSvc.IsEnabled,
-                membership = membership.Kind,
-                peerCount = peers.Count,
-                peers = peers.Select(p => new { id = p.Id, url = p.BaseUrl.ToString() }).ToArray()
+                IReadOnlyList<ClusterPeer> peers =
+                    await membership.GetPeersAsync(cancellationToken).ConfigureAwait(false);
+
+                return Results.Ok(new
+                {
+                    instanceId = instanceId.InstanceId,
+                    @namespace = options.CurrentValue.Namespace,
+                    busEnabled = busSvc.IsEnabled,
+                    membership = membership.Kind,
+                    peerCount = peers.Count,
+                    peers = peers.Select(p => new { id = p.Id, url = p.BaseUrl.ToString() }).ToArray()
+                });
             });
-        });
+        }
 
         return endpoints;
     }
