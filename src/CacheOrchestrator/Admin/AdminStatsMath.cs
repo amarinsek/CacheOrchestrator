@@ -6,8 +6,11 @@ namespace CacheOrchestrator.Admin;
 public static class AdminStatsMath
 {
     /// <summary>
-    /// Minimum sample size before rates/shares are considered reliable for UI emphasis.
-    /// Below this, values are still returned but <see cref="AdminLayerDto.LowSample"/> is true.
+    /// Minimum sample size before ratios are considered reliable for UI emphasis.
+    /// <list type="bullet">
+    /// <item><see cref="AdminLayerDto.LowSample"/> / FC layer: hits+misses on that layer (for rates).</item>
+    /// <item><see cref="AdminLayerDto.LowRequestSample"/>: total request denominator (for request shares).</item>
+    /// </list>
     /// </summary>
     public const int LowSampleThreshold = 20;
 
@@ -67,7 +70,9 @@ public static class AdminStatsMath
             HitShare = Share(hits, requests),
             MissShare = Share(misses, requests),
             BypassShare = Share(bypass, requests),
-            LowSample = layerSample is > 0 and < LowSampleThreshold
+            // Rates need enough layer events; shares need enough total requests.
+            LowSample = layerSample is > 0 and < LowSampleThreshold,
+            LowRequestSample = requests is > 0 and < LowSampleThreshold
         };
     }
 
@@ -98,8 +103,11 @@ public static class AdminStatsMath
             MissShare = Share(misses, requests),
             StaleShare = Share(stale, requests),
             BypassShare = Share(bypass, requests),
-            OriginShare = Share(factoryRuns, requests),
-            LowSample = layerSample is > 0 and < LowSampleThreshold
+            FactoryShare = Share(factoryRuns, requests),
+            // Layer rates: few FC hit/miss events → unreliable rate (even if many OC hits).
+            LowSample = layerSample is > 0 and < LowSampleThreshold,
+            // Request shares: reliability follows total request denominator, not layer n.
+            LowRequestSample = requests is > 0 and < LowSampleThreshold
         };
     }
 
@@ -124,13 +132,13 @@ public static class AdminStatsMath
         AdminFusionLayerDto fc = BuildFc(
             fcHits, fcMisses, fcStale, fcBypass, factoryRuns, factoryFailures, requests);
 
-        // Pipeline: OC hit | FC hit | origin(factory) | bypass | other
+        // Pipeline: OC hit | FC hit | factory | bypass | other
         // OC miss typically continues to FC — do not put OC miss in the bar separately.
         AdminPipelineDto pipeline = new()
         {
             OcHitShare = oc.HitShare,
             FcHitShare = fc.HitShare,
-            OriginShare = fc.OriginShare,
+            FactoryShare = fc.FactoryShare,
             BypassShare = Share(ocBypass + fcBypass, requests),
             OtherShare = requests <= 0
                 ? null

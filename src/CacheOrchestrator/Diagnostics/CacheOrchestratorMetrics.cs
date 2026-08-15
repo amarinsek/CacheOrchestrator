@@ -1,15 +1,25 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using CacheOrchestrator.Admin;
+using CacheOrchestrator.Configuration;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.Diagnostics;
 
 /// <summary>
 /// Domain-level metrics for CacheOrchestrator.
 /// Zero meaningful overhead when no MeterListener / OpenTelemetry is subscribed.
+/// Optional stable <c>route</c> tag when <see cref="CacheOrchestratorOptions.MetricsOptions.IncludeEndpointLabel"/> is true.
 /// </summary>
 public static class CacheOrchestratorMetrics
 {
     /// <summary>Meter name (subscribe with this value).</summary>
     public const string MeterName = "CacheOrchestrator";
+
+    /// <summary>Prometheus / OTel tag for the stable endpoint key when enabled.</summary>
+    public const string RouteTagName = "route";
 
     private static readonly Meter Meter = new(MeterName, "1.0.0");
 
@@ -74,23 +84,70 @@ public static class CacheOrchestratorMetrics
             description: "Cluster commands ignored as duplicates within the dedupe window");
 
     /// <summary>
+    /// When <c>Cache:Metrics:IncludeEndpointLabel</c> is true, returns the stable endpoint key
+    /// (<c>METHOD pattern</c>, same as Admin). Otherwise null without building a key.
+    /// Uses <see cref="AdminEndpointKey.TryGet"/> (per-request cache).
+    /// </summary>
+    public static string? TryGetEndpointRouteLabel(HttpContext http)
+    {
+        ArgumentNullException.ThrowIfNull(http);
+        if (!IsEndpointLabelEnabled(http))
+            return null;
+        string? key = AdminEndpointKey.TryGet(http);
+        return string.IsNullOrEmpty(key) ? null : key;
+    }
+
+    /// <summary>
+    /// Resolves Admin endpoint key and optional metrics route in one pass.
+    /// </summary>
+    /// <param name="http">Current HTTP context.</param>
+    /// <param name="forAdminStats">When true, always resolve the key for Local Admin counters.</param>
+    /// <param name="endpointKey">Admin counter key when <paramref name="forAdminStats"/> is true.</param>
+    /// <param name="metricsRoute">Route tag when IncludeEndpointLabel is enabled.</param>
+    internal static void ResolveEndpointKeys(
+        HttpContext http,
+        bool forAdminStats,
+        out string? endpointKey,
+        out string? metricsRoute)
+    {
+        endpointKey = null;
+        metricsRoute = null;
+        bool includeRoute = IsEndpointLabelEnabled(http);
+        if (!forAdminStats && !includeRoute)
+            return;
+
+        string? key = AdminEndpointKey.TryGet(http);
+        if (string.IsNullOrEmpty(key))
+            return;
+
+        if (forAdminStats)
+            endpointKey = key;
+        if (includeRoute)
+            metricsRoute = key;
+    }
+
+    private static bool IsEndpointLabelEnabled(HttpContext http) =>
+        http.RequestServices?.GetService<IOptions<CacheOrchestratorOptions>>()?.Value
+            is { Metrics.IncludeEndpointLabel: true };
+
+    /// <summary>
     /// Records a FusionCache operation outcome (and optional duration).
     /// </summary>
     /// <param name="domain">Domain name.</param>
     /// <param name="result">Result code: hit, miss, stale, bypass, off.</param>
     /// <param name="durationMs">Optional duration in milliseconds.</param>
-    internal static void RecordFusion(string domain, string result, double? durationMs = null)
+    /// <param name="route">Optional stable endpoint key when IncludeEndpointLabel is enabled.</param>
+    internal static void RecordFusion(
+        string domain,
+        string result,
+        double? durationMs = null,
+        string? route = null)
     {
-        FcRequests.Add(1,
-            new KeyValuePair<string, object?>("domain", domain),
-            new KeyValuePair<string, object?>("result", result));
+        TagList tags = BuildDomainResultTags(domain, result, route);
+        FcRequests.Add(1, tags);
 
         if (durationMs is double ms)
-        {
-            FcDurationMs.Record(ms,
-                new KeyValuePair<string, object?>("domain", domain),
-                new KeyValuePair<string, object?>("result", result));
-        }
+            FcDurationMs.Record(ms, tags);
     }
 
     /// <summary>
@@ -98,8 +155,9 @@ public static class CacheOrchestratorMetrics
     /// </summary>
     /// <param name="domain">Domain name.</param>
     /// <param name="result">Result code: hit, miss, bypass.</param>
-    internal static void RecordOutput(string domain, string result) =>
-        OcRequests.Add(1, new KeyValuePair<string, object?>("domain", domain), new KeyValuePair<string, object?>("result", result));
+    /// <param name="route">Optional stable endpoint key when IncludeEndpointLabel is enabled.</param>
+    internal static void RecordOutput(string domain, string result, string? route = null) =>
+        OcRequests.Add(1, BuildDomainResultTags(domain, result, route));
 
     /// <summary>
     /// Records a successful domain invalidation.
@@ -135,4 +193,16 @@ public static class CacheOrchestratorMetrics
     /// <summary>Records a receive-side CommandId dedupe hit.</summary>
     internal static void RecordClusterDedupeHit() =>
         ClusterDedupeHits.Add(1);
+
+    private static TagList BuildDomainResultTags(string domain, string result, string? route)
+    {
+        TagList tags = new()
+        {
+            { "domain", domain },
+            { "result", result },
+        };
+        if (!string.IsNullOrEmpty(route))
+            tags.Add(RouteTagName, route);
+        return tags;
+    }
 }

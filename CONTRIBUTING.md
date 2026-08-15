@@ -4,7 +4,7 @@ Thanks for helping improve **CacheOrchestrator**. This guide covers build, test,
 
 ## Prerequisites
 
-- [.NET SDK](https://dotnet.microsoft.com/download) that supports **net8.0** and **net10.0** (SDK 10.x is fine for multi-target builds)
+- [.NET SDK](https://dotnet.microsoft.com/download) that supports **net8.0** and **net10.0** (SDK 10.x is fine for multi-target builds). Libraries and library tests multi-target both; **Admin App** and its unit tests are **net10.0 only**; samples are net10-only.
 - Optional: Docker (Redis integration tests / sample)
 
 ## Clone and build
@@ -20,11 +20,11 @@ dotnet build CacheOrchestrator.slnx -c Release
 ## Tests
 
 ```bash
-# Unit tests — multi-target net8.0 + net10.0 (matches published library TFMs)
+# Unit tests — multi-target net8.0 + net10.0 (library coverage). Admin App tests run only under net10.0.
 dotnet test tests/CacheOrchestrator.UnitTests -c Release
 # Or one TFM:
-dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net8.0
-dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net10.0
+dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net8.0   # libraries only (no Admin tests)
+dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net10.0  # libraries + Admin
 
 # Integration tests — multi-target net8.0 + net10.0 (matches published library TFMs)
 # - InMemory tests: no Docker

@@ -15,7 +15,7 @@
     {
       "imports": {
         "codemirror": "https://esm.sh/codemirror@6.0.1",
-        "@codemirror/state": "https://esm.sh/@codemirror/state@6.4.1",  
+        "@codemirror/state": "https://esm.sh/@codemirror/state@6.4.1",
         "@codemirror/view": "https://esm.sh/@codemirror/view@6.34.2",
         "@codemirror/lang-json": "https://esm.sh/@codemirror/lang-json@6.0.1",
         "@codemirror/theme-one-dark": "https://esm.sh/@codemirror/theme-one-dark@6.1.2"
@@ -24,50 +24,98 @@
     </script>
 </head>
 <body>
-    <div class="page">
-        <header class="header">
+    <!-- Full-width chrome: must stay OUTSIDE .page (page is max-width centered). -->
+    <header class="app-header">
+        <div class="app-header-inner">
             <div class="header-brand">
-                <img src="/logo.png" alt="CacheOrchestrator logo" class="logo" />
-                <div>
+                <img src="/logo.png" alt="CacheOrchestrator logo" class="logo" width="56" height="56" />
+                <div class="brand-text">
                     <p class="eyebrow">CacheOrchestrator</p>
-                    <h1>Sample Playground</h1>
+                    <h1 class="brand-title">Sample Playground</h1>
                     <p class="subtitle">Inspect cache headers · Edit domain settings · Invalidate cache</p>
                 </div>
             </div>
             <div class="header-meta">
+                <label class="check header-check" title="Disable browser HTTP cache to see server OC/FC hits or misses.">
+                    <input type="checkbox" id="disableBrowserCache" checked />
+                    Disable browser HTTP cache
+                </label>
                 <button id="btnEditSettings" class="btn accent" title="Edit appsettings.json">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     appsettings.json
                 </button>
             </div>
-        </header>
+        </div>
+    </header>
 
+    <div class="page">
         <section class="card playground-card">
-            <h2>Playground</h2>
-            <div class="playground-controls">
-                <div class="control-row">
-                    <label class="control-label">
-                        Endpoint
-                        <select id="endpoint"></select>
-                    </label>
-                    <label class="control-label">
-                        Extra query params
-                        <input id="extraQuery" type="text" placeholder="page=2&amp;sort=name" />
-                    </label>
+            <div class="panel-tabs" role="tablist" aria-label="Playground mode">
+                <button type="button" class="panel-tab active" role="tab" id="tabDomain" aria-selected="true" aria-controls="panelDomain" data-panel="domain">
+                    Domain endpoints playground
+                </button>
+                <button type="button" class="panel-tab" role="tab" id="tabCrud" aria-selected="false" aria-controls="panelCrud" data-panel="crud">
+                    Entity invalidation (CRUD) playground
+                </button>
+            </div>
+
+            <!-- 1) Classic domain-scoped routes from Demo:Endpoints -->
+            <div class="cmd-panel" id="panelDomain" role="tabpanel" aria-labelledby="tabDomain">
+                <p class="panel-lead">
+                    Config-driven GET routes (<code>Demo:Endpoints</code>). Try TTLs, Output/Fusion hits, Client Cache Schedule, query keys, and domain-wide invalidate.
+                </p>
+                <div class="playground-controls">
+                    <div class="control-row">
+                        <label class="control-label">
+                            Endpoint
+                            <select id="endpoint"></select>
+                        </label>
+                        <label class="control-label">
+                            Extra query params
+                            <input id="extraQuery" type="text" placeholder="page=2&amp;sort=name or utm_source=demo, etc." />
+                        </label>
+                    </div>
+                    <div class="control-row checks-and-buttons">
+                        <div class="btn-group">
+                            <p class="domain-hint">Domain: <strong id="domainName">—</strong> <span id="domainBackend" class="status-pill" style="margin-left:8px; padding:3px 8px; font-size:10px;">…</span></p>
+                            <button id="btnOnce" class="btn">Fetch once</button>
+                            <button id="btnTwice" class="btn primary">Fetch twice</button>
+                            <button id="btnInvalidate" class="btn danger">Invalidate domain</button>
+                            <button id="btnClear" class="btn ghost">Clear log</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="control-row checks-and-buttons">
-                    <div class="checks">
-                        <label class="check"><input type="checkbox" id="utm" /> Append utm_source=demo</label>
-                        <label class="check"><input type="checkbox" id="nostore" /> Send Cache-Control: no-store</label>
+            </div>
+
+            <!-- 2) Separate CRUD entity-invalidation demo -->
+            <div class="cmd-panel hidden" id="panelCrud" role="tabpanel" aria-labelledby="tabCrud" hidden>
+                <p class="panel-lead">
+                    One product under domain <code>product-crud</code>, tagged as entity <code>products/42</code>.
+                    <strong>Invalidate entity</strong> purges only that cache entry (store data unchanged).
+                    <strong>Update price</strong> writes the price you enter and then invalidates the entity.
+                    Domain Version stays the same either way.
+                </p>
+                <div class="crud-bar">
+                    <div class="crud-route">
+                        <span class="crud-method">GET</span>
+                        <code class="crud-path" id="crudPath">/api/crud/products/42</code>
+                        <span class="domain-hint">Domain: <strong>product-crud</strong> <span id="crudBackend" class="status-pill" style="margin-left:6px; padding:3px 8px; font-size:10px;">…</span></span>
                     </div>
                     <div class="btn-group">
-                        <p class="domain-hint">Domain: <strong id="domainName">—</strong> <span id="domainBackend" class="status-pill" style="margin-left:8px; padding:3px 8px; font-size:10px;">…</span></p>
-                        <button id="btnOnce" class="btn">Fetch once</button>
-                        <button id="btnTwice" class="btn primary">Fetch twice</button>
-                        <button id="btnInvalidate" class="btn danger">Invalidate</button>
-                        <button id="btnClear" class="btn ghost">Clear log</button>
+                        <button id="btnCrudFetch" class="btn">Fetch</button>
+                        <button id="btnCrudFetchTwice" class="btn primary">Fetch twice</button>
+                        <button id="btnInvalidateEntity" class="btn danger" title="InvalidateEntity only — no DB write">Invalidate entity</button>
+                        <div class="put-price-group" title="New price + PUT (writes store and InvalidateEntity)">
+                            <input id="productPrice" class="price-input" type="number" min="0" step="0.01" value="12.50" inputmode="decimal" aria-label="New product price" />
+                            <button id="btnPutProduct" type="button" class="btn accent">Update price</button>
+                        </div>
+                        <button id="btnCrudClear" class="btn ghost">Clear log</button>
                     </div>
                 </div>
+                <p class="panel-foot muted">
+                    Suggested: Fetch → Fetch twice (OC-HIT) → Invalidate entity → Fetch (MISS, same price) → Update price → Fetch (MISS, new price).
+                    Keep header <em>Disable browser HTTP cache</em> checked to see server OC/FC clearly.
+                </p>
             </div>
         </section>
 
@@ -78,6 +126,15 @@
             </div>
             <div id="log" class="log"></div>
         </section>
+
+        <footer class="app-footer">
+            <a class="footer-github" href="https://github.com/amarinsek/CacheOrchestrator" target="_blank" rel="noopener noreferrer" title="CacheOrchestrator on GitHub">
+                <svg class="footer-github-icon" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+                </svg>
+                <span>CacheOrchestrator</span>
+            </a>
+        </footer>
     </div>
 
     <!-- JSON Editor Modal -->

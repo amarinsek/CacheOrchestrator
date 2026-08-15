@@ -9,7 +9,7 @@ This page covers architecture, security, and production. To run the App: [Admin 
 
 - One process, curl or a script — enable the Admin API.
 - A dashboard across instances — Admin App, with the Admin API on each target.
-- Time series (“last hour”) — OpenTelemetry or Prometheus. Admin counters are lifetime totals.
+- Time series (“last hour”) — optional **Admin App → Prometheus** (`CacheAdmin:Metrics`). Lifetime counters stay on Local Admin; sliding windows come from scraped `CacheOrchestrator` meter series.
 
 Writes (invalidate, Version, TTL) change live cache state. Restrict who can reach these endpoints.
 
@@ -138,10 +138,29 @@ Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
 | Metric type | Question it answers |
 |-------------|---------------------|
-| **Request share** (`hitShare`, `originShare`, …) | Of **all** requests, what fraction? |
+| **Request share** (`hitShare`, `originShare` / factory share, …) | Of **all** requests, what fraction? |
 | **Layer rate** (`hitRate`, …) | Of traffic that **reached that layer**, what fraction? |
 
-**Warning:** A high FC **miss rate** with very high OC hit share is often normal (Fusion barely runs). Prefer **origin share** / pipeline for cluster health. Recommendation rules follow the same preference — see [admin-hints.md](admin-hints.md).
+#### Factory share (also known as origin)
+
+The miss path that runs your `GetOrSet` lambda / DB is the **factory**. Admin UI labels this **Factory** (Factory share, Factory runs). It is **also known as origin** in CDN/proxy language (traffic that reaches the origin).
+
+| Admin label | API / JSON field | Formula |
+|-------------|------------------|---------|
+| **OC hit share** | `oc.hitShare` / pipeline `ocHitShare` | `ocHits / requests` |
+| **FC hit share** | `fc.hitShare` / pipeline `fcHitShare` | `fcHits / requests` |
+| **Factory share** | `fc.factoryShare` (obsolete synonym: `originShare`) | `factoryRuns / requests` |
+
+These three are **request shares** (same denominator). The pipeline bar shows them plus Bypass / Other. **Layer rates** (e.g. FC miss rate = misses among traffic that reached Fusion) stay on **detail** views — a high FC *layer* miss rate with high OC hit share is often normal. Prefer factory share for “is the cache absorbing traffic?” — see [admin-hints.md](admin-hints.md).
+
+**Low sample flags**
+
+| Flag | Based on | Apply to |
+|------|----------|----------|
+| `lowRequestSample` | total **requests** &lt; 20 | request **shares** (OC/FC hit share, factory share, …) |
+| `lowSample` | **layer** hits+misses &lt; 20 | **layer rates** (OC/FC hit/miss rate) |
+
+So if OC absorbs almost all traffic, FC hit **share** is still trustworthy once requests ≥ 20, while FC hit **rate** may show low-sample (few FC layer events).
 
 ### Health semantics (Admin App mapping)
 
@@ -163,7 +182,7 @@ Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
 ## Admin App (process)
 
-Standalone **net10.0** host (ops tool; target apps may still be net8/net10).
+Standalone host targeting **net10.0** only (ops tool). Target apps may still run on **net8.0** or **net10.0** independently — Admin talks HTTP only and does not need to match instance runtimes.
 
 ### Configuration
 
@@ -189,9 +208,46 @@ Section: `CacheAdmin` → `CacheAdminOptions`.
 | `ApiKey` | Sent as `X-Cache-Admin-Key` to every instance (**must match** each app’s `Cache:Admin:ApiKey`) |
 | `RequestTimeoutMs` | Per-call timeout (1–120000) |
 | `Parallelism` | Max concurrent fan-out (1–64) |
+| `DownReprobeSeconds` | After an instance is Down, skip HTTP to it for this many seconds (5–300, default 15), then re-probe |
 | `LocalPathPrefix` | Path on each instance (must match `RoutePrefix`) |
 | `Instances[].id` | Stable UI / filter id |
 | `Instances[].url` | **Base URL only** (scheme + host + port) — no `/cache-admin/...` path |
+| `Metrics` | Optional Prometheus-compatible store for the **Metrics** page (see below) |
+| `Hints` | Declarative rule packs + disable list ([admin-hints.md](admin-hints.md), operator guide [Admin hints/README](../src/CacheOrchestrator.Admin/hints/README.md)) |
+
+### Metrics store (time series)
+
+Admin App can query an external Prometheus-compatible HTTP API (Prometheus, Mimir, VictoriaMetrics, Thanos Query) for windowed charts. **No core library changes** — the apps only need the usual OTel/Prometheus scrape of meter `CacheOrchestrator`.
+
+Minimal config (everything else has defaults). The Admin App in this repo defaults to local Prometheus:
+
+```json
+"CacheAdmin": {
+  "Metrics": {
+    "Enabled": true,
+    "Provider": "Prometheus",
+    "BaseUrl": "http://localhost:9090"
+  }
+}
+```
+
+Dev stack (Docker Prometheus + Playground `/metrics` on port 5289; sample only, not a library dependency): [samples/CacheOrchestrator.Sample/deploy/prometheus/README.md](../samples/CacheOrchestrator.Sample/deploy/prometheus/README.md).
+
+| Key | Default | Notes |
+|-----|---------|--------|
+| `Enabled` | `false` | Off → UI shows “not configured”, no probe |
+| `Provider` | `Prometheus` | Only Prometheus HTTP API v1 today |
+| `BaseUrl` | empty | Required when enabled |
+| `TimeoutMs` | `5000` | Probe / query timeout |
+| `DefaultRange` | `1h` | UI default (`15m` / `1h` / `6h` / `24h` / `7d`) |
+| `BearerToken` | empty | Optional `Authorization: Bearer` |
+| `PathPrefix` | empty | e.g. `/prometheus` behind a reverse proxy |
+
+When **not configured**, the Metrics page explains how to enable it; Overview omits history cards. When **configured but unreachable**, the UI shows **Disconnected** with the same **Provider · host** (from `BaseUrl`) plus not connected / error text — so the target is always visible even when the probe fails (no fake zeros).
+
+Admin App API: `GET /api/metrics/status`, `/catalog`, `/series`, `/summary`.
+
+`GET /api/metrics/series` query params: `range`, `panels`, `domains`, `instances` (scrape label `instance_id`), `routes` (stable endpoint key, e.g. `GET /api/catalog`). Detail pages embed scoped charts (domain / instance / endpoint). Endpoint series need core `Cache:Metrics:IncludeEndpointLabel` (default true) and samples in the selected range—empty charts show a neutral notice, not a hard “feature disabled” claim.
 
 ### Run (local)
 
@@ -199,23 +255,26 @@ Section: `CacheAdmin` → `CacheAdminOptions`.
 dotnet run --project src/CacheOrchestrator.Admin
 ```
 
-Default UI: `http://localhost:5188/` (see launchSettings). Pair with Minimal sample + Admin API on the port listed under `Instances`.
+Default UI: `http://localhost:5188/` (see launchSettings). Default `Instances` point at the Playground sample (`:5289`). Metrics time series use Playground scrape via Prometheus.
 
 Quick operator steps: [Admin App README](../src/CacheOrchestrator.Admin/README.md).
 
 ### What the SPA shows
 
-- Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/Origin, Req, Inv, hints) → **menu**  
-- Overview: instances; **top 5 domains** and **top 5 endpoints** after sorting the **full** aggregated lists  
+- Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/FC/Factory shares, Req, Inv, hints, optional metrics store pill) → **menu**  
+- Overview: instances; **top 5 domains** and **top 5 endpoints** after sorting the **full** aggregated lists; optional **last 1h** embed when Metrics store is connected  
 - Lists: filters, search, sort; detail pages; Hints page  
+- **Metrics** (`#/metrics`): window charts from Prometheus (req rate, OC/FC shares, invalidations, schedule phase, cluster failures, FC p95)  
 - **Operations** (`#/operations`): invalidate / version / TTL; banner **HTTP fan-out** vs **Cluster bus (distribute)**; cluster probe table; last-run mode in result  
 - Auto-refresh interval in `localStorage`  
 
 ### Recommendation hints
 
-Evaluated **only in the Admin App** after fan-out aggregation (`RecommendationHints`). UI does not invent rules.
+Evaluated **only in the Admin App** after fan-out aggregation (`HintEngine` + JSON packs).  
+**Customizable:** product defaults in `hints/core-hints.json`; extra packs via `CacheAdmin:Hints:RuleFiles`; enable/disable in **Settings**. UI does not invent rules.
 
-Details: [admin-hints.md](admin-hints.md).
+Step-by-step custom rules (ships with Admin): [hints/README.md](../src/CacheOrchestrator.Admin/hints/README.md).  
+Repo overview: [admin-hints.md](admin-hints.md).
 
 ### Admin App HTTP API (for the SPA / automation)
 
@@ -227,6 +286,10 @@ Details: [admin-hints.md](admin-hints.md).
 | GET | `/api/stats?scope=all\|instance:{id}&groupByInstance=` | Aggregated live stats |
 | GET | `/api/endpoints?…` | Endpoint list (search/sort/page/filters) |
 | GET | `/api/domains` | Domain config fan-out |
+| GET | `/api/metrics/status` | Metrics store probe (`NotConfigured` / `Disconnected` / `Connected`) |
+| GET | `/api/metrics/catalog` | Allowlisted chart panels |
+| GET | `/api/metrics/series?range=&panels=&domains=` | Range series for panels |
+| GET | `/api/metrics/summary?range=` | Window KPI snapshot |
 | POST | `/api/invalidate` | Invalidate (auto fan-out or bus-distribute) |
 | POST | `/api/domains/{domain}/version` | Version overlay write |
 | PATCH | `/api/domains/{domain}/ttl` | TTL overlay write |
@@ -293,15 +356,16 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 | All instances **Down** | Wrong URL/port; Admin API not mapped; firewall; **401** wrong/missing ApiKey |
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
 | Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
-| High FC miss rate, everything “fine” | Prefer **origin share** / OC hit share — see shares vs rates |
-| Scalar OpenAPI missing | Only mapped in **Development** on Admin App |
+| High FC miss rate, everything “fine” | Prefer **factory share** (also known as origin) / OC hit share — see shares vs rates |
+| Scalar OpenAPI missing | Only mapped in **Development** on Admin App (`MapOpenApi` + Scalar; requires net10 runtime for the Admin host) |
 | CORS issues calling Admin API from a browser | Prefer Admin App fan-out; Admin API is for server-side callers |
 
 ---
 
 ## Out of scope
 
-- Sliding-window / “last 1h” history (use Prometheus / OTLP).  
+- Built-in time-series database inside Admin App (use Prometheus / compatible store).  
+- Free-form PromQL from the browser (panels are allowlisted server-side).  
 - Redis topology management.  
 - Publishing Admin App as a NuGet library.  
 - Built-in OIDC login UI inside Admin App (use edge auth for now).
@@ -310,7 +374,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 
 ## Related docs
 
-- [admin-hints.md](admin-hints.md) — recommendation rule formulas  
+- [admin-hints.md](admin-hints.md) — recommendation hints + customization  
 - [observability.md](observability.md) — metrics / `X-Cache` / health checks  
 - [invalidation.md](invalidation.md) — domain/entity invalidation model  
 - [configuration.md](configuration.md) — domain options binding  

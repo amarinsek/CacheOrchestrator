@@ -10,7 +10,8 @@
   --bad: #f07178;
   --header: #121820;
   --header-elevated: #151b23;
-  --font: "Segoe UI", system-ui, sans-serif;
+  --font: "Inter", "Segoe UI", system-ui, sans-serif;
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
 
@@ -18,6 +19,27 @@
 
 html {
   color-scheme: dark;
+}
+
+/* Soft refresh indicator (background fetch — page content stays visible). */
+html.is-refreshing .chrome-metrics {
+  position: relative;
+}
+html.is-refreshing .chrome-metrics::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 0.35rem;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+  animation: soft-refresh-pulse 0.9s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes soft-refresh-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
 }
 
 body {
@@ -84,22 +106,77 @@ code { font-size: 0.9em; }
   border-bottom: 1px solid var(--border);
 }
 
-/* 1) App logo / brand (above the strips) */
+/* 1) App logo / brand — same pattern as Sample Playground header */
 .chrome-brand {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  padding: 0.55rem 1.25rem 0.4rem;
-  white-space: nowrap;
+  align-items: center;
+  padding: 0.75rem 1.25rem 0.65rem;
 }
 
 .brand-link {
-  color: var(--text);
-  font-weight: 650;
-  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.brand-link:hover {
   text-decoration: none;
 }
-.brand-sub { font-size: 0.8rem; }
+
+.brand-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #fff;
+  padding: 4px;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.brand-eyebrow {
+  color: var(--accent);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+h1.brand-title,
+.brand-title {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  background: linear-gradient(135deg, #e4eaf4 30%, #6ea8fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-subtitle {
+  color: var(--muted);
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /*
  * Shared strip style for:
@@ -357,8 +434,45 @@ a.btn-secondary:hover {
 
 .app-footer {
   text-align: center;
-  padding: 1rem 1.25rem 2rem;
+  padding: 1.25rem 1.25rem 2rem;
   font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.app-footer .footer-note {
+  margin: 0;
+  max-width: 36rem;
+  line-height: 1.4;
+}
+
+.footer-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card, #1a222c) 80%, transparent);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.footer-github:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  text-decoration: none;
+}
+
+.footer-github-icon {
+  display: block;
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 
 /* —— cards / tables —— */
@@ -555,6 +669,342 @@ button.secondary {
   line-height: 1.25;
   min-height: 2rem;
   padding: 0.35rem 0.55rem;
+}
+
+/* —— Metrics time series —— */
+.banner.metrics-banner.ok {
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+  background: #122018;
+  color: var(--text);
+}
+
+.metrics-note { margin: 0 0 0.85rem; }
+
+.metrics-grid {
+  margin-top: 0.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+
+.chart-card .card-head { margin-bottom: 0.35rem; }
+
+.chart-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.chart-expand-btn {
+  min-width: 2rem !important;
+  padding: 0.2rem 0.45rem !important;
+  font-size: 0.85rem !important;
+  line-height: 1.1;
+}
+
+.chart-wrap {
+  width: 100%;
+  min-height: 12rem;
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  min-height: 11rem;
+  display: block;
+  background: #121820;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+/* Enlarge chart modal */
+body.chart-modal-open { overflow: hidden; }
+
+.chart-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(6, 10, 14, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.chart-modal {
+  width: min(1100px, 100%);
+  max-height: min(92vh, 900px);
+  overflow: auto;
+  background: var(--panel, #151c24);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  padding: 0.85rem 1rem 1rem;
+}
+
+.chart-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.chart-modal-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.chart-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+/* Equal square icon buttons (copy + close) in chart/hint modals */
+.chart-modal-actions .chart-modal-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.chart-modal-actions .chart-modal-icon-btn svg {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.hint-rule-copy.copied {
+  color: var(--ok, #6dcea8);
+  border-color: color-mix(in srgb, var(--ok, #6dcea8) 45%, var(--border));
+}
+
+.chart-modal-body .chart-wrap { min-height: 22rem; }
+.chart-modal-body .chart-svg { min-height: 20rem; }
+
+.chart-wrap-interactive {
+  position: relative;
+  cursor: crosshair;
+}
+
+.chart-crosshair {
+  stroke: color-mix(in srgb, var(--accent) 70%, #fff);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.85;
+}
+
+.chart-tooltip {
+  position: absolute;
+  z-index: 5;
+  min-width: 10rem;
+  max-width: 18rem;
+  padding: 0.45rem 0.6rem;
+  background: #0f1520;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.chart-tip-time {
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+  font-size: 0.72rem;
+}
+
+.chart-tip-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.35rem 0.45rem;
+  align-items: center;
+}
+
+.chart-tip-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.chart-tip-name {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-tip-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.chart-hover-hint {
+  margin: 0.45rem 0 0;
+}
+
+/* Settings: collapsible hint rule groups (per file) */
+.hint-rule-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.65rem;
+  overflow: hidden;
+  background: #121820;
+}
+
+.hint-group-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: left;
+  background: #1a222c !important;
+  border: none !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 0.55rem 0.75rem !important;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hint-group-toggle:hover {
+  filter: brightness(1.06);
+}
+
+.hint-group-chevron {
+  width: 1rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.hint-group-body {
+  padding: 0.35rem 0.5rem 0.5rem;
+}
+
+.hint-group-body.hidden {
+  display: none;
+}
+
+.hint-sev-label {
+  font-weight: 650;
+  font-size: 0.85rem;
+}
+.hint-sev-label.sev-Critical { color: var(--bad); }
+.hint-sev-label.sev-Warning { color: var(--warn); }
+.hint-sev-label.sev-Info { color: var(--accent); }
+
+.hint-rule-row { cursor: pointer; }
+.hint-rule-row:hover td { background: #1a2430; }
+.hint-rule-code-link { color: var(--accent); }
+
+.hint-compile-error-card {
+  border-color: color-mix(in srgb, var(--bad) 55%, var(--border)) !important;
+  background: #1c1214 !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bad) 25%, transparent);
+}
+
+.hint-compile-error-lead {
+  color: #f0b4b8;
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.hint-compile-error-table td {
+  vertical-align: top;
+}
+
+.badge.bad {
+  background: color-mix(in srgb, var(--bad) 28%, #243041);
+  color: #ffb4b8;
+}
+
+.hint-rule-detail-modal {
+  width: min(720px, 100%);
+}
+
+.hint-rule-json {
+  max-height: min(60vh, 28rem);
+  overflow: auto;
+  margin: 0;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.metrics-ov-chart .chart-wrap { min-height: 7rem; }
+.metrics-ov-chart .chart-svg { min-height: 6.5rem; }
+
+.chart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.chart-axis {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: var(--font);
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chart-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.chart-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: #121820;
+}
+
+.chart-warn { margin: 0.5rem 0 0; font-size: 0.82rem; }
+
+.metrics-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.metrics-ov-block .label {
+  font-size: 0.78rem;
+  margin-bottom: 0.25rem;
+}
+
+.sparkline {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  height: 28px;
+}
+
+@media (max-width: 640px) {
+  .metrics-grid { grid-template-columns: 1fr; }
 }
 
 .form-grid {
@@ -811,8 +1261,36 @@ code { color: #cde; font-size: 0.9em; }
 .entity-table .col-name { min-width: 10rem; }
 .entity-table .col-pipe { min-width: 5rem; }
 
+/*
+ * Help cursor only on non-interactive explainers with title.
+ * Clickable controls keep the normal pointer/hand even when they have a title.
+ */
+th[title],
+.kpi[title],
+.kpi[title] .label,
+.hm[title],
+.detail-block .kv > span:nth-child(odd)[title],
+.chart-card h2[title],
+.chart-modal-head h2[title],
+.label[title],
+.muted[title]:not(a):not(button),
+.badge[title],
+.hint[title],
+.sev[title],
+.sev-stack[title],
+.pipe[title],
+.pipe .seg[title],
+.low-n[title],
+.status-pill[title] {
+  cursor: help;
+}
+
 @media (max-width: 720px) {
-  .chrome-brand { padding: 0.45rem 0.85rem 0.35rem; }
+  .chrome-brand { padding: 0.55rem 0.85rem 0.5rem; }
+  .brand-link { gap: 0.75rem; }
+  .brand-logo { width: 44px; height: 44px; border-radius: 10px; }
+  .brand-title { font-size: 1.3rem; }
+  .brand-subtitle { white-space: normal; }
   .chrome-strip { padding: 0.35rem 0.85rem; }
   .app-nav { flex-wrap: wrap; }
   .nav-left, .nav-right { flex-wrap: wrap; width: 100%; }

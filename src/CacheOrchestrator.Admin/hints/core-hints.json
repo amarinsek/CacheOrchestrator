@@ -1,0 +1,308 @@
+{
+  "name": "core",
+  "rules": [
+    {
+      "code": "high-factory-share",
+      "severity": "Warning",
+      "category": "Factory",
+      "scope": "domain",
+      "description": "Factory is a large share of domain traffic (25–50%).",
+      "when": {
+        "all": [
+          { "path": "domain.requests", "op": ">=", "value": 20 },
+          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.25 },
+          { "path": "domain.fc.factoryShare", "op": "<", "value": 0.50 }
+        ]
+      },
+      "message": "Factory is {domain.fc.factoryShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
+    },
+    {
+      "code": "critical-factory-share",
+      "severity": "Critical",
+      "category": "Factory",
+      "scope": "domain",
+      "description": "Factory dominates domain traffic (≥50%).",
+      "when": {
+        "all": [
+          { "path": "domain.requests", "op": ">=", "value": 20 },
+          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.50 }
+        ]
+      },
+      "message": "Factory is {domain.fc.factoryShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
+    },
+    {
+      "code": "elevated-stale",
+      "severity": "Warning",
+      "category": "Factory",
+      "scope": "domain",
+      "description": "Fail-safe stale share is elevated on a domain.",
+      "when": {
+        "all": [
+          { "path": "domain.requests", "op": ">=", "value": 20 },
+          { "path": "domain.fc.staleShare", "op": ">=", "value": 0.10 }
+        ]
+      },
+      "message": "Stale serves {domain.fc.staleShare:p1} of requests — fail-safe is covering factory failures. Inspect timeouts and factory/backend health."
+    },
+    {
+      "code": "frequent-invalidations",
+      "severity": "Info",
+      "category": "Invalidation",
+      "scope": "domain",
+      "description": "Many invalidations relative to request volume.",
+      "when": {
+        "all": [
+          { "path": "domain.requests", "op": ">=", "value": 20 },
+          { "path": "domain.invalidations", "op": ">=", "value": 10 },
+          { "path": "domain.invalidationShare", "op": ">=", "value": 0.05 }
+        ]
+      },
+      "message": "{domain.invalidations} invalidations vs {domain.requests} requests — entity-level invalidation may fit better than domain-wide Version bumps."
+    },
+    {
+      "code": "factory-failures",
+      "severity": "Warning",
+      "category": "Factory",
+      "scope": "domain",
+      "description": "Factory failure rate 10–50% on a domain.",
+      "when": {
+        "all": [
+          { "path": "domain.fc.factoryRuns", "op": ">=", "value": 10 },
+          { "path": "domain.fc.factoryFailureRate", "op": ">=", "value": 0.10 },
+          { "path": "domain.fc.factoryFailureRate", "op": "<", "value": 0.50 }
+        ]
+      },
+      "message": "Factory failed {domain.fc.factoryFailureRate:p1} of {domain.fc.factoryRuns} runs. Inspect factory/backend errors; fail-safe may be covering them as stale."
+    },
+    {
+      "code": "critical-factory-failures",
+      "severity": "Critical",
+      "category": "Factory",
+      "scope": "domain",
+      "description": "Factory failure rate ≥50% on a domain.",
+      "when": {
+        "all": [
+          { "path": "domain.fc.factoryRuns", "op": ">=", "value": 10 },
+          { "path": "domain.fc.factoryFailureRate", "op": ">=", "value": 0.50 }
+        ]
+      },
+      "message": "Factory failed {domain.fc.factoryFailureRate:p1} of {domain.fc.factoryRuns} runs. Inspect factory/backend errors; fail-safe may be covering them as stale."
+    },
+    {
+      "code": "schedule-approaching",
+      "severity": "Info",
+      "category": "Schedule",
+      "scope": "domain",
+      "description": "Client Cache Schedule is in approaching phase.",
+      "when": {
+        "any": [
+          { "path": "domain.schedulePhase", "op": "eq", "value": "approaching" },
+          { "path": "config.schedulePhase", "op": "eq", "value": "approaching" }
+        ]
+      },
+      "message": "Client Cache Schedule is approaching the cutover — client max-age is ramping down. This is expected."
+    },
+    {
+      "code": "schedule-hold-lingering",
+      "severity": "Warning",
+      "category": "Schedule",
+      "scope": "domain",
+      "description": "Schedule has been in hold for 24h+ after ScheduledUpdateUtc.",
+      "when": {
+        "all": [
+          {
+            "any": [
+              { "path": "domain.schedulePhase", "op": "eq", "value": "hold" },
+              { "path": "config.schedulePhase", "op": "eq", "value": "hold" }
+            ]
+          },
+          { "path": "config.holdAgeHours", "op": ">=", "value": 24 }
+        ]
+      },
+      "message": "Client Cache Schedule has been in hold for {config.holdAgeHours:0.#} hours — set the next ScheduledUpdateUtc or clear the schedule so clients can return to a long max-age."
+    },
+    {
+      "code": "schedule-phase",
+      "severity": "Info",
+      "category": "Schedule",
+      "scope": "domain",
+      "description": "Schedule is in hold (recent cutover).",
+      "when": {
+        "all": [
+          {
+            "any": [
+              { "path": "domain.schedulePhase", "op": "eq", "value": "hold" },
+              { "path": "config.schedulePhase", "op": "eq", "value": "hold" }
+            ]
+          },
+          {
+            "any": [
+              { "path": "config.holdAgeHours", "op": "notexists" },
+              { "path": "config.holdAgeHours", "op": "<", "value": 24 }
+            ]
+          }
+        ]
+      },
+      "message": "Client Cache Schedule is in hold — set the next ScheduledUpdateUtc when the cutover is done."
+    },
+    {
+      "code": "client-ttl-gt-output",
+      "severity": "Info",
+      "category": "TTL",
+      "scope": "domain",
+      "description": "Client TTL much larger than Output TTL without a schedule.",
+      "when": {
+        "all": [
+          { "path": "config.hasSchedule", "op": "eq", "value": false },
+          { "path": "config.clientTtlSeconds", "op": ">", "value": 0 },
+          { "path": "config.outputCacheTtlSeconds", "op": ">", "value": 0 },
+          { "path": "config.clientTtlOverOutputRatio", "op": ">", "value": 2 }
+        ]
+      },
+      "message": "Client TTL ({config.clientTtlSeconds}s) is much larger than Output TTL ({config.outputCacheTtlSeconds}s) — browsers can stay stale after the server cache expires. Use a schedule or align the TTLs."
+    },
+    {
+      "code": "schedule-flat",
+      "severity": "Info",
+      "category": "Schedule",
+      "scope": "domain",
+      "description": "Schedule cannot ramp (min TTL ≥ max TTL).",
+      "when": {
+        "all": [
+          { "path": "config.hasSchedule", "op": "eq", "value": true },
+          { "path": "config.clientTtlCannotRamp", "op": "eq", "value": true }
+        ]
+      },
+      "message": "Client min TTL ({config.clientTtlMinSeconds}s) is not below max ({config.clientTtlSeconds}s) — the schedule cannot ramp. Lower ClientTtlMinSeconds or raise ClientTtlSeconds."
+    },
+    {
+      "code": "fusion-hard-lt-soft",
+      "severity": "Warning",
+      "category": "TTL",
+      "scope": "domain",
+      "description": "Fusion hard TTL shorter than soft TTL.",
+      "when": {
+        "all": [
+          { "path": "config.fusionHardLtSoft", "op": "eq", "value": true }
+        ]
+      },
+      "message": "Fusion hard TTL ({config.fusionCacheHardTtlSeconds}s) is shorter than soft ({config.fusionCacheSoftTtlSeconds}s) — hard wins. Raise hard or lower soft."
+    },
+    {
+      "code": "runtime-override",
+      "severity": "Info",
+      "category": "Config",
+      "scope": "domain",
+      "description": "Runtime Version/TTL overlay is active.",
+      "when": {
+        "any": [
+          { "path": "domain.versionIsRuntimeOverride", "op": "eq", "value": true },
+          { "path": "config.versionIsRuntimeOverride", "op": "eq", "value": true }
+        ]
+      },
+      "message": "A runtime overlay is in effect (Version and/or TTLs) — persist it in configuration if it should survive process restart."
+    },
+    {
+      "code": "instance-oc-hit-spread",
+      "severity": "Warning",
+      "category": "Cluster",
+      "scope": "domain",
+      "description": "OC hit share varies a lot across instances.",
+      "when": {
+        "all": [
+          { "path": "domain.instanceSpread.ocHitShare.sampleCount", "op": ">=", "value": 2 },
+          { "path": "domain.instanceSpread.ocHitShare.stdev", "op": ">=", "value": 0.15 }
+        ]
+      },
+      "message": "OC hit share varies across instances (stdev {domain.instanceSpread.ocHitShare.stdev:p1}) — InMemory OC is not shared, or traffic is uneven."
+    },
+    {
+      "code": "high-factory-share",
+      "severity": "Warning",
+      "category": "Factory",
+      "scope": "endpoint",
+      "description": "Factory share elevated on an endpoint (25–50%).",
+      "when": {
+        "all": [
+          { "path": "endpoint.requests", "op": ">=", "value": 20 },
+          { "path": "endpoint.fc.factoryShare", "op": ">=", "value": 0.25 },
+          { "path": "endpoint.fc.factoryShare", "op": "<", "value": 0.50 }
+        ]
+      },
+      "message": "Factory is {endpoint.fc.factoryShare:p1} of requests on this route — factory runs too often."
+    },
+    {
+      "code": "critical-factory-share",
+      "severity": "Critical",
+      "category": "Factory",
+      "scope": "endpoint",
+      "description": "Factory share dominates an endpoint (≥50%).",
+      "when": {
+        "all": [
+          { "path": "endpoint.requests", "op": ">=", "value": 20 },
+          { "path": "endpoint.fc.factoryShare", "op": ">=", "value": 0.50 }
+        ]
+      },
+      "message": "Factory is {endpoint.fc.factoryShare:p1} of requests on this route — factory runs too often."
+    },
+    {
+      "code": "elevated-stale",
+      "severity": "Warning",
+      "category": "Factory",
+      "scope": "endpoint",
+      "description": "Stale share elevated on an endpoint.",
+      "when": {
+        "all": [
+          { "path": "endpoint.requests", "op": ">=", "value": 20 },
+          { "path": "endpoint.fc.stale", "op": ">", "value": 0 },
+          { "path": "endpoint.fc.staleShare", "op": ">=", "value": 0.10 }
+        ]
+      },
+      "message": "Stale share {endpoint.fc.staleShare:p1} — fail-safe after factory issues."
+    },
+    {
+      "code": "factory-failures",
+      "severity": "Warning",
+      "category": "Factory",
+      "scope": "endpoint",
+      "description": "Factory failure rate 10–50% on an endpoint.",
+      "when": {
+        "all": [
+          { "path": "endpoint.fc.factoryRuns", "op": ">=", "value": 10 },
+          { "path": "endpoint.fc.factoryFailureRate", "op": ">=", "value": 0.10 },
+          { "path": "endpoint.fc.factoryFailureRate", "op": "<", "value": 0.50 }
+        ]
+      },
+      "message": "Factory failed {endpoint.fc.factoryFailureRate:p1} of {endpoint.fc.factoryRuns} runs on this route."
+    },
+    {
+      "code": "critical-factory-failures",
+      "severity": "Critical",
+      "category": "Factory",
+      "scope": "endpoint",
+      "description": "Factory failure rate ≥50% on an endpoint.",
+      "when": {
+        "all": [
+          { "path": "endpoint.fc.factoryRuns", "op": ">=", "value": 10 },
+          { "path": "endpoint.fc.factoryFailureRate", "op": ">=", "value": 0.50 }
+        ]
+      },
+      "message": "Factory failed {endpoint.fc.factoryFailureRate:p1} of {endpoint.fc.factoryRuns} runs on this route."
+    },
+    {
+      "code": "instance-factory-spread",
+      "severity": "Warning",
+      "category": "Cluster",
+      "scope": "endpoint",
+      "description": "Factory share varies a lot across instances for a route.",
+      "when": {
+        "all": [
+          { "path": "endpoint.requests", "op": ">=", "value": 20 },
+          { "path": "endpoint.instanceSpread.factoryShare.sampleCount", "op": ">=", "value": 2 },
+          { "path": "endpoint.instanceSpread.factoryShare.stdev", "op": ">=", "value": 0.15 }
+        ]
+      },
+      "message": "Factory share differs across instances (stdev {endpoint.instanceSpread.factoryShare.stdev:p1})."
+    }
+  ]
+}

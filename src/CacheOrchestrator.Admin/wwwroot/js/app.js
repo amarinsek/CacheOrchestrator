@@ -9,9 +9,13 @@
  *   filters.js      multi-select, sort, search
  *   tables.js       entity tables + empty states
  *   router.js       hash routing helpers
- *   shell.js        sticky header metrics + auto-refresh
- *   views.js        page renderers + route()
+ *   shell.js        sticky header metrics + soft auto-refresh
+ *   charts.js       SVG line charts for Metrics
+ *   views-metrics.js Metrics page + overview embed
+ *   views.js        page renderers + route({ soft })
  *   app.js          bootstrap (this file)
+ *
+ * Soft refresh: fetch in background, repaint without "Loading…" flash (no SPA framework).
  *
  * Static files are served by ASP.NET Core (`UseDefaultFiles` + `UseStaticFiles`).
  */
@@ -36,5 +40,8 @@ if (!location.hash) {
 
 initRefreshControls();
 scheduleRefresh();
-refreshHeader();
-route();
+// Single first paint path (overview fetch is deduped if header also loads).
+route().then(() => {
+  // Ensure chrome strip is filled even if overview paint path skipped header.
+  refreshHeader({ silent: true });
+});

@@ -58,6 +58,29 @@ public static class AdminLocalApi
 
         group.MapGet("/health", (AdminQueryService query) => Results.Ok(query.GetHealth()));
 
+        // Always available when Local Admin is on (even without CacheOrchestrator.Bus).
+        // Prevents SPA MapFallbackToFile HTML from being mistaken for JSON on probe misses.
+        group.MapGet("/cluster/info", async (
+            IInstanceIdProvider instanceId,
+            IClusterMembership membership,
+            IClusterCommandBus bus,
+            IOptionsMonitor<CacheOrchestratorOptions> options,
+            CancellationToken cancellationToken) =>
+        {
+            IReadOnlyList<ClusterPeer> peers =
+                await membership.GetPeersAsync(cancellationToken).ConfigureAwait(false);
+
+            return Results.Ok(new
+            {
+                instanceId = instanceId.InstanceId,
+                @namespace = options.CurrentValue.Namespace,
+                busEnabled = bus.IsEnabled,
+                membership = membership.Kind,
+                peerCount = peers.Count,
+                peers = peers.Select(p => new { id = p.Id, url = p.BaseUrl.ToString() }).ToArray()
+            });
+        });
+
         group.MapGet("/stats", (AdminQueryService query) => Results.Ok(query.GetStats()));
 
         group.MapGet("/endpoints", (AdminQueryService query) => Results.Ok(query.GetEndpoints()));

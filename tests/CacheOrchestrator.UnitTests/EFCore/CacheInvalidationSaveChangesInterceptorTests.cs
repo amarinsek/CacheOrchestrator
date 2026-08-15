@@ -82,11 +82,11 @@ public class CacheInvalidationSaveChangesInterceptorTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateEntitiesAsync(default!, default!, default!, default);
+            .InvalidateEntitiesAsync(default!, default!, default!, TestContext.Current.CancellationToken);
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateEntityKindAsync(default!, default!, default);
+            .InvalidateEntityKindAsync(default!, default!, TestContext.Current.CancellationToken);
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateDomainAsync(default!, default);
+            .InvalidateDomainAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class CacheInvalidationSaveChangesInterceptorTests
 
         await act.Should().ThrowAsync<InvalidOperationException>();
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateEntitiesAsync(default!, default!, default!, default);
+            .InvalidateEntitiesAsync(default!, default!, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -134,9 +134,9 @@ public class CacheInvalidationSaveChangesInterceptorTests
 
         await inv.Received(1).InvalidateEntityKindAsync("store", "products", Arg.Any<CancellationToken>());
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateEntitiesAsync(default!, default!, default!, default);
+            .InvalidateEntitiesAsync(default!, default!, default!, TestContext.Current.CancellationToken);
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateDomainAsync(default!, default);
+            .InvalidateDomainAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -205,7 +205,7 @@ public class CacheInvalidationSaveChangesInterceptorTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         await inv.DidNotReceiveWithAnyArgs()
-            .InvalidateEntitiesAsync(default!, default!, default!, default);
+            .InvalidateEntitiesAsync(default!, default!, default!, TestContext.Current.CancellationToken);
     }
 
     private static (TestDbContext Db, ICacheOrchestratorInvalidator Inv) CreateHarness(
@@ -224,11 +224,11 @@ public class CacheInvalidationSaveChangesInterceptorTests
     {
         ICacheOrchestratorInvalidator inv = Substitute.For<ICacheOrchestratorInvalidator>();
         CacheInvalidationResult ok = new("ok", [], true, true, []);
-        inv.InvalidateEntitiesAsync(default!, default!, default!, default)
+        inv.InvalidateEntitiesAsync(default!, default!, default!, Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(ValueTask.FromResult(ok));
-        inv.InvalidateEntityKindAsync(default!, default!, default)
+        inv.InvalidateEntityKindAsync(default!, default!, Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(ValueTask.FromResult(ok));
-        inv.InvalidateDomainAsync(default!, default)
+        inv.InvalidateDomainAsync(default!, Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(ValueTask.FromResult(ok));
         return inv;
     }

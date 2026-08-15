@@ -276,7 +276,7 @@ public static class StatsAggregator
             OcHitShare = AdminStatsMath.Spread(rows.Select(r => r.Oc.HitShare)),
             FcHitShare = AdminStatsMath.Spread(rows.Select(r => r.Fc.HitShare)),
             FcMissShare = AdminStatsMath.Spread(rows.Select(r => r.Fc.MissShare)),
-            OriginShare = AdminStatsMath.Spread(rows.Select(r => r.Fc.OriginShare)),
+            FactoryShare = AdminStatsMath.Spread(rows.Select(r => r.Fc.FactoryShare)),
             OcHitRate = AdminStatsMath.Spread(rows.Select(r => r.Oc.HitRate)),
             FcHitRate = AdminStatsMath.Spread(rows.Select(r => r.Fc.HitRate))
         };
@@ -287,7 +287,7 @@ public static class StatsAggregator
             OcHitShare = AdminStatsMath.Spread(rows.Select(r => r.Oc.HitShare)),
             FcHitShare = AdminStatsMath.Spread(rows.Select(r => r.Fc.HitShare)),
             FcMissShare = AdminStatsMath.Spread(rows.Select(r => r.Fc.MissShare)),
-            OriginShare = AdminStatsMath.Spread(rows.Select(r => r.Fc.OriginShare)),
+            FactoryShare = AdminStatsMath.Spread(rows.Select(r => r.Fc.FactoryShare)),
             OcHitRate = AdminStatsMath.Spread(rows.Select(r => r.Oc.HitRate)),
             FcHitRate = AdminStatsMath.Spread(rows.Select(r => r.Fc.HitRate))
         };

@@ -2,18 +2,23 @@
  * Shared entity list tables and empty / connectivity chrome.
  *
  * Column contracts (list surfaces — keep stable across pages):
- * - Endpoints: Route | Domain | Hints | Req | Pipeline | OC hit share | Origin | FC miss rate | Stale
- * - Domains:   Domain | Hints | Version | Req | Pipeline | OC hit share | Origin | Inv | Ops
+ * - Endpoints: Route | Domain | Hints | Req | Pipeline | OC hit share | FC hit share | Factory share
+ * - Domains:   Domain | Hints | Version | Req | Pipeline | OC hit share | FC hit share | Factory share | Inv | Ops
  * - Instances: Id | Hints | Status | URL | Req | Uptime | Latency | Error
+ * Layer rates (e.g. FC miss rate) stay on detail views only.
  */
 
+import { instanceStatus } from "./api.js";
 import {
   esc,
   formatLatencyMs,
   formatUptime,
+  factoryShareOf,
+  METRIC_TITLES,
   num,
   pct,
   pipelineBar,
+  thMetric,
 } from "./format.js";
 import { hintBadges, severityStack } from "./hints.js";
 import { navigate } from "./router.js";
@@ -30,10 +35,9 @@ export function endpointRowHtml(e) {
     <td class="col-hints">${hintBadges(e.hints)}</td>
     <td class="col-num">${num(e.requests)}</td>
     <td class="col-pipe">${pipelineBar(e.pipeline)}</td>
-    <td class="col-metric">${pct(e.oc?.hitShare, e.oc?.lowSample)}</td>
-    <td class="col-metric">${pct(e.fc?.originShare, e.fc?.lowSample)}</td>
-    <td class="col-metric secondary">${pct(e.fc?.missRate, e.fc?.lowSample)}</td>
-    <td class="col-metric secondary">${num(e.fc?.stale)}</td>
+    <td class="col-metric">${pct(e.oc?.hitShare, e.oc?.lowRequestSample, "request")}</td>
+    <td class="col-metric">${pct(e.fc?.hitShare, e.fc?.lowRequestSample, "request")}</td>
+    <td class="col-metric">${pct(factoryShareOf(e.fc), e.fc?.lowRequestSample, "request")}</td>
   </tr>`;
 }
 
@@ -45,15 +49,14 @@ export function endpointTableHtml(list, emptyCtx = {}) {
     <table class="dense entity-table endpoints-table">
       <thead>
         <tr>
-          <th>Route</th>
-          <th>Domain</th>
-          <th>Hints</th>
-          <th>Req</th>
-          <th>Pipeline</th>
-          <th>OC hit share</th>
-          <th>Origin</th>
-          <th class="secondary">FC miss rate</th>
-          <th class="secondary">Stale</th>
+          ${thMetric("Route", "route", { fromKey: true })}
+          ${thMetric("Domain", "domain", { fromKey: true })}
+          ${thMetric("Hints", "hints", { fromKey: true })}
+          ${thMetric("Req", "req", { fromKey: true })}
+          ${thMetric("Pipeline", "pipeline", { fromKey: true })}
+          ${thMetric("OC hit share", "ocHitShare", { fromKey: true })}
+          ${thMetric("FC hit share", "fcHitShare", { fromKey: true })}
+          ${thMetric("Factory share", "factoryShare", { fromKey: true })}
         </tr>
       </thead>
       <tbody>${list.map(endpointRowHtml).join("")}</tbody>
@@ -69,8 +72,9 @@ export function domainRowHtml(d) {
     <td class="col-metric">${esc(d.version)}</td>
     <td class="col-num">${num(d.requests)}</td>
     <td class="col-pipe">${pipelineBar(d.pipeline)}</td>
-    <td class="col-metric">${pct(d.oc?.hitShare, d.oc?.lowSample)}</td>
-    <td class="col-metric">${pct(d.fc?.originShare)}</td>
+    <td class="col-metric">${pct(d.oc?.hitShare, d.oc?.lowRequestSample, "request")}</td>
+    <td class="col-metric">${pct(d.fc?.hitShare, d.fc?.lowRequestSample, "request")}</td>
+    <td class="col-metric">${pct(factoryShareOf(d.fc), d.fc?.lowRequestSample, "request")}</td>
     <td class="col-num">${num(d.invalidations)}</td>
     <td class="col-ops"><a href="#/operations?domain=${encodeURIComponent(d.name)}" onclick="event.stopPropagation()">Ops</a></td>
   </tr>`;
@@ -84,14 +88,15 @@ export function domainTableHtml(list, emptyCtx = {}) {
     <table class="dense entity-table domains-table">
       <thead>
         <tr>
-          <th>Domain</th>
-          <th>Hints</th>
-          <th>Version</th>
-          <th>Req</th>
-          <th>Pipeline</th>
-          <th>OC hit share</th>
-          <th>Origin</th>
-          <th>Inv</th>
+          ${thMetric("Domain", "domain", { fromKey: true })}
+          ${thMetric("Hints", "hints", { fromKey: true })}
+          ${thMetric("Version", "version", { fromKey: true })}
+          ${thMetric("Req", "req", { fromKey: true })}
+          ${thMetric("Pipeline", "pipeline", { fromKey: true })}
+          ${thMetric("OC hit share", "ocHitShare", { fromKey: true })}
+          ${thMetric("FC hit share", "fcHitShare", { fromKey: true })}
+          ${thMetric("Factory share", "factoryShare", { fromKey: true })}
+          ${thMetric("Inv", "inv", { fromKey: true })}
           <th></th>
         </tr>
       </thead>
@@ -106,10 +111,11 @@ export function instanceRowHtml(i) {
     ? new Date(i.startedAtUtc).toISOString().replace("T", " ").replace(/\.\d+Z$/, "Z")
     : "";
   const up = formatUptime(i.uptimeSeconds);
+  const st = instanceStatus(i.status);
   return `<tr class="clickable entity-row" data-entity="instance" data-id="${esc(i.id)}">
     <td class="col-name"><code>${esc(i.id)}</code></td>
     <td class="col-hints">${severityStack(i.hintSummary)}</td>
-    <td class="status-${esc(i.status)}">${esc(i.status)}</td>
+    <td class="status-${esc(st)}">${esc(st)}</td>
     <td><code>${esc(i.url)}</code></td>
     <td class="col-num">${num(i.requests)}</td>
     <td title="${esc(started || "start time unknown")}">${esc(up)}</td>
@@ -130,14 +136,14 @@ export function instanceTableHtml(list, emptyCtx = {}) {
     <table class="dense entity-table instances-table">
       <thead>
         <tr>
-          <th>Id</th>
-          <th>Hints</th>
-          <th>Status</th>
-          <th>URL</th>
-          <th>Req</th>
-          <th>Uptime</th>
-          <th>Latency</th>
-          <th>Error</th>
+          ${thMetric("Id", "instance", { fromKey: true })}
+          ${thMetric("Hints", "hints", { fromKey: true })}
+          ${thMetric("Status", "status", { fromKey: true })}
+          ${thMetric("URL", "url", { fromKey: true })}
+          ${thMetric("Req", "req", { fromKey: true })}
+          ${thMetric("Uptime", "uptime", { fromKey: true })}
+          ${thMetric("Latency", "latency", { fromKey: true })}
+          ${thMetric("Error", "error", { fromKey: true })}
         </tr>
       </thead>
       <tbody>${list.map(instanceRowHtml).join("")}</tbody>
@@ -188,6 +194,26 @@ export function emptyStateHtml(kind, ctx = {}) {
       title: ctx.title || "Failed to load",
       detail: ctx.detail || "Request failed. Check Admin App logs and instance URLs.",
     },
+    "metrics-config": {
+      cls: "config",
+      icon: "◎",
+      title: ctx.title || "Metrics storage not configured",
+      detail: ctx.detail
+        || "Set CacheAdmin:Metrics:Enabled, Provider (Prometheus), and BaseUrl.",
+    },
+    "metrics-offline": {
+      cls: "offline",
+      icon: "⏻",
+      title: ctx.title || "Metrics storage not connected",
+      detail: ctx.detail || "Prometheus probe failed. Check URL, network, and auth.",
+    },
+    "metrics-empty": {
+      cls: "filter",
+      icon: "◫",
+      title: ctx.title || "No metric samples",
+      detail: ctx.detail
+        || "Connected, but no series in this range. Confirm the CacheOrchestrator meter is scraped.",
+    },
   };
   const m = map[kind] || map.filter;
   const actions = ctx.actions || [
@@ -217,9 +243,9 @@ export function connectivityBanner(instances) {
       <span class="banner-actions"><button type="button" class="secondary" data-es-refresh>Refresh</button></span>
     </div>`;
   }
-  const up = list.filter((i) => i.status === "Healthy").length;
-  const down = list.filter((i) => i.status === "Down").length;
-  const deg = list.filter((i) => i.status === "Degraded").length;
+  const up = list.filter((i) => instanceStatus(i.status) === "Healthy").length;
+  const down = list.filter((i) => instanceStatus(i.status) === "Down").length;
+  const deg = list.filter((i) => instanceStatus(i.status) === "Degraded").length;
   if (down === list.length) {
     return `<div class="banner err">
       <span><strong>All instances down</strong> — entity data cannot be loaded from Local Admin APIs.
@@ -247,7 +273,7 @@ export function bindEmptyStateActions(root) {
 
 export function allInstancesDown(instances) {
   const list = instances || [];
-  return list.length > 0 && list.every((i) => i.status === "Down");
+  return list.length > 0 && list.every((i) => instanceStatus(i.status) === "Down");
 }
 
 export function noInstancesConfigured(instances) {
@@ -281,15 +307,15 @@ export function layerDetailOc(oc) {
     <div class="detail-block">
       <h3>Output Cache</h3>
       <div class="kv">
-        <span>Hits</span><span>${num(oc.hits)}</span>
-        <span>Misses</span><span>${num(oc.misses)}</span>
-        <span>Bypass</span><span>${num(oc.bypass)}</span>
-        <span>Layer n</span><span>${num(oc.layerSampleSize)}</span>
-        <span>Hit share</span><span>${pct(oc.hitShare, oc.lowSample)}</span>
-        <span>Miss share</span><span>${pct(oc.missShare, oc.lowSample)}</span>
-        <span>Bypass share</span><span>${pct(oc.bypassShare)}</span>
-        <span>Hit rate (layer)</span><span>${pct(oc.hitRate, oc.lowSample)}</span>
-        <span>Miss rate (layer)</span><span>${pct(oc.missRate, oc.lowSample)}</span>
+        <span title="Output Cache hits">Hits</span><span>${num(oc.hits)}</span>
+        <span title="Output Cache misses">Misses</span><span>${num(oc.misses)}</span>
+        <span title="Output Cache bypass (not eligible / skipped)">Bypass</span><span>${num(oc.bypass)}</span>
+        <span title="Samples that reached the Output Cache layer">Layer n</span><span>${num(oc.layerSampleSize)}</span>
+        <span title="${esc(METRIC_TITLES.ocHitShare)}">OC hit share</span><span>${pct(oc.hitShare, oc.lowRequestSample, "request")}</span>
+        <span title="Output Cache miss share of all requests">OC miss share</span><span>${pct(oc.missShare, oc.lowRequestSample, "request")}</span>
+        <span title="Output Cache bypass share of all requests">OC bypass share</span><span>${pct(oc.bypassShare, oc.lowRequestSample, "request")}</span>
+        <span title="Hit rate of traffic that reached Output Cache">OC hit rate (layer)</span><span>${pct(oc.hitRate, oc.lowSample, "layer")}</span>
+        <span title="Miss rate of traffic that reached Output Cache">OC miss rate (layer)</span><span>${pct(oc.missRate, oc.lowSample, "layer")}</span>
       </div>
     </div>`;
 }
@@ -300,20 +326,20 @@ export function layerDetailFc(fc) {
     <div class="detail-block">
       <h3>FusionCache</h3>
       <div class="kv">
-        <span>Hits</span><span>${num(fc.hits)}</span>
-        <span>Misses</span><span>${num(fc.misses)}</span>
-        <span>Stale</span><span>${num(fc.stale)}</span>
-        <span>Bypass</span><span>${num(fc.bypass)}</span>
-        <span>Factory runs</span><span>${num(fc.factoryRuns)}</span>
-        <span>Factory failures</span><span>${num(fc.factoryFailures)}</span>
-        <span>Layer n</span><span>${num(fc.layerSampleSize)}</span>
-        <span>Hit share</span><span>${pct(fc.hitShare, fc.lowSample)}</span>
-        <span>Miss share</span><span>${pct(fc.missShare, fc.lowSample)}</span>
-        <span>Stale share</span><span>${pct(fc.staleShare)}</span>
-        <span>Origin share</span><span>${pct(fc.originShare)}</span>
-        <span>Hit rate (layer)</span><span>${pct(fc.hitRate, fc.lowSample)}</span>
-        <span>Miss rate (layer)</span><span>${pct(fc.missRate, fc.lowSample)}</span>
-        <span>Stale rate (layer)</span><span>${pct(fc.staleRate)}</span>
+        <span title="FusionCache hits">Hits</span><span>${num(fc.hits)}</span>
+        <span title="FusionCache misses">Misses</span><span>${num(fc.misses)}</span>
+        <span title="${esc(METRIC_TITLES.stale)}">Stale</span><span>${num(fc.stale)}</span>
+        <span title="FusionCache bypass">Bypass</span><span>${num(fc.bypass)}</span>
+        <span title="${esc(METRIC_TITLES.factory)}">Factory runs</span><span>${num(fc.factoryRuns)}</span>
+        <span title="${esc(METRIC_TITLES.factoryFailures)}">Factory failures</span><span>${num(fc.factoryFailures)}</span>
+        <span title="Samples that reached the Fusion layer">Layer n</span><span>${num(fc.layerSampleSize)}</span>
+        <span title="${esc(METRIC_TITLES.fcHitShare)}">FC hit share</span><span>${pct(fc.hitShare, fc.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.fcMissShare)}">FC miss share</span><span>${pct(fc.missShare, fc.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.staleShare)}">Stale share</span><span>${pct(fc.staleShare, fc.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.factoryShare)}">Factory share</span><span>${pct(factoryShareOf(fc), fc.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.fcHitRate)}">FC hit rate (layer)</span><span>${pct(fc.hitRate, fc.lowSample, "layer")}</span>
+        <span title="${esc(METRIC_TITLES.fcMissRate)}">FC miss rate (layer)</span><span>${pct(fc.missRate, fc.lowSample, "layer")}</span>
+        <span title="${esc(METRIC_TITLES.staleRate)}">Stale rate (layer)</span><span>${pct(fc.staleRate, fc.lowSample, "layer")}</span>
       </div>
     </div>`;
 }

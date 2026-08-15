@@ -78,8 +78,30 @@ public class StatsAggregatorTests
         oc.HitShare.Should().BeApproximately(0.99, 0.0001);
         fc.MissRate.Should().BeApproximately(1.0, 0.0001);
         fc.MissShare.Should().BeApproximately(0.01, 0.0001);
-        fc.OriginShare.Should().BeApproximately(0.01, 0.0001);
+        fc.FactoryShare.Should().BeApproximately(0.01, 0.0001);
         pipe.OcHitShare.Should().BeApproximately(0.99, 0.0001);
+
+        // Enough total requests → request shares are not "low sample"
+        oc.LowRequestSample.Should().BeFalse();
+        fc.LowRequestSample.Should().BeFalse();
+        // Only 1 FC hit+miss → layer rates are low-sample (noisy), shares still fine
+        oc.LowSample.Should().BeFalse(); // OC layer n = 100
+        fc.LowSample.Should().BeTrue();  // FC layer n = 1
+    }
+
+    [Fact]
+    public void AdminStatsMath_FewRequests_LowRequestSampleOnShares()
+    {
+        (_, AdminLayerDto oc, AdminFusionLayerDto fc, _) =
+            AdminStatsMath.BuildAll(
+                ocHits: 5, ocMisses: 2, ocBypass: 0,
+                fcHits: 1, fcMisses: 1, fcStale: 0, fcBypass: 0,
+                factoryRuns: 1, factoryFailures: 0);
+
+        oc.LowRequestSample.Should().BeTrue();  // 7 requests
+        fc.LowRequestSample.Should().BeTrue();
+        oc.LowSample.Should().BeTrue();         // OC layer n = 7
+        fc.LowSample.Should().BeTrue();         // FC layer n = 2
     }
 
     private static AdminLiveStatsSnapshot Snapshot(string id, params AdminDomainStatsDto[] domains) =>

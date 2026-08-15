@@ -41,8 +41,11 @@ export function hintBadges(hints) {
 /** Map rule codes to short row labels. Unknown codes use severity prefix. */
 export function shortHint(h) {
   const map = {
-    "high-origin-share": "Origin↑",
-    "critical-origin-share": "Origin‼",
+    "high-factory-share": "Factory↑",
+    "critical-factory-share": "Factory‼",
+    // Obsolete codes (pre-rename) still map if disabled.local or custom packs use them
+    "high-origin-share": "Factory↑",
+    "critical-origin-share": "Factory‼",
     "elevated-stale": "Stale",
     "frequent-invalidations": "Inv↑",
     "client-ttl-gt-output": "ClientTTL",
@@ -55,6 +58,7 @@ export function shortHint(h) {
     "runtime-override": "Overlay",
     "fusion-hard-lt-soft": "TTL",
     "instance-oc-hit-spread": "Drift",
+    "instance-factory-spread": "Drift",
     "instance-origin-spread": "Drift",
   };
   return map[h.code] || (h.severity || "Hint").slice(0, 4);

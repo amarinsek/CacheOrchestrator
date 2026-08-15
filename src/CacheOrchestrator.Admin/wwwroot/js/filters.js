@@ -184,32 +184,31 @@ export function inlineSortSelectHtml(id, current, options) {
 
 /** Sort keys offered on Endpoints list / Overview top-5. */
 export const EP_SORT_OPTS = [
-  ["requests", "requests"],
-  ["originShare", "originShare"],
-  ["ocHitShare", "ocHitShare"],
-  ["fcMissShare", "fcMissShare"],
-  ["fcMissRate", "fcMissRate"],
-  ["route", "route"],
-  ["stale", "stale"],
+  ["requests", "Requests"],
+  ["ocHitShare", "OC hit share"],
+  ["fcHitShare", "FC hit share"],
+  ["factoryShare", "Factory share"],
+  ["route", "Route"],
 ];
 
 /** Sort keys for Domains list. */
 export const DOMAIN_SORT_OPTS = [
-  ["requests", "requests"],
-  ["name", "name"],
-  ["originShare", "originShare"],
-  ["ocHitShare", "ocHitShare"],
-  ["invalidations", "invalidations"],
-  ["version", "version"],
+  ["requests", "Requests"],
+  ["name", "Name"],
+  ["ocHitShare", "OC hit share"],
+  ["fcHitShare", "FC hit share"],
+  ["factoryShare", "Factory share"],
+  ["invalidations", "Invalidations"],
+  ["version", "Version"],
 ];
 
 /** Sort keys for Instances list / Overview instances. */
 export const INST_SORT_OPTS = [
-  ["id", "id"],
-  ["status", "status"],
-  ["requests", "requests"],
-  ["uptime", "uptime"],
-  ["latency", "latency"],
+  ["id", "Id"],
+  ["status", "Status"],
+  ["requests", "Requests"],
+  ["uptime", "Uptime"],
+  ["latency", "Latency"],
 ];
 
 function cmpNumDesc(a, b) {
@@ -220,23 +219,20 @@ function cmpNumDesc(a, b) {
 export function sortEndpoints(list, sort) {
   const arr = [...(list || [])];
   switch (sort) {
+    case "factoryShare":
     case "originShare":
-      arr.sort((a, b) => cmpNumDesc(a.fc?.originShare, b.fc?.originShare));
+      arr.sort((a, b) => cmpNumDesc(
+        a.fc?.factoryShare ?? a.fc?.originShare,
+        b.fc?.factoryShare ?? b.fc?.originShare));
       break;
     case "ocHitShare":
       arr.sort((a, b) => cmpNumDesc(a.oc?.hitShare, b.oc?.hitShare));
       break;
-    case "fcMissShare":
-      arr.sort((a, b) => cmpNumDesc(a.fc?.missShare, b.fc?.missShare));
-      break;
-    case "fcMissRate":
-      arr.sort((a, b) => cmpNumDesc(a.fc?.missRate, b.fc?.missRate));
+    case "fcHitShare":
+      arr.sort((a, b) => cmpNumDesc(a.fc?.hitShare, b.fc?.hitShare));
       break;
     case "route":
       arr.sort((a, b) => (a.route || "").localeCompare(b.route || ""));
-      break;
-    case "stale":
-      arr.sort((a, b) => cmpNumDesc(a.fc?.stale, b.fc?.stale));
       break;
     case "requests":
     default:
@@ -252,11 +248,17 @@ export function sortDomains(list, sort) {
     case "name":
       arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
       break;
+    case "factoryShare":
     case "originShare":
-      arr.sort((a, b) => cmpNumDesc(a.fc?.originShare, b.fc?.originShare));
+      arr.sort((a, b) => cmpNumDesc(
+        a.fc?.factoryShare ?? a.fc?.originShare,
+        b.fc?.factoryShare ?? b.fc?.originShare));
       break;
     case "ocHitShare":
       arr.sort((a, b) => cmpNumDesc(a.oc?.hitShare, b.oc?.hitShare));
+      break;
+    case "fcHitShare":
+      arr.sort((a, b) => cmpNumDesc(a.fc?.hitShare, b.fc?.hitShare));
       break;
     case "invalidations":
       arr.sort((a, b) => cmpNumDesc(a.invalidations, b.invalidations));
@@ -272,7 +274,7 @@ export function sortDomains(list, sort) {
   return arr;
 }
 
-const STATUS_RANK = { Healthy: 0, Degraded: 1, Down: 2 };
+const STATUS_RANK = { Healthy: 0, Degraded: 1, Down: 2, 0: 0, 1: 1, 2: 2 };
 
 export function sortInstances(list, sort) {
   const arr = [...(list || [])];

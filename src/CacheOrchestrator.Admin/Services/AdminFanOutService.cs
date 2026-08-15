@@ -1,6 +1,7 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Admin.App.Models;
 using CacheOrchestrator.Admin.App.Options;
+using CacheOrchestrator.Admin.App.Services.Hints;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
@@ -14,16 +15,24 @@ public sealed class AdminFanOutService
     private readonly ILocalAdminClient _client;
     private readonly CacheAdminOptions _options;
     private readonly TimeProvider _time;
+    private readonly InstanceReachabilityCache _reachability;
+    private readonly HintEngine _hints;
 
     public AdminFanOutService(
         ILocalAdminClient client,
         IOptions<CacheAdminOptions> options,
+        InstanceReachabilityCache reachability,
+        HintEngine hints,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(reachability);
+        ArgumentNullException.ThrowIfNull(hints);
         _client = client;
         _options = options.Value;
+        _reachability = reachability;
+        _hints = hints;
         _time = timeProvider ?? TimeProvider.System;
     }
 
@@ -59,7 +68,11 @@ public sealed class AdminFanOutService
     {
         IReadOnlyList<AdminInstanceOptions> instances = GetConfiguredInstances();
         List<InstanceCallOutcome<AdminHealthDto>> outcomes =
-            await FanOutAsync(instances, (inst, ct) => _client.GetHealthAsync(inst, ct), cancellationToken)
+            await FanOutAsync(
+                    instances,
+                    (inst, ct) => _client.GetHealthAsync(inst, ct),
+                    cancellationToken,
+                    skipKnownDown: true)
                 .ConfigureAwait(false);
 
         return outcomes.Select(o =>
@@ -68,6 +81,20 @@ public sealed class AdminFanOutService
             InstanceHealthStatus status = o.Succeeded
                 ? (o.Value?.Healthy == true ? InstanceHealthStatus.Healthy : InstanceHealthStatus.Degraded)
                 : InstanceHealthStatus.Down;
+
+            if (o.Succeeded)
+            {
+                _reachability.RecordHealth(
+                    o.InstanceId,
+                    status,
+                    error: null,
+                    o.LatencyMs,
+                    o.Value?.InstanceId);
+            }
+            else if (!IsSkippedDownError(o.Error))
+            {
+                _reachability.RecordHealth(o.InstanceId, InstanceHealthStatus.Down, o.Error, o.LatencyMs, null);
+            }
 
             return new InstanceStatusDto
             {
@@ -91,9 +118,22 @@ public sealed class AdminFanOutService
         string? instances = null)
     {
         IReadOnlyList<AdminInstanceOptions> targets = ResolveInstanceFilter(scope, instances);
-        List<InstanceCallOutcome<AdminLiveStatsSnapshot>> outcomes =
-            await FanOutAsync(targets, (inst, ct) => _client.GetStatsAsync(inst, ct), cancellationToken)
-                .ConfigureAwait(false);
+
+        // Stats + domains in parallel; both skip known-down instances (no stacked timeouts).
+        Task<List<InstanceCallOutcome<AdminLiveStatsSnapshot>>> statsTask = FanOutAsync(
+            targets,
+            (inst, ct) => _client.GetStatsAsync(inst, ct),
+            cancellationToken,
+            skipKnownDown: true);
+        Task<List<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>>> domainsTask = FanOutAsync(
+            targets,
+            (inst, ct) => _client.GetDomainsAsync(inst, ct),
+            cancellationToken,
+            skipKnownDown: true);
+        await Task.WhenAll(statsTask, domainsTask).ConfigureAwait(false);
+
+        List<InstanceCallOutcome<AdminLiveStatsSnapshot>> outcomes = await statsTask.ConfigureAwait(false);
+        RecordDataOutcomes(outcomes);
 
         List<InstanceStatsContributionDto> contributions = outcomes.Select(o => new InstanceStatsContributionDto
         {
@@ -108,37 +148,32 @@ public sealed class AdminFanOutService
             .Select(o => o.Value!)
             .ToList();
 
-        // Config for TTL/schedule hints (best-effort from first healthy instance set).
+        // Config for TTL/schedule hints (best-effort from healthy instances).
         Dictionary<string, AdminDomainConfigDto> configByName = new(StringComparer.Ordinal);
-        try
+        List<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>> domainOutcomes =
+            await domainsTask.ConfigureAwait(false);
+        RecordDataOutcomes(domainOutcomes);
+        foreach (AdminDomainConfigDto c in domainOutcomes
+                     .Where(o => o.Succeeded && o.Value is not null)
+                     .SelectMany(o => o.Value!))
         {
-            FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>> cfg = await GetDomainsAsync(cancellationToken)
-                .ConfigureAwait(false);
-            if (cfg.Data is not null)
-            {
-                foreach (AdminDomainConfigDto c in cfg.Data)
-                    configByName[c.Name] = c;
-            }
-        }
-        catch
-        {
-            // Hints without config still apply rate-based rules.
+            configByName.TryAdd(c.Name, c);
         }
 
         IReadOnlyList<AdminDomainStatsDto> domains = StatsAggregator.MergeDomains(ok, groupByInstance)
             .Select(d =>
             {
                 configByName.TryGetValue(d.Name, out AdminDomainConfigDto? c);
-                return RecommendationHints.WithHints(d, c);
+                return _hints.WithHints(d, c);
             })
             .ToArray();
 
         IReadOnlyList<AdminEndpointStatsDto> endpoints = StatsAggregator.MergeEndpoints(ok, groupByInstance)
-            .Select(RecommendationHints.WithHints)
+            .Select(_hints.WithHints)
             .ToArray();
 
         IReadOnlyList<AdminEndpointStatsDto> unassigned = StatsAggregator.MergeUnassignedEndpoints(ok, groupByInstance)
-            .Select(RecommendationHints.WithHints)
+            .Select(_hints.WithHints)
             .ToArray();
 
         string scopeLabel = string.IsNullOrWhiteSpace(scope) ? "all" : scope.Trim();
@@ -159,8 +194,9 @@ public sealed class AdminFanOutService
 
     public async Task<OverviewDto> GetOverviewAsync(CancellationToken cancellationToken)
     {
+        // One health pass + one stats pass (with ByInstance). Do not re-fetch stats for hints.
         Task<IReadOnlyList<InstanceStatusDto>> instancesTask = GetInstancesAsync(cancellationToken);
-        Task<ClusterStatsDto> statsTask = GetStatsAsync("all", cancellationToken, groupByInstance: false);
+        Task<ClusterStatsDto> statsTask = GetStatsAsync("all", cancellationToken, groupByInstance: true);
         await Task.WhenAll(instancesTask, statsTask).ConfigureAwait(false);
 
         IReadOnlyList<InstanceStatusDto> instances = await instancesTask.ConfigureAwait(false);
@@ -197,14 +233,12 @@ public sealed class AdminFanOutService
         IReadOnlyList<AdminDomainStatsDto> topDomains = stats.Domains;
         IReadOnlyList<AdminEndpointStatsDto> topEndpoints = stats.Endpoints;
 
-        IReadOnlyList<AdminHintDto> allHints = RecommendationHints.CollectFromStats(stats.Domains, stats.Endpoints);
-        AdminHintSummaryDto clusterHints = RecommendationHints.Summarize(allHints);
+        IReadOnlyList<AdminHintDto> allHints = HintEngine.CollectFromStats(stats.Domains, stats.Endpoints);
+        AdminHintSummaryDto clusterHints = HintEngine.Summarize(allHints);
 
-        // Per-instance hint rollup (groupByInstance domain rows).
-        ClusterStatsDto byInst = await GetStatsAsync("all", cancellationToken, groupByInstance: true)
-            .ConfigureAwait(false);
+        // Per-instance hint rollup from ByInstance rows (same stats fetch).
         Dictionary<string, List<AdminHintDto>> instHintLists = new(StringComparer.OrdinalIgnoreCase);
-        foreach (AdminDomainStatsDto d in byInst.Domains)
+        foreach (AdminDomainStatsDto d in stats.Domains)
         {
             if (d.ByInstance is null)
                 continue;
@@ -218,7 +252,7 @@ public sealed class AdminFanOutService
                     instHintLists[row.InstanceId] = list;
                 }
 
-                list.AddRange(RecommendationHints.CollectFromStats([row], row.Endpoints));
+                list.AddRange(HintEngine.CollectFromStats([row], row.Endpoints));
             }
         }
 
@@ -236,7 +270,7 @@ public sealed class AdminFanOutService
                 StartedAtUtc = i.StartedAtUtc,
                 UptimeSeconds = i.UptimeSeconds,
                 Requests = i.Requests,
-                HintSummary = hl is null ? new AdminHintSummaryDto() : RecommendationHints.Summarize(hl)
+                HintSummary = hl is null ? new AdminHintSummaryDto() : HintEngine.Summarize(hl)
             };
         }).ToArray();
 
@@ -261,7 +295,7 @@ public sealed class AdminFanOutService
             TotalInvalidations = totalInvalidations,
             Pipeline = pipeline,
             OcHitShare = oc.HitShare,
-            OriginShare = fc.OriginShare,
+            FactoryShare = fc.FactoryShare,
             Alerts = alerts,
             TopDomains = topDomains,
             TopEndpoints = topEndpoints,
@@ -321,20 +355,21 @@ public sealed class AdminFanOutService
 
         take = Math.Clamp(take, 1, 500);
         skip = Math.Max(0, skip);
-        string sortKey = (sort ?? "originShare").Trim().ToLowerInvariant();
+        string sortKey = (sort ?? "factoryShare").Trim().ToLowerInvariant();
 
         IOrderedEnumerable<AdminEndpointStatsDto> ordered = sortKey switch
         {
             "hits" or "traffic" or "requests" => all.OrderByDescending(e => e.Requests),
             "route" => all.OrderBy(e => e.Route, StringComparer.OrdinalIgnoreCase),
             "ochitshare" => all.OrderByDescending(e => e.Oc.HitShare ?? -1),
-            "ocmissrate" => all.OrderByDescending(e => e.Oc.MissRate ?? -1),
             "fchitshare" => all.OrderByDescending(e => e.Fc.HitShare ?? -1),
+            "factoryshare" or "originshare" => all.OrderByDescending(e => e.Fc.FactoryShare ?? -1),
+            "ocmissrate" => all.OrderByDescending(e => e.Oc.MissRate ?? -1),
             "fcmissshare" => all.OrderByDescending(e => e.Fc.MissShare ?? -1),
             "fcmissrate" or "missrate" => all.OrderByDescending(e => e.Fc.MissRate ?? -1),
             "fchits" => all.OrderByDescending(e => e.Fc.Hits),
             "stale" => all.OrderByDescending(e => e.Fc.Stale),
-            _ => all.OrderByDescending(e => e.Fc.OriginShare ?? e.Fc.MissShare ?? -1)
+            _ => all.OrderByDescending(e => e.Fc.FactoryShare ?? e.Fc.MissShare ?? -1)
         };
 
         return ordered.Skip(skip).Take(take).ToArray();
@@ -345,8 +380,13 @@ public sealed class AdminFanOutService
     {
         IReadOnlyList<AdminInstanceOptions> instances = GetConfiguredInstances();
         List<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>> outcomes =
-            await FanOutAsync(instances, (inst, ct) => _client.GetDomainsAsync(inst, ct), cancellationToken)
+            await FanOutAsync(
+                    instances,
+                    (inst, ct) => _client.GetDomainsAsync(inst, ct),
+                    cancellationToken,
+                    skipKnownDown: true)
                 .ConfigureAwait(false);
+        RecordDataOutcomes(outcomes);
 
         // Prefer first successful snapshot set (config is expected to match across instances; overlays may differ).
         IReadOnlyList<AdminDomainConfigDto>? data = outcomes
@@ -382,8 +422,19 @@ public sealed class AdminFanOutService
     {
         IReadOnlyList<AdminInstanceOptions> all = GetConfiguredInstances();
         List<InstanceCallOutcome<LocalClusterInfoDto>> outcomes =
-            await FanOutAsync(all, (inst, ct) => _client.GetClusterInfoAsync(inst, ct), cancellationToken)
+            await FanOutAsync(
+                    all,
+                    (inst, ct) => _client.GetClusterInfoAsync(inst, ct),
+                    cancellationToken,
+                    skipKnownDown: true)
                 .ConfigureAwait(false);
+        // Cluster info may be missing when the bus is off — do not mark instances Down.
+        // A successful probe still refreshes reachability as Up.
+        foreach (InstanceCallOutcome<LocalClusterInfoDto> o in outcomes)
+        {
+            if (o.Succeeded && !IsSkippedDownError(o.Error))
+                _reachability.RecordSuccess(o.InstanceId, o.Value?.InstanceId, o.LatencyMs);
+        }
 
         List<InstanceClusterProbeDto> probes = outcomes.Select(o =>
         {
@@ -435,8 +486,13 @@ public sealed class AdminFanOutService
         };
 
         List<InstanceCallOutcome<CacheInvalidationResult>> outcomes =
-            await FanOutAsync(plan.Targets, (inst, ct) => _client.InvalidateAsync(inst, body, ct), cancellationToken)
+            await FanOutAsync(
+                    plan.Targets,
+                    (inst, ct) => _client.InvalidateAsync(inst, body, ct),
+                    cancellationToken,
+                    skipKnownDown: true)
                 .ConfigureAwait(false);
+        RecordDataOutcomes(outcomes);
 
         return new FanOutResultDto<object?>
         {
@@ -469,8 +525,10 @@ public sealed class AdminFanOutService
             await FanOutAsync(
                     plan.Targets,
                     (inst, ct) => _client.SetVersionAsync(inst, domain, body, ct),
-                    cancellationToken)
+                    cancellationToken,
+                    skipKnownDown: true)
                 .ConfigureAwait(false);
+        RecordDataOutcomes(outcomes);
 
         return new FanOutResultDto<object?>
         {
@@ -508,8 +566,10 @@ public sealed class AdminFanOutService
             await FanOutAsync(
                     plan.Targets,
                     (inst, ct) => _client.PatchTtlAsync(inst, domain, body, ct),
-                    cancellationToken)
+                    cancellationToken,
+                    skipKnownDown: true)
                 .ConfigureAwait(false);
+        RecordDataOutcomes(outcomes);
 
         return new FanOutResultDto<object?>
         {
@@ -587,10 +647,15 @@ public sealed class AdminFanOutService
         string? BusOriginInstanceId,
         string Summary);
 
+    /// <summary>
+    /// Parallel fan-out. When <paramref name="skipKnownDown"/> is true, instances marked Down
+    /// within the re-probe window return a failed outcome immediately (no HTTP / no timeout wait).
+    /// </summary>
     private async Task<List<InstanceCallOutcome<T>>> FanOutAsync<T>(
         IReadOnlyList<AdminInstanceOptions> instances,
         Func<AdminInstanceOptions, CancellationToken, Task<InstanceCallOutcome<T>>> call,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool skipKnownDown = true)
     {
         if (instances.Count == 0)
             return [];
@@ -601,6 +666,21 @@ public sealed class AdminFanOutService
 
         foreach (AdminInstanceOptions instance in instances)
         {
+            if (skipKnownDown && _reachability.ShouldSkipUnreachable(instance.Id))
+            {
+                CachedInstanceHealth? cached = _reachability.TryGetSkippedDown(instance.Id);
+                tasks.Add(Task.FromResult(new InstanceCallOutcome<T>
+                {
+                    InstanceId = instance.Id,
+                    Succeeded = false,
+                    Error = cached?.Error is { Length: > 0 } err
+                        ? $"Skipped (instance down): {err}"
+                        : "Skipped (instance down; will re-probe shortly).",
+                    LatencyMs = 0
+                }));
+                continue;
+            }
+
             tasks.Add(RunOneAsync(instance, call, gate, cancellationToken));
         }
 
@@ -624,6 +704,22 @@ public sealed class AdminFanOutService
             gate.Release();
         }
     }
+
+    private void RecordDataOutcomes<T>(IEnumerable<InstanceCallOutcome<T>> outcomes)
+    {
+        foreach (InstanceCallOutcome<T> o in outcomes)
+        {
+            if (IsSkippedDownError(o.Error))
+                continue;
+            if (o.Succeeded)
+                _reachability.RecordSuccess(o.InstanceId, latencyMs: o.LatencyMs);
+            else
+                _reachability.RecordFailure(o.InstanceId, o.Error, o.LatencyMs);
+        }
+    }
+
+    private static bool IsSkippedDownError(string? error) =>
+        error is not null && error.StartsWith("Skipped (instance down", StringComparison.Ordinal);
 
     private static string NormalizeScopeToTarget(string? scope)
     {

@@ -23,10 +23,27 @@ public sealed class CacheAdminOptions
     public int Parallelism { get; set; } = 8;
 
     /// <summary>
+    /// After an instance is marked Down, skip further HTTP to it for this many seconds,
+    /// then re-probe. Keeps the UI responsive when some targets are offline (default 15).
+    /// </summary>
+    public int DownReprobeSeconds { get; set; } = 15;
+
+    /// <summary>
     /// Path prefix of the Local Admin API on each instance (no trailing slash).
     /// Default: <c>/cache-admin/local</c>.
     /// </summary>
     public string LocalPathPrefix { get; set; } = "/cache-admin/local";
+
+    /// <summary>
+    /// Optional Prometheus-compatible metrics store for time-series UI.
+    /// Leave unset (or <c>Enabled: false</c>) when not used.
+    /// </summary>
+    public MetricsStoreOptions Metrics { get; set; } = new();
+
+    /// <summary>
+    /// Operator recommendation rules (built-in + optional declarative JSON files).
+    /// </summary>
+    public HintOptions Hints { get; set; } = new();
 }
 
 /// <summary>One target instance in the Admin App instance list.</summary>

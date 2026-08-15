@@ -1,6 +1,6 @@
 # Observability
 
-Dashboards, health, and live counters across instances: [admin.md](admin.md). The Admin API (`Cache:Admin:Enabled`) reports lifetime totals. Time series belong on the `CacheOrchestrator` meter (OpenTelemetry / Prometheus).
+Dashboards, health, and live counters across instances: [admin.md](admin.md). The Admin API (`Cache:Admin:Enabled`) reports lifetime totals. Time series belong on the `CacheOrchestrator` meter (OpenTelemetry / Prometheus). The Admin App can plot scraped series via optional `CacheAdmin:Metrics` (Prometheus HTTP API) — see [admin.md — Metrics store](admin.md#metrics-store-time-series). Local dev scrape of the Playground sample (sample-only Docker Compose, not a NuGet dependency): [samples/CacheOrchestrator.Sample/deploy/prometheus/README.md](../samples/CacheOrchestrator.Sample/deploy/prometheus/README.md).
 
 ## X-Cache response header
 
@@ -47,11 +47,13 @@ Meter name: **`CacheOrchestrator`**
 
 | Instrument | Description |
 |------------|-------------|
-| `cache_orchestrator.fc.requests` | Fusion ops by `domain`, `result` (`hit`/`miss`/`stale`/`bypass`/`off`/`unresolved`; domain `_` when unresolved) |
-| `cache_orchestrator.fc.duration` | Fusion duration (ms) |
-| `cache_orchestrator.oc.requests` | Output outcomes by `domain`, `result` |
+| `cache_orchestrator.fc.requests` | Fusion ops by `domain`, `result` (`hit`/`miss`/`stale`/`bypass`/`off`/`unresolved`; domain `_` when unresolved); optional `route` |
+| `cache_orchestrator.fc.duration` | Fusion duration (ms); optional `route` |
+| `cache_orchestrator.oc.requests` | Output outcomes by `domain`, `result`; optional `route` |
 | `cache_orchestrator.client.schedule` | Client Cache Schedule by `domain`, `phase` |
 | `cache_orchestrator.invalidate` | Successful full invalidations by `domain` |
+
+**`route` tag** — when `Cache:Metrics:IncludeEndpointLabel` is `true` (default), OC/FC instruments add a stable endpoint key (`METHOD` + route template, same as Admin App endpoint rows). Never uses raw paths with resource ids. Set `false` to drop the tag (lower cardinality). Keep the setting consistent across instances. Domain labels always remain.
 | `cache_orchestrator.cluster.commands_published` | Cluster bus origin publish (`command_type`) — [cluster-bus.md](cluster-bus.md) |
 | `cache_orchestrator.cluster.commands_received` | Cluster commands accepted on receive path |
 | `cache_orchestrator.cluster.commands_applied` | Cluster ApplyLocal success |
