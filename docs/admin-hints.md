@@ -75,11 +75,11 @@ Full disable options and pack examples: [hints/README.md](../src/CacheOrchestrat
 
 | Level | Meaning |
 |-------|---------|
-| **Critical** | Pipeline badly wrong (e.g. origin ≥ 50%, factory mostly failing) |
-| **Warning** | Fault worth fixing (high origin, stale covering failures, drift, hard &lt; soft TTL, lingering hold) |
+| **Critical** | Pipeline badly wrong (e.g. factory share ≥ 50%, factory mostly failing) |
+| **Warning** | Fault worth fixing (high factory share, stale covering failures, drift, hard &lt; soft TTL, lingering hold) |
 | **Info** | Operational note (approaching cutover, recent hold, runtime overlay, frequent invalidations) |
 
-**Origin share** in Admin is the same as **Fusion factory share**: `factoryRuns / requests` (CDN “origin” = factory miss path). Prefer **origin share** / factory failure rate over raw Fusion layer hit rate. A 0% FC layer rate with low origin is often normal when Output Cache absorbs traffic.
+**Factory share** in Admin is `factoryRuns / requests` (API: `factoryShare`; obsolete synonym `originShare`). **Factory** is also known as **origin** in CDN terms. Prefer factory share / factory failure rate over raw Fusion layer hit rate. A 0% FC layer rate with low factory share is often normal when Output Cache absorbs traffic.
 
 ---
 
@@ -89,7 +89,7 @@ Shipped in `core-hints.json` (domain and/or endpoint scope as applicable):
 
 | Codes | Theme |
 |-------|--------|
-| `high-origin-share`, `critical-origin-share` | Origin / factory share |
+| `high-origin-share`, `critical-origin-share` | Factory share (API: `factoryShare` / obsolete `originShare`) |
 | `elevated-stale` | Fail-safe stale share |
 | `factory-failures`, `critical-factory-failures` | Factory error rate |
 | `frequent-invalidations` | Invalidation vs traffic |
@@ -97,7 +97,7 @@ Shipped in `core-hints.json` (domain and/or endpoint scope as applicable):
 | `client-ttl-gt-output`, `schedule-flat` | Client TTL / ramp |
 | `fusion-hard-lt-soft` | Fusion soft vs hard |
 | `runtime-override` | Runtime Version/TTL overlay |
-| `instance-oc-hit-spread`, `instance-origin-spread` | Cross-instance drift |
+| `instance-oc-hit-spread`, `instance-origin-spread` | Cross-instance factory / OC drift |
 
 Exact thresholds and messages: open **`core-hints.json`** or Settings → click a row.
 

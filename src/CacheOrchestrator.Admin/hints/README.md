@@ -16,7 +16,7 @@ You can add rules **without recompiling** the Admin App: drop a JSON file here, 
 
 ## Why customize
 
-Default rules cover common origin-share, factory failure, schedule, and TTL problems. Teams often need:
+Default rules cover common factory-share (also known as origin), factory failure, schedule, and TTL problems. Teams often need:
 
 - Stricter or looser thresholds  
 - Environment-specific codes (e.g. “staging origin share is OK until 40%”)  
@@ -72,17 +72,17 @@ Example: `hints/team-ops.json`
     {
       "code": "team-high-origin",
       "severity": "Warning",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "domain",
-      "description": "Team threshold: origin share above 30% with enough traffic",
+      "description": "Team threshold: factory share above 30% with enough traffic",
       "enabled": true,
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.originShare", "op": ">=", "value": 0.30 }
+          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.30 }
         ]
       },
-      "message": "Origin is {domain.fc.originShare:p1} of {domain.requests} requests on {domain.name} — check TTL and key cardinality."
+      "message": "Factory is {domain.fc.factoryShare:p1} of {domain.requests} requests on {domain.name} — check TTL and key cardinality."
     }
   ]
 }
@@ -118,7 +118,7 @@ List badges use `wwwroot/js/hints.js` → `shortHint()`. Unknown codes still sho
     {
       "code": "stable-kebab-id",
       "severity": "Warning",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "domain",
       "description": "Shown in Settings catalog",
       "enabled": true,
@@ -144,11 +144,11 @@ List badges use `wwwroot/js/hints.js` → `shortHint()`. Unknown codes still sho
 
 | Level | Use for |
 |-------|---------|
-| **Critical** | Pipeline badly wrong (e.g. origin ≥ 50%, factory mostly failing) |
+| **Critical** | Pipeline badly wrong (e.g. factory share ≥ 50%, factory mostly failing) |
 | **Warning** | Fault worth fixing soon |
 | **Info** | Expected temporary / operational note |
 
-**Origin share** = **Fusion factory share** (`factoryRuns / requests`). Admin uses the CDN word *origin* for the same miss path library docs call *factory*. Prefer **origin share** and **factory failure rate** over raw Fusion *layer* hit rate. A 0% FC layer rate with low origin is often normal when Output Cache serves most traffic.
+**Factory share** = `factoryRuns / requests` (API: `factoryShare`; obsolete synonym `originShare`). **Factory** is also known as **origin** in CDN terms. Prefer factory share and factory failure rate over raw Fusion *layer* hit rate. A 0% FC layer rate with low factory share is often normal when Output Cache serves most traffic.
 
 ### Conditions
 
@@ -167,7 +167,7 @@ List badges use `wwwroot/js/hints.js` → `shortHint()`. Unknown codes still sho
 | Template | Result |
 |----------|--------|
 | `{domain.name}` | Domain name |
-| `{domain.fc.originShare:p1}` | e.g. `32.5%` (ratio × 100, 1 decimal) |
+| `{domain.fc.factoryShare:p1}` | e.g. `32.5%` (ratio × 100, 1 decimal); `originShare` still works |
 | `{domain.requests}` | Number as text |
 | `{path:0.#}` | Numeric format |
 
@@ -190,7 +190,8 @@ The compiler rejects unknown paths. Common ones:
 | Path | Meaning |
 |------|---------|
 | `domain.requests` | Aggregated request count |
-| `domain.fc.originShare` | Origin share = factory runs ÷ requests (0–1) |
+| `domain.fc.factoryShare` | Factory share (also known as origin) = factory runs ÷ requests (0–1) |
+| `domain.fc.originShare` | Obsolete synonym for `factoryShare` |
 | `domain.fc.staleShare` | Stale share 0–1 |
 | `domain.fc.factoryRuns` / `factoryFailures` / `factoryFailureRate` | Factory health |
 | `domain.invalidations` / `domain.invalidationShare` | Invalidation pressure |

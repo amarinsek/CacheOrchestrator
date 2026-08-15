@@ -119,16 +119,16 @@ The Admin App evaluates **read-only rules** against aggregated live stats (and d
     {
       "code": "team-high-origin",
       "severity": "Warning",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "domain",
       "enabled": true,
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.originShare", "op": ">=", "value": 0.30 }
+          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.30 }
         ]
       },
-      "message": "Origin is {domain.fc.originShare:p1} on {domain.name}."
+      "message": "Factory is {domain.fc.factoryShare:p1} on {domain.name}."
     }
   ]
 }

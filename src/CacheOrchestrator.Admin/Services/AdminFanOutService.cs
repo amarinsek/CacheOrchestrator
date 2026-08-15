@@ -295,7 +295,7 @@ public sealed class AdminFanOutService
             TotalInvalidations = totalInvalidations,
             Pipeline = pipeline,
             OcHitShare = oc.HitShare,
-            OriginShare = fc.OriginShare,
+            FactoryShare = fc.FactoryShare,
             Alerts = alerts,
             TopDomains = topDomains,
             TopEndpoints = topEndpoints,
@@ -355,20 +355,21 @@ public sealed class AdminFanOutService
 
         take = Math.Clamp(take, 1, 500);
         skip = Math.Max(0, skip);
-        string sortKey = (sort ?? "originShare").Trim().ToLowerInvariant();
+        string sortKey = (sort ?? "factoryShare").Trim().ToLowerInvariant();
 
         IOrderedEnumerable<AdminEndpointStatsDto> ordered = sortKey switch
         {
             "hits" or "traffic" or "requests" => all.OrderByDescending(e => e.Requests),
             "route" => all.OrderBy(e => e.Route, StringComparer.OrdinalIgnoreCase),
             "ochitshare" => all.OrderByDescending(e => e.Oc.HitShare ?? -1),
-            "ocmissrate" => all.OrderByDescending(e => e.Oc.MissRate ?? -1),
             "fchitshare" => all.OrderByDescending(e => e.Fc.HitShare ?? -1),
+            "factoryshare" or "originshare" => all.OrderByDescending(e => e.Fc.FactoryShare ?? -1),
+            "ocmissrate" => all.OrderByDescending(e => e.Oc.MissRate ?? -1),
             "fcmissshare" => all.OrderByDescending(e => e.Fc.MissShare ?? -1),
             "fcmissrate" or "missrate" => all.OrderByDescending(e => e.Fc.MissRate ?? -1),
             "fchits" => all.OrderByDescending(e => e.Fc.Hits),
             "stale" => all.OrderByDescending(e => e.Fc.Stale),
-            _ => all.OrderByDescending(e => e.Fc.OriginShare ?? e.Fc.MissShare ?? -1)
+            _ => all.OrderByDescending(e => e.Fc.FactoryShare ?? e.Fc.MissShare ?? -1)
         };
 
         return ordered.Skip(skip).Take(take).ToArray();

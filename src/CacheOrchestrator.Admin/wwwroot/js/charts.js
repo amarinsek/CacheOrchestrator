@@ -117,10 +117,11 @@ export function openChartModal(opts) {
     yTicks: 8,
     interactive: true,
   };
+  const desc = opts.description && String(opts.description).trim();
   backdrop.innerHTML = `
     <div class="chart-modal" role="dialog" aria-modal="true" aria-label="${esc(opts.title || "Chart")}">
       <div class="chart-modal-head">
-        <h2>${esc(opts.title || "Chart")}</h2>
+        <h2${desc ? ` title="${esc(desc)}"` : ""}>${esc(opts.title || "Chart")}</h2>
         <div class="chart-modal-actions">
           <button type="button" class="secondary chart-modal-icon-btn chart-modal-close" aria-label="Close" title="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>

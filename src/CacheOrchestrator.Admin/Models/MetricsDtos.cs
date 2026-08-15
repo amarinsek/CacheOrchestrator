@@ -100,6 +100,9 @@ public sealed class MetricsPanelDto
     /// <summary>Title.</summary>
     public required string Title { get; init; }
 
+    /// <summary>Plain-language description for UI tooltips (what the chart shows).</summary>
+    public string? Description { get; init; }
+
     /// <summary>Unit for formatting.</summary>
     public required string Unit { get; init; }
 

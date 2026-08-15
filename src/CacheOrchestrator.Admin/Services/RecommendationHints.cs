@@ -17,10 +17,18 @@ public static class RecommendationHints
     public const long MinFactoryRuns = 10;
 
     /// <summary>Factory share of all requests that warrants a warning.</summary>
-    public const double OriginShareWarning = 0.25;
+    public const double FactoryShareWarning = 0.25;
+
+    /// <summary>Obsolete synonym for <see cref="FactoryShareWarning"/>.</summary>
+    [Obsolete("Use FactoryShareWarning.")]
+    public const double OriginShareWarning = FactoryShareWarning;
 
     /// <summary>Factory share that dominates the pipeline.</summary>
-    public const double OriginShareCritical = 0.50;
+    public const double FactoryShareCritical = 0.50;
+
+    /// <summary>Obsolete synonym for <see cref="FactoryShareCritical"/>.</summary>
+    [Obsolete("Use FactoryShareCritical.")]
+    public const double OriginShareCritical = FactoryShareCritical;
 
     /// <summary>Stale share of all requests that means fail-safe is covering repeated factory trouble.</summary>
     public const double StaleShareWarning = 0.10;
@@ -43,14 +51,14 @@ public static class RecommendationHints
 
         if (domain.Requests >= MinTraffic)
         {
-            if (domain.Fc.OriginShare is double origin && origin >= OriginShareWarning)
+            if (domain.Fc.FactoryShare is double factory && factory >= FactoryShareWarning)
             {
-                string severity = origin >= OriginShareCritical ? "Critical" : "Warning";
-                string code = origin >= OriginShareCritical ? "critical-origin-share" : "high-origin-share";
+                string severity = factory >= FactoryShareCritical ? "Critical" : "Warning";
+                string code = factory >= FactoryShareCritical ? "critical-origin-share" : "high-origin-share";
                 hints.Add(Hint(
                     severity,
                     code,
-                    $"Origin/factory is {(origin * 100):0.#}% of {domain.Requests} requests — " +
+                    $"Factory is {(factory * 100):0.#}% of {domain.Requests} requests — " +
                     "the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."));
             }
 
@@ -144,14 +152,14 @@ public static class RecommendationHints
 
         if (ep.Requests >= MinTraffic)
         {
-            if (ep.Fc.OriginShare is double origin && origin >= OriginShareWarning)
+            if (ep.Fc.FactoryShare is double factory && factory >= FactoryShareWarning)
             {
-                string severity = origin >= OriginShareCritical ? "Critical" : "Warning";
-                string code = origin >= OriginShareCritical ? "critical-origin-share" : "high-origin-share";
+                string severity = factory >= FactoryShareCritical ? "Critical" : "Warning";
+                string code = factory >= FactoryShareCritical ? "critical-origin-share" : "high-origin-share";
                 hints.Add(Hint(
                     severity,
                     code,
-                    $"Origin is {(origin * 100):0.#}% of requests on this route — factory runs too often."));
+                    $"Factory is {(factory * 100):0.#}% of requests on this route — factory runs too often."));
             }
 
             if (ep.Fc.Stale > 0 && ep.Fc.StaleShare is double ss && ss >= StaleShareWarning)
@@ -162,12 +170,12 @@ public static class RecommendationHints
                     $"Stale share {(ss * 100):0.#}% — fail-safe after factory issues."));
             }
 
-            if (ep.InstanceSpread?.OriginShare is { SampleCount: >= 2, Stdev: double sd } && sd >= 0.15)
+            if (ep.InstanceSpread?.FactoryShare is { SampleCount: >= 2, Stdev: double sd } && sd >= 0.15)
             {
                 hints.Add(Hint(
                     "Warning",
                     "instance-origin-spread",
-                    $"Origin share differs across instances (stdev {(sd * 100):0.#}%)."));
+                    $"Factory share differs across instances (stdev {(sd * 100):0.#}%)."));
             }
         }
 

@@ -138,18 +138,20 @@ Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
 | Metric type | Question it answers |
 |-------------|---------------------|
-| **Request share** (`hitShare`, `originShare`, …) | Of **all** requests, what fraction? |
+| **Request share** (`hitShare`, `originShare` / factory share, …) | Of **all** requests, what fraction? |
 | **Layer rate** (`hitRate`, …) | Of traffic that **reached that layer**, what fraction? |
 
-#### Origin share = factory share
+#### Factory share (also known as origin)
 
-In library docs the miss path is the **factory** (`GetOrSet` lambda / DB). In Admin UI the same idea is labeled **Origin** (CDN/proxy language: traffic that reaches the origin).
+The miss path that runs your `GetOrSet` lambda / DB is the **factory**. Admin UI labels this **Factory** (Factory share, Factory runs). It is **also known as origin** in CDN/proxy language (traffic that reaches the origin).
 
-| Admin label | Formula | Same as |
-|-------------|---------|---------|
-| **Origin share** (`fc.originShare`) | `factoryRuns / requests` | Fusion factory share of traffic |
+| Admin label | API / JSON field | Formula |
+|-------------|------------------|---------|
+| **OC hit share** | `oc.hitShare` / pipeline `ocHitShare` | `ocHits / requests` |
+| **FC hit share** | `fc.hitShare` / pipeline `fcHitShare` | `fcHits / requests` |
+| **Factory share** | `fc.factoryShare` (obsolete synonym: `originShare`) | `factoryRuns / requests` |
 
-So **origin** here is not a separate origin-server counter — it is the factory miss path. Tooltips and hints say “Origin/factory” for that reason. Prefer **origin share** (and factory failure rate) over raw FC *layer* hit rate for cluster health: a high FC miss rate with high OC hit share is often normal (Fusion barely runs). Recommendation rules use the same preference — see [admin-hints.md](admin-hints.md).
+These three are **request shares** (same denominator). The pipeline bar shows them plus Bypass / Other. **Layer rates** (e.g. FC miss rate = misses among traffic that reached Fusion) stay on **detail** views — a high FC *layer* miss rate with high OC hit share is often normal. Prefer factory share for “is the cache absorbing traffic?” — see [admin-hints.md](admin-hints.md).
 
 ### Health semantics (Admin App mapping)
 
@@ -250,7 +252,7 @@ Quick operator steps: [Admin App README](../src/CacheOrchestrator.Admin/README.m
 
 ### What the SPA shows
 
-- Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/Origin, Req, Inv, hints, optional metrics store pill) → **menu**  
+- Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/FC/Factory shares, Req, Inv, hints, optional metrics store pill) → **menu**  
 - Overview: instances; **top 5 domains** and **top 5 endpoints** after sorting the **full** aggregated lists; optional **last 1h** embed when Metrics store is connected  
 - Lists: filters, search, sort; detail pages; Hints page  
 - **Metrics** (`#/metrics`): window charts from Prometheus (req rate, OC/FC shares, invalidations, schedule phase, cluster failures, FC p95)  
@@ -345,7 +347,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 | All instances **Down** | Wrong URL/port; Admin API not mapped; firewall; **401** wrong/missing ApiKey |
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
 | Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
-| High FC miss rate, everything “fine” | Prefer **origin share** (factory share) / OC hit share — see shares vs rates |
+| High FC miss rate, everything “fine” | Prefer **factory share** (also known as origin) / OC hit share — see shares vs rates |
 | Scalar OpenAPI missing | Only mapped in **Development** on Admin App (OpenAPI document: Microsoft.AspNetCore.OpenApi on net10, Swashbuckle on net8) |
 | CORS issues calling Admin API from a browser | Prefer Admin App fan-out; Admin API is for server-side callers |
 

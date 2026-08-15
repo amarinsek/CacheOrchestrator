@@ -34,18 +34,18 @@
 
     <nav class="chrome-strip app-nav" id="appNav">
       <div class="nav-left">
-        <a href="#/overview" data-nav="overview">Overview</a>
-        <a href="#/instances" data-nav="instances">Instances</a>
-        <a href="#/domains" data-nav="domains">Domains</a>
-        <a href="#/endpoints" data-nav="endpoints">Endpoints</a>
-        <a href="#/metrics" data-nav="metrics">Metrics</a>
+        <a href="#/overview" data-nav="overview" title="Cluster snapshot: instances, top domains/endpoints, pipeline">Overview</a>
+        <a href="#/instances" data-nav="instances" title="Configured target apps and health probes">Instances</a>
+        <a href="#/domains" data-nav="domains" title="Cache domains — policy groups (TTL, version, providers)">Domains</a>
+        <a href="#/endpoints" data-nav="endpoints" title="Routes with cache counters (method + template)">Endpoints</a>
+        <a href="#/metrics" data-nav="metrics" title="Windowed charts from optional Prometheus-compatible store">Metrics</a>
       </div>
       <div class="nav-right">
-        <a href="#/hints" data-nav="hints" class="nav-hints">
+        <a href="#/hints" data-nav="hints" class="nav-hints" title="Recommendation hints after fan-out aggregation">
           <span data-nav-hints-badge class="nav-hints-badge"><span class="sev-stack empty">○</span></span>
           Hints
         </a>
-        <div class="nav-refresh" title="Auto-refresh interval">
+        <div class="nav-refresh" title="Auto-refresh interval for soft page reload">
           <select id="selAutoRefresh" aria-label="Auto refresh">
             <option value="0">Off</option>
             <option value="5">5 s</option>
@@ -56,9 +56,9 @@
           </select>
           <button type="button" id="btnHeaderRefresh" title="Refresh now">↻</button>
         </div>
-        <a href="#/operations" data-nav="operations">Operations</a>
-        <a href="#/settings" data-nav="settings">Settings</a>
-        <a href="/scalar/v1" target="_blank" rel="noopener" class="nav-api">API</a>
+        <a href="#/operations" data-nav="operations" title="Invalidate, version/TTL overlay, cluster bus distribute">Operations</a>
+        <a href="#/settings" data-nav="settings" title="Hint rule packs, enable/disable codes">Settings</a>
+        <a href="/scalar/v1" target="_blank" rel="noopener" class="nav-api" title="OpenAPI document for Admin App HTTP API">API</a>
       </div>
     </nav>
   </div>

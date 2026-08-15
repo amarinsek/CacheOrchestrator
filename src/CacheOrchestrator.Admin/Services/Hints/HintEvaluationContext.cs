@@ -23,7 +23,7 @@ public sealed class HintEvaluationContext
         new Dictionary<string, AdminDomainConfigDto>(StringComparer.Ordinal);
 
     /// <summary>
-    /// Resolves a dotted path used by declarative rules (e.g. <c>domain.fc.originShare</c>).
+    /// Resolves a dotted path used by declarative rules (e.g. <c>domain.fc.factoryShare</c>).
     /// Returns <see langword="null"/> when missing (comparisons treat null as not matching).
     /// </summary>
     public object? ResolvePath(string path)

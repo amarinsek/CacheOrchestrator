@@ -79,8 +79,28 @@ public sealed class AdminFusionLayerDto
     /// <summary>Request share: bypass / requests.</summary>
     public double? BypassShare { get; init; }
 
-    /// <summary>Request share: factoryRuns / requests (origin load).</summary>
-    public double? OriginShare { get; init; }
+    private double? _factoryShare;
+
+    /// <summary>
+    /// Request share: factoryRuns / requests (Fusion factory / miss path).
+    /// Also known as origin share in CDN terms.
+    /// </summary>
+    public double? FactoryShare
+    {
+        get => _factoryShare;
+        init => _factoryShare = value;
+    }
+
+    /// <summary>
+    /// Obsolete synonym for <see cref="FactoryShare"/> (JSON <c>originShare</c>).
+    /// Prefer <see cref="FactoryShare"/>. Kept for wire compatibility.
+    /// </summary>
+    [Obsolete("Use FactoryShare. OriginShare remains for JSON/wire compatibility.")]
+    public double? OriginShare
+    {
+        get => _factoryShare;
+        init => _factoryShare = value;
+    }
 
     /// <summary>True when layer sample is positive but low.</summary>
     public bool LowSample { get; init; }
@@ -98,8 +118,27 @@ public sealed class AdminPipelineDto
     /// <summary>Served from Fusion without factory.</summary>
     public double? FcHitShare { get; init; }
 
-    /// <summary>Origin / factory share.</summary>
-    public double? OriginShare { get; init; }
+    private double? _factoryShare;
+
+    /// <summary>
+    /// Factory share of requests (factoryRuns / requests). Also known as origin share.
+    /// </summary>
+    public double? FactoryShare
+    {
+        get => _factoryShare;
+        init => _factoryShare = value;
+    }
+
+    /// <summary>
+    /// Obsolete synonym for <see cref="FactoryShare"/> (JSON <c>originShare</c>).
+    /// Prefer <see cref="FactoryShare"/>.
+    /// </summary>
+    [Obsolete("Use FactoryShare. OriginShare remains for JSON/wire compatibility.")]
+    public double? OriginShare
+    {
+        get => _factoryShare;
+        init => _factoryShare = value;
+    }
 
     /// <summary>OC or FC bypass share (combined).</summary>
     public double? BypassShare { get; init; }
@@ -175,8 +214,25 @@ public sealed class AdminInstanceSpreadDto
     /// <summary>FC miss share across instances.</summary>
     public AdminShareSpreadDto? FcMissShare { get; init; }
 
-    /// <summary>Origin share across instances.</summary>
-    public AdminShareSpreadDto? OriginShare { get; init; }
+    private AdminShareSpreadDto? _factoryShare;
+
+    /// <summary>Factory share across instances (also known as origin share).</summary>
+    public AdminShareSpreadDto? FactoryShare
+    {
+        get => _factoryShare;
+        init => _factoryShare = value;
+    }
+
+    /// <summary>
+    /// Obsolete synonym for <see cref="FactoryShare"/> (JSON <c>originShare</c>).
+    /// Prefer <see cref="FactoryShare"/>.
+    /// </summary>
+    [Obsolete("Use FactoryShare. OriginShare remains for JSON/wire compatibility.")]
+    public AdminShareSpreadDto? OriginShare
+    {
+        get => _factoryShare;
+        init => _factoryShare = value;
+    }
 
     /// <summary>OC layer hit rate across instances.</summary>
     public AdminShareSpreadDto? OcHitRate { get; init; }

@@ -78,7 +78,7 @@ public class StatsAggregatorTests
         oc.HitShare.Should().BeApproximately(0.99, 0.0001);
         fc.MissRate.Should().BeApproximately(1.0, 0.0001);
         fc.MissShare.Should().BeApproximately(0.01, 0.0001);
-        fc.OriginShare.Should().BeApproximately(0.01, 0.0001);
+        fc.FactoryShare.Should().BeApproximately(0.01, 0.0001);
         pipe.OcHitShare.Should().BeApproximately(0.99, 0.0001);
     }
 

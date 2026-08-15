@@ -11,11 +11,15 @@ import {
   esc,
   formatLatencyMs,
   formatUptime,
+  factoryShareOf,
   fmtUnit,
+  METRIC_TITLES,
   num,
   pct,
   pipelineBar,
   spreadCell,
+  thMetric,
+  tipAttr,
 } from "./format.js";
 import {
   applyButtonHtml,
@@ -111,9 +115,9 @@ function paintOverviewBody(o, params, soft) {
   const noCfg = noInstancesConfigured(o.instances);
   const instSort = params.get("instSort") || "status";
   // Sort the full overview lists (all domains / all endpoints), then take top 5.
-  // Default keys match “interesting” ranking (origin share, then traffic via sort helpers).
-  const domSort = params.get("domSort") || "originShare";
-  const epSort = params.get("epSort") || "originShare";
+  // Default keys match “interesting” ranking (factory share / originShare, then traffic via sort helpers).
+  const domSort = params.get("domSort") || "factoryShare";
+  const epSort = params.get("epSort") || "factoryShare";
   const instancesSorted = sortInstances(o.instances || [], instSort);
   const top5Domains = sortDomains(o.topDomains || [], domSort).slice(0, 5);
   const top5Endpoints = sortEndpoints(o.topEndpoints || [], epSort).slice(0, 5);
@@ -181,7 +185,7 @@ function paintOverviewBody(o, params, soft) {
     <div class="card">
       <h2>Cluster pipeline</h2>
       <div id="ovPipeline">${pipelineBar(o.pipeline, true)}</div>
-      <p class="muted" style="margin:0.5rem 0 0;font-size:0.85rem">OC hit · FC hit · Origin · Bypass — shares of total requests</p>
+      <p class="muted" style="margin:0.5rem 0 0;font-size:0.85rem" title="${esc(METRIC_TITLES.pipeline)}">OC hit share · FC hit share · Factory share · Bypass — shares of total requests</p>
     </div>
     <div id="ovAlerts">${o.alerts?.length ? `<div class="card"><h2>Alerts</h2><ul class="alert-list">${o.alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}</div>
     <div class="card">
@@ -261,9 +265,10 @@ function overviewKpiHtml(o) {
   return `
       <div class="kpi"><div class="label">Instances up</div><div class="value ${instancesUpClass(o)}">${o.healthyCount}/${(o.instances || []).length}\u2009up</div></div>
       <div class="kpi"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>
-      <div class="kpi"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
-      <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
-      <div class="kpi" title="Origin share = Fusion factory runs ÷ requests"><div class="label">Origin share</div><div class="value">${pct(o.originShare)}</div></div>
+      <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
+      <div class="kpi" title="${esc(METRIC_TITLES.ocHitShare)}"><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
+      <div class="kpi" title="${esc(METRIC_TITLES.fcHitShare)}"><div class="label">FC hit share</div><div class="value">${pct(o.pipeline?.fcHitShare)}</div></div>
+      <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(o))}</div></div>
       <div class="kpi"><div class="label">Domains / EP</div><div class="value" style="font-size:1rem">${num(o.domainCount)} / ${num(o.endpointCount)}</div></div>`;
 }
 
@@ -444,10 +449,10 @@ function endpointDetailHeadHtml(ep) {
       <h3 class="section-sub">Recommendations</h3>
       ${hintListHtml(ep.hints)}
       <div class="kpi-row">
-        <div class="kpi"><div class="label">Requests</div><div class="value">${num(ep.requests)}</div></div>
-        <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowSample)}</div></div>
-        <div class="kpi" title="Origin share = Fusion factory runs ÷ requests"><div class="label">Origin share</div><div class="value">${pct(ep.fc?.originShare)}</div></div>
-        <div class="kpi"><div class="label">FC stale</div><div class="value">${num(ep.fc?.stale)}</div></div>
+        <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(ep.requests)}</div></div>
+        <div class="kpi" title="${esc(METRIC_TITLES.ocHitShare)}"><div class="label">OC hit share</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowSample)}</div></div>
+        <div class="kpi" title="${esc(METRIC_TITLES.fcHitShare)}"><div class="label">FC hit share</div><div class="value">${pct(ep.fc?.hitShare, ep.fc?.lowSample)}</div></div>
+        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(ep.fc))}</div></div>
       </div>
       <p class="muted">Pipeline</p>
       ${pipelineBar(ep.pipeline, true)}
@@ -459,9 +464,15 @@ function endpointDetailHeadHtml(ep) {
     ${ep.byInstance?.length ? `
     <div class="card">
       <h2>By instance <span class="badge">spread</span></h2>
-      ${ep.instanceSpread ? `<p class="muted">OC hit share ${spreadCell(ep.instanceSpread.ocHitShare)} · Origin ${spreadCell(ep.instanceSpread.originShare)}</p>` : ""}
+      ${ep.instanceSpread ? `<p class="muted">OC hit ${spreadCell(ep.instanceSpread.ocHitShare)} · FC hit ${spreadCell(ep.instanceSpread.fcHitShare)} · Factory ${spreadCell(ep.instanceSpread.factoryShare ?? ep.instanceSpread.originShare)}</p>` : ""}
       <table class="dense">
-        <thead><tr><th>Instance</th><th>Req</th><th>OC hit share</th><th>FC hit share</th><th>Origin</th><th>Stale</th><th>Factory</th></tr></thead>
+        <thead><tr>
+          ${thMetric("Instance", "instance", { fromKey: true })}
+          ${thMetric("Req", "req", { fromKey: true })}
+          ${thMetric("OC hit share", "ocHitShare", { fromKey: true })}
+          ${thMetric("FC hit share", "fcHitShare", { fromKey: true })}
+          ${thMetric("Factory share", "factoryShare", { fromKey: true })}
+        </tr></thead>
         <tbody>
           ${ep.byInstance.map((bi) => `
             <tr class="clickable" data-id="${esc(bi.instanceId)}">
@@ -469,9 +480,7 @@ function endpointDetailHeadHtml(ep) {
               <td>${num(bi.requests)}</td>
               <td>${pct(bi.oc?.hitShare, bi.oc?.lowSample)}</td>
               <td>${pct(bi.fc?.hitShare, bi.fc?.lowSample)}</td>
-              <td>${pct(bi.fc?.originShare)}</td>
-              <td>${num(bi.fc?.stale)}</td>
-              <td>${num(bi.fc?.factoryRuns)}</td>
+              <td>${pct(factoryShareOf(bi.fc))}</td>
             </tr>`).join("")}
         </tbody>
       </table>
@@ -611,10 +620,11 @@ function domainDetailHeadHtml(name, domain, cfg) {
       ${hintListHtml(domain.hints)}
       <div class="kpi-row">
         <div class="kpi"><div class="label">Version</div><div class="value" style="font-size:1rem">${esc(domain.version || cfg?.version || "—")}</div></div>
-        <div class="kpi"><div class="label">Requests</div><div class="value">${num(domain.requests)}</div></div>
-        <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(domain.oc?.hitShare, domain.oc?.lowSample)}</div></div>
-        <div class="kpi" title="Origin share = Fusion factory runs ÷ requests"><div class="label">Origin share</div><div class="value">${pct(domain.fc?.originShare)}</div></div>
-        <div class="kpi"><div class="label">Invalidations</div><div class="value">${num(domain.invalidations)}</div></div>
+        <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(domain.requests)}</div></div>
+        <div class="kpi" title="${esc(METRIC_TITLES.ocHitShare)}"><div class="label">OC hit share</div><div class="value">${pct(domain.oc?.hitShare, domain.oc?.lowSample)}</div></div>
+        <div class="kpi" title="${esc(METRIC_TITLES.fcHitShare)}"><div class="label">FC hit share</div><div class="value">${pct(domain.fc?.hitShare, domain.fc?.lowSample)}</div></div>
+        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(domain.fc))}</div></div>
+        <div class="kpi" title="${esc(METRIC_TITLES.inv)}"><div class="label">Invalidations</div><div class="value">${num(domain.invalidations)}</div></div>
       </div>
       ${pipelineBar(domain.pipeline, true)}
     </div>
@@ -625,21 +635,30 @@ function domainDetailHeadHtml(name, domain, cfg) {
       <div class="detail-block">
         <h3>Effective config</h3>
         <div class="kv">
-          <span>Output TTL</span><span>${fmtUnit(cfg.outputCacheTtlSeconds, "s")}</span>
-          <span>Fusion soft/hard</span><span>${fmtUnit(cfg.fusionCacheSoftTtlSeconds, "s")} / ${fmtUnit(cfg.fusionCacheHardTtlSeconds, "s")}</span>
-          <span>Fail-safe</span><span>${fmtUnit(cfg.fusionCacheFailSafeSeconds, "s")}</span>
-          <span>Client TTL / min</span><span>${fmtUnit(cfg.clientTtlSeconds, "s")} / ${fmtUnit(cfg.clientTtlMinSeconds, "s")}</span>
-          <span>Schedule phase</span><span>${esc(cfg.schedulePhase || "—")}</span>
-          <span>FC instance</span><span>${esc(cfg.fusionCacheInstanceName)}</span>
+          <span${tipAttr("oc")}>Output TTL</span><span>${fmtUnit(cfg.outputCacheTtlSeconds, "s")}</span>
+          <span${tipAttr("softTtl")}>Fusion soft</span><span>${fmtUnit(cfg.fusionCacheSoftTtlSeconds, "s")}</span>
+          <span${tipAttr("hardTtl")}>Fusion hard</span><span>${fmtUnit(cfg.fusionCacheHardTtlSeconds, "s")}</span>
+          <span${tipAttr("failSafe")}>Fail-safe</span><span>${fmtUnit(cfg.fusionCacheFailSafeSeconds, "s")}</span>
+          <span${tipAttr("clientTtl")}>Client TTL / min</span><span>${fmtUnit(cfg.clientTtlSeconds, "s")} / ${fmtUnit(cfg.clientTtlMinSeconds, "s")}</span>
+          <span${tipAttr("schedule")}>Schedule phase</span><span>${esc(cfg.schedulePhase || "—")}</span>
+          <span${tipAttr("fc")}>FC instance</span><span>${esc(cfg.fusionCacheInstanceName)}</span>
         </div>
       </div>` : ""}
     </div>
     ${domain.byInstance?.length ? `
     <div class="card">
       <h2>By instance</h2>
-      ${domain.instanceSpread ? `<p class="muted">OC hit ${spreadCell(domain.instanceSpread.ocHitShare)} · FC hit ${spreadCell(domain.instanceSpread.fcHitShare)}</p>` : ""}
+      ${domain.instanceSpread ? `<p class="muted">OC hit ${spreadCell(domain.instanceSpread.ocHitShare)} · FC hit ${spreadCell(domain.instanceSpread.fcHitShare)} · Factory ${spreadCell(domain.instanceSpread.factoryShare ?? domain.instanceSpread.originShare)}</p>` : ""}
       <table class="dense">
-        <thead><tr><th>Instance</th><th>Version</th><th>Req</th><th>OC hit share</th><th>Origin</th><th>Inv</th></tr></thead>
+        <thead><tr>
+          ${thMetric("Instance", "instance", { fromKey: true })}
+          ${thMetric("Version", "version", { fromKey: true })}
+          ${thMetric("Req", "req", { fromKey: true })}
+          ${thMetric("OC hit share", "ocHitShare", { fromKey: true })}
+          ${thMetric("FC hit share", "fcHitShare", { fromKey: true })}
+          ${thMetric("Factory share", "factoryShare", { fromKey: true })}
+          ${thMetric("Inv", "inv", { fromKey: true })}
+        </tr></thead>
         <tbody>
           ${domain.byInstance.map((bi) => `
             <tr class="clickable" data-id="${esc(bi.instanceId)}">
@@ -647,7 +666,8 @@ function domainDetailHeadHtml(name, domain, cfg) {
               <td>${esc(bi.version)}${bi.versionIsRuntimeOverride ? " *" : ""}</td>
               <td>${num(bi.requests)}</td>
               <td>${pct(bi.oc?.hitShare, bi.oc?.lowSample)}</td>
-              <td>${pct(bi.fc?.originShare)}</td>
+              <td>${pct(bi.fc?.hitShare, bi.fc?.lowSample)}</td>
+              <td>${pct(factoryShareOf(bi.fc))}</td>
               <td>${num(bi.invalidations)}</td>
             </tr>`).join("")}
         </tbody>

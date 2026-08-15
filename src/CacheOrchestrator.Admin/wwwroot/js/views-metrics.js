@@ -237,10 +237,10 @@ function cssEscape(id) {
 
 function metricsKpiHtml(summary, series) {
   return `
-      <div class="kpi"><div class="label">Req / s</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
-      <div class="kpi"><div class="label">OC hit (window)</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
-      <div class="kpi"><div class="label">FC hit rate</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
-      <div class="kpi"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
+      <div class="kpi" title="Request rate over the selected metrics window"><div class="label">Req / s</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
+      <div class="kpi" title="Output Cache hit share over the selected metrics window"><div class="label">OC hit (window)</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
+      <div class="kpi" title="Fusion layer hit rate over the selected metrics window"><div class="label">FC hit rate</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
+      <div class="kpi" title="Invalidation rate over the selected metrics window"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
       <div class="kpi"><div class="label">Step</div><div class="value" data-kpi="step" style="font-size:1rem">${esc(series?.step || "—")}</div></div>`;
 }
 
@@ -255,12 +255,13 @@ function panelCardHtml(p, range, chartOpts = {}) {
   const warn = p.warning
     ? `<p class="muted chart-warn">${esc(p.warning)}</p>`
     : "";
+  const tip = (p.description && String(p.description).trim()) || "";
   return `
       <div class="card chart-card" data-panel="${esc(p.id)}">
         <div class="card-head">
-          <h2>${esc(p.title)} <span class="badge" data-chart-range>${esc(range || "")}</span></h2>
+          <h2${tip ? ` title="${esc(tip)}"` : ""}>${esc(p.title)} <span class="badge" data-chart-range>${esc(range || "")}</span></h2>
           <div class="chart-card-actions">
-            <span class="muted small">${esc(unitLabel(p.unit))}</span>
+            <span class="muted small" title="Y-axis unit for this series">${esc(unitLabel(p.unit))}</span>
             <button type="button" class="secondary chart-expand-btn" data-chart-expand="${esc(p.id)}" title="Enlarge chart">⛶</button>
           </div>
         </div>
@@ -270,10 +271,15 @@ function panelCardHtml(p, range, chartOpts = {}) {
 }
 
 function buildPanelMap(series) {
-  /** @type {Map<string, { title: string, series: Array, unit?: string }>} */
+  /** @type {Map<string, { title: string, description?: string, series: Array, unit?: string }>} */
   const map = new Map();
   for (const p of series?.panels || []) {
-    map.set(p.id, { title: p.title, series: p.series || [], unit: p.unit });
+    map.set(p.id, {
+      title: p.title,
+      description: p.description,
+      series: p.series || [],
+      unit: p.unit,
+    });
   }
   return map;
 }
@@ -469,22 +475,26 @@ export async function metricsOverviewSectionHtml(opts = {}) {
       }
     }
 
+    const ovLabel = (panel, fallback) => {
+      const tip = panel?.description && String(panel.description).trim();
+      return `<div class="label muted"${tip ? ` title="${esc(tip)}"` : ""}>${esc(panel?.title || fallback)}</div>`;
+    };
     return `<div class="card" data-ov-metrics-card>
       <div class="card-head">
-        <h2>Metrics <span class="badge">last 1h</span></h2>
+        <h2 title="Windowed series from external metrics storage (not lifetime Admin counters)">Metrics <span class="badge">last 1h</span></h2>
         <a href="#/metrics">Open Metrics →</a>
       </div>
       <div class="metrics-overview-grid">
         <div class="metrics-ov-block" data-ov-spark="request_rate">
-          <div class="label muted">Request rate</div>
+          ${ovLabel(byId.request_rate, "Request rate")}
           ${spark(byId.request_rate)}
         </div>
         <div class="metrics-ov-block" data-ov-spark="oc_hit_share">
-          <div class="label muted">OC hit share</div>
+          ${ovLabel(byId.oc_hit_share, "OC hit share")}
           ${spark(byId.oc_hit_share)}
         </div>
         <div class="metrics-ov-block" data-ov-spark="invalidation_rate">
-          <div class="label muted">Invalidations</div>
+          ${ovLabel(byId.invalidation_rate, "Invalidations")}
           ${spark(byId.invalidation_rate)}
         </div>
       </div>

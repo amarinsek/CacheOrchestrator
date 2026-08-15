@@ -34,49 +34,56 @@ public static class MetricsPanelCatalog
         {
             Id = "request_rate",
             Title = "Request rate",
-            Description = "Output Cache outcomes per second (proxy for request volume).",
+            Description =
+                "How many HTTP cache outcomes happen per second in this window. Higher means more traffic through Output Cache instrumentation (a good proxy for overall request volume).",
             Unit = "rate",
         },
         new()
         {
             Id = "oc_hit_share",
             Title = "OC hit share",
-            Description = "Share of Output Cache hits among OC outcomes in the window.",
+            Description =
+                "Of responses that hit Output Cache accounting in this window, what fraction were served from the full HTTP response cache (OC hit). Higher is better — fewer requests reach the app handler.",
             Unit = "percent",
         },
         new()
         {
             Id = "fc_hit_rate",
             Title = "FC hit rate",
-            Description = "FusionCache hit rate among FC operations (not request share).",
+            Description =
+                "Of FusionCache operations in this window (when the data path ran), what fraction were hits. This is a layer rate, not share of all HTTP requests — low can be normal if Output Cache already absorbs most traffic.",
             Unit = "percent",
         },
         new()
         {
             Id = "invalidation_rate",
             Title = "Invalidations",
-            Description = "Successful domain invalidations per second.",
+            Description =
+                "How often successful domain (or related) invalidations run per second. Spikes mean more cache purge pressure and usually more factory/origin work afterward.",
             Unit = "rate",
         },
         new()
         {
             Id = "schedule_phase",
             Title = "Client Cache Schedule",
-            Description = "Client schedule phase application rate by phase.",
+            Description =
+                "How often each Client Cache Schedule phase is applied when writing client Cache-Control: Calm (long max-age), Approaching (ramping down), or Hold (floor max-age near cutover).",
             Unit = "rate",
         },
         new()
         {
             Id = "cluster_publish_failures",
             Title = "Cluster publish failures",
-            Description = "Per-peer cluster bus publish failures per second.",
+            Description =
+                "How often cluster-bus publish to a peer fails per second. Rising values mean invalidation or runtime commands may not reach other instances.",
             Unit = "rate",
         },
         new()
         {
             Id = "fc_p95_ms",
             Title = "FC duration p95",
-            Description = "Fusion GetOrSet duration p95 (ms). Requires histogram scrape.",
+            Description =
+                "95th percentile time spent in Fusion GetOrSet (milliseconds) in this window — how slow the slow factory/cache path feels. Needs histogram scrape of Fusion duration.",
             Unit = "ms",
         },
     ];

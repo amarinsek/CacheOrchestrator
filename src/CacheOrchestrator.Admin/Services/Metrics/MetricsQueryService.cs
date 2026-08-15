@@ -157,6 +157,7 @@ public sealed class MetricsQueryService
                 {
                     Id = panelId,
                     Title = panelId,
+                    Description = null,
                     Unit = "rate",
                     Series = [],
                     Warning = $"Unknown panel '{panelId}'.",
@@ -185,6 +186,7 @@ public sealed class MetricsQueryService
                 {
                     Id = info.Id,
                     Title = info.Title,
+                    Description = info.Description,
                     Unit = info.Unit,
                     Series = series,
                     Warning = series.Count == 0
@@ -198,6 +200,7 @@ public sealed class MetricsQueryService
                 {
                     Id = info.Id,
                     Title = info.Title,
+                    Description = info.Description,
                     Unit = info.Unit,
                     Series = [],
                     Warning = ex.Message,

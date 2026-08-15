@@ -41,8 +41,8 @@ export function hintBadges(hints) {
 /** Map rule codes to short row labels. Unknown codes use severity prefix. */
 export function shortHint(h) {
   const map = {
-    "high-origin-share": "Origin↑",
-    "critical-origin-share": "Origin‼",
+    "high-origin-share": "Factory↑",
+    "critical-origin-share": "Factory‼",
     "elevated-stale": "Stale",
     "frequent-invalidations": "Inv↑",
     "client-ttl-gt-output": "ClientTTL",

@@ -1224,6 +1224,30 @@ code { color: #cde; font-size: 0.9em; }
 .entity-table .col-name { min-width: 10rem; }
 .entity-table .col-pipe { min-width: 5rem; }
 
+/*
+ * Help cursor only on non-interactive explainers with title.
+ * Clickable controls keep the normal pointer/hand even when they have a title.
+ */
+th[title],
+.kpi[title],
+.kpi[title] .label,
+.hm[title],
+.detail-block .kv > span:nth-child(odd)[title],
+.chart-card h2[title],
+.chart-modal-head h2[title],
+.label[title],
+.muted[title]:not(a):not(button),
+.badge[title],
+.hint[title],
+.sev[title],
+.sev-stack[title],
+.pipe[title],
+.pipe .seg[title],
+.low-n[title],
+.status-pill[title] {
+  cursor: help;
+}
+
 @media (max-width: 720px) {
   .chrome-brand { padding: 0.55rem 0.85rem 0.5rem; }
   .brand-link { gap: 0.75rem; }

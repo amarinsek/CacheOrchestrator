@@ -4,36 +4,36 @@
     {
       "code": "high-origin-share",
       "severity": "Warning",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "domain",
-      "description": "Origin/factory is a large share of domain traffic (25–50%).",
+      "description": "Factory is a large share of domain traffic (25–50%).",
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.originShare", "op": ">=", "value": 0.25 },
-          { "path": "domain.fc.originShare", "op": "<", "value": 0.50 }
+          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.25 },
+          { "path": "domain.fc.factoryShare", "op": "<", "value": 0.50 }
         ]
       },
-      "message": "Origin/factory is {domain.fc.originShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
+      "message": "Factory is {domain.fc.factoryShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
     },
     {
       "code": "critical-origin-share",
       "severity": "Critical",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "domain",
-      "description": "Origin/factory dominates domain traffic (≥50%).",
+      "description": "Factory dominates domain traffic (≥50%).",
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.originShare", "op": ">=", "value": 0.50 }
+          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.50 }
         ]
       },
-      "message": "Origin/factory is {domain.fc.originShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
+      "message": "Factory is {domain.fc.factoryShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
     },
     {
       "code": "elevated-stale",
       "severity": "Warning",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "domain",
       "description": "Fail-safe stale share is elevated on a domain.",
       "when": {
@@ -62,7 +62,7 @@
     {
       "code": "factory-failures",
       "severity": "Warning",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "domain",
       "description": "Factory failure rate 10–50% on a domain.",
       "when": {
@@ -77,7 +77,7 @@
     {
       "code": "critical-factory-failures",
       "severity": "Critical",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "domain",
       "description": "Factory failure rate ≥50% on a domain.",
       "when": {
@@ -219,36 +219,36 @@
     {
       "code": "high-origin-share",
       "severity": "Warning",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "endpoint",
-      "description": "Origin share elevated on an endpoint (25–50%).",
+      "description": "Factory share elevated on an endpoint (25–50%).",
       "when": {
         "all": [
           { "path": "endpoint.requests", "op": ">=", "value": 20 },
-          { "path": "endpoint.fc.originShare", "op": ">=", "value": 0.25 },
-          { "path": "endpoint.fc.originShare", "op": "<", "value": 0.50 }
+          { "path": "endpoint.fc.factoryShare", "op": ">=", "value": 0.25 },
+          { "path": "endpoint.fc.factoryShare", "op": "<", "value": 0.50 }
         ]
       },
-      "message": "Origin is {endpoint.fc.originShare:p1} of requests on this route — factory runs too often."
+      "message": "Factory is {endpoint.fc.factoryShare:p1} of requests on this route — factory runs too often."
     },
     {
       "code": "critical-origin-share",
       "severity": "Critical",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "endpoint",
-      "description": "Origin share dominates an endpoint (≥50%).",
+      "description": "Factory share dominates an endpoint (≥50%).",
       "when": {
         "all": [
           { "path": "endpoint.requests", "op": ">=", "value": 20 },
-          { "path": "endpoint.fc.originShare", "op": ">=", "value": 0.50 }
+          { "path": "endpoint.fc.factoryShare", "op": ">=", "value": 0.50 }
         ]
       },
-      "message": "Origin is {endpoint.fc.originShare:p1} of requests on this route — factory runs too often."
+      "message": "Factory is {endpoint.fc.factoryShare:p1} of requests on this route — factory runs too often."
     },
     {
       "code": "elevated-stale",
       "severity": "Warning",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "endpoint",
       "description": "Stale share elevated on an endpoint.",
       "when": {
@@ -263,7 +263,7 @@
     {
       "code": "factory-failures",
       "severity": "Warning",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "endpoint",
       "description": "Factory failure rate 10–50% on an endpoint.",
       "when": {
@@ -278,7 +278,7 @@
     {
       "code": "critical-factory-failures",
       "severity": "Critical",
-      "category": "Origin",
+      "category": "Factory",
       "scope": "endpoint",
       "description": "Factory failure rate ≥50% on an endpoint.",
       "when": {
@@ -294,15 +294,15 @@
       "severity": "Warning",
       "category": "Cluster",
       "scope": "endpoint",
-      "description": "Origin share varies a lot across instances for a route.",
+      "description": "Factory share varies a lot across instances for a route.",
       "when": {
         "all": [
           { "path": "endpoint.requests", "op": ">=", "value": 20 },
-          { "path": "endpoint.instanceSpread.originShare.sampleCount", "op": ">=", "value": 2 },
-          { "path": "endpoint.instanceSpread.originShare.stdev", "op": ">=", "value": 0.15 }
+          { "path": "endpoint.instanceSpread.factoryShare.sampleCount", "op": ">=", "value": 2 },
+          { "path": "endpoint.instanceSpread.factoryShare.stdev", "op": ">=", "value": 0.15 }
         ]
       },
-      "message": "Origin share differs across instances (stdev {endpoint.instanceSpread.originShare.stdev:p1})."
+      "message": "Factory share differs across instances (stdev {endpoint.instanceSpread.factoryShare.stdev:p1})."
     }
   ]
 }

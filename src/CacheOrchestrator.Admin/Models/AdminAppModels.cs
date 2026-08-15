@@ -198,8 +198,25 @@ public sealed class OverviewDto
     /// <summary>Cluster OC hit share.</summary>
     public double? OcHitShare { get; init; }
 
-    /// <summary>Cluster origin share.</summary>
-    public double? OriginShare { get; init; }
+    private double? _factoryShare;
+
+    /// <summary>Cluster factory share (also known as origin share).</summary>
+    public double? FactoryShare
+    {
+        get => _factoryShare;
+        init => _factoryShare = value;
+    }
+
+    /// <summary>
+    /// Obsolete synonym for <see cref="FactoryShare"/> (JSON <c>originShare</c>).
+    /// Prefer <see cref="FactoryShare"/>.
+    /// </summary>
+    [Obsolete("Use FactoryShare. OriginShare remains for JSON/wire compatibility.")]
+    public double? OriginShare
+    {
+        get => _factoryShare;
+        init => _factoryShare = value;
+    }
 
     /// <summary>Human-readable warnings.</summary>
     public IReadOnlyList<string> Alerts { get; init; } = [];

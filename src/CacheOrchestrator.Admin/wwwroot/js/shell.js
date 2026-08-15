@@ -169,12 +169,13 @@ export function renderHeader(o) {
       ${deg > 0 ? `<span class="status-Degraded">${fmtUnit(deg, "deg")}</span>` : ""}
     </span>
     <span class="hm" title="Cluster recommendation urgency">${severityStack(hs)}</span>
-    <span class="hm" title="Request pipeline (OC hit · FC hit · Origin/factory · Bypass)">${pipelineBar(o.pipeline)}</span>
-    <span class="hm" title="Output Cache hit share of requests">OC hit <strong>${pct(o.ocHitShare)}</strong></span>
-    <span class="hm" title="Origin share = Fusion factory runs ÷ requests (CDN ‘origin’ = factory miss path)">Origin <strong>${pct(o.originShare)}</strong></span>
-    <span class="hm" title="Lifetime request count (sum)">Req <strong>${num(o.totalRequests)}</strong></span>
-    <span class="hm" title="Lifetime invalidations (sum)">Inv <strong>${num(o.totalInvalidations)}</strong></span>
-    <span class="hm muted" title="Domains / endpoints observed">${fmtUnit(o.domainCount, "dom")} · ${fmtUnit(o.endpointCount, "ep")}</span>
+    <span class="hm" title="Request pipeline (shares of all requests): OC hit · FC hit · Factory · Bypass. Factory = factory run path (also known as origin).">${pipelineBar(o.pipeline)}</span>
+    <span class="hm" title="Output Cache hit share of all requests">OC hit <strong>${pct(o.ocHitShare)}</strong></span>
+    <span class="hm" title="FusionCache hit share of all requests">FC hit <strong>${pct(o.pipeline?.fcHitShare)}</strong></span>
+    <span class="hm" title="Factory share of all requests (factoryRuns ÷ requests). Also known as origin share.">Factory <strong>${pct(o.factoryShare ?? o.originShare)}</strong></span>
+    <span class="hm" title="Lifetime request count (sum across instances)">Req <strong>${num(o.totalRequests)}</strong></span>
+    <span class="hm" title="Lifetime invalidations (sum across instances)">Inv <strong>${num(o.totalInvalidations)}</strong></span>
+    <span class="hm muted" title="Domains and endpoints observed with traffic or config">${fmtUnit(o.domainCount, "dom")} · ${fmtUnit(o.endpointCount, "ep")}</span>
     ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
   `;
   refreshMetricsStatusPill();

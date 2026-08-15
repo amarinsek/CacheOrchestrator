@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Admin Local API / stats DTOs: prefer **`factoryShare`** (request share of factory runs); **`originShare`** remains as an obsolete synonym for wire compatibility (same value). Declarative hint paths accept both; product packs use `factoryShare`. Admin UI labels Factory; tooltips explain “also known as origin”
 - **Admin App SPA soft refresh** — auto-refresh and header refresh repaint without a full “Loading…” flash; concurrent soft runs coalesce; GET `/api/overview` is deduped in-flight; Metrics charts soft-refresh by patching KPIs and SVG path data in place (no full chart remount / flicker)
 - Admin App instance health: KPI / header show error styling unless **all** configured instances are healthy; JSON enums as strings (`JsonStringEnumConverter`) for SPA status handling
 - Admin App Hints page: severity KPIs show **visible/total** when filters are applied
