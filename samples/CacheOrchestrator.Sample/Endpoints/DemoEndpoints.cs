@@ -58,21 +58,41 @@ public static class DemoEndpoints
         app.MapGet("/api/demo/endpoints", (IConfiguration config, CacheOrchestrator.Configuration.IDomainCacheOptionsProvider provider) =>
         {
             var entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
-            return Results.Json(entries.Select(e =>
+            string BackendFor(string domain)
             {
-                var opts = provider.GetOrCreateDomainOptions(e.Domain);
+                var opts = provider.GetOrCreateDomainOptions(domain);
                 var fcName = opts.FusionCacheInstanceName ?? "default";
                 var fcProvider = config[$"Cache:FusionCacheInstances:{fcName}:Provider"] ?? "InMemory";
                 var ocProvider = config["Cache:OutputCache:Provider"] ?? "InMemory";
-                
-                return new
+                return $"{ocProvider} / {fcProvider}";
+            }
+
+            // Config-driven demo routes only (CRUD is a separate UI panel).
+            var fromConfig = entries.Select(e => new
+            {
+                url = e.Path,
+                domain = e.Domain,
+                label = string.IsNullOrWhiteSpace(e.Label) ? e.Path : e.Label,
+                backend = BackendFor(e.Domain),
+                method = "GET",
+                source = "config",
+            });
+
+            // Metadata for the Entity invalidation panel (not mixed into the domain dropdown).
+            var crudMeta = new[]
+            {
+                new
                 {
-                    url = e.Path,
-                    domain = e.Domain,
-                    label = string.IsNullOrWhiteSpace(e.Label) ? e.Path : e.Label,
-                    backend = $"{ocProvider} / {fcProvider}"
-                };
-            }));
+                    url = "/api/crud/products/{id}",
+                    domain = "product-crud",
+                    label = "CRUD product",
+                    backend = BackendFor("product-crud"),
+                    method = "GET",
+                    source = "hardcoded",
+                },
+            };
+
+            return Results.Json(fromConfig.Concat(crudMeta));
         });
 
         // Returns the raw appsettings.json content for the JSON editor.
@@ -139,6 +159,23 @@ public static class DemoEndpoints
         {
             await inv.InvalidateDomainAsync(domain);
             return Results.Ok(new { invalidated = domain, at = DateTimeOffset.UtcNow });
+        });
+
+        // Purge one entity tag only (playground CRUD demo) — does not change the in-memory "DB".
+        app.MapPost("/api/demo/invalidate-entity/{domain}/{entityKind}/{id}", async (
+            string domain,
+            string entityKind,
+            string id,
+            ICacheOrchestratorInvalidator inv) =>
+        {
+            var result = await inv.InvalidateEntityAsync(domain, entityKind, id);
+            return Results.Ok(new
+            {
+                invalidatedEntity = new { domain, entityKind, id },
+                result.Tags,
+                at = DateTimeOffset.UtcNow,
+                tip = "GET the entity again — server MISS if browser cache is off; body still old until PUT updates the store."
+            });
         });
 
         // --- Dynamic CRUD demo (entity invalidation under a stable Version) ---
