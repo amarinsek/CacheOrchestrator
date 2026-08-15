@@ -332,7 +332,7 @@ export function layerDetailFc(fc) {
         <span>Hit share</span><span>${pct(fc.hitShare, fc.lowSample)}</span>
         <span>Miss share</span><span>${pct(fc.missShare, fc.lowSample)}</span>
         <span>Stale share</span><span>${pct(fc.staleShare)}</span>
-        <span>Origin share</span><span>${pct(fc.originShare)}</span>
+        <span title="Origin share = Fusion factory runs ÷ requests">Origin share</span><span>${pct(fc.originShare)}</span>
         <span>Hit rate (layer)</span><span>${pct(fc.hitRate, fc.lowSample)}</span>
         <span>Miss rate (layer)</span><span>${pct(fc.missRate, fc.lowSample)}</span>
         <span>Stale rate (layer)</span><span>${pct(fc.staleRate)}</span>

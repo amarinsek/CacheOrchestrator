@@ -141,7 +141,15 @@ Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 | **Request share** (`hitShare`, `originShare`, …) | Of **all** requests, what fraction? |
 | **Layer rate** (`hitRate`, …) | Of traffic that **reached that layer**, what fraction? |
 
-**Warning:** A high FC **miss rate** with very high OC hit share is often normal (Fusion barely runs). Prefer **origin share** / pipeline for cluster health. Recommendation rules follow the same preference — see [admin-hints.md](admin-hints.md).
+#### Origin share = factory share
+
+In library docs the miss path is the **factory** (`GetOrSet` lambda / DB). In Admin UI the same idea is labeled **Origin** (CDN/proxy language: traffic that reaches the origin).
+
+| Admin label | Formula | Same as |
+|-------------|---------|---------|
+| **Origin share** (`fc.originShare`) | `factoryRuns / requests` | Fusion factory share of traffic |
+
+So **origin** here is not a separate origin-server counter — it is the factory miss path. Tooltips and hints say “Origin/factory” for that reason. Prefer **origin share** (and factory failure rate) over raw FC *layer* hit rate for cluster health: a high FC miss rate with high OC hit share is often normal (Fusion barely runs). Recommendation rules use the same preference — see [admin-hints.md](admin-hints.md).
 
 ### Health semantics (Admin App mapping)
 
@@ -212,7 +220,7 @@ Minimal config (everything else has defaults). The Admin App in this repo defaul
 }
 ```
 
-Dev stack (Docker Prometheus + Playground `/metrics` on port 5289): [deploy/prometheus/README.md](../deploy/prometheus/README.md).
+Dev stack (Docker Prometheus + Playground `/metrics` on port 5289; sample only, not a library dependency): [samples/CacheOrchestrator.Sample/deploy/prometheus/README.md](../samples/CacheOrchestrator.Sample/deploy/prometheus/README.md).
 
 | Key | Default | Notes |
 |-----|---------|--------|
@@ -224,7 +232,7 @@ Dev stack (Docker Prometheus + Playground `/metrics` on port 5289): [deploy/prom
 | `BearerToken` | empty | Optional `Authorization: Bearer` |
 | `PathPrefix` | empty | e.g. `/prometheus` behind a reverse proxy |
 
-When **not configured**, the Metrics page explains how to enable it; Overview omits history cards. When **configured but unreachable**, the UI shows **Disconnected** (no fake zeros).
+When **not configured**, the Metrics page explains how to enable it; Overview omits history cards. When **configured but unreachable**, the UI shows **Disconnected** with the same **Provider · host** (from `BaseUrl`) plus not connected / error text — so the target is always visible even when the probe fails (no fake zeros).
 
 Admin App API: `GET /api/metrics/status`, `/catalog`, `/series`, `/summary`.
 
@@ -337,7 +345,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 | All instances **Down** | Wrong URL/port; Admin API not mapped; firewall; **401** wrong/missing ApiKey |
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
 | Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
-| High FC miss rate, everything “fine” | Prefer **origin share** / OC hit share — see shares vs rates |
+| High FC miss rate, everything “fine” | Prefer **origin share** (factory share) / OC hit share — see shares vs rates |
 | Scalar OpenAPI missing | Only mapped in **Development** on Admin App (OpenAPI document: Microsoft.AspNetCore.OpenApi on net10, Swashbuckle on net8) |
 | CORS issues calling Admin API from a browser | Prefer Admin App fan-out; Admin API is for server-side callers |
 

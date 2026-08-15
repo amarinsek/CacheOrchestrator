@@ -42,7 +42,7 @@ export function pipelineBar(p, large) {
   const parts = [
     ["oc", p.ocHitShare, "OC hit"],
     ["fc", p.fcHitShare, "FC hit"],
-    ["origin", p.originShare, "Origin"],
+    ["origin", p.originShare, "Origin (factory)"],
     ["bypass", p.bypassShare, "Bypass"],
     ["other", p.otherShare, "Other"],
   ].filter(([, v]) => v != null && v > 0.0005);

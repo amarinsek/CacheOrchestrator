@@ -157,12 +157,12 @@ Repo architecture notes: [docs/admin-hints.md](../../docs/admin-hints.md).
 ```
 
 ```bash
-docker compose -f deploy/prometheus/docker-compose.yml up -d
+docker compose -f samples/CacheOrchestrator.Sample/deploy/prometheus/docker-compose.yml up -d
 dotnet run --project samples/CacheOrchestrator.Sample
 dotnet run --project src/CacheOrchestrator.Admin
 ```
 
-Guide: [deploy/prometheus/README.md](../../deploy/prometheus/README.md) · [docs/admin.md](../../docs/admin.md).
+Guide: [sample Prometheus (dev only)](../../samples/CacheOrchestrator.Sample/deploy/prometheus/README.md) · [docs/admin.md](../../docs/admin.md).
 
 ---
 

@@ -75,8 +75,8 @@ This sample enables the Local Admin API (`Cache:Admin`) and exports meter `Cache
 `Cache:Metrics:IncludeEndpointLabel` is **true** so OC/FC series include a stable `route` label (Admin endpoint key shape). Domain detail, instance detail, and endpoint detail in the Admin App can show window charts when Metrics storage is connected.
 
 ```bash
-# Prometheus (UI http://localhost:9090)
-docker compose -f deploy/prometheus/docker-compose.yml up -d
+# Prometheus (sample/dev only — UI http://localhost:9090; not part of NuGet packages)
+docker compose -f samples/CacheOrchestrator.Sample/deploy/prometheus/docker-compose.yml up -d
 
 # This playground (scraped at host.docker.internal:5289)
 dotnet run --project samples/CacheOrchestrator.Sample
@@ -87,7 +87,7 @@ dotnet run --project src/CacheOrchestrator.Admin
 # open http://localhost:5188/#/metrics
 ```
 
-Details: [deploy/prometheus/README.md](../../deploy/prometheus/README.md) · [docs/admin.md](../../docs/admin.md).
+Details: [deploy/prometheus/README.md](deploy/prometheus/README.md) · [docs/admin.md](../../docs/admin.md).
 
 ## Next
 

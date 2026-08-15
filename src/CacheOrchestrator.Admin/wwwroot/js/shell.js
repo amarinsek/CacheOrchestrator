@@ -85,10 +85,12 @@ async function refreshMetricsStatusPill() {
     const existing = el.querySelector("[data-metrics-pill]");
     if (existing) existing.remove();
     if (s.status === "NotConfigured") return;
+    const provider = s.provider || "Prometheus";
+    const target = s.host ? `${provider} · ${s.host}` : provider;
     const cls = s.status === "Connected" ? "ok" : "bad";
     const title = s.status === "Connected"
-      ? `Metrics ${s.provider || ""} ${s.host || ""}`.trim()
-      : (s.error || "Metrics storage not connected");
+      ? target
+      : `${target} · not connected${s.error ? ` — ${s.error}` : ""}`;
     const label = s.status === "Connected" ? "metrics" : "metrics off";
     el.insertAdjacentHTML(
       "beforeend",
@@ -167,9 +169,9 @@ export function renderHeader(o) {
       ${deg > 0 ? `<span class="status-Degraded">${fmtUnit(deg, "deg")}</span>` : ""}
     </span>
     <span class="hm" title="Cluster recommendation urgency">${severityStack(hs)}</span>
-    <span class="hm" title="Request pipeline (OC hit · FC hit · Origin · Bypass)">${pipelineBar(o.pipeline)}</span>
+    <span class="hm" title="Request pipeline (OC hit · FC hit · Origin/factory · Bypass)">${pipelineBar(o.pipeline)}</span>
     <span class="hm" title="Output Cache hit share of requests">OC hit <strong>${pct(o.ocHitShare)}</strong></span>
-    <span class="hm" title="Factory / origin share of requests">Origin <strong>${pct(o.originShare)}</strong></span>
+    <span class="hm" title="Origin share = Fusion factory runs ÷ requests (CDN ‘origin’ = factory miss path)">Origin <strong>${pct(o.originShare)}</strong></span>
     <span class="hm" title="Lifetime request count (sum)">Req <strong>${num(o.totalRequests)}</strong></span>
     <span class="hm" title="Lifetime invalidations (sum)">Inv <strong>${num(o.totalInvalidations)}</strong></span>
     <span class="hm muted" title="Domains / endpoints observed">${fmtUnit(o.domainCount, "dom")} · ${fmtUnit(o.endpointCount, "ep")}</span>

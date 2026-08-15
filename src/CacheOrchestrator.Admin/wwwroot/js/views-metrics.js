@@ -56,10 +56,11 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
   }
 
   if (status.status === "Disconnected") {
+    const target = formatMetricsProvider(status);
     paint(`
       ${metricsStatusBanner(status)}
       <div class="card">${emptyStateHtml("metrics-offline", {
-        title: "Metrics storage not connected",
+        title: `${target} · not connected`,
         detail: status.error || "Probe failed. Check BaseUrl, network, and credentials.",
         actions: [
           { label: "Refresh", onclick: "window.__adminRefresh && window.__adminRefresh()" },
@@ -91,9 +92,11 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
   }
 
   if (series.status === "Disconnected") {
+    const offline = { ...status, status: "Disconnected", error: series.error };
     paint(`
-      ${metricsStatusBanner({ ...status, status: "Disconnected", error: series.error })}
+      ${metricsStatusBanner(offline)}
       <div class="card">${emptyStateHtml("metrics-offline", {
+        title: `${formatMetricsProvider(offline)} · not connected`,
         detail: series.error || "Query failed.",
       })}</div>`, soft);
     bindEmptyStateActions(main());
@@ -276,6 +279,16 @@ function buildPanelMap(series) {
 }
 
 /**
+ * Provider name · base host for status UI (always show target when configured).
+ * @param {{ provider?: string, host?: string }|null|undefined} status
+ */
+export function formatMetricsProvider(status) {
+  const provider = status?.provider || "Prometheus";
+  const host = status?.host ? String(status.host).trim() : "";
+  return host ? `${provider} · ${host}` : provider;
+}
+
+/**
  * Status banner shared with Overview embed.
  * @param {{ status: string, provider?: string, host?: string, latencyMs?: number, error?: string }} status
  */
@@ -293,7 +306,8 @@ export function metricsStatusBanner(status) {
   if (status.status === "Disconnected") {
     return `<div class="banner err metrics-banner">
       <span><span class="badge warn">Disconnected</span>
-        Metrics storage not connected${status.error ? ` — ${esc(status.error)}` : ""}
+        ${esc(status.provider || "Prometheus")}${status.host ? ` · <code>${esc(status.host)}</code>` : ""}
+        · not connected${status.error ? ` — ${esc(status.error)}` : ""}
       </span>
       <span class="banner-actions"><button type="button" class="secondary" data-es-refresh>Retry</button></span>
     </div>`;
@@ -335,7 +349,7 @@ export async function mountDetailMetrics(mountId, opts) {
   if (status.status === "Disconnected") {
     if (soft) return;
     el.innerHTML = `<div class="card"><h2>Metrics <span class="badge">last ${esc(range)}</span></h2>
-      <p class="muted">Metrics storage not connected${status.error ? `: ${esc(status.error)}` : "."}</p>
+      <p class="muted">${esc(formatMetricsProvider(status))} · not connected${status.error ? `: ${esc(status.error)}` : "."}</p>
       <p><a href="#/metrics">Open Metrics →</a></p></div>`;
     return;
   }
@@ -433,7 +447,7 @@ export async function metricsOverviewSectionHtml(opts = {}) {
           <h2>Metrics <span class="badge">history</span></h2>
           <a href="#/metrics">Open Metrics →</a>
         </div>
-        <p class="muted" style="margin:0">Storage not connected${status.error ? `: ${esc(status.error)}` : "."}</p>
+        <p class="muted" style="margin:0">${esc(formatMetricsProvider(status))} · not connected${status.error ? `: ${esc(status.error)}` : "."}</p>
       </div>`;
     }
 

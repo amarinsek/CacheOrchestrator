@@ -1,6 +1,8 @@
-# Local Prometheus for Admin App Metrics + Minimal sample.
+# Local Prometheus for Admin App Metrics + Playground sample (dev only).
+# Not part of the CacheOrchestrator NuGet packages.
 #
-#   docker compose -f deploy/prometheus/docker-compose.yml up -d
+# From repo root:
+#   docker compose -f samples/CacheOrchestrator.Sample/deploy/prometheus/docker-compose.yml up -d
 #
 # UI:  http://localhost:9090
 # Scrapes host playground at http://host.docker.internal:5289/metrics

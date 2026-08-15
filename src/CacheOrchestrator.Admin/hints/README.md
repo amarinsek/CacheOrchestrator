@@ -148,7 +148,7 @@ List badges use `wwwroot/js/hints.js` → `shortHint()`. Unknown codes still sho
 | **Warning** | Fault worth fixing soon |
 | **Info** | Expected temporary / operational note |
 
-Prefer **origin share** and **factory failure rate** over raw Fusion *layer* hit rate. A 0% FC layer rate with low origin is often normal when Output Cache serves most traffic.
+**Origin share** = **Fusion factory share** (`factoryRuns / requests`). Admin uses the CDN word *origin* for the same miss path library docs call *factory*. Prefer **origin share** and **factory failure rate** over raw Fusion *layer* hit rate. A 0% FC layer rate with low origin is often normal when Output Cache serves most traffic.
 
 ### Conditions
 
@@ -190,7 +190,7 @@ The compiler rejects unknown paths. Common ones:
 | Path | Meaning |
 |------|---------|
 | `domain.requests` | Aggregated request count |
-| `domain.fc.originShare` | Origin/factory share 0–1 |
+| `domain.fc.originShare` | Origin share = factory runs ÷ requests (0–1) |
 | `domain.fc.staleShare` | Stale share 0–1 |
 | `domain.fc.factoryRuns` / `factoryFailures` / `factoryFailureRate` | Factory health |
 | `domain.invalidations` / `domain.invalidationShare` | Invalidation pressure |

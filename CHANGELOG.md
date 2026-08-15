@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Detail embeds: domain / instance / endpoint pages (scoped series; endpoint empty-range notice is sample-based, not a hard feature flag)
   - Enlarge chart modal (denser Y grid) with hover snap along the polyline (interpolated segment values + vertex snap, including sloped segments); expand control on chart cards
   - Graceful `NotConfigured` / `Disconnected` / `Connected` (no fake zeros when storage is missing)
-  - Local dev stack: `deploy/prometheus` (Docker) scrapes **Playground** `/metrics`
+  - Local dev stack: `samples/CacheOrchestrator.Sample/deploy/prometheus` (Docker) scrapes **Playground** `/metrics` (sample only; not a package dependency)
 - **Core `Cache:Metrics:IncludeEndpointLabel`** (default `true`) — optional stable `route` tag on OC/FC meter instruments (`METHOD` + route template, same as Admin endpoint keys); set `false` to lower Prometheus cardinality
 - Playground sample: OpenTelemetry Prometheus scrape endpoint (`/metrics`, Output Cache NoStore), Local Admin enabled, `IncludeEndpointLabel` on
 - Admin App: `InstanceReachabilityCache` + `DownReprobeSeconds` — skip HTTP to known-down instances until re-probe (avoids stacking timeouts)
@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Documentation revised after 2.0.0: root README, package and sample READMEs, and `docs/` further aligned in tone and structure
-- Admin Metrics store and Prometheus dev guide (`deploy/prometheus`, Playground `/metrics`, Admin / observability docs)
+- Admin Metrics store and Prometheus dev guide (`samples/…/deploy/prometheus`, Playground `/metrics`, Admin / observability docs)
 - Admin hints customization: operator guide ships with the Admin App as `hints/README.md`; monorepo overview in `docs/admin-hints.md`; Admin App README presents hints as a first-class feature (Settings, packs, `CacheAdmin:Hints`)
 
 ## [2.0.0] - 2026-08-13

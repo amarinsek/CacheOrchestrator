@@ -263,7 +263,7 @@ function overviewKpiHtml(o) {
       <div class="kpi"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>
       <div class="kpi"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
       <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
-      <div class="kpi"><div class="label">Origin share</div><div class="value">${pct(o.originShare)}</div></div>
+      <div class="kpi" title="Origin share = Fusion factory runs ÷ requests"><div class="label">Origin share</div><div class="value">${pct(o.originShare)}</div></div>
       <div class="kpi"><div class="label">Domains / EP</div><div class="value" style="font-size:1rem">${num(o.domainCount)} / ${num(o.endpointCount)}</div></div>`;
 }
 
@@ -446,7 +446,7 @@ function endpointDetailHeadHtml(ep) {
       <div class="kpi-row">
         <div class="kpi"><div class="label">Requests</div><div class="value">${num(ep.requests)}</div></div>
         <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowSample)}</div></div>
-        <div class="kpi"><div class="label">Origin share</div><div class="value">${pct(ep.fc?.originShare)}</div></div>
+        <div class="kpi" title="Origin share = Fusion factory runs ÷ requests"><div class="label">Origin share</div><div class="value">${pct(ep.fc?.originShare)}</div></div>
         <div class="kpi"><div class="label">FC stale</div><div class="value">${num(ep.fc?.stale)}</div></div>
       </div>
       <p class="muted">Pipeline</p>
@@ -613,7 +613,7 @@ function domainDetailHeadHtml(name, domain, cfg) {
         <div class="kpi"><div class="label">Version</div><div class="value" style="font-size:1rem">${esc(domain.version || cfg?.version || "—")}</div></div>
         <div class="kpi"><div class="label">Requests</div><div class="value">${num(domain.requests)}</div></div>
         <div class="kpi"><div class="label">OC hit share</div><div class="value">${pct(domain.oc?.hitShare, domain.oc?.lowSample)}</div></div>
-        <div class="kpi"><div class="label">Origin share</div><div class="value">${pct(domain.fc?.originShare)}</div></div>
+        <div class="kpi" title="Origin share = Fusion factory runs ÷ requests"><div class="label">Origin share</div><div class="value">${pct(domain.fc?.originShare)}</div></div>
         <div class="kpi"><div class="label">Invalidations</div><div class="value">${num(domain.invalidations)}</div></div>
       </div>
       ${pipelineBar(domain.pipeline, true)}
@@ -1297,6 +1297,10 @@ function severityCell(sev) {
   return `<span class="hint-sev-label ${cls}">${esc(s)}</span>`;
 }
 
+/* Standard “two sheets” copy icon (stroke, Lucide-style). */
+const COPY_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+const CLOSE_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+
 /** Modal with pretty-printed rule JSON. */
 function openHintRuleDetail(rule) {
   closeHintRuleDetail();
@@ -1324,7 +1328,10 @@ function openHintRuleDetail(rule) {
           ${severityCell(rule.defaultSeverity)}
           <span class="badge muted">${esc(rule.scope || "")}</span>
         </h2>
-        <button type="button" class="secondary chart-modal-close" aria-label="Close">✕</button>
+        <div class="chart-modal-actions">
+          <button type="button" class="secondary chart-modal-icon-btn hint-rule-copy" aria-label="Copy rule JSON" title="Copy rule JSON">${COPY_ICON_SVG}</button>
+          <button type="button" class="secondary chart-modal-icon-btn chart-modal-close" aria-label="Close" title="Close">${CLOSE_ICON_SVG}</button>
+        </div>
       </div>
       <p class="muted small" style="margin:0 0 0.5rem">
         ${esc(sourceLabel(rule.source || ""))}
@@ -1337,6 +1344,20 @@ function openHintRuleDetail(rule) {
   document.body.classList.add("chart-modal-open");
   const close = () => closeHintRuleDetail();
   backdrop.querySelector(".chart-modal-close")?.addEventListener("click", close);
+  const copyBtn = backdrop.querySelector(".hint-rule-copy");
+  copyBtn?.addEventListener("click", async () => {
+    const ok = await copyTextToClipboard(body);
+    if (!copyBtn) return;
+    copyBtn.classList.toggle("copied", ok);
+    copyBtn.title = ok ? "Copied" : "Copy failed";
+    copyBtn.setAttribute("aria-label", ok ? "Copied" : "Copy failed");
+    window.setTimeout(() => {
+      if (!copyBtn.isConnected) return;
+      copyBtn.classList.remove("copied");
+      copyBtn.title = "Copy rule JSON";
+      copyBtn.setAttribute("aria-label", "Copy rule JSON");
+    }, 1500);
+  });
   backdrop.addEventListener("click", (ev) => {
     if (ev.target === backdrop) close();
   });
@@ -1345,6 +1366,32 @@ function openHintRuleDetail(rule) {
   };
   backdrop._onKey = onKey;
   document.addEventListener("keydown", onKey);
+}
+
+/** @param {string} text */
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
 }
 
 function closeHintRuleDetail() {

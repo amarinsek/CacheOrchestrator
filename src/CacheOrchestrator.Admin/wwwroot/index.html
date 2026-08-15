@@ -3,20 +3,29 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CacheOrchestrator Admin</title>
+  <title>CacheOrchestrator Admin Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <!--
     Chrome layout (top → bottom):
-    1) app logo / brand
+    1) app logo / brand (same pattern as Sample Playground)
     2) header metrics strip (same bar style as menu)
     3) menu strip
   -->
   <div class="app-chrome" id="appChrome">
     <div class="chrome-brand">
-      <a href="#/overview" class="brand-link">CacheOrchestrator Admin</a>
-      <span class="muted brand-sub">multi-instance</span>
+      <a href="#/overview" class="brand-link">
+        <img src="/logo.png" alt="CacheOrchestrator logo" class="brand-logo" width="56" height="56" />
+        <span class="brand-text">
+          <span class="brand-eyebrow">CacheOrchestrator</span>
+          <h1 class="brand-title">Admin Console</h1>
+          <span class="brand-subtitle">Multi-instance fan-out · live stats · operations</span>
+        </span>
+      </a>
     </div>
 
     <div class="chrome-strip chrome-metrics" id="headerMetrics">

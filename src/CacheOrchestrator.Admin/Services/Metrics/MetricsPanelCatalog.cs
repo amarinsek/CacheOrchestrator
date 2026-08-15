@@ -22,7 +22,7 @@ public static class MetricsPanelCatalog
     /// <summary>Histogram buckets for Fusion duration (unit ms → milliseconds in OTel export).</summary>
     public const string FcDurationBucket = "cache_orchestrator_fc_duration_milliseconds_bucket";
 
-    /// <summary>Scrape label for Admin App instance id (see deploy/prometheus).</summary>
+    /// <summary>Scrape label for Admin App instance id (see samples/…/deploy/prometheus).</summary>
     public const string InstanceIdLabel = "instance_id";
 
     /// <summary>OTel tag for stable endpoint key.</summary>

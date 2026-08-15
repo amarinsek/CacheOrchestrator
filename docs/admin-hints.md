@@ -79,7 +79,7 @@ Full disable options and pack examples: [hints/README.md](../src/CacheOrchestrat
 | **Warning** | Fault worth fixing (high origin, stale covering failures, drift, hard &lt; soft TTL, lingering hold) |
 | **Info** | Operational note (approaching cutover, recent hold, runtime overlay, frequent invalidations) |
 
-Prefer **origin share** / factory failure rate over raw Fusion layer hit rate. A 0% FC layer rate with low origin is often normal when Output Cache absorbs traffic.
+**Origin share** in Admin is the same as **Fusion factory share**: `factoryRuns / requests` (CDN “origin” = factory miss path). Prefer **origin share** / factory failure rate over raw Fusion layer hit rate. A 0% FC layer rate with low origin is often normal when Output Cache absorbs traffic.
 
 ---
 

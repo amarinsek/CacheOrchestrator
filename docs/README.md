@@ -35,7 +35,7 @@ Technical reference. The [root README](../README.md) is the product overview. Yo
 - [Observability](observability.md) — `X-Cache`, metrics, health.
 - [Admin](admin.md) — Admin API and Admin App.
 - [Admin hints](admin-hints.md) — recommendation feature overview; **how to write rules:** [Admin hints/README](../src/CacheOrchestrator.Admin/hints/README.md).
-- [Local Prometheus](../deploy/prometheus/README.md) — Docker scrape for Admin Metrics + Playground sample.
+- [Local Prometheus (Playground sample)](../samples/CacheOrchestrator.Sample/deploy/prometheus/README.md) — optional Docker scrape for Admin Metrics; **not** part of the NuGet packages.
 
 ## Internals
 
