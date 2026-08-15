@@ -22,8 +22,8 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
-        # Libraries, Admin App, unit tests, and integration tests target net8.0 + net10.0.
-        # Samples stay net10.0-only.
+        # Libraries, unit tests, and integration tests target net8.0 + net10.0.
+        # Admin App is net10.0-only (its tests run under unit tests net10.0). Samples stay net10.0-only.
         dotnet-version: |
           8.0.x
           10.0.x

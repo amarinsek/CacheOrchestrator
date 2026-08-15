@@ -238,8 +238,8 @@ function cssEscape(id) {
 function metricsKpiHtml(summary, series) {
   return `
       <div class="kpi" title="Request rate over the selected metrics window"><div class="label">Req / s</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
-      <div class="kpi" title="Output Cache hit share over the selected metrics window"><div class="label">OC hit (window)</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
-      <div class="kpi" title="Fusion layer hit rate over the selected metrics window"><div class="label">FC hit rate</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
+      <div class="kpi" title="OC hit share over the selected metrics window (from external metrics store)"><div class="label">OC hit share (window)</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
+      <div class="kpi" title="FC hit rate (layer) over the selected metrics window — among Fusion operations, not request share"><div class="label">FC hit rate (layer, window)</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
       <div class="kpi" title="Invalidation rate over the selected metrics window"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
       <div class="kpi"><div class="label">Step</div><div class="value" data-kpi="step" style="font-size:1rem">${esc(series?.step || "—")}</div></div>`;
 }

@@ -15,15 +15,19 @@ export function esc(s) {
 }
 
 /**
- * Format a 0–1 rate as a percentage string.
- * When `lowSample` is true, wraps the value with a dashed underline and title.
+ * Format a 0–1 ratio as a percentage string.
+ * @param {number|null|undefined} rate
+ * @param {boolean} [lowSample] when true, dashed underline + tooltip
+ * @param {"request"|"layer"} [kind] request = total requests &lt; 20; layer = layer hits+misses &lt; 20
  */
-export function pct(rate, lowSample) {
+export function pct(rate, lowSample, kind = "request") {
   if (rate == null || Number.isNaN(rate)) return "—";
   const s = (rate * 100).toFixed(1) + "%";
-  return lowSample
-    ? `<span class="low-n" title="Low sample (layer n &lt; 20)">${s}</span>`
-    : s;
+  if (!lowSample) return s;
+  const tip = kind === "layer"
+    ? "Low layer sample (hits+misses on this layer &lt; 20) — rate may be noisy"
+    : "Low request sample (total requests &lt; 20) — share may be noisy";
+  return `<span class="low-n" title="${tip}">${s}</span>`;
 }
 
 /** Locale-aware integer/number formatting; null → em dash. */
@@ -42,10 +46,13 @@ export const METRIC_TITLES = {
     "Request pipeline (shares of all requests): OC hit share · FC hit share · Factory share · Bypass · Other. The three main shares are mutually exclusive for a typical OC-then-FC path; Bypass/Other cover the rest.",
   oc: "Output Cache — full HTTP response cache in ASP.NET Core",
   fc: "FusionCache — application object cache (L1 memory, optional L2)",
-  ocHitShare: "Output Cache hit share of all requests (not layer-only)",
-  fcHitShare: "FusionCache hit share of all requests",
+  // Keep wording aligned with UI labels: "OC hit share", "FC hit share", "Factory share".
+  ocHitShare:
+    "OC hit share — fraction of all requests served from Output Cache (full HTTP response). Not a layer-only rate.",
+  fcHitShare:
+    "FC hit share — fraction of all requests served from FusionCache without running the factory.",
   factoryShare:
-    "Factory share of all requests (factoryRuns ÷ requests). Also known as origin share. JSON: factoryShare (originShare still accepted).",
+    "Factory share — fraction of all requests where the Fusion factory ran (factoryRuns ÷ requests). Also known as origin share.",
   factory: "Fusion factory runs (GetOrSet miss path that produced a value)",
   factoryFailures: "Fusion factory runs that threw or failed",
   factoryFailureRate: "Factory failures ÷ factory runs",
@@ -114,7 +121,7 @@ export function thMetric(label, title, opts = {}) {
 }
 
 /**
- * Horizontal request-pipeline share bar (OC hit · FC hit · Factory · Bypass · Other).
+ * Horizontal request-pipeline share bar (OC hit share · FC hit share · Factory share · Bypass · Other).
  * @param {object|null} p Pipeline DTO with *Share fields
  * @param {boolean} [large] Wider/taller bar for detail pages
  */

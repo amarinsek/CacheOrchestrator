@@ -153,6 +153,15 @@ The miss path that runs your `GetOrSet` lambda / DB is the **factory**. Admin UI
 
 These three are **request shares** (same denominator). The pipeline bar shows them plus Bypass / Other. **Layer rates** (e.g. FC miss rate = misses among traffic that reached Fusion) stay on **detail** views — a high FC *layer* miss rate with high OC hit share is often normal. Prefer factory share for “is the cache absorbing traffic?” — see [admin-hints.md](admin-hints.md).
 
+**Low sample flags**
+
+| Flag | Based on | Apply to |
+|------|----------|----------|
+| `lowRequestSample` | total **requests** &lt; 20 | request **shares** (OC/FC hit share, factory share, …) |
+| `lowSample` | **layer** hits+misses &lt; 20 | **layer rates** (OC/FC hit/miss rate) |
+
+So if OC absorbs almost all traffic, FC hit **share** is still trustworthy once requests ≥ 20, while FC hit **rate** may show low-sample (few FC layer events).
+
 ### Health semantics (Admin App mapping)
 
 | Probe result | Instance status in UI |
@@ -173,7 +182,7 @@ These three are **request shares** (same denominator). The pipeline bar shows th
 
 ## Admin App (process)
 
-Standalone host multi-targeting **net8.0** and **net10.0** (ops tool). Target apps may use either TFM independently — Admin does not need to match instance runtimes (HTTP fan-out only).
+Standalone host targeting **net10.0** only (ops tool). Target apps may still run on **net8.0** or **net10.0** independently — Admin talks HTTP only and does not need to match instance runtimes.
 
 ### Configuration
 
@@ -348,7 +357,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
 | Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
 | High FC miss rate, everything “fine” | Prefer **factory share** (also known as origin) / OC hit share — see shares vs rates |
-| Scalar OpenAPI missing | Only mapped in **Development** on Admin App (OpenAPI document: Microsoft.AspNetCore.OpenApi on net10, Swashbuckle on net8) |
+| Scalar OpenAPI missing | Only mapped in **Development** on Admin App (`MapOpenApi` + Scalar; requires net10 runtime for the Admin host) |
 | CORS issues calling Admin API from a browser | Prefer Admin App fan-out; Admin API is for server-side callers |
 
 ---

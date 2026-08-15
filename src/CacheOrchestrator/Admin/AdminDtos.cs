@@ -30,8 +30,18 @@ public sealed class AdminLayerDto
     /// <summary>Request share: <c>bypass / requests</c>.</summary>
     public double? BypassShare { get; init; }
 
-    /// <summary>True when layer sample is positive but below <see cref="AdminStatsMath.LowSampleThreshold"/>.</summary>
+    /// <summary>
+    /// True when the <strong>layer</strong> sample (hits+misses) is positive but below
+    /// <see cref="AdminStatsMath.LowSampleThreshold"/>. Use for <see cref="HitRate"/> / <see cref="MissRate"/>,
+    /// not for request shares (use <see cref="LowRequestSample"/>).
+    /// </summary>
     public bool LowSample { get; init; }
+
+    /// <summary>
+    /// True when total request denominator is positive but below
+    /// <see cref="AdminStatsMath.LowSampleThreshold"/>. Use for request <c>*Share</c> fields.
+    /// </summary>
+    public bool LowRequestSample { get; init; }
 }
 
 /// <summary>Fusion layer counters with layer rates and request shares.</summary>
@@ -102,8 +112,18 @@ public sealed class AdminFusionLayerDto
         init => _factoryShare = value;
     }
 
-    /// <summary>True when layer sample is positive but low.</summary>
+    /// <summary>
+    /// True when the Fusion <strong>layer</strong> sample (hits+misses) is positive but below
+    /// <see cref="AdminStatsMath.LowSampleThreshold"/>. Use for layer rates only.
+    /// </summary>
     public bool LowSample { get; init; }
+
+    /// <summary>
+    /// True when total request denominator is positive but below
+    /// <see cref="AdminStatsMath.LowSampleThreshold"/>. Use for request shares
+    /// (including <see cref="FactoryShare"/> / FC hit share).
+    /// </summary>
+    public bool LowRequestSample { get; init; }
 }
 
 /// <summary>

@@ -184,31 +184,31 @@ export function inlineSortSelectHtml(id, current, options) {
 
 /** Sort keys offered on Endpoints list / Overview top-5. */
 export const EP_SORT_OPTS = [
-  ["requests", "requests"],
-  ["factoryShare", "factoryShare"],
-  ["ocHitShare", "ocHitShare"],
-  ["fcHitShare", "fcHitShare"],
-  ["route", "route"],
+  ["requests", "Requests"],
+  ["ocHitShare", "OC hit share"],
+  ["fcHitShare", "FC hit share"],
+  ["factoryShare", "Factory share"],
+  ["route", "Route"],
 ];
 
 /** Sort keys for Domains list. */
 export const DOMAIN_SORT_OPTS = [
-  ["requests", "requests"],
-  ["name", "name"],
-  ["factoryShare", "factoryShare"],
-  ["ocHitShare", "ocHitShare"],
-  ["fcHitShare", "fcHitShare"],
-  ["invalidations", "invalidations"],
-  ["version", "version"],
+  ["requests", "Requests"],
+  ["name", "Name"],
+  ["ocHitShare", "OC hit share"],
+  ["fcHitShare", "FC hit share"],
+  ["factoryShare", "Factory share"],
+  ["invalidations", "Invalidations"],
+  ["version", "Version"],
 ];
 
 /** Sort keys for Instances list / Overview instances. */
 export const INST_SORT_OPTS = [
-  ["id", "id"],
-  ["status", "status"],
-  ["requests", "requests"],
-  ["uptime", "uptime"],
-  ["latency", "latency"],
+  ["id", "Id"],
+  ["status", "Status"],
+  ["requests", "Requests"],
+  ["uptime", "Uptime"],
+  ["latency", "Latency"],
 ];
 
 function cmpNumDesc(a, b) {

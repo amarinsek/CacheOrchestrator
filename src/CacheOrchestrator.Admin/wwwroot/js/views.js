@@ -263,13 +263,13 @@ function paintOverviewBody(o, params, soft) {
 
 function overviewKpiHtml(o) {
   return `
-      <div class="kpi"><div class="label">Instances up</div><div class="value ${instancesUpClass(o)}">${o.healthyCount}/${(o.instances || []).length}\u2009up</div></div>
-      <div class="kpi"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>
+      <div class="kpi"><div class="label">Instances up</div><div class="value ${instancesUpClass(o)}">${o.healthyCount} / ${(o.instances || []).length}</div></div>
       <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
-      <div class="kpi" title="${esc(METRIC_TITLES.ocHitShare)}"><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
-      <div class="kpi" title="${esc(METRIC_TITLES.fcHitShare)}"><div class="label">FC hit share</div><div class="value">${pct(o.pipeline?.fcHitShare)}</div></div>
+      <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
+      <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit share</div><div class="value">${pct(o.pipeline?.fcHitShare)}</div></div>
       <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(o))}</div></div>
-      <div class="kpi"><div class="label">Domains / EP</div><div class="value" style="font-size:1rem">${num(o.domainCount)} / ${num(o.endpointCount)}</div></div>`;
+      <div class="kpi"><div class="label">Domains / EP</div><div class="value" style="font-size:1rem">${num(o.domainCount)} / ${num(o.endpointCount)}</div></div>
+      <div class="kpi"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>`;
 }
 
 // —— Endpoints ——
@@ -450,9 +450,9 @@ function endpointDetailHeadHtml(ep) {
       ${hintListHtml(ep.hints)}
       <div class="kpi-row">
         <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(ep.requests)}</div></div>
-        <div class="kpi" title="${esc(METRIC_TITLES.ocHitShare)}"><div class="label">OC hit share</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowSample)}</div></div>
-        <div class="kpi" title="${esc(METRIC_TITLES.fcHitShare)}"><div class="label">FC hit share</div><div class="value">${pct(ep.fc?.hitShare, ep.fc?.lowSample)}</div></div>
-        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(ep.fc))}</div></div>
+        <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit share</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowRequestSample, "request")}</div></div>
+        <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit share</div><div class="value">${pct(ep.fc?.hitShare, ep.fc?.lowRequestSample, "request")}</div></div>
+        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(ep.fc), ep.fc?.lowRequestSample, "request")}</div></div>
       </div>
       <p class="muted">Pipeline</p>
       ${pipelineBar(ep.pipeline, true)}
@@ -464,7 +464,7 @@ function endpointDetailHeadHtml(ep) {
     ${ep.byInstance?.length ? `
     <div class="card">
       <h2>By instance <span class="badge">spread</span></h2>
-      ${ep.instanceSpread ? `<p class="muted">OC hit ${spreadCell(ep.instanceSpread.ocHitShare)} · FC hit ${spreadCell(ep.instanceSpread.fcHitShare)} · Factory ${spreadCell(ep.instanceSpread.factoryShare ?? ep.instanceSpread.originShare)}</p>` : ""}
+      ${ep.instanceSpread ? `<p class="muted">OC hit share ${spreadCell(ep.instanceSpread.ocHitShare)} · FC hit share ${spreadCell(ep.instanceSpread.fcHitShare)} · Factory share ${spreadCell(ep.instanceSpread.factoryShare ?? ep.instanceSpread.originShare)}</p>` : ""}
       <table class="dense">
         <thead><tr>
           ${thMetric("Instance", "instance", { fromKey: true })}
@@ -478,9 +478,9 @@ function endpointDetailHeadHtml(ep) {
             <tr class="clickable" data-id="${esc(bi.instanceId)}">
               <td><code>${esc(bi.instanceId)}</code></td>
               <td>${num(bi.requests)}</td>
-              <td>${pct(bi.oc?.hitShare, bi.oc?.lowSample)}</td>
-              <td>${pct(bi.fc?.hitShare, bi.fc?.lowSample)}</td>
-              <td>${pct(factoryShareOf(bi.fc))}</td>
+              <td>${pct(bi.oc?.hitShare, bi.oc?.lowRequestSample, "request")}</td>
+              <td>${pct(bi.fc?.hitShare, bi.fc?.lowRequestSample, "request")}</td>
+              <td>${pct(factoryShareOf(bi.fc), bi.fc?.lowRequestSample, "request")}</td>
             </tr>`).join("")}
         </tbody>
       </table>
@@ -621,9 +621,9 @@ function domainDetailHeadHtml(name, domain, cfg) {
       <div class="kpi-row">
         <div class="kpi"><div class="label">Version</div><div class="value" style="font-size:1rem">${esc(domain.version || cfg?.version || "—")}</div></div>
         <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(domain.requests)}</div></div>
-        <div class="kpi" title="${esc(METRIC_TITLES.ocHitShare)}"><div class="label">OC hit share</div><div class="value">${pct(domain.oc?.hitShare, domain.oc?.lowSample)}</div></div>
-        <div class="kpi" title="${esc(METRIC_TITLES.fcHitShare)}"><div class="label">FC hit share</div><div class="value">${pct(domain.fc?.hitShare, domain.fc?.lowSample)}</div></div>
-        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(domain.fc))}</div></div>
+        <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit share</div><div class="value">${pct(domain.oc?.hitShare, domain.oc?.lowRequestSample, "request")}</div></div>
+        <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit share</div><div class="value">${pct(domain.fc?.hitShare, domain.fc?.lowRequestSample, "request")}</div></div>
+        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(domain.fc), domain.fc?.lowRequestSample, "request")}</div></div>
         <div class="kpi" title="${esc(METRIC_TITLES.inv)}"><div class="label">Invalidations</div><div class="value">${num(domain.invalidations)}</div></div>
       </div>
       ${pipelineBar(domain.pipeline, true)}
@@ -648,7 +648,7 @@ function domainDetailHeadHtml(name, domain, cfg) {
     ${domain.byInstance?.length ? `
     <div class="card">
       <h2>By instance</h2>
-      ${domain.instanceSpread ? `<p class="muted">OC hit ${spreadCell(domain.instanceSpread.ocHitShare)} · FC hit ${spreadCell(domain.instanceSpread.fcHitShare)} · Factory ${spreadCell(domain.instanceSpread.factoryShare ?? domain.instanceSpread.originShare)}</p>` : ""}
+      ${domain.instanceSpread ? `<p class="muted">OC hit share ${spreadCell(domain.instanceSpread.ocHitShare)} · FC hit share ${spreadCell(domain.instanceSpread.fcHitShare)} · Factory share ${spreadCell(domain.instanceSpread.factoryShare ?? domain.instanceSpread.originShare)}</p>` : ""}
       <table class="dense">
         <thead><tr>
           ${thMetric("Instance", "instance", { fromKey: true })}
@@ -665,9 +665,9 @@ function domainDetailHeadHtml(name, domain, cfg) {
               <td><code>${esc(bi.instanceId)}</code></td>
               <td>${esc(bi.version)}${bi.versionIsRuntimeOverride ? " *" : ""}</td>
               <td>${num(bi.requests)}</td>
-              <td>${pct(bi.oc?.hitShare, bi.oc?.lowSample)}</td>
-              <td>${pct(bi.fc?.hitShare, bi.fc?.lowSample)}</td>
-              <td>${pct(factoryShareOf(bi.fc))}</td>
+              <td>${pct(bi.oc?.hitShare, bi.oc?.lowRequestSample, "request")}</td>
+              <td>${pct(bi.fc?.hitShare, bi.fc?.lowRequestSample, "request")}</td>
+              <td>${pct(factoryShareOf(bi.fc), bi.fc?.lowRequestSample, "request")}</td>
               <td>${num(bi.invalidations)}</td>
             </tr>`).join("")}
         </tbody>

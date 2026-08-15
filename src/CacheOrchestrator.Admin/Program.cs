@@ -54,34 +54,18 @@ builder.Services.AddSingleton<IMetricsQueryClient, PrometheusMetricsQueryClient>
 builder.Services.AddSingleton<MetricsQueryService>();
 
 // OpenAPI document for Scalar (Development only).
-// net9+: Microsoft.AspNetCore.OpenApi. net8: Swashbuckle (AddOpenApi is not in the net8 package).
-#if NET9_0_OR_GREATER
 builder.Services.AddOpenApi();
-#else
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-#endif
 
 WebApplication app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-#if NET9_0_OR_GREATER
     app.MapOpenApi();
     app.MapScalarApiReference(options =>
     {
         options.WithTitle("CacheOrchestrator Admin");
         options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
     });
-#else
-    app.UseSwagger();
-    app.MapScalarApiReference(options =>
-    {
-        options.WithTitle("CacheOrchestrator Admin");
-        options.WithOpenApiRoutePattern("/swagger/{documentName}/swagger.json");
-        options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-    });
-#endif
 }
 
 app.UseDefaultFiles();

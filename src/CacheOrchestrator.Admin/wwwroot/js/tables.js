@@ -35,9 +35,9 @@ export function endpointRowHtml(e) {
     <td class="col-hints">${hintBadges(e.hints)}</td>
     <td class="col-num">${num(e.requests)}</td>
     <td class="col-pipe">${pipelineBar(e.pipeline)}</td>
-    <td class="col-metric">${pct(e.oc?.hitShare, e.oc?.lowSample)}</td>
-    <td class="col-metric">${pct(e.fc?.hitShare, e.fc?.lowSample)}</td>
-    <td class="col-metric">${pct(factoryShareOf(e.fc), e.fc?.lowSample)}</td>
+    <td class="col-metric">${pct(e.oc?.hitShare, e.oc?.lowRequestSample, "request")}</td>
+    <td class="col-metric">${pct(e.fc?.hitShare, e.fc?.lowRequestSample, "request")}</td>
+    <td class="col-metric">${pct(factoryShareOf(e.fc), e.fc?.lowRequestSample, "request")}</td>
   </tr>`;
 }
 
@@ -72,9 +72,9 @@ export function domainRowHtml(d) {
     <td class="col-metric">${esc(d.version)}</td>
     <td class="col-num">${num(d.requests)}</td>
     <td class="col-pipe">${pipelineBar(d.pipeline)}</td>
-    <td class="col-metric">${pct(d.oc?.hitShare, d.oc?.lowSample)}</td>
-    <td class="col-metric">${pct(d.fc?.hitShare, d.fc?.lowSample)}</td>
-    <td class="col-metric">${pct(factoryShareOf(d.fc))}</td>
+    <td class="col-metric">${pct(d.oc?.hitShare, d.oc?.lowRequestSample, "request")}</td>
+    <td class="col-metric">${pct(d.fc?.hitShare, d.fc?.lowRequestSample, "request")}</td>
+    <td class="col-metric">${pct(factoryShareOf(d.fc), d.fc?.lowRequestSample, "request")}</td>
     <td class="col-num">${num(d.invalidations)}</td>
     <td class="col-ops"><a href="#/operations?domain=${encodeURIComponent(d.name)}" onclick="event.stopPropagation()">Ops</a></td>
   </tr>`;
@@ -311,11 +311,11 @@ export function layerDetailOc(oc) {
         <span title="Output Cache misses">Misses</span><span>${num(oc.misses)}</span>
         <span title="Output Cache bypass (not eligible / skipped)">Bypass</span><span>${num(oc.bypass)}</span>
         <span title="Samples that reached the Output Cache layer">Layer n</span><span>${num(oc.layerSampleSize)}</span>
-        <span title="${esc(METRIC_TITLES.ocHitShare)}">Hit share</span><span>${pct(oc.hitShare, oc.lowSample)}</span>
-        <span title="Output Cache miss share of all requests">Miss share</span><span>${pct(oc.missShare, oc.lowSample)}</span>
-        <span title="Output Cache bypass share of all requests">Bypass share</span><span>${pct(oc.bypassShare)}</span>
-        <span title="Hit rate of traffic that reached Output Cache">Hit rate (layer)</span><span>${pct(oc.hitRate, oc.lowSample)}</span>
-        <span title="Miss rate of traffic that reached Output Cache">Miss rate (layer)</span><span>${pct(oc.missRate, oc.lowSample)}</span>
+        <span title="${esc(METRIC_TITLES.ocHitShare)}">OC hit share</span><span>${pct(oc.hitShare, oc.lowRequestSample, "request")}</span>
+        <span title="Output Cache miss share of all requests">OC miss share</span><span>${pct(oc.missShare, oc.lowRequestSample, "request")}</span>
+        <span title="Output Cache bypass share of all requests">OC bypass share</span><span>${pct(oc.bypassShare, oc.lowRequestSample, "request")}</span>
+        <span title="Hit rate of traffic that reached Output Cache">OC hit rate (layer)</span><span>${pct(oc.hitRate, oc.lowSample, "layer")}</span>
+        <span title="Miss rate of traffic that reached Output Cache">OC miss rate (layer)</span><span>${pct(oc.missRate, oc.lowSample, "layer")}</span>
       </div>
     </div>`;
 }
@@ -333,13 +333,13 @@ export function layerDetailFc(fc) {
         <span title="${esc(METRIC_TITLES.factory)}">Factory runs</span><span>${num(fc.factoryRuns)}</span>
         <span title="${esc(METRIC_TITLES.factoryFailures)}">Factory failures</span><span>${num(fc.factoryFailures)}</span>
         <span title="Samples that reached the Fusion layer">Layer n</span><span>${num(fc.layerSampleSize)}</span>
-        <span title="${esc(METRIC_TITLES.fcHitShare)}">Hit share</span><span>${pct(fc.hitShare, fc.lowSample)}</span>
-        <span title="${esc(METRIC_TITLES.fcMissShare)}">Miss share</span><span>${pct(fc.missShare, fc.lowSample)}</span>
-        <span title="${esc(METRIC_TITLES.staleShare)}">Stale share</span><span>${pct(fc.staleShare)}</span>
-        <span title="${esc(METRIC_TITLES.factoryShare)}">Factory share</span><span>${pct(factoryShareOf(fc))}</span>
-        <span title="${esc(METRIC_TITLES.fcHitRate)}">Hit rate (layer)</span><span>${pct(fc.hitRate, fc.lowSample)}</span>
-        <span title="${esc(METRIC_TITLES.fcMissRate)}">Miss rate (layer)</span><span>${pct(fc.missRate, fc.lowSample)}</span>
-        <span title="${esc(METRIC_TITLES.staleRate)}">Stale rate (layer)</span><span>${pct(fc.staleRate)}</span>
+        <span title="${esc(METRIC_TITLES.fcHitShare)}">FC hit share</span><span>${pct(fc.hitShare, fc.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.fcMissShare)}">FC miss share</span><span>${pct(fc.missShare, fc.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.staleShare)}">Stale share</span><span>${pct(fc.staleShare, fc.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.factoryShare)}">Factory share</span><span>${pct(factoryShareOf(fc), fc.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.fcHitRate)}">FC hit rate (layer)</span><span>${pct(fc.hitRate, fc.lowSample, "layer")}</span>
+        <span title="${esc(METRIC_TITLES.fcMissRate)}">FC miss rate (layer)</span><span>${pct(fc.missRate, fc.lowSample, "layer")}</span>
+        <span title="${esc(METRIC_TITLES.staleRate)}">Stale rate (layer)</span><span>${pct(fc.staleRate, fc.lowSample, "layer")}</span>
       </div>
     </div>`;
 }
