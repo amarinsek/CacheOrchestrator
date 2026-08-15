@@ -63,7 +63,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.MapScalarApiReference(options =>
     {
-        options.WithTitle("CacheOrchestrator Admin");
+        options.WithTitle("CacheOrchestrator Admin Console");
         options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
     });
 }
@@ -71,7 +71,7 @@ if (app.Environment.IsDevelopment())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-RouteGroupBuilder api = app.MapGroup("/api").WithTags("Admin App");
+RouteGroupBuilder api = app.MapGroup("/api").WithTags("Admin Console");
 
 api.MapGet("/overview", async (AdminFanOutService fanOut, CancellationToken cancellationToken) =>
 {
@@ -161,7 +161,7 @@ api.MapGet("/domains", async (AdminFanOutService fanOut, CancellationToken cance
 });
 
 api.MapPost("/invalidate", async (
-    AdminAppInvalidateRequest body,
+    AdminConsoleInvalidateRequest body,
     AdminFanOutService fanOut,
     CancellationToken cancellationToken) =>
 {
@@ -182,7 +182,7 @@ api.MapPost("/invalidate", async (
 
 api.MapPost("/domains/{domain}/version", async (
     string domain,
-    AdminAppVersionRequest body,
+    AdminConsoleVersionRequest body,
     AdminFanOutService fanOut,
     CancellationToken cancellationToken) =>
 {
@@ -204,7 +204,7 @@ api.MapPost("/domains/{domain}/version", async (
 
 api.MapMethods("/domains/{domain}/ttl", ["PATCH"], async (
     string domain,
-    AdminAppTtlPatchRequest body,
+    AdminConsoleTtlPatchRequest body,
     AdminFanOutService fanOut,
     CancellationToken cancellationToken) =>
 {

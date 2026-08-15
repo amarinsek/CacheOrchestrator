@@ -1,14 +1,14 @@
 # Admin recommendation hints
 
-How the Admin App turns **live counters** (and domain config) into **read-only recommendations**.  
+How the Admin Console App turns **live counters** (and domain config) into **read-only recommendations**.  
 Hints never change cache behaviour, TTLs, or invalidation.
 
-**Customization is first-class.** Product defaults ship as JSON; operators add packs and can disable any code from Settings—without recompiling the Admin App.
+**Customization is first-class.** Product defaults ship as JSON; operators add packs and can disable any code from Settings—without recompiling the Admin Console App.
 
 | Document | Audience |
 |----------|----------|
-| **[Operator guide: writing rules](../src/CacheOrchestrator.AdminConsole/hints/README.md)** | Full how-to, JSON format, paths, step-by-step new rule (**ships with the Admin App** next to the packs) |
-| [Admin App README](../src/CacheOrchestrator.AdminConsole/README.md) | Run/configure the host + feature overview |
+| **[Operator guide: writing rules](../src/CacheOrchestrator.AdminConsole/hints/README.md)** | Full how-to, JSON format, paths, step-by-step new rule (**ships with the Admin Console App** next to the packs) |
+| [Admin Console App README](../src/CacheOrchestrator.AdminConsole/README.md) | Run/configure the host + feature overview |
 | [admin.md](admin.md) | Admin architecture / security |
 
 ---
@@ -24,7 +24,7 @@ Hints never change cache behaviour, TTLs, or invalidation.
 ## Architecture (repository)
 
 ```
-Local Admin /stats  →  Admin App fan-out (StatsAggregator)
+Local Admin /stats  →  Admin Console App fan-out (StatsAggregator)
                     →  HintEngine (JSON rules)
                     →  entity.Hints[] + HintSummary
                     →  SPA (badges, Hints page, Settings)
@@ -40,7 +40,7 @@ Local Admin /stats  →  Admin App fan-out (StatsAggregator)
 | Settings UI (`#/settings`) | Catalog by file, disable, inspect JSON, reload |
 | `wwwroot/js/hints.js` | Presentation only |
 
-Rules run **only in the Admin App**, not on each instance’s caching hot path.
+Rules run **only in the Admin Console App**, not on each instance’s caching hot path.
 
 **Runtime evaluation is declarative JSON.** `RecommendationHints.cs` remains as a reference/unit-test helper for some legacy formulas; new product rules belong in `core-hints.json` or operator packs.
 
@@ -105,7 +105,7 @@ Exact thresholds and messages: open **`core-hints.json`** or Settings → click 
 
 ---
 
-## API (Admin App)
+## API (Admin Console App)
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -123,14 +123,15 @@ Exact thresholds and messages: open **`core-hints.json`** or Settings → click 
 | Declarative compiler / conditions | `Services/Hints/Declarative/` |
 | Disable store | `Services/Hints/HintRuleDisableStore.cs` |
 | Product + operator packs | `hints/` |
+| Console DTOs (SPA / fan-out) | `Models/AdminConsoleModels.cs` |
 | Settings UI | `wwwroot/js/views.js` (`renderSettingsPage`) |
-| Attachment after fan-out | `Services/AdminFanOutService.cs` |
+| Attachment after fan-out | `Services/AdminFanOutService.cs`
 
 ---
 
 ## See also
 
 - **[Writing rules (distributed with Admin)](../src/CacheOrchestrator.AdminConsole/hints/README.md)**  
-- [Admin App README](../src/CacheOrchestrator.AdminConsole/README.md)  
+- [Admin Console App README](../src/CacheOrchestrator.AdminConsole/README.md)  
 - [admin.md](admin.md)  
 - [client-cache-schedule.md](client-cache-schedule.md)  

@@ -1,6 +1,6 @@
 # Writing Admin hint rules
 
-This folder ships with the **CacheOrchestrator Admin App**. It holds:
+This folder ships with the **CacheOrchestrator Admin Console App**. It holds:
 
 | File | Role |
 |------|------|
@@ -10,7 +10,7 @@ This folder ships with the **CacheOrchestrator Admin App**. It holds:
 
 Hints are **read-only recommendations** built from live Admin stats (and domain config). They never change TTLs, Version, or invalidation.
 
-You can add rules **without recompiling** the Admin App: drop a JSON file where `RuleFiles` points, then **Settings → Reload**.
+You can add rules **without recompiling** the Admin Console App: drop a JSON file where `RuleFiles` points, then **Settings → Reload**.
 
 ### Development vs Docker / Production
 
@@ -35,7 +35,7 @@ Default rules cover common factory-share (also known as origin), factory failure
 
 ## Config
 
-In Admin App `appsettings` (or environment overrides):
+In Admin Console App `appsettings` (or environment overrides):
 
 ```json
 "AdminConsole": {
@@ -254,5 +254,5 @@ Full list: Admin **Settings → Known paths**, or `GET /api/hints/rules` → `kn
 
 ## Related
 
-- Admin App overview: `../README.md`  
+- Admin Console App overview: `../README.md`  
 - Repository architecture notes: monorepo `docs/admin-hints.md` and `docs/admin.md` (source checkout; may not ship with a standalone Admin publish)

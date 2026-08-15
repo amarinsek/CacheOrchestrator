@@ -141,7 +141,7 @@ The endpoint code is the same shape in every case. The domain is what differs.
 
 - **Diagnostics.** `X-Cache` on the response (domain, hit or miss, schedule phase), a meter, an activity source, and a health check. [Observability](docs/observability.md)
 
-- **Admin API** and a separate **Admin App** for monitoring and administrating instances. [Admin](docs/admin.md)
+- **Admin API** and a separate **Admin Console App** for monitoring and administrating instances. [Admin](docs/admin.md)
 
 ---
 
@@ -159,7 +159,7 @@ The endpoint code is the same shape in every case. The domain is what differs.
 
 | Application | Purpose |
 |---------|---------|
-| [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Operator UI: live stats, domain settings, invalidation, Version and TTL. Docker: `ghcr.io/amarinsek/cacheorchestrator-admin-console` — [deploy/admin](deploy/admin/README.md). |
+| [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Admin Console App: live stats, domain settings, invalidation, Version and TTL. Docker: `ghcr.io/amarinsek/cacheorchestrator-admin-console` — [deploy/admin](deploy/admin/README.md). |
 
 
 ---

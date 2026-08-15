@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 // InMemory is always available; AddRedisBackend enables "Provider": "Redis" in appsettings.
 builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBackend());
 
-// Prometheus scrape endpoint for Admin App Metrics (see deploy/prometheus under this sample).
+// Prometheus scrape endpoint for Admin Console App Metrics (see deploy/prometheus under this sample).
 builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics =>
     {

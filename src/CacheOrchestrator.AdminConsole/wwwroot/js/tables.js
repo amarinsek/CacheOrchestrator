@@ -128,7 +128,7 @@ export function instanceTableHtml(list, emptyCtx = {}) {
   if (!list || !list.length) {
     return emptyStateHtml(emptyCtx.kind || "config", {
       title: "No instances configured",
-      detail: "Add targets under AdminConsole:Instances in Admin App appsettings, then refresh.",
+      detail: "Add targets under AdminConsole:Instances in Admin Console App appsettings, then refresh.",
       ...emptyCtx,
     });
   }
@@ -192,7 +192,7 @@ export function emptyStateHtml(kind, ctx = {}) {
       cls: "offline",
       icon: "!",
       title: ctx.title || "Failed to load",
-      detail: ctx.detail || "Request failed. Check Admin App logs and instance URLs.",
+      detail: ctx.detail || "Request failed. Check Admin Console App logs and instance URLs.",
     },
     "metrics-config": {
       cls: "config",

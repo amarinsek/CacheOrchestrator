@@ -117,7 +117,7 @@ public class AdminFanOutServiceTests
             new AdminInstanceOptions { Id = "b", Url = "http://b" });
 
         FanOutResultDto<object?> result = await sut.InvalidateAsync(
-            new AdminAppInvalidateRequest
+            new AdminConsoleInvalidateRequest
             {
                 Scope = "domain",
                 Domain = "catalog",
@@ -156,7 +156,7 @@ public class AdminFanOutServiceTests
             new AdminInstanceOptions { Id = "b", Url = "http://b" });
 
         FanOutResultDto<object?> result = await sut.InvalidateAsync(
-            new AdminAppInvalidateRequest
+            new AdminConsoleInvalidateRequest
             {
                 Scope = "domain",
                 Domain = "catalog",
@@ -181,7 +181,7 @@ public class AdminFanOutServiceTests
             new AdminInstanceOptions { Id = "b", Url = "http://b" });
 
         FanOutResultDto<object?> result = await sut.InvalidateAsync(
-            new AdminAppInvalidateRequest
+            new AdminConsoleInvalidateRequest
             {
                 Scope = "domain",
                 Domain = "catalog",

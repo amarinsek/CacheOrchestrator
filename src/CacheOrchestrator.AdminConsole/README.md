@@ -1,8 +1,8 @@
-# CacheOrchestrator.Admin
+# CacheOrchestrator.AdminConsole
 
-Admin Console for multi-instance CacheOrchestrator: live stats, domain settings, invalidation, Version/TTL, **time-series Metrics**, and **recommendation Hints**.
+Admin Console App for multi-instance CacheOrchestrator: live stats, domain settings, invalidation, Version/TTL, **time-series Metrics**, and **recommendation Hints**.
 
-![Admin App overview](../../docs/assets/admin-overview.png)
+![Admin Console App overview](../../docs/assets/admin-overview.png)
 
 It calls the **Admin API** on each instance you list (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).
 
@@ -137,7 +137,7 @@ Logs go to **stdout** (`docker logs`). No log agent is bundled in the image.
 
 ## Recommendation hints
 
-The Admin App evaluates **read-only rules** against aggregated live stats (and domain config). Results appear as severity badges, the **Hints** page, and header chips.
+The Admin Console App evaluates **read-only rules** against aggregated live stats (and domain config). Results appear as severity badges, the **Hints** page, and header chips.
 
 | Capability | |
 |------------|--|

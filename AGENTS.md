@@ -18,8 +18,8 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 - Redis package: `src/CacheOrchestrator.Redis` (`AddRedisBackend`)  
 - Bus package: `src/CacheOrchestrator.Bus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
 - EF invalidation package: `src/CacheOrchestrator.EFCore.Invalidation` (`AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation`)  
-- Admin Console: `src/CacheOrchestrator.AdminConsole` (fan-out UI/API; not a NuGet package; **net10.0 only**)  
-- Target frameworks: libraries `net8.0` + `net10.0`; Admin App `net10.0` only; samples typically net10  
+- Admin Console App: `src/CacheOrchestrator.AdminConsole` (fan-out UI/API; not a NuGet package; **net10.0 only**)  
+- Target frameworks: libraries `net8.0` + `net10.0`; Admin Console App `net10.0` only; samples typically net10  
 - Version: **MinVer** from Git tags `v*` (do not hardcode `<Version>` in Directory.Build.props)  
 - Samples: `samples/CacheOrchestrator.Minimal` (1-minute InMemory), `samples/CacheOrchestrator.Sample` (playground; Redis package)  
 - Tests: `tests/CacheOrchestrator.UnitTests` (net8+net10 for libraries; Admin tests net10 only), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
@@ -78,7 +78,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.Bus` |
 | `AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation` / `[CacheEntity]` | `CacheOrchestrator.EFCore` |
 | `IClusterCommandBus` / `IClusterMembership` / `IInstanceIdProvider` | `CacheOrchestrator.Cluster` |
-| Admin Console fan-out host | `src/CacheOrchestrator.AdminConsole` (`AdminConsole` config) |
+| Admin Console App fan-out host | `src/CacheOrchestrator.AdminConsole` (`AdminConsole` config) |
 
 There is **no** `CacheOrchestrator.Abstractions` folder — interfaces sit beside implementations (`Backends`, `FusionCache`, `Diagnostics`, …).
 
@@ -124,7 +124,7 @@ src/CacheOrchestrator/          core (InMemory only; no Redis/Bus packages)
 src/CacheOrchestrator.Redis/    Redis package: registrar, RedisConnectionOptions, config resolve, validation
 src/CacheOrchestrator.Bus/      HTTP cluster bus + Static membership + cluster receive endpoints
 src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges interceptor (not an EF cache provider)
-src/CacheOrchestrator.AdminConsole/    Admin Console host (fan-out, UI, Scalar; not packable)
+src/CacheOrchestrator.AdminConsole/    Admin Console App host (fan-out, UI, Scalar; not packable)
 tests/
 samples/
 docs/                human technical docs

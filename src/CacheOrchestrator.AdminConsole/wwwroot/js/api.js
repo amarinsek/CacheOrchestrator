@@ -1,5 +1,5 @@
 /**
- * HTTP client for the Admin App's own REST API (`/api/*`).
+ * HTTP client for the Admin Console App's own REST API (`/api/*`).
  * Errors surface as thrown Error with a readable message for empty states.
  */
 
@@ -7,7 +7,7 @@
 const inflightGet = new Map();
 
 /**
- * Fetch JSON from the Admin App API.
+ * Fetch JSON from the Admin Console App API.
  * @param {string} path Absolute path, e.g. `/api/overview`
  * @param {RequestInit} [options]
  * @returns {Promise<any>}

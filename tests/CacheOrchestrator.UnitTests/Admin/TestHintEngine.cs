@@ -36,7 +36,7 @@ internal static class TestHintEngine
         string? dir = AppContext.BaseDirectory;
         for (int i = 0; i < 8 && dir is not null; i++)
         {
-            string candidate = Path.Combine(dir, "src", "CacheOrchestrator.Admin", "hints", "core-hints.json");
+            string candidate = Path.Combine(dir, "src", "CacheOrchestrator.AdminConsole", "hints", "core-hints.json");
             if (File.Exists(candidate))
                 return candidate;
             dir = Directory.GetParent(dir)?.FullName;
@@ -45,7 +45,7 @@ internal static class TestHintEngine
         // Running from repo root workspace
         string fromCwd = Path.GetFullPath(Path.Combine(
             Directory.GetCurrentDirectory(),
-            "src", "CacheOrchestrator.Admin", "hints", "core-hints.json"));
+            "src", "CacheOrchestrator.AdminConsole", "hints", "core-hints.json"));
         return File.Exists(fromCwd) ? fromCwd : null;
     }
 

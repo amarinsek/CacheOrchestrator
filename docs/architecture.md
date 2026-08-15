@@ -60,7 +60,7 @@ Companion packages:
 | `CacheOrchestrator.Redis` | Redis OC store + Fusion L2 + backplane |
 | `CacheOrchestrator.Bus` | HTTP cluster command bus + Static / ServiceDiscovery membership |
 | `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation — [ef-core-invalidation.md](ef-core-invalidation.md) |
-| `CacheOrchestrator.Admin` | Operator UI; calls the Admin API on each instance. Not a NuGet package. |
+| `CacheOrchestrator.AdminConsole` | Admin Console App (operator UI); calls the Admin API on each instance. Not a NuGet package; Docker: `ghcr.io/amarinsek/cacheorchestrator-admin-console`. |
 
 ## Public API surface
 

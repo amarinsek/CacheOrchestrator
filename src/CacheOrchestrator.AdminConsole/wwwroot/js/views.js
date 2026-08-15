@@ -963,7 +963,7 @@ export async function renderOperations(params) {
         </div>
         <p class="muted dist-banner-detail">${esc(modeDetail)}</p>
         <p class="muted small">
-          <strong>fan-out</strong> = Admin App calls every target with <code>distribute:false</code> (each node applies locally).
+          <strong>fan-out</strong> = Admin Console App calls every target with <code>distribute:false</code> (each node applies locally).
           <strong>bus-distribute</strong> = one origin with <code>distribute:true</code>; peers apply via CacheOrchestrator.Bus (never both).
         </p>
       </div>
@@ -1503,7 +1503,7 @@ export async function route(opts = {}) {
       })(),
     ]);
   } catch (err) {
-    // Browser console only — Admin App process logs do not capture SPA errors.
+    // Browser console only — Admin Console App process logs do not capture SPA errors.
     console.error("[Admin UI] route failed", err);
     if (soft && mainHasContent()) return;
     main().innerHTML = `<div class="card">${emptyStateHtml("error", {

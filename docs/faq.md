@@ -125,10 +125,10 @@ Without the EF package, `SaveChanges` does not purge cache; call the invalidator
 
 ---
 
-## Admin API vs Admin App
+## Admin API vs Admin Console App
 
 - **Admin API** — opt-in HTTP on **each** process (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`). Stats, health, invalidate, runtime Version and TTL. Ships in the core package; off by default.
-- **Admin App** — a separate process (`src/CacheOrchestrator.AdminConsole`) that fans out to those APIs. It is not a NuGet package.
+- **Admin Console App** — a separate process (`src/CacheOrchestrator.AdminConsole`) that fans out to those APIs. It is not a NuGet package.
 
 These surfaces are for operators. Protect them with an API key and a private network. Guide: [admin.md](admin.md).
 

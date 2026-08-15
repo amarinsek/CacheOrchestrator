@@ -462,13 +462,13 @@ public sealed class AdminFanOutService
             RecommendedMode = busAvailable ? DistributionModes.BusDistribute : DistributionModes.FanOut,
             Summary = busAvailable
                 ? $"Cluster bus available — prefer single origin ({preferred!.Id}) with distribute:true (peers apply via bus)."
-                : "No cluster bus detected — Admin App will HTTP fan-out to each target with distribute:false.",
+                : "No cluster bus detected — Admin Console App will HTTP fan-out to each target with distribute:false.",
             Instances = probes
         };
     }
 
     public async Task<FanOutResultDto<object?>> InvalidateAsync(
-        AdminAppInvalidateRequest request,
+        AdminConsoleInvalidateRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -507,7 +507,7 @@ public sealed class AdminFanOutService
 
     public async Task<FanOutResultDto<object?>> SetVersionAsync(
         string domain,
-        AdminAppVersionRequest request,
+        AdminConsoleVersionRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
@@ -543,7 +543,7 @@ public sealed class AdminFanOutService
 
     public async Task<FanOutResultDto<object?>> PatchTtlAsync(
         string domain,
-        AdminAppTtlPatchRequest request,
+        AdminConsoleTtlPatchRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
@@ -610,7 +610,7 @@ public sealed class AdminFanOutService
                 Mode: DistributionModes.BusDistribute,
                 BusOriginInstanceId: origin.Id,
                 Summary:
-                    $"bus-distribute via origin '{origin.Id}' (Admin App → 1 HTTP call with distribute:true; peers apply via cluster bus).");
+                    $"bus-distribute via origin '{origin.Id}' (Admin Console App → 1 HTTP call with distribute:true; peers apply via cluster bus).");
         }
 
         // Explicit single instance: enable distribute only when that instance has a live bus.

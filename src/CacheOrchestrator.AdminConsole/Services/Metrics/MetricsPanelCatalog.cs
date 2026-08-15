@@ -8,7 +8,7 @@ namespace CacheOrchestrator.AdminConsole.Services.Metrics;
 /// Metric names match OpenTelemetry → Prometheus export of the CacheOrchestrator meter
 /// (<c>cache_orchestrator.*</c> instruments → <c>cache_orchestrator_*_total</c> counters).
 /// Optional <c>route</c> label when apps enable <c>Cache:Metrics:IncludeEndpointLabel</c>.
-/// Instance filter uses scrape label <c>instance_id</c> (align with Admin App instance ids).
+/// Instance filter uses scrape label <c>instance_id</c> (align with Admin Console App instance ids).
 /// </summary>
 public static class MetricsPanelCatalog
 {
@@ -22,7 +22,7 @@ public static class MetricsPanelCatalog
     /// <summary>Histogram buckets for Fusion duration (unit ms → milliseconds in OTel export).</summary>
     public const string FcDurationBucket = "cache_orchestrator_fc_duration_milliseconds_bucket";
 
-    /// <summary>Scrape label for Admin App instance id (see samples/…/deploy/prometheus).</summary>
+    /// <summary>Scrape label for Admin Console App instance id (see samples/…/deploy/prometheus).</summary>
     public const string InstanceIdLabel = "instance_id";
 
     /// <summary>OTel tag for stable endpoint key.</summary>

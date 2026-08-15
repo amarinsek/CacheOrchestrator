@@ -1,7 +1,7 @@
 namespace CacheOrchestrator.AdminConsole.Options;
 
 /// <summary>
-/// Optional external metrics storage (Prometheus-compatible) for Admin App time series.
+/// Optional external metrics storage (Prometheus-compatible) for Admin Console App time series.
 /// Bound from <c>AdminConsole:Metrics</c>. When disabled or missing URL, the Metrics UI is inactive.
 /// Operators typically set only <see cref="Enabled"/>, <see cref="Provider"/>, and <see cref="BaseUrl"/>.
 /// </summary>

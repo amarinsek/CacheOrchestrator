@@ -2,7 +2,7 @@ using CacheOrchestrator.Admin;
 
 namespace CacheOrchestrator.AdminConsole.Models;
 
-/// <summary>Health of a configured instance from the Admin App perspective.</summary>
+/// <summary>Health of a configured instance from the Admin Console App perspective.</summary>
 public enum InstanceHealthStatus
 {
     /// <summary>Local health endpoint responded successfully.</summary>
@@ -15,7 +15,7 @@ public enum InstanceHealthStatus
     Down = 2
 }
 
-/// <summary>Instance row for Admin App listings.</summary>
+/// <summary>Instance row for Admin Console App listings.</summary>
 public sealed class InstanceStatusDto
 {
     /// <summary>Configured instance id.</summary>
@@ -65,7 +65,7 @@ public sealed class FanOutResultDto<T>
     /// <summary>Aggregated or primary payload when applicable.</summary>
     public T? Data { get; init; }
 
-    /// <summary>Per-instance outcomes (Admin App HTTP targets only).</summary>
+    /// <summary>Per-instance outcomes (Admin Console App HTTP targets only).</summary>
     public required IReadOnlyList<InstanceCallResultDto> Results { get; init; }
 
     /// <summary>
@@ -76,7 +76,7 @@ public sealed class FanOutResultDto<T>
     /// <summary>Human-readable summary for UI (how peers were reached).</summary>
     public string? DistributionSummary { get; init; }
 
-    /// <summary>When bus-distribute: the single origin instance id contacted by Admin App.</summary>
+    /// <summary>When bus-distribute: the single origin instance id contacted by Admin Console App.</summary>
     public string? BusOriginInstanceId { get; init; }
 
     /// <summary>Whether Local Admin requests used <c>distribute: true</c>.</summary>
@@ -108,7 +108,7 @@ public sealed class LocalClusterInfoDto
     public int PeerCount { get; set; }
 }
 
-/// <summary>Aggregated cluster distribution capability for Admin App UI.</summary>
+/// <summary>Aggregated cluster distribution capability for Admin Console App UI.</summary>
 public sealed class ClusterDistributionCapabilityDto
 {
     /// <summary>Recommended mode for writes when target is <c>all</c>.</summary>
@@ -127,7 +127,7 @@ public sealed class ClusterDistributionCapabilityDto
     public required IReadOnlyList<InstanceClusterProbeDto> Instances { get; init; }
 }
 
-/// <summary>One instance's cluster probe for Admin App.</summary>
+/// <summary>One instance's cluster probe for Admin Console App.</summary>
 public sealed class InstanceClusterProbeDto
 {
     /// <summary>Configured instance id.</summary>
@@ -253,7 +253,7 @@ public sealed class ClusterStatsDto
     /// <summary>Whether per-instance breakdowns are included.</summary>
     public bool GroupByInstance { get; init; }
 
-    /// <summary>UTC collection time on the Admin App.</summary>
+    /// <summary>UTC collection time on the Admin Console App.</summary>
     public DateTimeOffset CollectedAtUtc { get; init; }
 
     /// <summary>Per-instance raw snapshots that contributed.</summary>
@@ -288,8 +288,8 @@ public sealed class InstanceStatsContributionDto
     public AdminLiveStatsSnapshot? Snapshot { get; init; }
 }
 
-/// <summary>Invalidate request for the Admin App (adds multi-instance target).</summary>
-public sealed class AdminAppInvalidateRequest
+/// <summary>Invalidate request for the Admin Console App (adds multi-instance target).</summary>
+public sealed class AdminConsoleInvalidateRequest
 {
     /// <summary><c>domain</c>, <c>entity</c>, <c>entityKind</c>, or <c>tags</c>.</summary>
     public string Scope { get; set; } = "domain";
@@ -311,7 +311,7 @@ public sealed class AdminAppInvalidateRequest
 }
 
 /// <summary>Version request with multi-instance target.</summary>
-public sealed class AdminAppVersionRequest
+public sealed class AdminConsoleVersionRequest
 {
     /// <summary>New version token; empty generates a stamp on each instance.</summary>
     public string? Version { get; set; }
@@ -321,7 +321,7 @@ public sealed class AdminAppVersionRequest
 }
 
 /// <summary>TTL patch with multi-instance target.</summary>
-public sealed class AdminAppTtlPatchRequest
+public sealed class AdminConsoleTtlPatchRequest
 {
     /// <summary>Output Cache TTL seconds.</summary>
     public int? OutputCacheTtlSeconds { get; set; }

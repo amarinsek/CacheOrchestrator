@@ -1,6 +1,6 @@
 # Local Prometheus (Playground sample only)
 
-**Not part of the CacheOrchestrator NuGet packages.** This Docker Compose stack is a **dev helper** for the [Playground sample](../../README.md): it scrapes the sample’s `/metrics` endpoint so the optional Admin App **Metrics** page has a Prometheus-compatible store to query.
+**Not part of the CacheOrchestrator NuGet packages.** This Docker Compose stack is a **dev helper** for the [Playground sample](../../README.md): it scrapes the sample’s `/metrics` endpoint so the optional Admin Console App **Metrics** page has a Prometheus-compatible store to query.
 
 Redis for integration tests uses **Testcontainers** (no compose here). Redis for this sample is a separate `docker run` — see the [sample README](../../README.md#redis).
 
@@ -46,7 +46,7 @@ dotnet run --project samples/CacheOrchestrator.Sample
 # 3) Generate traffic (UI http://localhost:5289 or curl)
 curl -i http://localhost:5289/api/catalog
 
-# 4) Admin App (Metrics → http://localhost:9090; Instances → playground)
+# 4) Admin Console App (Metrics → http://localhost:9090; Instances → playground)
 dotnet run --project src/CacheOrchestrator.AdminConsole
 ```
 

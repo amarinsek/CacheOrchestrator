@@ -129,7 +129,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 - [Domain profiles](domain-profiles.md) — published datasets versus changing records
 - [Client Cache Schedule](client-cache-schedule.md) — client `max-age` before a cutover
 - [Invalidation](invalidation.md) — Version, tags, a single id
-- [Admin](admin.md) — Admin API on one process; Admin App across instances
+- [Admin](admin.md) — Admin API on one process; Admin Console App across instances
 - [Cluster bus](cluster-bus.md) — commands to every instance
 - [EF Core](ef-core-invalidation.md) — purge after `SaveChanges`
 - [Output Cache](output-cache.md) — authenticated traffic

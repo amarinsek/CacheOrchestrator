@@ -11,7 +11,7 @@ Package README: [src/CacheOrchestrator.Bus/README.md](../src/CacheOrchestrator.B
 | Situation | Prefer |
 |-----------|--------|
 | Multi-instance **InMemory** OC/FC, need immediate purge everywhere | **Bus** |
-| Runtime **Version / TTL** overlays on all InMemory nodes | **Bus** + Admin `distribute` (or Admin App auto mode) |
+| Runtime **Version / TTL** overlays on all InMemory nodes | **Bus** + Admin `distribute` (or Admin Console App auto mode) |
 | Shared Redis L2 + backplane | **Redis package** — Bus optional / redundant for tag invalidate |
 | Sticky sessions + TTL-only expiry | Local invalidation may be enough |
 | Single instance | Do not install Bus (or leave `Enabled: false`) |
@@ -224,16 +224,16 @@ Origin local result is **not** failed if a peer times out. Peer errors are logge
 
 ---
 
-## Admin App interaction
+## Admin Console App interaction
 
-The Admin App probes `GET …/cluster/info` on configured instances (`GET /api/distribution`):
+The Admin Console App probes `GET …/cluster/info` on configured instances (`GET /api/distribution`):
 
 | Capability | Write mode |
 |------------|------------|
 | No bus | **fan-out** — HTTP to each target, `distribute: false` |
 | Bus enabled | **bus-distribute** — one healthy origin, `distribute: true` |
 
-Never combine full Admin App fan-out **and** `distribute: true` for the same action — the App chooses one path.  
+Never combine full Admin Console App fan-out **and** `distribute: true` for the same action — the App chooses one path.  
 Operations UI shows mode banner + last-run summary.
 
 Details: [admin.md](admin.md#cluster-distribute-with-cacheorchestratorbus).
@@ -298,7 +298,7 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 
 - [invalidation.md](invalidation.md) — multi-instance strategies  
 - [deployment.md](deployment.md) — topologies  
-- [admin.md](admin.md) — Admin API + Admin App  
+- [admin.md](admin.md) — Admin API + Admin Console App  
 - [configuration.md](configuration.md) — options tables  
 - [backends.md](backends.md) — Redis package  
 - [architecture.md](architecture.md) — layout  

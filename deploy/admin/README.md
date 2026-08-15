@@ -1,6 +1,6 @@
-# Run CacheOrchestrator Admin Console (Docker)
+# Run CacheOrchestrator Admin Console App (Docker)
 
-The Admin App is an **ops host**: it fans out to your application instances (Local Admin API) and optionally queries Prometheus for Metrics. It is **not** a NuGet package.
+The Admin Console App is an **ops host**: it fans out to your application instances (Local Admin API) and optionally queries Prometheus for Metrics. It is **not** a NuGet package.
 
 You do **not** need a git checkout to run it — only Docker, a small config file, and the image.
 
@@ -252,7 +252,7 @@ After adding or editing files under `data/rules/`, open **Settings → Reload** 
 
 **Normal users:** pull from GHCR after a release — you do **not** build from source.
 
-**Only if** the GHCR image is not published yet, or you are changing the Admin App code:
+**Only if** the GHCR image is not published yet, or you are changing the Admin Console App code:
 
 1. Clone this repository.  
 2. From the **repository root**:

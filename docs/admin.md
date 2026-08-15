@@ -3,13 +3,13 @@
 Two pieces work together:
 
 - **Admin API** — opt-in HTTP on each application process (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`). Stats, health, invalidate, Version and TTL overlays. Ships in the core NuGet package; off by default.
-- **Admin App** — a separate host (`src/CacheOrchestrator.AdminConsole`) that calls those APIs and serves the operator UI. It is not a NuGet package.
+- **Admin Console App** — a separate host (`src/CacheOrchestrator.AdminConsole`) that calls those APIs and serves the operator UI. It is not a NuGet package.
 
 This page covers architecture, security, and production. To run the App: [Admin README](../src/CacheOrchestrator.AdminConsole/README.md). Hint rules: [admin-hints.md](admin-hints.md).
 
 - One process, curl or a script — enable the Admin API.
-- A dashboard across instances — Admin App, with the Admin API on each target.
-- Time series (“last hour”) — optional **Admin App → Prometheus** (`AdminConsole:Metrics`). Lifetime counters stay on Local Admin; sliding windows come from scraped `CacheOrchestrator` meter series.
+- A dashboard across instances — Admin Console App, with the Admin API on each target.
+- Time series (“last hour”) — optional **Admin Console App → Prometheus** (`AdminConsole:Metrics`). Lifetime counters stay on Local Admin; sliding windows come from scraped `CacheOrchestrator` meter series.
 
 Writes (invalidate, Version, TTL) change live cache state. Restrict who can reach these endpoints.
 
@@ -18,22 +18,22 @@ Writes (invalidate, Version, TTL) change live cache state. Restrict who can reac
 ## Architecture
 
 ```
-┌────────────────────┐     HTTP fan-out      ┌──────────────────────────┐
-│  Admin App         │ ──────────────────►   │ App instance A           │
-│  - AdminConsole:*    │   X-Cache-Admin-Key   │ MapCacheOrchestratorAdmin│
-│  - /api/* + SPA    │                       │ /cache-admin/local/*     │
-│  (browser → open)  │ ──────────────────►   │ App instance B           │
-└────────────────────┘                       └──────────────────────────┘
-        ▲
-        │  no built-in login today
-        │  protect with network / SSO proxy
-     Operators
+┌─────────────────────┐    HTTP fan-out      ┌──────────────────────────┐
+│ Admin Console App   │ ──────────────────►  │ App instance A           │
+│ - AdminConsole:*    │  X-Cache-Admin-Key   │ MapCacheOrchestratorAdmin│
+│ - /api/* + SPA      │                      │ /cache-admin/local/*     │
+│ (browser → open)    │ ──────────────────►  │ App instance B           │
+└─────────────────────┘                      └──────────────────────────┘
+         ▲
+         │  no built-in login today
+         │  protect with network / SSO proxy
+      Operators
 ```
 
-- Admin App is **never** on the end-user caching hot path.  
+- Admin Console App is **never** on the end-user caching hot path.  
 - Each instance keeps its **own** L1 Output Cache / FusionCache counters.  
 - Aggregation is **sum / recompute shares** (`StatsAggregator`, `AdminStatsMath`).  
-- Runtime **Version** and **TTL** overlays are **process-local** on each node unless the optional [cluster bus](cluster-bus.md) publishes them (`distribute: true` / Admin App **bus-distribute**). Without bus, Admin App **fan-out** must hit every instance that should change.
+- Runtime **Version** and **TTL** overlays are **process-local** on each node unless the optional [cluster bus](cluster-bus.md) publishes them (`distribute: true` / Admin Console App **bus-distribute**). Without bus, Admin Console App **fan-out** must hit every instance that should change.
 
 ---
 
@@ -42,7 +42,7 @@ Writes (invalidate, Version, TTL) change live cache state. Restrict who can reac
 | Piece | How users get it |
 |-------|------------------|
 | Admin API | Ships inside **`CacheOrchestrator`** NuGet. No extra package. Default **disabled** (`Cache:Admin:Enabled` = false). |
-| Admin App | Source in repo; `dotnet run` / `dotnet publish`; **Docker image** on GHCR with each GitHub Release. Not published to nuget.org. |
+| Admin Console App | Source in repo; `dotnet run` / `dotnet publish`; **Docker image** on GHCR with each GitHub Release. Not published to nuget.org. |
 
 | Image | |
 |-------|--|
@@ -50,7 +50,7 @@ Writes (invalidate, Version, TTL) change live cache state. Restrict who can reac
 | Tags | Release version (e.g. `1.2.3`), plus `latest` for stable releases |
 | Docs | **[deploy/admin/README.md](../deploy/admin/README.md)** — config mount, `data/` volume for custom hints + disabled state, logs |
 
-Run the Admin App as an internal ops service (Docker or Helm, VPN only). Configure **instances** and **API key** per environment; product hint pack stays in the image (`hints/core-hints.json`).
+Run the Admin Console App as an internal ops service (Docker or Helm, VPN only). Configure **instances** and **API key** per environment; product hint pack stays in the image (`hints/core-hints.json`).
 
 ---
 
@@ -82,7 +82,7 @@ app.MapCacheOrchestratorAdmin(); // after routing is available; safe no-op when 
 | `Cache:InstanceId` | machine name | Single process id for Admin, cluster bus, diagnostics |
 | `Admin:Enabled` | `false` | No routes, no counter cost when false |
 | `Admin:ApiKey` | empty | Empty + Enabled ⇒ **open** endpoints (dev only; logs a warning) |
-| `Admin:RoutePrefix` | `/cache-admin/local` | Must match Admin App `LocalPathPrefix` |
+| `Admin:RoutePrefix` | `/cache-admin/local` | Must match Admin Console App `LocalPathPrefix` |
 | `Admin:TrackEndpoints` | `true` | Per-route counters |
 | `Admin:TrackLatency` | `false` | Extra cost if true |
 
@@ -98,14 +98,14 @@ When the HTTP bus is enabled, Admin API mutation bodies accept **`distribute`** 
 | `POST …/domains/{d}/version` | Local Version overlay | Local + `VersionBumpCommand` |
 | `PATCH …/domains/{d}/ttl` | Local TTL overlay | Local + `TtlPatchCommand` |
 
-**Admin App** probes `GET …/cluster/info` on each configured instance (`GET /api/distribution`):
+**Admin Console App** probes `GET …/cluster/info` on each configured instance (`GET /api/distribution`):
 
 | Capability | Write behaviour |
 |------------|-----------------|
 | No bus | **fan-out** — HTTP to every target with `distribute:false` |
 | Bus enabled (Static/ServiceDiscovery) | **bus-distribute** — one healthy origin with `distribute:true` (peers via bus) |
 
-The Operations UI shows a banner and the mode used for the last result. Never combine full Admin App fan-out **and** `distribute:true` for the same action — the App chooses one path automatically.
+The Operations UI shows a banner and the mode used for the last result. Never combine full Admin Console App fan-out **and** `distribute:true` for the same action — the App chooses one path automatically.
 
 Receive path for peers: `MapCacheOrchestratorHttpBus()` (not gated on `Admin:Enabled`).
 
@@ -168,7 +168,7 @@ These three are **request shares** (same denominator). The pipeline bar shows th
 
 So if OC absorbs almost all traffic, FC hit **share** is still trustworthy once requests ≥ 20, while FC hit **rate** may show low-sample (few FC layer events).
 
-### Health semantics (Admin App mapping)
+### Health semantics (Admin Console App mapping)
 
 | Probe result | Instance status in UI |
 |--------------|------------------------|
@@ -186,7 +186,7 @@ So if OC absorbs almost all traffic, FC hit **share** is still trustworthy once 
 
 ---
 
-## Admin App (process)
+## Admin Console App (process)
 
 Standalone host targeting **net10.0** only (ops tool). Target apps may still run on **net8.0** or **net10.0** independently — Admin talks HTTP only and does not need to match instance runtimes.
 
@@ -223,9 +223,9 @@ Section: `AdminConsole` → `AdminConsoleOptions`.
 
 ### Metrics store (time series)
 
-Admin App can query an external Prometheus-compatible HTTP API (Prometheus, Mimir, VictoriaMetrics, Thanos Query) for windowed charts. **No core library changes** — the apps only need the usual OTel/Prometheus scrape of meter `CacheOrchestrator`.
+Admin Console App can query an external Prometheus-compatible HTTP API (Prometheus, Mimir, VictoriaMetrics, Thanos Query) for windowed charts. **No core library changes** — the apps only need the usual OTel/Prometheus scrape of meter `CacheOrchestrator`.
 
-Minimal config (everything else has defaults). The Admin App in this repo defaults to local Prometheus:
+Minimal config (everything else has defaults). The Admin Console App in this repo defaults to local Prometheus:
 
 ```json
 "AdminConsole": {
@@ -251,7 +251,7 @@ Dev stack (Docker Prometheus + Playground `/metrics` on port 5289; sample only, 
 
 When **not configured**, the Metrics page explains how to enable it; Overview omits history cards. When **configured but unreachable**, the UI shows **Disconnected** with the same **Provider · host** (from `BaseUrl`) plus not connected / error text — so the target is always visible even when the probe fails (no fake zeros).
 
-Admin App API: `GET /api/metrics/status`, `/catalog`, `/series`, `/summary`.
+Admin Console App API: `GET /api/metrics/status`, `/catalog`, `/series`, `/summary`.
 
 `GET /api/metrics/series` query params: `range`, `panels`, `domains`, `instances` (scrape label `instance_id`), `routes` (stable endpoint key, e.g. `GET /api/catalog`). Detail pages embed scoped charts (domain / instance / endpoint). Endpoint series need core `Cache:Metrics:IncludeEndpointLabel` (default true) and samples in the selected range—empty charts show a neutral notice, not a hard “feature disabled” claim.
 
@@ -263,7 +263,7 @@ dotnet run --project src/CacheOrchestrator.AdminConsole
 
 Default UI: `http://localhost:5188/` (see launchSettings). Default `Instances` point at the Playground sample (`:5289`). Metrics time series use Playground scrape via Prometheus.
 
-Quick operator steps: [Admin App README](../src/CacheOrchestrator.AdminConsole/README.md).
+Quick operator steps: [Admin Console App README](../src/CacheOrchestrator.AdminConsole/README.md).
 
 ### What the SPA shows
 
@@ -276,13 +276,13 @@ Quick operator steps: [Admin App README](../src/CacheOrchestrator.AdminConsole/R
 
 ### Recommendation hints
 
-Evaluated **only in the Admin App** after fan-out aggregation (`HintEngine` + JSON packs).  
+Evaluated **only in the Admin Console App** after fan-out aggregation (`HintEngine` + JSON packs).  
 **Customizable:** product defaults in `hints/core-hints.json`; extra packs via `AdminConsole:Hints:RuleFiles`; enable/disable in **Settings**. UI does not invent rules.
 
 Step-by-step custom rules (ships with Admin): [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md).  
 Repo overview: [admin-hints.md](admin-hints.md).
 
-### Admin App HTTP API (for the SPA / automation)
+### Admin Console App HTTP API (for the SPA / automation)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -302,7 +302,7 @@ Repo overview: [admin-hints.md](admin-hints.md).
 
 Write responses include `distributionMode`, `distribute`, `distributionSummary`, optional `busOriginInstanceId`, and per-instance `results[]`.
 
-**Warning:** These `/api/*` routes currently have **no application-level authentication**. Anyone who can reach the Admin App can read stats and run operations. Protect the host (see [Security](#security)).
+**Warning:** These `/api/*` routes currently have **no application-level authentication**. Anyone who can reach the Admin Console App can read stats and run operations. Protect the host (see [Security](#security)).
 
 ---
 
@@ -314,31 +314,31 @@ API key is the **intended** machine-to-machine credential for Admin API — not 
 
 | Path | Protected by today? |
 |------|---------------------|
-| **Admin App → Admin API** on each app | Optional shared secret `X-Cache-Admin-Key` (required in production) |
-| **Browser / user → Admin App** | **No built-in login** — network / reverse-proxy auth only |
+| **Admin Console App → Admin API** on each app | Optional shared secret `X-Cache-Admin-Key` (required in production) |
+| **Browser / user → Admin Console App** | **No built-in login** — network / reverse-proxy auth only |
 
-So: the key stops strangers from calling `/cache-admin/local` on your apps **if** they cannot reach Admin App *or* guess the key. It does **not** by itself decide which humans may open the dashboard.
+So: the key stops strangers from calling `/cache-admin/local` on your apps **if** they cannot reach Admin Console App *or* guess the key. It does **not** by itself decide which humans may open the dashboard.
 
 ### Production checklist
 
 1. **Network**  
-   - Admin API: **not** on the public internet (private mesh, allowlist Admin App only).  
-   - Admin App: VPN, bastion, internal ingress, or zero-trust access — not a public anonymous URL.
+   - Admin API: **not** on the public internet (private mesh, allowlist Admin Console App only).  
+   - Admin Console App: VPN, bastion, internal ingress, or zero-trust access — not a public anonymous URL.
 
 2. **Shared API key**  
    - Strong random secret (e.g. 32+ bytes, base64).  
-   - Same value on every instance (`Cache:Admin:ApiKey`) and Admin App (`AdminConsole:ApiKey`).  
+   - Same value on every instance (`Cache:Admin:ApiKey`) and Admin Console App (`AdminConsole:ApiKey`).  
    - From a secret store (K8s Secret, Key Vault, …) — **never** commit production keys.  
    - Empty `ApiKey` with `Enabled=true` leaves Admin API **open** (logs a warning) — do not do this outside local dev.
 
-3. **Human access to Admin App**  
-   The Admin App has no built-in login. Put one of these in front of `/` and `/api`:  
+3. **Human access to Admin Console App**  
+   The Admin Console App has no built-in login. Put one of these in front of `/` and `/api`:  
    - OAuth2 / OIDC proxy (e.g. oauth2-proxy, Azure App Service auth, Cloudflare Access)  
    - mTLS / service mesh only for operators  
    - VPN-only deployment  
 
 4. **TLS**  
-   HTTPS for browser → Admin App and Admin App → instances so the key is not sent in clear text.
+   HTTPS for browser → Admin Console App and Admin Console App → instances so the key is not sent in clear text.
 
 5. **Least privilege & audit**  
    Invalidate / version / TTL are **mutations**. Limit who can open Operations. Prefer platform logging of who accessed the admin host.  
@@ -347,9 +347,9 @@ So: the key stops strangers from calling `/cache-admin/local` on your apps **if*
 6. **Do not rely on**  
    - API key alone without network isolation  
    - Sample `dev-admin-key` in shared environments  
-   - Shipping Admin App as an unauthenticated public cloud URL  
+   - Shipping Admin Console App as an unauthenticated public cloud URL  
 
-### Admin API without Admin App
+### Admin API without Admin Console App
 
 You may enable Admin API for scripts only. Still set `ApiKey` and lock down network if the process is reachable outside localhost.
 
@@ -363,18 +363,18 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
 | Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
 | High FC miss rate, everything “fine” | Prefer **factory share** (also known as origin) / OC hit share — see shares vs rates |
-| Scalar OpenAPI missing | Only mapped in **Development** on Admin App (`MapOpenApi` + Scalar; requires net10 runtime for the Admin host) |
-| CORS issues calling Admin API from a browser | Prefer Admin App fan-out; Admin API is for server-side callers |
+| Scalar OpenAPI missing | Only mapped in **Development** on Admin Console App (`MapOpenApi` + Scalar; requires net10 runtime for the Admin host) |
+| CORS issues calling Admin API from a browser | Prefer Admin Console App fan-out; Admin API is for server-side callers |
 
 ---
 
 ## Out of scope
 
-- Built-in time-series database inside Admin App (use Prometheus / compatible store).  
+- Built-in time-series database inside Admin Console App (use Prometheus / compatible store).  
 - Free-form PromQL from the browser (panels are allowlisted server-side).  
 - Redis topology management.  
-- Publishing Admin App as a NuGet library.  
-- Built-in OIDC login UI inside Admin App (use edge auth for now).
+- Publishing Admin Console App as a NuGet library.  
+- Built-in OIDC login UI inside Admin Console App (use edge auth for now).
 
 ---
 

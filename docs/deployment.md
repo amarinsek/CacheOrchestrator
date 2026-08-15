@@ -140,7 +140,7 @@ Full setup and Bus vs Redis matrix: **[cluster-bus.md](cluster-bus.md)**.
 ### Ops dashboard across instances
 
 1. Enable the **Admin API** on each app (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).  
-2. Run **Admin App** (`src/CacheOrchestrator.AdminConsole`) with `AdminConsole:Instances` pointing at every base URL.  
+2. Run **Admin Console App** (`src/CacheOrchestrator.AdminConsole`) with `AdminConsole:Instances` pointing at every base URL.  
 3. With Bus enabled, Operations auto-picks **bus-distribute** vs **fan-out** — [admin.md](admin.md).
 
 ---

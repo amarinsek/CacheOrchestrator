@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace CacheOrchestrator.AdminConsole.Services.Metrics;
 
 /// <summary>
-/// Admin App BFF over <see cref="IMetricsQueryClient"/>: status, catalog, series, summary.
+/// Admin Console App BFF over <see cref="IMetricsQueryClient"/>: status, catalog, series, summary.
 /// Never throws for “not configured”; returns status envelopes for the SPA.
 /// </summary>
 public sealed class MetricsQueryService

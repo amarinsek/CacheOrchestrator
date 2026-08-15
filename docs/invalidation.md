@@ -142,7 +142,7 @@ For **multi-instance fan-out** (publish to a bus so other nodes invalidate local
 | Custom multi-tag purge | `InvalidateTagsAsync` |
 | Audit / Slack / webhook | `ICacheInvalidationObserver` |
 | Multi-instance InMemory, need immediate purge everywhere | **CacheOrchestrator.Bus** or Redis backplane |
-| Admin Version/TTL on all InMemory nodes | Bus + Admin `distribute: true` (or Admin App fan-out) |
+| Admin Version/TTL on all InMemory nodes | Bus + Admin `distribute: true` (or Admin Console App fan-out) |
 
 ---
 
@@ -236,7 +236,7 @@ Details: [deployment.md](deployment.md), [backends.md](backends.md).
 
 ### Approach 3 — CacheOrchestrator.Bus (optional package)
 
-Full reference: **[cluster-bus.md](cluster-bus.md)** (install, membership Static/ServiceDiscovery, commands, Admin App, metrics, security).
+Full reference: **[cluster-bus.md](cluster-bus.md)** (install, membership Static/ServiceDiscovery, commands, Admin Console App, metrics, security).
 
 ```bash
 dotnet add package CacheOrchestrator.Bus
@@ -267,7 +267,7 @@ Prefer Redis L2 and the backplane when instances share Fusion data. Use the Bus 
 | Monthly data cutover, long TTL | Shared config **Version** bump ([deployment.md](deployment.md)) |
 | Many nodes, shared cache, immediate purge | **Redis** L2 + backplane |
 | InMemory only, invalidate everywhere | **CacheOrchestrator.Bus** |
-| Runtime Version/TTL on all InMemory nodes | Bus + Admin `distribute: true` (or Admin App fan-out to each node) |
+| Runtime Version/TTL on all InMemory nodes | Bus + Admin `distribute: true` (or Admin Console App fan-out to each node) |
 | Sticky sessions + TTL-only | Local invalidation may be enough |
 
 ## Related

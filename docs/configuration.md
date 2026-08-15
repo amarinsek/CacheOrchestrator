@@ -38,13 +38,13 @@ Root section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(c
 
 ### Metrics (core package)
 
-Bound from `Cache:Metrics`. Controls labels on the `CacheOrchestrator` meter (not Admin App storage).
+Bound from `Cache:Metrics`. Controls labels on the `CacheOrchestrator` meter (not Admin Console App storage).
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `IncludeEndpointLabel` | bool | `true` | When `true`, OC/FC instruments include a stable `route` tag (`METHOD` + route template, same shape as Admin endpoint keys). Set `false` to emit only `domain` / `result` (lower Prometheus cardinality). Keep the same value on all cluster nodes. |
 
-Endpoint time series need a scrape of the meter and Admin App Metrics store; empty charts mean no samples in range (traffic, flag off for part of the window, or label mismatch)—not a separate “feature bit” from Prometheus history.
+Endpoint time series need a scrape of the meter and Admin Console App Metrics store; empty charts mean no samples in range (traffic, flag off for part of the window, or label mismatch)—not a separate “feature bit” from Prometheus history.
 | `OutputCache` | object | Provider `InMemory` | Output Cache provider + optional namespace |
 | `FusionCacheInstances` | map | `default` instance `InMemory` | Named FusionCache instances |
 | `DomainDefaults` | object | — | Fallbacks for every domain |
@@ -172,7 +172,7 @@ Guide: [admin.md](admin.md). Map with `MapCacheOrchestratorAdmin()`.
 
 Process id is **`Cache:InstanceId`** (root), not under `Admin`.
 
-Admin App (`AdminConsole` section) is configured only in `src/CacheOrchestrator.AdminConsole` — see [admin.md](admin.md#admin-app-process).
+Admin Console App (`AdminConsole` section) is configured only in `src/CacheOrchestrator.AdminConsole` — see [admin.md](admin.md#admin-console-app-process).
 
 ## Cluster bus (`Cache:Cluster:Bus`)
 

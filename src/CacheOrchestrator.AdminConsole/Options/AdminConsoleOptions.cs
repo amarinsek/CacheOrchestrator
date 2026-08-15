@@ -1,7 +1,7 @@
 namespace CacheOrchestrator.AdminConsole.Options;
 
 /// <summary>
-/// Configuration for the Admin App (instance list and fan-out). Bound from <c>AdminConsole</c>.
+/// Configuration for the Admin Console App (instance list and fan-out). Bound from <c>AdminConsole</c>.
 /// </summary>
 public sealed class AdminConsoleOptions
 {
@@ -46,7 +46,7 @@ public sealed class AdminConsoleOptions
     public HintOptions Hints { get; set; } = new();
 }
 
-/// <summary>One target instance in the Admin App instance list.</summary>
+/// <summary>One target instance in the Admin Console App instance list.</summary>
 public sealed class AdminInstanceOptions
 {
     /// <summary>Stable id used in UI and <c>target=instance:{id}</c>.</summary>

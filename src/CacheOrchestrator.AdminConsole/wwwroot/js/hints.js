@@ -1,7 +1,7 @@
 /**
  * Recommendation-hint presentation and flattening.
  *
- * Live hints come from RecommendationHints on the Admin App.
+ * Live hints come from RecommendationHints on the Admin Console App.
  * This module only renders them — it does not evaluate rules.
  */
 
