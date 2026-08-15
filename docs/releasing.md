@@ -56,8 +56,10 @@ Do **not** pack the root README into the core package (HTML/logo does not render
    - test (unit + integration on net8/net10 + Testcontainers Redis)
    - `dotnet pack` → `.nupkg` + `.snupkg`
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)
+   - **Admin Console Docker image** → `ghcr.io/amarinsek/cacheorchestrator-admin-console` (same version tags)
 
-6. Confirm nuget.org for **CacheOrchestrator**, **.Redis**, **.Bus**, and **.EFCore.Invalidation**; optionally **unlist** old pre-release versions.
+6. Confirm nuget.org for **CacheOrchestrator**, **.Redis**, **.Bus**, and **.EFCore.Invalidation**; optionally **unlist** old pre-release versions.  
+   Confirm GHCR package **cacheorchestrator-admin-console** (see [deploy/admin/README.md](../deploy/admin/README.md)).
 
 ### NuGet Trusted Publishing
 

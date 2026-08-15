@@ -159,7 +159,7 @@ The endpoint code is the same shape in every case. The domain is what differs.
 
 | Application | Purpose |
 |---------|---------|
-| [CacheOrchestrator.Admin](src/CacheOrchestrator.Admin/) | Operator UI: live stats, domain settings, invalidation, Version and TTL. It calls the Admin API on each instance you list. |
+| [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Operator UI: live stats, domain settings, invalidation, Version and TTL. Docker: `ghcr.io/amarinsek/cacheorchestrator-admin-console` — [deploy/admin](deploy/admin/README.md). |
 
 
 ---

@@ -1,6 +1,6 @@
-using CacheOrchestrator.Admin.App.Models;
-using CacheOrchestrator.Admin.App.Options;
-using CacheOrchestrator.Admin.App.Services.Metrics;
+using CacheOrchestrator.AdminConsole.Models;
+using CacheOrchestrator.AdminConsole.Options;
+using CacheOrchestrator.AdminConsole.Services.Metrics;
 using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.UnitTests.Admin;
@@ -101,7 +101,7 @@ public class MetricsQueryServiceTests
         MetricsStoreOptions metrics,
         IMetricsQueryClient? client = null)
     {
-        CacheAdminOptions opts = new() { Metrics = metrics };
+        AdminConsoleOptions opts = new() { Metrics = metrics };
         return new MetricsQueryService(
             client ?? new FakeMetricsClient(),
             Options.Create(opts),

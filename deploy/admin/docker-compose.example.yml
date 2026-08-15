@@ -1,0 +1,36 @@
+# Example: CacheOrchestrator Admin Console
+#
+# Defaults match the Playground sample (ApiKey dev-admin-key, host port 5289).
+# For your own environment: edit admin-appsettings.json and ADMIN_API_KEY.
+#
+# 1. Copy appsettings.example.json → admin-appsettings.json (edit if not using Playground).
+# 2. mkdir -p data/rules
+# 3. Start Playground (or your apps) with Cache:Admin enabled and the same ApiKey.
+# 4. Optionally drop custom hint packs into data/rules/*.json
+# 5. docker compose -f docker-compose.example.yml up -d
+#
+# Image: use GHCR after a release. For local testing without GHCR, change image: to
+#   cacheorchestrator-admin-console:local
+# after: docker build -f src/CacheOrchestrator.AdminConsole/Dockerfile -t cacheorchestrator-admin-console:local .
+
+services:
+  admin:
+    image: ghcr.io/amarinsek/cacheorchestrator-admin-console:latest
+    ports:
+      - "5188:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Must match Cache:Admin:ApiKey on every monitored application instance.
+      # Playground default: dev-admin-key. Env overrides ApiKey from the mounted JSON.
+      AdminConsole__ApiKey: ${ADMIN_API_KEY:-dev-admin-key}
+      # Optional metrics (or set in admin-appsettings.json):
+      # AdminConsole__Metrics__Enabled: "true"
+      # AdminConsole__Metrics__BaseUrl: http://host.docker.internal:9090
+    volumes:
+      # Instance list + metrics (read-only). From appsettings.example.json → admin-appsettings.json
+      - ./admin-appsettings.json:/app/appsettings.Production.json:ro
+      # Custom hint packs (data/rules/*.json) + disabled.local.json (read-write)
+      - ./data:/app/data
+    # Reach Playground / apps on the Docker host (safe on Docker Desktop too)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

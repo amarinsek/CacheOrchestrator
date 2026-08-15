@@ -1,8 +1,8 @@
 using CacheOrchestrator.Admin;
-using CacheOrchestrator.Admin.App.Models;
-using CacheOrchestrator.Admin.App.Options;
-using CacheOrchestrator.Admin.App.Services;
-using CacheOrchestrator.Admin.App.Services.Hints;
+using CacheOrchestrator.AdminConsole.Models;
+using CacheOrchestrator.AdminConsole.Options;
+using CacheOrchestrator.AdminConsole.Services;
+using CacheOrchestrator.AdminConsole.Services.Hints;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
@@ -224,14 +224,14 @@ public class AdminFanOutServiceTests
 
     private static AdminFanOutService CreateSut(ILocalAdminClient client, params AdminInstanceOptions[] instances)
     {
-        CacheAdminOptions opts = new()
+        AdminConsoleOptions opts = new()
         {
             Instances = instances.ToList(),
             Parallelism = 4,
             RequestTimeoutMs = 1000,
             DownReprobeSeconds = 15
         };
-        Microsoft.Extensions.Options.IOptions<CacheAdminOptions> options = Options.Create(opts);
+        Microsoft.Extensions.Options.IOptions<AdminConsoleOptions> options = Options.Create(opts);
         InstanceReachabilityCache reachability = new(options, TimeProvider.System);
         HintEngine hints = TestHintEngine.Create(opts);
         return new AdminFanOutService(client, options, reachability, hints);

@@ -29,7 +29,7 @@ This sample turns the Admin API on with a development key. `Program.cs` calls `M
 curl -i -H "X-Cache-Admin-Key: dev-admin-key" http://localhost:5290/cache-admin/local/health
 ```
 
-For a multi-instance UI, run [CacheOrchestrator.Admin](../../src/CacheOrchestrator.Admin) and point `CacheAdmin:Instances` at this port. See [docs/admin.md](../../docs/admin.md).
+For a multi-instance UI, run [CacheOrchestrator.AdminConsole](../../src/CacheOrchestrator.AdminConsole) and point `AdminConsole:Instances` at this port. See [docs/admin.md](../../docs/admin.md).
 
 ## Next
 

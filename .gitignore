@@ -8,8 +8,9 @@ artifacts/
 appsettings.*.local.json
 .env
 
-# Admin App: operator runtime toggles for hint rules (local machine only)
+# Admin App: operator runtime toggles for hint rules (local machine / container volume)
 **/hints/disabled.local.json
+**/data/disabled.local.json
 
 # Local machine outputs (traces, bench artifacts, scratch)
 _local/

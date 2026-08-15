@@ -1,5 +1,5 @@
-using CacheOrchestrator.Admin.App.Options;
-using CacheOrchestrator.Admin.App.Services.Hints;
+using CacheOrchestrator.AdminConsole.Options;
+using CacheOrchestrator.AdminConsole.Services.Hints;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -9,10 +9,10 @@ namespace CacheOrchestrator.UnitTests.Admin;
 
 internal static class TestHintEngine
 {
-    public static HintEngine Create(CacheAdminOptions? opts = null)
+    public static HintEngine Create(AdminConsoleOptions? opts = null)
     {
-        opts ??= new CacheAdminOptions();
-        TestOptionsMonitor<CacheAdminOptions> monitor = new(opts);
+        opts ??= new AdminConsoleOptions();
+        TestOptionsMonitor<AdminConsoleOptions> monitor = new(opts);
         string root = Path.Combine(Path.GetTempPath(), "co-admin-hints-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(root, "hints"));
         CopyCoreHints(root);

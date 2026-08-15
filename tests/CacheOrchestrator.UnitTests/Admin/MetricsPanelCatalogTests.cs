@@ -1,5 +1,5 @@
-using CacheOrchestrator.Admin.App.Models;
-using CacheOrchestrator.Admin.App.Services.Metrics;
+using CacheOrchestrator.AdminConsole.Models;
+using CacheOrchestrator.AdminConsole.Services.Metrics;
 
 namespace CacheOrchestrator.UnitTests.Admin;
 

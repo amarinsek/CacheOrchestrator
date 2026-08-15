@@ -1,5 +1,5 @@
 using CacheOrchestrator.Admin;
-using CacheOrchestrator.Admin.App.Services;
+using CacheOrchestrator.AdminConsole.Services;
 
 namespace CacheOrchestrator.UnitTests.Admin;
 

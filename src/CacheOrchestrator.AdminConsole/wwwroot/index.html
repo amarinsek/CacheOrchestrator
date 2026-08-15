@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CacheOrchestrator Admin Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!--
+    Chrome layout (top → bottom):
+    1) app logo / brand (same pattern as Sample Playground)
+    2) header metrics strip (same bar style as menu)
+    3) menu strip
+  -->
+  <div class="app-chrome" id="appChrome">
+    <div class="chrome-brand">
+      <a href="#/overview" class="brand-link">
+        <img src="/logo.png" alt="CacheOrchestrator logo" class="brand-logo" width="56" height="56" />
+        <span class="brand-text">
+          <span class="brand-eyebrow">CacheOrchestrator</span>
+          <h1 class="brand-title">Admin Console</h1>
+          <span class="brand-subtitle">Multi-instance fan-out · live stats · operations</span>
+        </span>
+      </a>
+    </div>
+
+    <div class="chrome-strip chrome-metrics" id="headerMetrics">
+      <span class="hm muted">Loading…</span>
+    </div>
+
+    <nav class="chrome-strip app-nav" id="appNav">
+      <div class="nav-left">
+        <a href="#/overview" data-nav="overview" title="Cluster snapshot: instances, top domains/endpoints, pipeline">Overview</a>
+        <a href="#/instances" data-nav="instances" title="Configured target apps and health probes">Instances</a>
+        <a href="#/domains" data-nav="domains" title="Cache domains — policy groups (TTL, version, providers)">Domains</a>
+        <a href="#/endpoints" data-nav="endpoints" title="Routes with cache counters (method + template)">Endpoints</a>
+        <a href="#/metrics" data-nav="metrics" title="Windowed charts from optional Prometheus-compatible store">Metrics</a>
+      </div>
+      <div class="nav-right">
+        <a href="#/hints" data-nav="hints" class="nav-hints" title="Recommendation hints after fan-out aggregation">
+          <span data-nav-hints-badge class="nav-hints-badge"><span class="sev-stack empty">○</span></span>
+          Hints
+        </a>
+        <div class="nav-refresh" title="Auto-refresh interval for soft page reload">
+          <select id="selAutoRefresh" aria-label="Auto refresh">
+            <option value="0">Off</option>
+            <option value="5">5 s</option>
+            <option value="10">10 s</option>
+            <option value="30">30 s</option>
+            <option value="60">1 m</option>
+            <option value="300">5 m</option>
+          </select>
+          <button type="button" id="btnHeaderRefresh" title="Refresh now">↻</button>
+        </div>
+        <a href="#/operations" data-nav="operations" title="Invalidate, version/TTL overlay, cluster bus distribute">Operations</a>
+        <a href="#/settings" data-nav="settings" title="Hint rule packs, enable/disable codes">Settings</a>
+        <a href="/scalar/v1" target="_blank" rel="noopener" class="nav-api" title="OpenAPI document for Admin App HTTP API">API</a>
+      </div>
+    </nav>
+  </div>
+
+  <div class="breadcrumb muted" id="breadcrumb"></div>
+
+  <main id="appMain" class="app-main">
+    <p class="muted">Loading…</p>
+  </main>
+
+  <footer class="app-footer muted">
+    <p class="footer-note">Local Admin must be enabled on each app. Configure <code>AdminConsole:Instances</code>.</p>
+    <a class="footer-github" href="https://github.com/amarinsek/CacheOrchestrator" target="_blank" rel="noopener noreferrer" title="CacheOrchestrator on GitHub">
+      <svg class="footer-github-icon" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+      </svg>
+      <span>CacheOrchestrator</span>
+    </a>
+  </footer>
+
+  <!-- ES modules: see wwwroot/js/app.js for the module graph -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

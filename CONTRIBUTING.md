@@ -134,7 +134,7 @@ Full release procedure: **[docs/releasing.md](docs/releasing.md)**.
 1. Update **CHANGELOG.md** and **PACKAGE_RELEASE_NOTES.md**.
 2. Commit on `main`.
 3. Tag **`v{version}`** (e.g. `v1.0.0`) and push the tag.
-4. Publish **GitHub Release** for that tag → `publish.yml` packs and pushes to NuGet
+4. Publish **GitHub Release** for that tag → `publish.yml` packs and pushes to NuGet and builds the Admin Console image on GHCR
    (Trusted Publishing / OIDC — configure policy on nuget.org; no `NUGET_API_KEY` secret required).
 5. Confirm nuget.org (version from tag, release notes, symbols).
 

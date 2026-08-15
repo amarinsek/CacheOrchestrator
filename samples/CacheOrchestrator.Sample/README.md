@@ -88,7 +88,7 @@ dotnet run --project samples/CacheOrchestrator.Sample
 
 # Traffic (UI or curl), then Admin App Metrics page
 curl -i http://localhost:5289/api/catalog
-dotnet run --project src/CacheOrchestrator.Admin
+dotnet run --project src/CacheOrchestrator.AdminConsole
 # open http://localhost:5188/#/metrics
 ```
 

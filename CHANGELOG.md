@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Admin App Metrics** — optional Prometheus-compatible time series (`CacheAdmin:Metrics`: typically `Enabled`, `Provider`, `BaseUrl`)
+- **Admin Console Docker image** — `Dockerfile`, GHCR publish on GitHub Release (`ghcr.io/amarinsek/cacheorchestrator-admin-console`)
+  - Operator volume `/app/data`: custom hint packs in `data/rules/*.json`, Settings disables in `data/disabled.local.json`
+  - Product `hints/core-hints.json` stays in the image; docs and examples under `deploy/admin/`
+- **Admin App Metrics** — optional Prometheus-compatible time series (`AdminConsole:Metrics`: typically `Enabled`, `Provider`, `BaseUrl`)
   - BFF: `GET /api/metrics/status|catalog|series|summary` (allowlisted panels; no free-form PromQL from the browser)
   - SPA page `#/metrics` (range / domain filters, window KPIs, SVG charts) plus Overview “last 1h” embed when connected
   - Detail embeds: domain / instance / endpoint pages (scoped series; endpoint empty-range notice is sample-based, not a hard feature flag)
@@ -21,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin App: `InstanceReachabilityCache` + `DownReprobeSeconds` — skip HTTP to known-down instances until re-probe (avoids stacking timeouts)
 - Local Admin `GET …/cluster/info` when Admin is enabled (works without CacheOrchestrator.Bus)
 - **Admin App customizable hints** — declarative JSON rule packs evaluated after fan-out (not on the instance hot path)
-  - Product pack `hints/core-hints.json` (always loaded) plus optional packs via `CacheAdmin:Hints:RuleFiles`
+  - Product pack `hints/core-hints.json` (always loaded) plus optional packs via `AdminConsole:Hints:RuleFiles`
   - Compiler/checker (errors include rule code + path inside the rule); enable/disable per code (config and Settings UI)
   - Settings page `#/settings` (catalog by file, severity colors, view rule JSON, reload packs)
   - Default recommendations expanded beyond 2.0.0: approaching schedule (Info), hold older than 24 h (Warning), factory failure rate, runtime overlay reminder, Fusion hard TTL shorter than soft, schedule that cannot ramp, instance drift, …
@@ -29,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Admin host rename** — project `CacheOrchestrator.Admin` → **`CacheOrchestrator.AdminConsole`** (namespaces `CacheOrchestrator.AdminConsole.*`); config section **`CacheAdmin` → `AdminConsole`** (`AdminConsoleOptions`); Docker/GHCR image **`cacheorchestrator-admin-console`**. Core library Admin API (`CacheOrchestrator.Admin`, `Cache:Admin`, `MapCacheOrchestratorAdmin`) unchanged
+- **Admin App configuration defaults** — Production/base: empty `Instances`, Metrics off, custom hints under `data/rules/`; Development keeps playground `:5289` and `hints/*` paths
 - **Admin App targets `net10.0` only** (no longer multi-targets net8.0). Monitored instances may still be net8 or net10 (HTTP fan-out). Admin unit tests compile and run under net10 only; library unit tests remain net8 + net10
 - Hint product codes renamed for terminology: `high-factory-share` / `critical-factory-share` / `instance-factory-spread` (replacing `*-origin-*` codes in `core-hints.json` and imperative `RecommendationHints`)
 - Admin Local API / stats DTOs: prefer **`factoryShare`** (request share of factory runs); **`originShare`** remains as an obsolete synonym for wire compatibility (same value). Declarative hint paths accept both; product packs use `factoryShare`. Admin UI labels Factory; tooltips explain “also known as origin”
@@ -48,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Documentation revised after 2.0.0: root README, package and sample READMEs, and `docs/` further aligned in tone and structure
 - Admin Metrics store and Prometheus dev guide (`samples/…/deploy/prometheus`, Playground `/metrics`, Admin / observability docs)
-- Admin hints customization: operator guide ships with the Admin App as `hints/README.md`; monorepo overview in `docs/admin-hints.md`; Admin App README presents hints as a first-class feature (Settings, packs, `CacheAdmin:Hints`)
+- Admin hints customization: operator guide ships with the Admin App as `hints/README.md`; monorepo overview in `docs/admin-hints.md`; Admin App README presents hints as a first-class feature (Settings, packs, `AdminConsole:Hints`)
 
 ## [2.0.0] - 2026-08-13
 
@@ -81,7 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Health probe: instance id, process start / uptime, lifetime request sum
   - Write ops: domain / entity invalidation, runtime **Version** and **TTL** overlays (process-local)
   - API key guard (`X-Cache-Admin-Key` / `Cache:Admin:ApiKey`); not on the caching hot path
-- **CacheOrchestrator.Admin** app — separate fan-out process over configured instances (`CacheAdmin:Instances`)
+- **CacheOrchestrator.AdminConsole** app — separate fan-out process over configured instances (`AdminConsole:Instances`)
   - Aggregate overview (cluster pipeline, OC hit / origin shares, alerts, `N/M` instance health)
   - Multi-page SPA (hash routes): Overview, Instances, Domains, Endpoints, Hints, Operations
   - Filters / search / sort; Overview **top 5** domains and endpoints ranked over the **full** aggregated sets

@@ -7,8 +7,8 @@ Hints never change cache behaviour, TTLs, or invalidation.
 
 | Document | Audience |
 |----------|----------|
-| **[Operator guide: writing rules](../src/CacheOrchestrator.Admin/hints/README.md)** | Full how-to, JSON format, paths, step-by-step new rule (**ships with the Admin App** next to the packs) |
-| [Admin App README](../src/CacheOrchestrator.Admin/README.md) | Run/configure the host + feature overview |
+| **[Operator guide: writing rules](../src/CacheOrchestrator.AdminConsole/hints/README.md)** | Full how-to, JSON format, paths, step-by-step new rule (**ships with the Admin App** next to the packs) |
+| [Admin App README](../src/CacheOrchestrator.AdminConsole/README.md) | Run/configure the host + feature overview |
 | [admin.md](admin.md) | Admin architecture / security |
 
 ---
@@ -17,7 +17,7 @@ Hints never change cache behaviour, TTLs, or invalidation.
 
 1. Open Admin → **Settings** for the rule catalog, compile errors, enable/disable, and “view rule JSON”.  
 2. Open **Hints** / domain / endpoint pages for live recommendations.  
-3. To **add a rule**: write a JSON pack under `hints/`, load it via `CacheAdmin:Hints:RuleFiles`, Reload — details in the **[operator guide](../src/CacheOrchestrator.Admin/hints/README.md)**.
+3. To **add a rule**: write a JSON pack (`hints/` in Development, or `data/rules/` in Docker/Production), load it via `AdminConsole:Hints:RuleFiles`, Reload — details in the **[operator guide](../src/CacheOrchestrator.AdminConsole/hints/README.md)**. Docker volume layout: [deploy/admin/README.md](../deploy/admin/README.md).
 
 ---
 
@@ -33,7 +33,7 @@ Local Admin /stats  →  Admin App fan-out (StatsAggregator)
 | Piece | Role |
 |-------|------|
 | `hints/core-hints.json` | Product defaults (**always** loaded) |
-| `CacheAdmin:Hints:RuleFiles` | Extra operator packs (globs) |
+| `AdminConsole:Hints:RuleFiles` | Extra operator packs (globs) |
 | `HintEngine` / `IHintRule` | Evaluation |
 | `HintEvaluationContext` | Read-only facts + computed fields |
 | Compiler | Validate packs; errors include **rule code** + path *inside* the rule |
@@ -49,7 +49,7 @@ Rules run **only in the Admin App**, not on each instance’s caching hot path.
 ## Config (summary)
 
 ```json
-"CacheAdmin": {
+"AdminConsole": {
   "Hints": {
     "RuleFiles": [ "hints/*.json" ],
     "DisabledCodes": [],
@@ -57,6 +57,8 @@ Rules run **only in the Admin App**, not on each instance’s caching hot path.
   }
 }
 ```
+
+Production / Docker defaults: `data/rules/*.json` and `data/disabled.local.json` (mount `/app/data`). Development keeps the `hints/` paths above.
 
 | Key | Meaning |
 |-----|---------|
@@ -67,7 +69,7 @@ Rules run **only in the Admin App**, not on each instance’s caching hot path.
 Load order: **core pack**, then `RuleFiles` (skip `disabled.local.json`, `*.sample.json`, duplicates).  
 Uniqueness: **`(code, scope)`** — same code may exist for domain and endpoint.
 
-Full disable options and pack examples: [hints/README.md](../src/CacheOrchestrator.Admin/hints/README.md).
+Full disable options and pack examples: [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md).
 
 ---
 
@@ -115,7 +117,7 @@ Exact thresholds and messages: open **`core-hints.json`** or Settings → click 
 
 ## Implementation map (contributors)
 
-| Area | Location under `src/CacheOrchestrator.Admin/` |
+| Area | Location under `src/CacheOrchestrator.AdminConsole/` |
 |------|-----------------------------------------------|
 | Engine | `Services/Hints/` |
 | Declarative compiler / conditions | `Services/Hints/Declarative/` |
@@ -128,7 +130,7 @@ Exact thresholds and messages: open **`core-hints.json`** or Settings → click 
 
 ## See also
 
-- **[Writing rules (distributed with Admin)](../src/CacheOrchestrator.Admin/hints/README.md)**  
-- [Admin App README](../src/CacheOrchestrator.Admin/README.md)  
+- **[Writing rules (distributed with Admin)](../src/CacheOrchestrator.AdminConsole/hints/README.md)**  
+- [Admin App README](../src/CacheOrchestrator.AdminConsole/README.md)  
 - [admin.md](admin.md)  
 - [client-cache-schedule.md](client-cache-schedule.md)  

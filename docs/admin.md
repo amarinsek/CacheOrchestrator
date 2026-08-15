@@ -3,13 +3,13 @@
 Two pieces work together:
 
 - **Admin API** — opt-in HTTP on each application process (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`). Stats, health, invalidate, Version and TTL overlays. Ships in the core NuGet package; off by default.
-- **Admin App** — a separate host (`src/CacheOrchestrator.Admin`) that calls those APIs and serves the operator UI. It is not a NuGet package.
+- **Admin App** — a separate host (`src/CacheOrchestrator.AdminConsole`) that calls those APIs and serves the operator UI. It is not a NuGet package.
 
-This page covers architecture, security, and production. To run the App: [Admin README](../src/CacheOrchestrator.Admin/README.md). Hint rules: [admin-hints.md](admin-hints.md).
+This page covers architecture, security, and production. To run the App: [Admin README](../src/CacheOrchestrator.AdminConsole/README.md). Hint rules: [admin-hints.md](admin-hints.md).
 
 - One process, curl or a script — enable the Admin API.
 - A dashboard across instances — Admin App, with the Admin API on each target.
-- Time series (“last hour”) — optional **Admin App → Prometheus** (`CacheAdmin:Metrics`). Lifetime counters stay on Local Admin; sliding windows come from scraped `CacheOrchestrator` meter series.
+- Time series (“last hour”) — optional **Admin App → Prometheus** (`AdminConsole:Metrics`). Lifetime counters stay on Local Admin; sliding windows come from scraped `CacheOrchestrator` meter series.
 
 Writes (invalidate, Version, TTL) change live cache state. Restrict who can reach these endpoints.
 
@@ -20,7 +20,7 @@ Writes (invalidate, Version, TTL) change live cache state. Restrict who can reac
 ```
 ┌────────────────────┐     HTTP fan-out      ┌──────────────────────────┐
 │  Admin App         │ ──────────────────►   │ App instance A           │
-│  - CacheAdmin:*    │   X-Cache-Admin-Key   │ MapCacheOrchestratorAdmin│
+│  - AdminConsole:*    │   X-Cache-Admin-Key   │ MapCacheOrchestratorAdmin│
 │  - /api/* + SPA    │                       │ /cache-admin/local/*     │
 │  (browser → open)  │ ──────────────────►   │ App instance B           │
 └────────────────────┘                       └──────────────────────────┘
@@ -42,9 +42,15 @@ Writes (invalidate, Version, TTL) change live cache state. Restrict who can reac
 | Piece | How users get it |
 |-------|------------------|
 | Admin API | Ships inside **`CacheOrchestrator`** NuGet. No extra package. Default **disabled** (`Cache:Admin:Enabled` = false). |
-| Admin App | Source in repo; run with `dotnet run` / `dotnet publish`, or ship your own **container / release zip**. Not published to nuget.org. |
+| Admin App | Source in repo; `dotnet run` / `dotnet publish`; **Docker image** on GHCR with each GitHub Release. Not published to nuget.org. |
 
-Run the Admin App as an internal ops service (Docker or Helm, VPN only).
+| Image | |
+|-------|--|
+| Registry | `ghcr.io/amarinsek/cacheorchestrator-admin-console` |
+| Tags | Release version (e.g. `1.2.3`), plus `latest` for stable releases |
+| Docs | **[deploy/admin/README.md](../deploy/admin/README.md)** — config mount, `data/` volume for custom hints + disabled state, logs |
+
+Run the Admin App as an internal ops service (Docker or Helm, VPN only). Configure **instances** and **API key** per environment; product hint pack stays in the image (`hints/core-hints.json`).
 
 ---
 
@@ -186,11 +192,11 @@ Standalone host targeting **net10.0** only (ops tool). Target apps may still run
 
 ### Configuration
 
-Section: `CacheAdmin` → `CacheAdminOptions`.
+Section: `AdminConsole` → `AdminConsoleOptions`.
 
 ```json
 {
-  "CacheAdmin": {
+  "AdminConsole": {
     "ApiKey": "use-a-strong-secret-in-production",
     "RequestTimeoutMs": 3000,
     "Parallelism": 8,
@@ -213,7 +219,7 @@ Section: `CacheAdmin` → `CacheAdminOptions`.
 | `Instances[].id` | Stable UI / filter id |
 | `Instances[].url` | **Base URL only** (scheme + host + port) — no `/cache-admin/...` path |
 | `Metrics` | Optional Prometheus-compatible store for the **Metrics** page (see below) |
-| `Hints` | Declarative rule packs + disable list ([admin-hints.md](admin-hints.md), operator guide [Admin hints/README](../src/CacheOrchestrator.Admin/hints/README.md)) |
+| `Hints` | Declarative rule packs + disable list ([admin-hints.md](admin-hints.md), operator guide [Admin hints/README](../src/CacheOrchestrator.AdminConsole/hints/README.md)) |
 
 ### Metrics store (time series)
 
@@ -222,7 +228,7 @@ Admin App can query an external Prometheus-compatible HTTP API (Prometheus, Mimi
 Minimal config (everything else has defaults). The Admin App in this repo defaults to local Prometheus:
 
 ```json
-"CacheAdmin": {
+"AdminConsole": {
   "Metrics": {
     "Enabled": true,
     "Provider": "Prometheus",
@@ -252,12 +258,12 @@ Admin App API: `GET /api/metrics/status`, `/catalog`, `/series`, `/summary`.
 ### Run (local)
 
 ```bash
-dotnet run --project src/CacheOrchestrator.Admin
+dotnet run --project src/CacheOrchestrator.AdminConsole
 ```
 
 Default UI: `http://localhost:5188/` (see launchSettings). Default `Instances` point at the Playground sample (`:5289`). Metrics time series use Playground scrape via Prometheus.
 
-Quick operator steps: [Admin App README](../src/CacheOrchestrator.Admin/README.md).
+Quick operator steps: [Admin App README](../src/CacheOrchestrator.AdminConsole/README.md).
 
 ### What the SPA shows
 
@@ -271,9 +277,9 @@ Quick operator steps: [Admin App README](../src/CacheOrchestrator.Admin/README.m
 ### Recommendation hints
 
 Evaluated **only in the Admin App** after fan-out aggregation (`HintEngine` + JSON packs).  
-**Customizable:** product defaults in `hints/core-hints.json`; extra packs via `CacheAdmin:Hints:RuleFiles`; enable/disable in **Settings**. UI does not invent rules.
+**Customizable:** product defaults in `hints/core-hints.json`; extra packs via `AdminConsole:Hints:RuleFiles`; enable/disable in **Settings**. UI does not invent rules.
 
-Step-by-step custom rules (ships with Admin): [hints/README.md](../src/CacheOrchestrator.Admin/hints/README.md).  
+Step-by-step custom rules (ships with Admin): [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md).  
 Repo overview: [admin-hints.md](admin-hints.md).
 
 ### Admin App HTTP API (for the SPA / automation)
@@ -321,7 +327,7 @@ So: the key stops strangers from calling `/cache-admin/local` on your apps **if*
 
 2. **Shared API key**  
    - Strong random secret (e.g. 32+ bytes, base64).  
-   - Same value on every instance (`Cache:Admin:ApiKey`) and Admin App (`CacheAdmin:ApiKey`).  
+   - Same value on every instance (`Cache:Admin:ApiKey`) and Admin App (`AdminConsole:ApiKey`).  
    - From a secret store (K8s Secret, Key Vault, …) — **never** commit production keys.  
    - Empty `ApiKey` with `Enabled=true` leaves Admin API **open** (logs a warning) — do not do this outside local dev.
 

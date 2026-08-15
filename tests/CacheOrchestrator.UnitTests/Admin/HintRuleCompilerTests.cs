@@ -1,6 +1,6 @@
 using CacheOrchestrator.Admin;
-using CacheOrchestrator.Admin.App.Services.Hints;
-using CacheOrchestrator.Admin.App.Services.Hints.Declarative;
+using CacheOrchestrator.AdminConsole.Services.Hints;
+using CacheOrchestrator.AdminConsole.Services.Hints.Declarative;
 
 namespace CacheOrchestrator.UnitTests.Admin;
 

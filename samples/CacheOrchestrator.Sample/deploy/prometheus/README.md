@@ -47,7 +47,7 @@ dotnet run --project samples/CacheOrchestrator.Sample
 curl -i http://localhost:5289/api/catalog
 
 # 4) Admin App (Metrics → http://localhost:9090; Instances → playground)
-dotnet run --project src/CacheOrchestrator.Admin
+dotnet run --project src/CacheOrchestrator.AdminConsole
 ```
 
 Open http://localhost:5188/#/metrics after ~15–30 s of scrapes.
