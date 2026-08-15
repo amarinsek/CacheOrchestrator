@@ -2,7 +2,7 @@
   "name": "core",
   "rules": [
     {
-      "code": "high-origin-share",
+      "code": "high-factory-share",
       "severity": "Warning",
       "category": "Factory",
       "scope": "domain",
@@ -17,7 +17,7 @@
       "message": "Factory is {domain.fc.factoryShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
     },
     {
-      "code": "critical-origin-share",
+      "code": "critical-factory-share",
       "severity": "Critical",
       "category": "Factory",
       "scope": "domain",
@@ -42,7 +42,7 @@
           { "path": "domain.fc.staleShare", "op": ">=", "value": 0.10 }
         ]
       },
-      "message": "Stale serves {domain.fc.staleShare:p1} of requests — fail-safe is covering factory failures. Inspect timeouts and origin health."
+      "message": "Stale serves {domain.fc.staleShare:p1} of requests — fail-safe is covering factory failures. Inspect timeouts and factory/backend health."
     },
     {
       "code": "frequent-invalidations",
@@ -72,7 +72,7 @@
           { "path": "domain.fc.factoryFailureRate", "op": "<", "value": 0.50 }
         ]
       },
-      "message": "Factory failed {domain.fc.factoryFailureRate:p1} of {domain.fc.factoryRuns} runs. Inspect origin errors; fail-safe may be covering them as stale."
+      "message": "Factory failed {domain.fc.factoryFailureRate:p1} of {domain.fc.factoryRuns} runs. Inspect factory/backend errors; fail-safe may be covering them as stale."
     },
     {
       "code": "critical-factory-failures",
@@ -86,7 +86,7 @@
           { "path": "domain.fc.factoryFailureRate", "op": ">=", "value": 0.50 }
         ]
       },
-      "message": "Factory failed {domain.fc.factoryFailureRate:p1} of {domain.fc.factoryRuns} runs. Inspect origin errors; fail-safe may be covering them as stale."
+      "message": "Factory failed {domain.fc.factoryFailureRate:p1} of {domain.fc.factoryRuns} runs. Inspect factory/backend errors; fail-safe may be covering them as stale."
     },
     {
       "code": "schedule-approaching",
@@ -217,7 +217,7 @@
       "message": "OC hit share varies across instances (stdev {domain.instanceSpread.ocHitShare.stdev:p1}) — InMemory OC is not shared, or traffic is uneven."
     },
     {
-      "code": "high-origin-share",
+      "code": "high-factory-share",
       "severity": "Warning",
       "category": "Factory",
       "scope": "endpoint",
@@ -232,7 +232,7 @@
       "message": "Factory is {endpoint.fc.factoryShare:p1} of requests on this route — factory runs too often."
     },
     {
-      "code": "critical-origin-share",
+      "code": "critical-factory-share",
       "severity": "Critical",
       "category": "Factory",
       "scope": "endpoint",
@@ -290,7 +290,7 @@
       "message": "Factory failed {endpoint.fc.factoryFailureRate:p1} of {endpoint.fc.factoryRuns} runs on this route."
     },
     {
-      "code": "instance-origin-spread",
+      "code": "instance-factory-spread",
       "severity": "Warning",
       "category": "Cluster",
       "scope": "endpoint",

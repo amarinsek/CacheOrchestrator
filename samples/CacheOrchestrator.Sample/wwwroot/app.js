@@ -115,7 +115,7 @@ function buildFetchInit(method = 'GET', { disableBrowserCache = true, price } = 
     /** @type {RequestInit} */
     const init = {
         method,
-        // Same idea as DevTools “Disable cache”: no-store bypasses the browser HTTP cache.
+        // Fetch cache mode only — not HTTP Cache-Control: no-store (server OC/FC still run).
         cache: disableBrowserCache ? 'no-store' : 'default',
         headers: {},
     };
@@ -158,11 +158,21 @@ function cacheTag(xcache) {
 
     const isOcHit = /output=hit/i.test(xcache);
     const isFcHit = /data=hit/i.test(xcache);
+    const isFcStale = /data=stale/i.test(xcache);
 
     if (isOcHit) return `<span class="tag hit">OC-HIT</span>`;
-    if (isFcHit) return `<span class="tag miss">OC-MISS</span><span class="tag hit" style="margin-left:4px">FC-HIT</span>`;
-
-    return `<span class="tag miss">MISS</span>`;
+    if (isFcHit) {
+        return `<span class="tag miss">OC-MISS</span>`
+            + `<span class="tag hit" style="margin-left:4px">FC-HIT</span>`;
+    }
+    if (isFcStale) {
+        return `<span class="tag miss">OC-MISS</span>`
+            + `<span class="tag phase-hold" style="margin-left:4px">FC-STALE</span>`;
+    }
+    // Both layers missed — factory path (not a “hit”; avoid FACTORY-HIT wording).
+    return `<span class="tag miss">OC-MISS</span>`
+        + `<span class="tag miss" style="margin-left:4px">FC-MISS</span>`
+        + `<span class="tag factory" style="margin-left:4px" title="Fusion factory ran (GetOrSet miss path)">FACTORY</span>`;
 }
 
 function escHtml(s) {
@@ -195,7 +205,6 @@ async function runRequest(url, init) {
 
     const ms = Math.round(performance.now() - started);
     const body = await res.text();
-    const hitId = res.headers.get('x-demo-hit-id') || '';
 
     let isBrowserCache = false;
     await new Promise(r => requestAnimationFrame(() => r()));
@@ -222,11 +231,10 @@ async function runRequest(url, init) {
         body,
         phase,
         status: res.status,
-        hitId,
     });
 }
 
-/** Header checkbox — default true (matches DevTools “Disable cache”). */
+/** Header checkbox — default true: bypass browser HTTP cache; server OC/FC unchanged. */
 function isBrowserCacheDisabled() {
     const el = document.getElementById('disableBrowserCache');
     // If the control is missing, prefer server-visible fetches.
@@ -254,7 +262,7 @@ function logInvalidateResult(title, body) {
     logHintEl.textContent = `${logEl.children.length} request(s)`;
 }
 
-function appendLog({ isBrowserCache, xcache, cc, etag, demoMs, ms, url, body, phase, status, hitId, error }) {
+function appendLog({ isBrowserCache, xcache, cc, etag, demoMs, ms, url, body, phase, status, error }) {
     const entry = document.createElement('div');
     entry.className = 'entry';
 
@@ -276,7 +284,6 @@ function appendLog({ isBrowserCache, xcache, cc, etag, demoMs, ms, url, body, ph
 <div class="headers">cache-control: ${escHtml(cc || '—')}
 etag: ${escHtml(etag || '—')}
 x-cache: ${escHtml(xcache || '—')}
-x-demo-hit-id: ${escHtml(hitId || '—')}
 
 body: ${escHtml((body || '').slice(0, 600))}</div>`;
     }
@@ -335,7 +342,7 @@ async function saveSettings() {
         await loadEndpoints();
         appendLog({
             error: null, xcache: '', cc: '', etag: '', demoMs: '', ms: 0,
-            url: 'appsettings.json', body: '', phase: '', status: 200, hitId: '',
+            url: 'appsettings.json', body: '', phase: '', status: 200,
             isBrowserCache: false,
         });
         logEl.firstChild.querySelector('.meta').innerHTML =

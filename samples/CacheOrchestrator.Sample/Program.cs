@@ -19,12 +19,6 @@ builder.Services.AddOpenTelemetry()
 
 var app = builder.Build();
 
-app.Use(async (ctx, next) =>
-{
-    ctx.Response.Headers["X-Demo-Hit-Id"] = Guid.NewGuid().ToString("N");
-    await next();
-});
-
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseCacheOrchestrator();

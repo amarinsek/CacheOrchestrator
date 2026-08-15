@@ -19,7 +19,7 @@ You can add rules **without recompiling** the Admin App: drop a JSON file here, 
 Default rules cover common factory-share (also known as origin), factory failure, schedule, and TTL problems. Teams often need:
 
 - Stricter or looser thresholds  
-- Environment-specific codes (e.g. “staging origin share is OK until 40%”)  
+- Environment-specific codes (e.g. “staging factory share is OK until 40%”)  
 - Extra checks on top of `core-hints.json` without forking the product pack  
 
 ---
@@ -70,7 +70,7 @@ Example: `hints/team-ops.json`
   "name": "team-ops",
   "rules": [
     {
-      "code": "team-high-origin",
+      "code": "team-high-factory",
       "severity": "Warning",
       "category": "Factory",
       "scope": "domain",

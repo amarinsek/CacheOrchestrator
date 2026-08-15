@@ -512,6 +512,7 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
 .tag.hit       { color: var(--green);  border-color: var(--green-dim);  background: rgba(61,214,140,.07); }
 .tag.browser   { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: var(--accent-glow); }
 .tag.miss      { color: var(--yellow); border-color: var(--yellow-dim); background: rgba(245,200,66,.07); }
+.tag.factory   { color: var(--red);    border-color: color-mix(in srgb, var(--red) 45%, var(--border)); background: rgba(255,107,107,.1); }
 .tag.phase-calm  { color: var(--green);  border-color: var(--green-dim);  }
 .tag.phase-apr   { color: var(--yellow); border-color: var(--yellow-dim); }
 .tag.phase-hold  { color: var(--orange); border-color: var(--orange-dim); }
@@ -598,6 +599,41 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
     gap: 10px;
     padding: 14px 20px;
     border-top: 1px solid var(--border);
+}
+
+/* ── Footer ── */
+.app-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem 0 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.footer-github {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--muted);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.footer-github:hover {
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.footer-github-icon {
+    display: block;
+    flex-shrink: 0;
+    opacity: 0.9;
 }
 
 /* ── Responsive ── */

@@ -48,7 +48,7 @@ public class RecommendationHintsTests
         };
 
         IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForEndpoint(ep);
-        hints.Should().Contain(h => h.Code == "high-origin-share" && h.Severity == "Warning");
+        hints.Should().Contain(h => h.Code == "high-factory-share" && h.Severity == "Warning");
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class RecommendationHintsTests
         };
 
         IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(domain);
-        hints.Should().Contain(h => h.Code == "critical-origin-share" && h.Severity == "Critical");
+        hints.Should().Contain(h => h.Code == "critical-factory-share" && h.Severity == "Critical");
     }
 
     [Fact]

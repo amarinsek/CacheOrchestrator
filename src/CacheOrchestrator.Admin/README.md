@@ -1,8 +1,8 @@
 # CacheOrchestrator.Admin
 
-![Admin App overview](../../docs/assets/admin-overview.png)
+Admin Console for multi-instance CacheOrchestrator: live stats, domain settings, invalidation, Version/TTL, **time-series Metrics**, and **recommendation Hints**.
 
-Operator UI for multi-instance CacheOrchestrator: live stats, domain settings, invalidation, Version/TTL, **time-series Metrics**, and **recommendation Hints**.
+![Admin App overview](../../docs/assets/admin-overview.png)
 
 It calls the **Admin API** on each instance you list (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).
 
@@ -113,7 +113,7 @@ The Admin App evaluates **read-only rules** against aggregated live stats (and d
   "name": "team-ops",
   "rules": [
     {
-      "code": "team-high-origin",
+      "code": "team-high-factory",
       "severity": "Warning",
       "category": "Factory",
       "scope": "domain",

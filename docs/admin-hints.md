@@ -89,7 +89,7 @@ Shipped in `core-hints.json` (domain and/or endpoint scope as applicable):
 
 | Codes | Theme |
 |-------|--------|
-| `high-origin-share`, `critical-origin-share` | Factory share (API: `factoryShare` / obsolete `originShare`) |
+| `high-factory-share`, `critical-factory-share` | Factory share (API: `factoryShare`) |
 | `elevated-stale` | Fail-safe stale share |
 | `factory-failures`, `critical-factory-failures` | Factory error rate |
 | `frequent-invalidations` | Invalidation vs traffic |
@@ -97,7 +97,7 @@ Shipped in `core-hints.json` (domain and/or endpoint scope as applicable):
 | `client-ttl-gt-output`, `schedule-flat` | Client TTL / ramp |
 | `fusion-hard-lt-soft` | Fusion soft vs hard |
 | `runtime-override` | Runtime Version/TTL overlay |
-| `instance-oc-hit-spread`, `instance-origin-spread` | Cross-instance factory / OC drift |
+| `instance-oc-hit-spread`, `instance-factory-spread` | Cross-instance OC / factory share drift |
 
 Exact thresholds and messages: open **`core-hints.json`** or Settings → click a row.
 

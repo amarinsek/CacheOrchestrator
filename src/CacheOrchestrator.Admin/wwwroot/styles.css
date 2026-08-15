@@ -434,8 +434,45 @@ a.btn-secondary:hover {
 
 .app-footer {
   text-align: center;
-  padding: 1rem 1.25rem 2rem;
+  padding: 1.25rem 1.25rem 2rem;
   font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.app-footer .footer-note {
+  margin: 0;
+  max-width: 36rem;
+  line-height: 1.4;
+}
+
+.footer-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card, #1a222c) 80%, transparent);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.footer-github:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  text-decoration: none;
+}
+
+.footer-github-icon {
+  display: block;
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 
 /* —— cards / tables —— */

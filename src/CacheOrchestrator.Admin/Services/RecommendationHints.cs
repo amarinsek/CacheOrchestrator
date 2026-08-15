@@ -54,7 +54,7 @@ public static class RecommendationHints
             if (domain.Fc.FactoryShare is double factory && factory >= FactoryShareWarning)
             {
                 string severity = factory >= FactoryShareCritical ? "Critical" : "Warning";
-                string code = factory >= FactoryShareCritical ? "critical-origin-share" : "high-origin-share";
+                string code = factory >= FactoryShareCritical ? "critical-factory-share" : "high-factory-share";
                 hints.Add(Hint(
                     severity,
                     code,
@@ -67,7 +67,7 @@ public static class RecommendationHints
                 hints.Add(Hint(
                     "Warning",
                     "elevated-stale",
-                    $"Stale serves {(stale * 100):0.#}% of requests — fail-safe is covering factory failures. Inspect timeouts and origin health."));
+                    $"Stale serves {(stale * 100):0.#}% of requests — fail-safe is covering factory failures. Inspect timeouts and factory/backend health."));
             }
 
             if (domain.Invalidations >= 10
@@ -155,7 +155,7 @@ public static class RecommendationHints
             if (ep.Fc.FactoryShare is double factory && factory >= FactoryShareWarning)
             {
                 string severity = factory >= FactoryShareCritical ? "Critical" : "Warning";
-                string code = factory >= FactoryShareCritical ? "critical-origin-share" : "high-origin-share";
+                string code = factory >= FactoryShareCritical ? "critical-factory-share" : "high-factory-share";
                 hints.Add(Hint(
                     severity,
                     code,
@@ -174,7 +174,7 @@ public static class RecommendationHints
             {
                 hints.Add(Hint(
                     "Warning",
-                    "instance-origin-spread",
+                    "instance-factory-spread",
                     $"Factory share differs across instances (stdev {(sd * 100):0.#}%)."));
             }
         }

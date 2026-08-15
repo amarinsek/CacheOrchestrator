@@ -12,7 +12,7 @@ dotnet run --project samples/CacheOrchestrator.Sample
 
 Open the printed URL (http://localhost:5289 by default).
 
-**Disable browser HTTP cache** (header, next to **appsettings.json**, **on by default**) matches DevTools Network → Disable cache: Fetch uses `cache: 'no-store'`. Uncheck only when you want client `max-age` / BROWSER-CACHE badges.
+**Disable browser HTTP cache** (header, next to **appsettings.json**, **on by default**) sets Fetch **`cache: 'no-store'`** so the browser always calls the app and you see **server** OC/FC hits. It does **not** send HTTP `Cache-Control: no-store` and does **not** turn off Output/Fusion on the server. Uncheck only to demo client `max-age` / BROWSER-CACHE.
 
 This playground writes `appsettings.json` from the browser. That is for this sample only.
 
@@ -25,12 +25,13 @@ This playground writes `appsettings.json` from the browser. That is for this sam
   - **calm** — far from the cutover; client `max-age` is at its maximum
   - **approaching** — `max-age` falls toward the floor
   - **hold** — the scheduled time has passed; `max-age` stays at the floor
-- **Disable browser HTTP cache** (header, default on) — like DevTools; uncheck to demo browser HTTP cache.
+- **Disable browser HTTP cache** (header, default on) — bypass browser cache only; uncheck to demo BROWSER-CACHE.
 - **Badges** on a response:
   - **BROWSER-CACHE** — client cache served the response (only when **Disable browser HTTP cache** is off)
   - **OC-HIT** — Output Cache served the HTTP response
-  - **OC-MISS FC-HIT** — the handler ran; FusionCache had the object
-  - **MISS** — both layers missed; the factory ran
+  - **OC-MISS FC-HIT** — handler ran; FusionCache had the object
+  - **OC-MISS FC-STALE** — fail-safe stale from Fusion
+  - **OC-MISS FC-MISS FACTORY** — both layers missed; Fusion factory ran (not a “hit”)
 - **Extra query params** (optional): e.g. `page=2` usually creates a **different** cache key. Tracking params such as `utm_source=demo` are omitted from keys (same entry as without them) — see [cache-keys.md](../../docs/cache-keys.md).
 
 ## CRUD (entity invalidation)
@@ -40,7 +41,7 @@ In the playground, open the **Entity invalidation (CRUD)** panel (not the domain
 - **Invalidate entity** — purge OC/FC for `products/42` only (in-memory price unchanged).
 - **Update price (PUT)** — enter a price, write store + entity invalidate → next Fetch shows that price.
 
-Suggested UI flow: Fetch → Fetch twice (OC-HIT) → Invalidate entity → Fetch (MISS, same price) → set Price → Update price → Fetch (MISS, new price).
+Suggested UI flow: Fetch → Fetch twice (OC-HIT) → Invalidate entity → Fetch (FACTORY, same price) → set Price → Update price → Fetch (FACTORY, new price).
 
 ```bash
 curl -i http://localhost:5289/api/crud/products/42
