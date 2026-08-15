@@ -7,53 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-08-15
+
+Admin Console App–focused release: Metrics UI, declarative hints, Docker image on GHCR, and host rename. NuGet libraries stay compatible; additive metrics/Admin API fields only.
+
 ### Added
 
-- **Admin Console Docker image** — `Dockerfile`, GHCR publish on GitHub Release (`ghcr.io/amarinsek/cacheorchestrator-admin-console`)
-  - Operator volume `/app/data`: custom hint packs in `data/rules/*.json`, Settings disables in `data/disabled.local.json`
-  - Product `hints/core-hints.json` stays in the image; docs and examples under `deploy/admin/`
-- **Admin App Metrics** — optional Prometheus-compatible time series (`AdminConsole:Metrics`: typically `Enabled`, `Provider`, `BaseUrl`)
+#### Libraries (NuGet)
+
+- **`Cache:Metrics:IncludeEndpointLabel`** (default `true`) — optional stable `route` tag on OC/FC meter instruments (`METHOD` + route template, same as Admin endpoint keys); set `false` to lower Prometheus cardinality
+- Local Admin **`GET …/cluster/info`** when `Cache:Admin` is enabled (works without CacheOrchestrator.Bus)
+
+#### Admin Console App (host; not a NuGet package)
+
+- **Docker image** published on GitHub Release: `ghcr.io/amarinsek/cacheorchestrator-admin-console`
+  - Operator volume `/app/data`: custom packs in `data/rules/*.json`, Settings disables in `data/disabled.local.json`
+  - Product `hints/core-hints.json` stays in the image; runbook under `deploy/admin/`
+- **Metrics UI** — optional Prometheus-compatible time series (`AdminConsole:Metrics`: `Enabled`, `Provider`, `BaseUrl`)
   - BFF: `GET /api/metrics/status|catalog|series|summary` (allowlisted panels; no free-form PromQL from the browser)
-  - SPA page `#/metrics` (range / domain filters, window KPIs, SVG charts) plus Overview “last 1h” embed when connected
-  - Detail embeds: domain / instance / endpoint pages (scoped series; endpoint empty-range notice is sample-based, not a hard feature flag)
-  - Enlarge chart modal (denser Y grid) with hover snap along the polyline (interpolated segment values + vertex snap, including sloped segments); expand control on chart cards
-  - Graceful `NotConfigured` / `Disconnected` / `Connected` (no fake zeros when storage is missing)
-  - Local dev stack: `samples/CacheOrchestrator.Sample/deploy/prometheus` (Docker) scrapes **Playground** `/metrics` (sample only; not a package dependency)
-- **Core `Cache:Metrics:IncludeEndpointLabel`** (default `true`) — optional stable `route` tag on OC/FC meter instruments (`METHOD` + route template, same as Admin endpoint keys); set `false` to lower Prometheus cardinality
-- Playground sample: OpenTelemetry Prometheus scrape endpoint (`/metrics`, Output Cache NoStore), Local Admin enabled, `IncludeEndpointLabel` on
-- Admin App: `InstanceReachabilityCache` + `DownReprobeSeconds` — skip HTTP to known-down instances until re-probe (avoids stacking timeouts)
-- Local Admin `GET …/cluster/info` when Admin is enabled (works without CacheOrchestrator.Bus)
-- **Admin App customizable hints** — declarative JSON rule packs evaluated after fan-out (not on the instance hot path)
+  - SPA `#/metrics` (range / domain filters, window KPIs, SVG charts); Overview “last 1h” embed; detail embeds on domain / instance / endpoint
+  - Chart enlarge modal, hover snap on series; `NotConfigured` / `Disconnected` / `Connected` without fake zeros
+  - Dev scrape stack: `samples/CacheOrchestrator.Sample/deploy/prometheus` (Playground `/metrics` only)
+- **Declarative recommendation hints** — JSON rule packs after fan-out (not on the instance hot path)
   - Product pack `hints/core-hints.json` (always loaded) plus optional packs via `AdminConsole:Hints:RuleFiles`
-  - Compiler/checker (errors include rule code + path inside the rule); enable/disable per code (config and Settings UI)
-  - Settings page `#/settings` (catalog by file, severity colors, view rule JSON, reload packs)
-  - Default recommendations expanded beyond 2.0.0: approaching schedule (Info), hold older than 24 h (Warning), factory failure rate, runtime overlay reminder, Fusion hard TTL shorter than soft, schedule that cannot ramp, instance drift, …
-- Admin App unit tests for metrics catalog / query service, fan-out skip-down behaviour, and declarative hint compiler
+  - Compiler/checker (rule code + path in errors); enable/disable per code (config and Settings UI)
+  - Settings `#/settings` (catalog, severity, view JSON, reload); expanded default rules (schedule, factory, TTL, drift, …)
+- `InstanceReachabilityCache` + `DownReprobeSeconds` — skip HTTP to known-down instances until re-probe
+- Playground sample: OpenTelemetry `/metrics` (Output Cache NoStore), Local Admin enabled, `IncludeEndpointLabel` on
+- Unit tests: metrics catalog / query service, fan-out skip-down, declarative hint compiler
 
 ### Changed
 
-- **Admin host rename** — project `CacheOrchestrator.Admin` → **`CacheOrchestrator.AdminConsole`** (namespaces `CacheOrchestrator.AdminConsole.*`); config section **`CacheAdmin` → `AdminConsole`** (`AdminConsoleOptions`); Docker/GHCR image **`cacheorchestrator-admin-console`**. Core library Admin API (`CacheOrchestrator.Admin`, `Cache:Admin`, `MapCacheOrchestratorAdmin`) unchanged
-- **Admin App configuration defaults** — Production/base: empty `Instances`, Metrics off, custom hints under `data/rules/`; Development keeps playground `:5289` and `hints/*` paths
-- **Admin App targets `net10.0` only** (no longer multi-targets net8.0). Monitored instances may still be net8 or net10 (HTTP fan-out). Admin unit tests compile and run under net10 only; library unit tests remain net8 + net10
-- Hint product codes renamed for terminology: `high-factory-share` / `critical-factory-share` / `instance-factory-spread` (replacing `*-origin-*` codes in `core-hints.json` and imperative `RecommendationHints`)
-- Admin Local API / stats DTOs: prefer **`factoryShare`** (request share of factory runs); **`originShare`** remains as an obsolete synonym for wire compatibility (same value). Declarative hint paths accept both; product packs use `factoryShare`. Admin UI labels Factory; tooltips explain “also known as origin”
-- **Admin App SPA soft refresh** — auto-refresh and header refresh repaint without a full “Loading…” flash; concurrent soft runs coalesce; GET `/api/overview` is deduped in-flight; Metrics charts soft-refresh by patching KPIs and SVG path data in place (no full chart remount / flicker)
-- Admin App instance health: KPI / header show error styling unless **all** configured instances are healthy; JSON enums as strings (`JsonStringEnumConverter`) for SPA status handling
-- Admin App Hints page: severity KPIs show **visible/total** when filters are applied
-- Admin App fan-out: stats + domains load in parallel; overview uses a single stats pass with `ByInstance` (no second full stats fetch for hints)
-- Core: endpoint key (`METHOD` + route template) resolved once per request (`HttpContext.Items`) and shared by Local Admin counters and optional metrics `route` tag
+#### Libraries (NuGet)
+
+- Admin Local API / stats DTOs: prefer **`factoryShare`** (request share of factory runs); **`originShare`** remains as an obsolete synonym (same value) for wire compatibility
+- Endpoint key (`METHOD` + route template) resolved once per request (`HttpContext.Items`) and shared by Local Admin counters and optional metrics `route` tag
 - Bus: skip duplicate `GET …/cluster/info` when Local Admin already maps it (same route prefix)
+
+#### Admin Console App
+
+- **Host rename** — `CacheOrchestrator.Admin` → **`CacheOrchestrator.AdminConsole`** (namespaces `CacheOrchestrator.AdminConsole.*`); config section **`CacheAdmin` → `AdminConsole`** (`AdminConsoleOptions`); DTO file/types `AdminAppModels` / `AdminApp*Request` → **`AdminConsoleModels`** / **`AdminConsole*Request`**. Core Admin API (`Cache:Admin`, `MapCacheOrchestratorAdmin`) unchanged
+- Targets **`net10.0` only** (monitored instances may still be net8 or net10). Unit tests for the host run under net10 only
+- Defaults: Production/Docker empty `Instances`, Metrics off, custom hints under `data/rules/`; Development keeps playground `:5289` and `hints/*`
+- Hint product codes: `high-factory-share` / `critical-factory-share` / `instance-factory-spread` (replacing `*-origin-*`)
+- SPA soft refresh (no full “Loading…” flash); overview request coalescing; Metrics charts patch in place
+- Instance health KPI / header: error styling unless **all** configured instances are healthy; JSON enums as strings for SPA
+- Hints page: severity KPIs show **visible/total** when filters apply
+- Fan-out: stats + domains in parallel; single stats pass with `ByInstance` for overview/hints
 
 ### Fixed
 
-- Admin App: partial instance outage no longer blocks the whole dashboard on repeated request timeouts (down targets are marked and re-probed on an interval)
-- Admin App cluster probe: non-JSON / HTML responses (e.g. `MapFallbackToFile`) no longer surface raw `JsonException` (`'<' is an invalid start of a value`); clearer error text
+- Admin Console App: partial instance outage no longer blocks the dashboard on stacked timeouts (down targets marked and re-probed)
+- Admin Console App cluster probe: non-JSON / HTML responses (e.g. `MapFallbackToFile`) no longer surface raw `JsonException`; clearer error text
 
 ### Documentation
 
-- Documentation revised after 2.0.0: root README, package and sample READMEs, and `docs/` further aligned in tone and structure
-- Admin Metrics store and Prometheus dev guide (`samples/…/deploy/prometheus`, Playground `/metrics`, Admin / observability docs)
-- Admin hints customization: operator guide ships with the Admin App as `hints/README.md`; monorepo overview in `docs/admin-hints.md`; Admin App README presents hints as a first-class feature (Settings, packs, `AdminConsole:Hints`)
+- Root README, package and sample READMEs, and `docs/` aligned after 2.0.0
+- Admin Console App Docker / operator guide (`deploy/admin/`), Metrics + Prometheus sample, hints operator handbook (`hints/README.md`, `docs/admin-hints.md`)
+- Product wording unified to **Admin Console App** (was “Admin App”)
 
 ## [2.0.0] - 2026-08-13
 
