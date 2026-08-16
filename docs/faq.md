@@ -16,6 +16,25 @@ Call `InvalidateEntitiesAsync` or `InvalidateEntityKindAsync` yourself. Details:
 
 ---
 
+## Why is a route cached when I never set a domain?
+
+**Domain** Output Cache is opt-in (`.CacheOutputWithDomain` / `[CacheDomain]`).  
+**ASP.NET base Output Cache policy** is separate: CacheOrchestrator registers one (today: vary by `Accept-Encoding`) that applies to **all** endpoints the middleware handles. So a plain `MapGet` with no domain can still get a full-response cache entry until that entry expires.
+
+That follows ASP.NET’s model (base policy = app-wide defaults; endpoint policies refine). It is **not** “default domain”.
+
+**Opt out** when the response must be live:
+
+```csharp
+.WithMetadata(new Microsoft.AspNetCore.OutputCaching.OutputCacheAttribute { NoStore = true })
+```
+
+Built-in Admin, cluster bus, and sample `/metrics` already use `NoStore`. Your health checks, settings APIs, and similar routes should do the same.
+
+Details: [output-cache.md — Base policy](output-cache.md#base-policy-and-endpoints-without-a-domain).
+
+---
+
 ## Fusion runs uncached — why?
 
 `IDomainFusionCache.GetOrSetAsync` needs a **domain**. Resolution order:
@@ -47,7 +66,7 @@ Details: [fusion-cache.md](fusion-cache.md).
 | Public content that happens to send an API key | `BypassWhenAuthenticated: false`, `VaryOutputCacheByUser: false`, careful `ClientCacheability` |
 
 Wrong settings can leak one user’s response to another (especially with shared CDNs).  
-Details: [output-cache.md](output-cache.md#authenticated-caching-optional), [domain-profiles.md](domain-profiles.md#authenticated-traffic-auth-bypass).
+Details: [output-cache.md](output-cache.md#authenticated-traffic), [domain-profiles.md](domain-profiles.md#authenticated-traffic-auth-bypass).
 
 ---
 

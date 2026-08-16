@@ -1,0 +1,14 @@
+{
+  "Cache": {
+    "OutputCache": { "Provider": "InMemory" },
+    "FusionCacheInstances": {
+      "default": { "Provider": "Redis" }
+    },
+    "Redis": {
+      "Configuration": "redis:6379"
+    },
+    "Cluster": {
+      "Bus": { "Enabled": false }
+    }
+  }
+}

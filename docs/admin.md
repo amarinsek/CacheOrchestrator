@@ -237,7 +237,7 @@ Minimal config (everything else has defaults). The Admin Console App in this rep
 }
 ```
 
-Dev stack (Docker Prometheus + Playground `/metrics` on port 5289; sample only, not a library dependency): [samples/CacheOrchestrator.Sample/deploy/prometheus/README.md](../samples/CacheOrchestrator.Sample/deploy/prometheus/README.md).
+Dev stack (Playground + Prometheus + Admin Console labs): [samples/CacheOrchestrator.Sample/labs/README.md](../samples/CacheOrchestrator.Sample/labs/README.md) (sample only, not a library dependency).
 
 | Key | Default | Notes |
 |-----|---------|--------|

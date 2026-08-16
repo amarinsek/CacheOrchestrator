@@ -114,9 +114,21 @@ Notes for the sample: [samples/CacheOrchestrator.Minimal](samples/CacheOrchestra
 
 ---
 
+## Playground topology labs
+
+To try **multi-layer layouts** (Admin Console, Prometheus, Redis L2, multiple instances, cluster bus) without wiring Docker yourself, use the playground **topology labs** — one Compose command per stage. 
+
+```bash
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build
+```
+
+Stages climb from a single InMemory playground to dual Redis + HTTP bus. Full guide, diagrams, and what each stage teaches: [samples/CacheOrchestrator.Sample/labs/README.md](samples/CacheOrchestrator.Sample/labs/README.md).
+
+---
+
 ## Why domains
 
-A domain is a named set of cache rules. Different data wants different rules:
+A domain is a named set of cache rules. Different data wants different rules. For example:
 
 - **Satellite imagery** changes perhaps once a year. Long server and client lifetimes are appropriate.
 - **Map tiles** change on a published schedule. Lifetimes stay long, then client `max-age` is shortened as the cutover approaches.
@@ -151,7 +163,7 @@ The endpoint code is the same shape in every case. The domain is what differs.
 |---------|---------|
 | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) | Redis for Output Cache and for FusionCache L2 / backplane. |
 | [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/) | Invalidate, Version, and TTL commands delivered to every instance. |
-| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) | Invalidate after a successful EF Core `SaveChanges`. |
+| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) | Invalidate entity after a successful EF Core `SaveChanges`. |
 
 ---
 

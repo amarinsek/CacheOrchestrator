@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Playground topology labs** — `samples/CacheOrchestrator.Sample/labs` (Compose **01–05**)
+- Sample **Bus** registration for multi-instance labs
+- **`OutputCacheVaryByHost`** (default `true`; multi-instance labs can set `false`)
+
+### Changed
+
+- Sample Prometheus `deploy/prometheus` helper replaced by **labs** stacks
+
+### Fixed
+
+- Admin Console: Overview no longer always alerts when multiple instances are configured
+- **Bus:** load `Microsoft.Extensions.ServiceDiscovery` only when `Membership=ServiceDiscovery`
+- **Bus:** ServiceDiscovery package **9.0** on net8 / **10.0** on net10
+
+### Documentation
+
+- Labs / sample READMEs; Output Cache base policy + FAQ
+
 ## [2.1.0] - 2026-08-15
 
 Admin Console App–focused release: Metrics UI, declarative hints, Docker image on GHCR, and host rename. NuGet libraries stay compatible; additive metrics/Admin API fields only.
@@ -145,7 +165,7 @@ First stable release.
 - **Docs** — getting started, configuration, domain profiles, Client Cache Schedule, FAQ, comparison, releasing
 - **Quality** — unit tests (net8 + net10), integration tests (net10 + Testcontainers Redis), Minimal sample CI smoke, SourceLink + snupkg, MinVer (`v*` tags), custom-backend E2E, config-reload snapshot tests, Fusion fail-safe STALE integration tests
 
-
-[Unreleased]: https://github.com/amarinsek/CacheOrchestrator/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/amarinsek/CacheOrchestrator/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/amarinsek/CacheOrchestrator/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/amarinsek/CacheOrchestrator/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/amarinsek/CacheOrchestrator/releases/tag/v1.0.0

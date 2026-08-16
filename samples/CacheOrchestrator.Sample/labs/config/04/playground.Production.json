@@ -1,0 +1,24 @@
+{
+  "Cache": {
+    "OutputCache": { "Provider": "InMemory" },
+    "FusionCacheInstances": {
+      "default": { "Provider": "Redis" }
+    },
+    "Redis": {
+      "Configuration": "redis:6379"
+    },
+    "Cluster": {
+      "Bus": {
+        "Enabled": true,
+        "Membership": "Static",
+        "ApiKey": "dev-admin-key",
+        "Static": {
+          "Instances": [
+            { "Id": "playground-a", "Url": "http://playground-a:8080" },
+            { "Id": "playground-b", "Url": "http://playground-b:8080" }
+          ]
+        }
+      }
+    }
+  }
+}

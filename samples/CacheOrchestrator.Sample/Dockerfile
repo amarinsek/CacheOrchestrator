@@ -1,0 +1,44 @@
+# Playground sample image (build from repository root):
+#   docker build -f samples/CacheOrchestrator.Sample/Dockerfile -t cacheorchestrator-playground .
+#
+# Content root is writable so the sample settings UI can save appsettings.json.
+# compose down / recreate restores image + lab Production overlays.
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY Directory.Build.props ./
+COPY PACKAGE_RELEASE_NOTES.md ./
+
+COPY src/CacheOrchestrator/CacheOrchestrator.csproj src/CacheOrchestrator/
+COPY src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj src/CacheOrchestrator.Redis/
+COPY src/CacheOrchestrator.Bus/CacheOrchestrator.Bus.csproj src/CacheOrchestrator.Bus/
+COPY samples/CacheOrchestrator.Sample/CacheOrchestrator.Sample.csproj samples/CacheOrchestrator.Sample/
+
+RUN dotnet restore samples/CacheOrchestrator.Sample/CacheOrchestrator.Sample.csproj
+
+COPY src/CacheOrchestrator/ src/CacheOrchestrator/
+COPY src/CacheOrchestrator.Redis/ src/CacheOrchestrator.Redis/
+COPY src/CacheOrchestrator.Bus/ src/CacheOrchestrator.Bus/
+COPY samples/CacheOrchestrator.Sample/ samples/CacheOrchestrator.Sample/
+
+RUN dotnet publish samples/CacheOrchestrator.Sample/CacheOrchestrator.Sample.csproj \
+    -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+
+ENV ASPNETCORE_URLS=http://+:8080 \
+    ASPNETCORE_ENVIRONMENT=Production \
+    DOTNET_EnableDiagnostics=0
+
+EXPOSE 8080
+
+# APP_UID owns /app so the entrypoint can replace appsettings.json with a symlink to /shared.
+COPY --from=build --chown=$APP_UID:$APP_UID /app/publish .
+COPY samples/CacheOrchestrator.Sample/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chown $APP_UID:$APP_UID /app /app/docker-entrypoint.sh \
+    && chmod 755 /app/docker-entrypoint.sh
+USER $APP_UID
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

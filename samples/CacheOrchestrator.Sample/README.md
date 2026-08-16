@@ -1,10 +1,20 @@
 # CacheOrchestrator Sample Playground
 
-A playground for CacheOrchestrator after the [Minimal sample](../CacheOrchestrator.Minimal). You get a browser UI to change TTLs, watch Client Cache Schedule phases, switch to Redis, and try entity invalidation — without writing a new project.
+A playground for CacheOrchestrator after the [Minimal sample](../CacheOrchestrator.Minimal). You get a browser UI to change TTLs, watch Client Cache Schedule phases, try Redis and multi-instance labs, and experiment with entity invalidation — without writing a new project.
 
-![Sample screenshot](../../docs/assets/sample-playground.png)
+<img src="../../docs/assets/sample-playground.png" width="800" />
+---
 
-## Run
+## Choose your path
+
+| Path | Best for |
+|------|----------|
+| **A. Solo (host)** | Fastest loop; settings editor; single process. See below. |
+| **B. Topology labs (Docker)** | Learn **cache layouts** + Admin + Redis with one command. See [labs/README.md](labs/README.md)|
+
+---
+
+## Solo (host)
 
 ```bash
 dotnet run --project samples/CacheOrchestrator.Sample
@@ -14,7 +24,7 @@ Open the printed URL (http://localhost:5289 by default).
 
 **Disable browser HTTP cache** (header, next to **appsettings.json**, **on by default**) sets Fetch **`cache: 'no-store'`** so the browser always calls the app and you see **server** OC/FC hits. It does **not** send HTTP `Cache-Control: no-store` and does **not** turn off Output/Fusion on the server. Uncheck only to demo client `max-age` / BROWSER-CACHE.
 
-This playground writes `appsettings.json` from the browser. That is for this sample only.
+This playground can write `appsettings.json` from the browser. That is for this sample only.
 
 ## What to try
 
@@ -55,47 +65,9 @@ curl -i http://localhost:5289/api/crud/products/42
 
 `GET /api/crud/products` (list) is an uncached store dump — curl only. Background: [domain-profiles.md](../../docs/domain-profiles.md).
 
-## Redis
-
-The sample already calls `AddRedisBackend()`. Start Redis and switch providers in the editor:
-
-```bash
-docker run -d --name redis-demo -p 6379:6379 redis:7-alpine
-```
-
-```json
-"OutputCache": { "Provider": "InMemory" },
-"FusionCacheInstances": {
-  "default": { "Provider": "Redis" }
-},
-"Redis": { "Configuration": "localhost:6379" }
-```
-
-Named Fusion instances and a second Redis: [deployment.md](../../docs/deployment.md).
-
-## Admin API + Prometheus metrics
-
-This sample enables the Local Admin API (`Cache:Admin`) and exports meter `CacheOrchestrator` at **http://localhost:5289/metrics** for Prometheus.
-
-`Cache:Metrics:IncludeEndpointLabel` is **true** so OC/FC series include a stable `route` label (Admin endpoint key shape). Domain detail, instance detail, and endpoint detail in the Admin Console App can show window charts when Metrics storage is connected.
-
-```bash
-# Prometheus (sample/dev only — UI http://localhost:9090; not part of NuGet packages)
-docker compose -f samples/CacheOrchestrator.Sample/deploy/prometheus/docker-compose.yml up -d
-
-# This playground (scraped at host.docker.internal:5289)
-dotnet run --project samples/CacheOrchestrator.Sample
-
-# Traffic (UI or curl), then Admin Console App Metrics page
-curl -i http://localhost:5289/api/catalog
-dotnet run --project src/CacheOrchestrator.AdminConsole
-# open http://localhost:5188/#/metrics
-```
-
-Details: [deploy/prometheus/README.md](deploy/prometheus/README.md) · [docs/admin.md](../../docs/admin.md).
-
 ## Next
 
+- [labs/README.md](labs/README.md) — topology labs 01–05 (main learning path for multi-instance cache)
 - [Getting started](../../docs/getting-started.md)
 - [Client Cache Schedule](../../docs/client-cache-schedule.md)
-- [Documentation index](../../docs/README.md)
+- [Deployment](../../docs/deployment.md) · [Cluster bus](../../docs/cluster-bus.md)

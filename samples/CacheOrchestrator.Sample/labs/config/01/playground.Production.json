@@ -1,0 +1,11 @@
+{
+  "Cache": {
+    "OutputCache": { "Provider": "InMemory" },
+    "FusionCacheInstances": {
+      "default": { "Provider": "InMemory" }
+    },
+    "Cluster": {
+      "Bus": { "Enabled": false }
+    }
+  }
+}

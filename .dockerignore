@@ -16,8 +16,12 @@
 **/BenchmarkDotNet.Artifacts
 **/*.nupkg
 **/*.snupkg
-samples
+# Exclude most of samples; keep Playground (needed for Sample image build).
+samples/*
+!samples/CacheOrchestrator.Sample
+!samples/CacheOrchestrator.Sample/**
 tests
 .github
 docs
+# Repo-root Admin operator files (not needed for image builds)
 deploy

@@ -28,7 +28,8 @@ public static class CacheOrchestratorBusBuilderExtensions
     /// </code>
     /// When <c>Cache:Cluster:Bus:Enabled</c> is false, the registered bus reports
     /// <see cref="IClusterCommandBus.IsEnabled"/> = false and does not call peers.
-    /// For <c>Membership=ServiceDiscovery</c>, this also calls <c>AddServiceDiscovery()</c>.
+    /// <c>Microsoft.Extensions.ServiceDiscovery</c> is registered only when
+    /// <c>Membership=ServiceDiscovery</c> (so hosts using Null/Static do not load that assembly at startup).
     /// </remarks>
     public static ICacheOrchestratorBuilder AddHttpClusterBus(
         this ICacheOrchestratorBuilder builder,
@@ -39,29 +40,42 @@ public static class CacheOrchestratorBusBuilderExtensions
 
         builder.Services.AddHttpClient(HttpClusterCommandBus.HttpClientName);
 
-        // ServiceDiscovery needs IConfiguration (config-based endpoint provider).
-        builder.Services.TryAddSingleton<IConfiguration>(builder.Configuration);
-
-        // ServiceDiscovery resolver is cheap to register; only used when Membership=ServiceDiscovery.
-        builder.Services.AddServiceDiscovery();
+        // Only wire ServiceDiscovery when configured — avoids requiring that assembly for Null/Static hosts.
+        string membership = builder.Configuration[$"{configSection}:Cluster:Bus:Membership"] ?? "Null";
+        if (string.Equals(membership, "ServiceDiscovery", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.Services.TryAddSingleton<IConfiguration>(builder.Configuration);
+            builder.Services.AddServiceDiscovery();
+        }
 
         // Replace Null defaults registered later via TryAdd (we register first in builder callback).
-        builder.Services.AddSingleton<IClusterMembership>(sp =>
-        {
-            CacheOrchestratorOptions opts = sp.GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
-            string membership = opts.Cluster.Bus.Membership ?? "Null";
-            if (string.Equals(membership, "Static", StringComparison.OrdinalIgnoreCase))
-                return ActivatorUtilities.CreateInstance<StaticClusterMembership>(sp);
-
-            if (string.Equals(membership, "ServiceDiscovery", StringComparison.OrdinalIgnoreCase))
-                return ActivatorUtilities.CreateInstance<ServiceDiscoveryClusterMembership>(sp);
-
-            return NullClusterMembership.Instance;
-        });
+        builder.Services.AddSingleton<IClusterMembership>(CreateMembership);
 
         builder.Services.AddSingleton<IClusterCommandBus, HttpClusterCommandBus>();
         builder.Services.TryAddSingleton<ClusterEndpointAuth>();
 
         return builder;
     }
+
+    /// <summary>
+    /// Resolves membership. ServiceDiscovery path is a separate method so Null/Static hosts never
+    /// JIT-load <see cref="ServiceDiscoveryClusterMembership"/> (and thus its assembly).
+    /// </summary>
+    private static IClusterMembership CreateMembership(IServiceProvider sp)
+    {
+        CacheOrchestratorOptions opts = sp.GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
+        string membership = opts.Cluster.Bus.Membership ?? "Null";
+
+        if (string.Equals(membership, "Static", StringComparison.OrdinalIgnoreCase))
+            return ActivatorUtilities.CreateInstance<StaticClusterMembership>(sp);
+
+        if (string.Equals(membership, "ServiceDiscovery", StringComparison.OrdinalIgnoreCase))
+            return CreateServiceDiscoveryMembership(sp);
+
+        return NullClusterMembership.Instance;
+    }
+
+    // Keep SD types out of CreateMembership's IL so Null/Static does not load that package.
+    private static IClusterMembership CreateServiceDiscoveryMembership(IServiceProvider sp)
+        => ActivatorUtilities.CreateInstance<ServiceDiscoveryClusterMembership>(sp);
 }

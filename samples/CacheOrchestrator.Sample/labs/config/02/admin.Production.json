@@ -1,0 +1,23 @@
+{
+  "AdminConsole": {
+    "ApiKey": "dev-admin-key",
+    "RequestTimeoutMs": 5000,
+    "Parallelism": 8,
+    "LocalPathPrefix": "/cache-admin/local",
+    "Instances": [
+      {
+        "id": "playground-1",
+        "url": "http://playground:8080"
+      }
+    ],
+    "Metrics": {
+      "Enabled": true,
+      "Provider": "Prometheus",
+      "BaseUrl": "http://prometheus:9090"
+    },
+    "Hints": {
+      "RuleFiles": [ "data/rules/*.json" ],
+      "DisabledStatePath": "data/disabled.local.json"
+    }
+  }
+}

@@ -144,7 +144,7 @@ The library does **not** emit a single custom string of the form `{domain}:{vers
 |-------|------------------|
 | Prefix | `CacheKeyPrefix` = `OutputCacheNamespace` (from root / OC `Namespace`) |
 | Method + path | Framework Output Cache |
-| Host | `VaryByHost = true` |
+| Host | `VaryByHost` from domain `OutputCacheVaryByHost` (default `true`) |
 | Query | `QueryKeys` = non-tracking query keys on the request |
 | Version | `VaryByValues["data-version"]` = `VersionHex` |
 | Encoding | `Accept-Encoding` in header vary when present |

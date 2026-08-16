@@ -1,0 +1,60 @@
+# Stage 02 — Single app + Redis Fusion L2
+#   docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml up --build -d
+#
+# Playground http://localhost:5289  · Admin http://localhost:5188  · Prometheus http://localhost:9090
+# Redis published on localhost:6379 (optional host tools)
+
+name: co-lab-02
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks: [lab]
+
+  playground:
+    build:
+      context: ../../../..
+      dockerfile: samples/CacheOrchestrator.Sample/Dockerfile
+    image: cacheorchestrator-playground:local
+    ports:
+      - "5289:8080"
+    environment:
+      Cache__InstanceId: playground-1
+    volumes:
+      - ../config/02/playground.Production.json:/app/appsettings.Production.json:ro
+    depends_on:
+      - redis
+    networks: [lab]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../config/02/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    networks: [lab]
+
+  admin:
+    build:
+      context: ../../../..
+      dockerfile: src/CacheOrchestrator.AdminConsole/Dockerfile
+    image: cacheorchestrator-admin-console:local
+    ports:
+      - "5188:8080"
+    environment:
+      AdminConsole__ApiKey: dev-admin-key
+    volumes:
+      - ../config/02/admin.Production.json:/app/appsettings.Production.json:ro
+    depends_on:
+      - playground
+      - prometheus
+    networks: [lab]
+
+networks:
+  lab:

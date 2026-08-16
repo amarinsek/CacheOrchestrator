@@ -341,6 +341,12 @@ public sealed class CacheOrchestratorOptions
 
         /// <summary>Include Accept-Encoding in the FusionCache key.</summary>
         public bool? FusionCacheVaryOnEncoding { get; set; }
+
+        /// <summary>
+        /// When true (default), Output Cache varies by host (includes port).
+        /// Set false so multi-host/port entry points share the same OC entry.
+        /// </summary>
+        public bool? OutputCacheVaryByHost { get; set; }
     }
 
     /// <summary>Provider selection for Output Cache (or similar single-provider surfaces).</summary>

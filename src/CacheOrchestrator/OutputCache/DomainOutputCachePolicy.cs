@@ -207,7 +207,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         context.AllowLocking = true;
         context.ResponseExpirationTimeSpan = opts.OutputTtl;
 
-        context.CacheVaryByRules.VaryByHost = true;
+        context.CacheVaryByRules.VaryByHost = opts.OutputCacheVaryByHost;
         context.CacheVaryByRules.QueryKeys = CollectNonTrackingQueryKeys(http.Request.Query);
         context.CacheVaryByRules.CacheKeyPrefix = opts.OutputCacheNamespace;
         context.CacheVaryByRules.VaryByValues["data-version"] = opts.VersionHex;

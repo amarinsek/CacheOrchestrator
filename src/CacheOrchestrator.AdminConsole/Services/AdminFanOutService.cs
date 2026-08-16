@@ -218,6 +218,8 @@ public sealed class AdminFanOutService
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
             AdminStatsMath.BuildAll(ocH, ocM, ocB, fcH, fcM, fcS, fcB, runs, fails);
 
+        // Alerts = problems only (down / degraded). Multi-instance itself is normal when
+        // the console is configured with more than one target — do not alert on count alone.
         List<string> alerts = [];
         int down = instances.Count(i => i.Status == InstanceHealthStatus.Down);
         int degraded = instances.Count(i => i.Status == InstanceHealthStatus.Degraded);
@@ -225,8 +227,6 @@ public sealed class AdminFanOutService
             alerts.Add($"{down} instance(s) down.");
         if (degraded > 0)
             alerts.Add($"{degraded} instance(s) degraded.");
-        if (instances.Count > 1)
-            alerts.Add("Multiple instances: ensure Local Admin fan-out targets all nodes (L1 is per process).");
 
         // Full lists for Overview: UI sorts by the user's key, then takes top 5.
         // Do not pre-filter here — otherwise re-sort only reshuffles a partial pool.

@@ -1,0 +1,52 @@
+# Stage 01 — Observability lab (InMemory cache)
+# From repo root:
+#   docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build -d
+#
+# Playground http://localhost:5289  · Admin http://localhost:5188  · Prometheus http://localhost:9090
+
+name: co-lab-01
+
+services:
+  playground:
+    build:
+      context: ../../../..
+      dockerfile: samples/CacheOrchestrator.Sample/Dockerfile
+    image: cacheorchestrator-playground:local
+    ports:
+      - "5289:8080"
+    environment:
+      Cache__InstanceId: playground-1
+    volumes:
+      - ../config/01/playground.Production.json:/app/appsettings.Production.json:ro
+    networks: [lab]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../config/01/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    networks: [lab]
+
+  admin:
+    build:
+      context: ../../../..
+      dockerfile: src/CacheOrchestrator.AdminConsole/Dockerfile
+    image: cacheorchestrator-admin-console:local
+    ports:
+      - "5188:8080"
+    environment:
+      AdminConsole__ApiKey: dev-admin-key
+    volumes:
+      - ../config/01/admin.Production.json:/app/appsettings.Production.json:ro
+    depends_on:
+      - playground
+      - prometheus
+    networks: [lab]
+
+networks:
+  lab:

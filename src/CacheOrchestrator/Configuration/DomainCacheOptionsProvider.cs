@@ -211,6 +211,7 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
             FusionCacheAllowBackgroundBackplane = Pick(dom.FusionCacheAllowBackgroundBackplane, defaults.FusionCacheAllowBackgroundBackplane, true),
             FusionCacheVaryOnPublicAddress = Pick(dom.FusionCacheVaryOnPublicAddress, defaults.FusionCacheVaryOnPublicAddress, true),
             FusionCacheVaryOnEncoding = Pick(dom.FusionCacheVaryOnEncoding, defaults.FusionCacheVaryOnEncoding, true),
+            OutputCacheVaryByHost = Pick(dom.OutputCacheVaryByHost, defaults.OutputCacheVaryByHost, true),
         };
     }
 }

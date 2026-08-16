@@ -132,6 +132,12 @@ public sealed class DomainCacheOptions
     public bool FusionCacheVaryOnPublicAddress { get; init; }
 
     /// <summary>
+    /// When true (default), Output Cache varies by request host (includes port).
+    /// Set false when multiple public hosts/ports should share the same OC entry (e.g. multi-instance labs).
+    /// </summary>
+    public bool OutputCacheVaryByHost { get; init; }
+
+    /// <summary>
     /// Returns a cached <see cref="FusionCacheEntryOptions"/> built from this domain snapshot.
     /// Created once per options instance (domains are process-level snapshots).
     /// </summary>

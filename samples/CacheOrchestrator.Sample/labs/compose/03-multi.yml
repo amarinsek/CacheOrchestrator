@@ -1,0 +1,104 @@
+# Stage 03 — Two app instances + shared Redis L2 (no bus)
+#   docker compose -f samples/CacheOrchestrator.Sample/labs/compose/03-multi.yml up --build -d
+#
+# Playground A http://localhost:5289  · B http://localhost:5290
+# Admin http://localhost:5188  · Prometheus http://localhost:9090
+#
+# Domain policy: Docker named volume mounted as a *directory* at /shared (not a file subpath).
+# Seed: config/03/appsettings.seed.json · Reset policy only: docker compose ... down -v
+
+name: co-lab-03
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks: [lab]
+
+  appsettings-init:
+    image: busybox:1.36
+    volumes:
+      - ../config/03/appsettings.seed.json:/seed/appsettings.json:ro
+      - playground-appsettings:/shared
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -f /shared/appsettings.json ]; then
+          cp /seed/appsettings.json /shared/appsettings.json
+        fi
+        chmod 666 /shared/appsettings.json
+    networks: [lab]
+
+  playground-a:
+    build:
+      context: ../../../..
+      dockerfile: samples/CacheOrchestrator.Sample/Dockerfile
+    image: cacheorchestrator-playground:local
+    ports:
+      - "5289:8080"
+    environment:
+      Cache__InstanceId: playground-a
+    volumes:
+      - ../config/03/playground.Production.json:/app/appsettings.Production.json:ro
+      - playground-appsettings:/shared
+    depends_on:
+      redis:
+        condition: service_started
+      appsettings-init:
+        condition: service_completed_successfully
+    networks: [lab]
+
+  playground-b:
+    image: cacheorchestrator-playground:local
+    ports:
+      - "5290:8080"
+    environment:
+      Cache__InstanceId: playground-b
+    volumes:
+      - ../config/03/playground.Production.json:/app/appsettings.Production.json:ro
+      - playground-appsettings:/shared
+    depends_on:
+      redis:
+        condition: service_started
+      appsettings-init:
+        condition: service_completed_successfully
+      playground-a:
+        condition: service_started
+    networks: [lab]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../config/03/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    networks: [lab]
+
+  admin:
+    build:
+      context: ../../../..
+      dockerfile: src/CacheOrchestrator.AdminConsole/Dockerfile
+    image: cacheorchestrator-admin-console:local
+    ports:
+      - "5188:8080"
+    environment:
+      AdminConsole__ApiKey: dev-admin-key
+    volumes:
+      - ../config/03/admin.Production.json:/app/appsettings.Production.json:ro
+    depends_on:
+      - playground-a
+      - playground-b
+      - prometheus
+    networks: [lab]
+
+networks:
+  lab:
+
+volumes:
+  playground-appsettings:

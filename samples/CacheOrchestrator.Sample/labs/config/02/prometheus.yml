@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: playground
+    metrics_path: /metrics
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["playground:8080"]
+        labels:
+          app: playground
+          instance_id: playground-1

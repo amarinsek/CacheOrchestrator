@@ -2,7 +2,7 @@
 
 Admin Console App for multi-instance CacheOrchestrator: live stats, domain settings, invalidation, Version/TTL, **time-series Metrics**, and **recommendation Hints**.
 
-![Admin Console App overview](../../docs/assets/admin-overview.png)
+<img src="../../docs/assets/admin-overview.png" width="800" />
 
 It calls the **Admin API** on each instance you list (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).
 
@@ -201,12 +201,11 @@ Repo architecture notes: [docs/admin-hints.md](../../docs/admin-hints.md).
 ```
 
 ```bash
-docker compose -f samples/CacheOrchestrator.Sample/deploy/prometheus/docker-compose.yml up -d
-dotnet run --project samples/CacheOrchestrator.Sample
-dotnet run --project src/CacheOrchestrator.AdminConsole
+# Playground + Prometheus + Admin Console in one stack
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build -d
 ```
 
-Guide: [sample Prometheus (dev only)](../../samples/CacheOrchestrator.Sample/deploy/prometheus/README.md) · [docs/admin.md](../../docs/admin.md).
+Guide: [Playground topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) · [docs/admin.md](../../docs/admin.md).
 
 ---
 

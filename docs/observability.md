@@ -1,6 +1,6 @@
 # Observability
 
-Dashboards, health, and live counters across instances: [admin.md](admin.md). The Admin API (`Cache:Admin:Enabled`) reports lifetime totals. Time series belong on the `CacheOrchestrator` meter (OpenTelemetry / Prometheus). The Admin Console App can plot scraped series via optional `AdminConsole:Metrics` (Prometheus HTTP API) — see [admin.md — Metrics store](admin.md#metrics-store-time-series). Local dev scrape of the Playground sample (sample-only Docker Compose, not a NuGet dependency): [samples/CacheOrchestrator.Sample/deploy/prometheus/README.md](../samples/CacheOrchestrator.Sample/deploy/prometheus/README.md).
+Dashboards, health, and live counters across instances: [admin.md](admin.md). The Admin API (`Cache:Admin:Enabled`) reports lifetime totals. Time series belong on the `CacheOrchestrator` meter (OpenTelemetry / Prometheus). The Admin Console App can plot scraped series via optional `AdminConsole:Metrics` (Prometheus HTTP API) — see [admin.md — Metrics store](admin.md#metrics-store-time-series). Playground topology labs including Prometheus (sample-only Docker Compose, not a NuGet dependency): [samples/CacheOrchestrator.Sample/labs/README.md](../samples/CacheOrchestrator.Sample/labs/README.md).
 
 ## X-Cache response header
 

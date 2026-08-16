@@ -55,7 +55,14 @@ public static class DemoEndpoints
     /// <summary>Studio control APIs for the demo UI.</summary>
     public static void MapDemoStudioEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/demo/endpoints", (IConfiguration config, CacheOrchestrator.Configuration.IDomainCacheOptionsProvider provider) =>
+        // CacheOrchestrator registers an Output Cache *base* policy for all endpoints.
+        // Control APIs must opt out (same pattern as Admin /metrics), or GET /appsettings
+        // keeps serving a stale OC body while the file on disk is already updated.
+        static TBuilder NoOutputCache<TBuilder>(TBuilder builder)
+            where TBuilder : IEndpointConventionBuilder
+            => builder.WithMetadata(new Microsoft.AspNetCore.OutputCaching.OutputCacheAttribute { NoStore = true });
+
+        NoOutputCache(app.MapGet("/api/demo/endpoints", (IConfiguration config, CacheOrchestrator.Configuration.IDomainCacheOptionsProvider provider) =>
         {
             var entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
             string BackendFor(string domain)
@@ -93,19 +100,18 @@ public static class DemoEndpoints
             };
 
             return Results.Json(fromConfig.Concat(crudMeta));
-        });
+        }));
 
         // Returns the raw appsettings.json content for the JSON editor.
-        app.MapGet("/api/demo/appsettings", (IWebHostEnvironment env) =>
+        NoOutputCache(app.MapGet("/api/demo/appsettings", (IWebHostEnvironment env) =>
         {
             var path = Path.Combine(env.ContentRootPath, "appsettings.json");
             var content = File.ReadAllText(path);
             return Results.Text(content, "application/json");
-        });
+        }));
 
         // Saves the appsettings.json from the JSON editor. Validates JSON first.
-        // ASP.NET Core IOptionsMonitor file watcher picks up the change automatically.
-        app.MapPut("/api/demo/appsettings", async (
+        NoOutputCache(app.MapPut("/api/demo/appsettings", async (
             HttpRequest request,
             IWebHostEnvironment env,
             ICacheOrchestratorInvalidator inv,
@@ -129,7 +135,6 @@ public static class DemoEndpoints
 
             var path = Path.Combine(env.ContentRootPath, "appsettings.json");
 
-            // Write with pretty formatting to keep the file human-readable
             try
             {
                 var doc = JsonDocument.Parse(raw);
@@ -144,6 +149,10 @@ public static class DemoEndpoints
                     statusCode: 500);
             }
 
+            // Multi-instance labs: bind mounts may not raise FileSystemWatcher — apply this write now.
+            if (config is IConfigurationRoot root)
+                root.Reload();
+
             // Invalidate all known domains so server cache picks up new TTLs immediately.
             var entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
             var domains = entries.Select(e => e.Domain).Distinct(StringComparer.OrdinalIgnoreCase);
@@ -153,16 +162,16 @@ public static class DemoEndpoints
             }
 
             return Results.Ok(new { saved = true, at = DateTimeOffset.UtcNow });
-        });
+        }));
 
-        app.MapPost("/api/demo/invalidate/{domain}", async (string domain, ICacheOrchestratorInvalidator inv) =>
+        NoOutputCache(app.MapPost("/api/demo/invalidate/{domain}", async (string domain, ICacheOrchestratorInvalidator inv) =>
         {
             await inv.InvalidateDomainAsync(domain);
             return Results.Ok(new { invalidated = domain, at = DateTimeOffset.UtcNow });
-        });
+        }));
 
         // Purge one entity tag only (playground CRUD demo) — does not change the in-memory "DB".
-        app.MapPost("/api/demo/invalidate-entity/{domain}/{entityKind}/{id}", async (
+        NoOutputCache(app.MapPost("/api/demo/invalidate-entity/{domain}/{entityKind}/{id}", async (
             string domain,
             string entityKind,
             string id,
@@ -176,7 +185,7 @@ public static class DemoEndpoints
                 at = DateTimeOffset.UtcNow,
                 tip = "GET the entity again — server MISS if browser cache is off; body still old until PUT updates the store."
             });
-        });
+        }));
 
         // --- Dynamic CRUD demo (entity invalidation under a stable Version) ---
         // In-memory "DB" for the playground only.
