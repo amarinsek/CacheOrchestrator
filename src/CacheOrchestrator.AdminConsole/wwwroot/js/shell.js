@@ -12,13 +12,11 @@
 
 import { api } from "./api.js";
 import { $, setRefreshing } from "./dom.js";
-import { esc, fmtUnit, impactBandLabel, METRIC_TITLES, noDataHtml, num, pct, pipelineBar } from "./format.js";
+import { esc, fmtUnit, fmtDurationMs, METRIC_TITLES, noDataHtml, num, pct, pipelineBar } from "./format.js";
 import { severityStack } from "./hints.js";
 import { navigate } from "./router.js";
 import {
   appendMetricsRangeParams,
-  getBadgeText,
-  isMetricsConnected,
   setMetricsCapability,
 } from "./time-range.js";
 
@@ -192,11 +190,6 @@ export function renderHeader(o, windowStats = null) {
     o.downCount ? `${o.downCount} down` : null,
   ].filter(Boolean).join(" · ");
 
-  const rangeWin = isMetricsConnected() || promOk;
-  const rangeBadge = rangeWin
-    ? `<span class="hm-range-badge windowed" title="Prometheus stats window">${esc(getBadgeText())}</span>`
-    : `<span class="hm-range-badge process" title="Metrics store offline">metrics off</span>`;
-
   const pipe = promOk && !noData ? windowStats.pipeline : null;
   const oc = promOk && !noData && windowStats.ocHitShare != null
     ? pct(windowStats.ocHitShare)
@@ -210,26 +203,28 @@ export function renderHeader(o, windowStats = null) {
   const imp = promOk ? (windowStats.impact || {}) : {};
   const req = promOk && !noData ? num(windowStats.totalRequests) : noDataHtml();
   const inv = promOk && !noData ? num(windowStats.totalInvalidations) : noDataHtml();
+  const timeSaved = promOk
+    ? fmtDurationMs(imp.estFactoryTimeSavedMs)
+    : noDataHtml(promOk ? "No samples" : "Metrics offline");
   const domN = promOk ? (windowStats.domains || []).length : 0;
   const epN = promOk ? (windowStats.endpoints || []).length : 0;
 
+  // Order: health → Req/Inv → pipeline shares → Factory → Time saved → hints → counts
   $("#headerMetrics").innerHTML = `
-    <span class="hm" title="Stats time range">${rangeBadge}</span>
     <span class="hm" title="${esc(healthTitle)}">${healthDots}
       <strong class="${upClass}">${up}/${total || 0}</strong><span class="muted">\u2009up</span>
       ${down > 0 ? `<span class="status-Down">${fmtUnit(down, "down")}</span>` : ""}
       ${deg > 0 ? `<span class="status-Degraded">${fmtUnit(deg, "deg")}</span>` : ""}
     </span>
-    <span class="hm hm-hints" role="link" tabindex="0" title="Open Hints" data-goto-hints="1">${severityStack(hs)}</span>
+    <span class="hm" title="${esc(METRIC_TITLES.req)}">Req <strong>${req}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.inv)}">Inv <strong>${inv}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(pipe)}</span>
     <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit % <strong>${oc}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${fc}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">Factory % <strong>${fac}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.cacheBenefit)}">Benefit <strong>${promOk ? impactBandLabel(imp.benefit, { html: true }) : noDataHtml()}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.cacheCandidate)}">Candidate <strong>${promOk ? impactBandLabel(imp.candidate, { html: true }) : noDataHtml()}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.req)}">Req <strong>${req}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.inv)}">Inv <strong>${inv}</strong></span>
-    <span class="hm muted" title="Domains and endpoints in Prometheus window">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
+    <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">Time saved <strong>${timeSaved}</strong></span>
+    <span class="hm hm-hints" role="link" tabindex="0" title="Open Hints" data-goto-hints="1">${severityStack(hs)}</span>
+    <span class="hm muted" title="Domains and endpoints with traffic in the selected range">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
     ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
   `;
   const hintsHit = $("#headerMetrics")?.querySelector("[data-goto-hints]");

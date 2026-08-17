@@ -318,29 +318,6 @@ td .current-value {
   border-bottom: 1px dashed var(--ok);
 }
 
-.hm-range-badge {
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  color: var(--muted);
-}
-
-.hm-range-badge.windowed {
-  color: #6ea8fe;
-  border-color: #3a5a8a;
-}
-
-.hm-range-badge.process {
-  color: #9aa7b8;
-}
-
-.stats-scope-note {
-  margin: 0 0 0.75rem;
-  font-size: 0.82rem;
-}
-
 /* Missing samples — plain dash, no underline (not a “current” or “low sample” signal). */
 .no-data-value {
   color: #8b96a5;

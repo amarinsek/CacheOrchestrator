@@ -25,7 +25,6 @@ import { bindEmptyStateActions, emptyStateHtml } from "./tables.js";
 import {
   appendMetricsRangeParams,
   chartWindow,
-  getDisplayLabel,
   getMetricsQueryArgs,
   getPromRange,
   setFromSelectValue,
@@ -206,10 +205,6 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
     </form>
     <div id="metricsLiveRoot" data-metrics-range="${esc(resolvedRange)}" data-metrics-window="${esc(windowKey)}">
       <div class="kpi-row" id="metricsKpis">${metricsKpiHtml(summary, series)}</div>
-      <p class="muted small metrics-note">
-        Window: <strong>${esc(getDisplayLabel())}</strong> (menu Range).
-        Empty panels mean no samples (often zero events), not a missing axis.
-      </p>
       <div class="grid-2 metrics-grid" id="metricsGrid">
         ${metricsPanelsHtml(series)}
       </div>
@@ -584,10 +579,6 @@ export async function mountDetailMetrics(mountId, opts) {
     toUtc: series.toUtc,
   })).join("");
 
-  const endpointNote = opts.scope === "endpoint"
-    ? `<p class="muted small metrics-note">Route labels require <code>Cache:Metrics:IncludeEndpointLabel</code> on instances. Empty panels usually mean no traffic on this route in the window.</p>`
-    : `<p class="muted small metrics-note">Window series from external metrics storage (not lifetime Admin counters). Window: <strong>${esc(getDisplayLabel())}</strong>.</p>`;
-
   el.dataset.metricsReady = "1";
   el.dataset.metricsRange = resolvedRange;
   el.dataset.metricsWindow = windowKey;
@@ -596,7 +587,6 @@ export async function mountDetailMetrics(mountId, opts) {
       <h2>${esc(title)}</h2>
       <a href="#/metrics">Open Metrics →</a>
     </div>
-    ${endpointNote}
     <div class="grid-2 metrics-grid">${cards || emptyStateHtml("metrics-empty")}</div>
   </div>`;
   ensureChartExpandBound();
@@ -676,10 +666,9 @@ export async function metricsOverviewSectionHtml(opts = {}) {
 
     return `<div data-ov-metrics-card data-metrics-range="${esc(resolvedRange)}" data-metrics-window="${esc(windowKey)}">
       <div class="card-head" style="margin-bottom:0.5rem">
-        <h2 title="Windowed series from external metrics storage (not lifetime Admin counters)">Metrics</h2>
+        <h2>Metrics</h2>
         <a href="#/metrics">Open Metrics →</a>
       </div>
-      <p class="muted small metrics-note">Same chart template as Metrics. Window: <strong>${esc(getDisplayLabel())}</strong>.</p>
       <div class="grid-2 metrics-grid" id="ovMetricsGrid">${cards || emptyStateHtml("metrics-empty")}</div>
     </div>`;
   } catch {

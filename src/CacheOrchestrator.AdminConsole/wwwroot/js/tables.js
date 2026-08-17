@@ -380,7 +380,7 @@ export function impactDetailHtml(impact, windowLabel) {
     return `
     <div class="detail-block">
       <h3>Cache impact</h3>
-      <p class="muted">No impact KPIs in this Prometheus window (need factory samples / traffic).</p>
+      <p class="muted">No impact KPIs (need factory samples / traffic in the selected range).</p>
     </div>`;
   }
   const win = windowLabel ? ` · ${esc(windowLabel)}` : "";

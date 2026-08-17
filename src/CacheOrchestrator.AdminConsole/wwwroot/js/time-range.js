@@ -247,15 +247,6 @@ export function timeRangeOptionsHtml() {
     `<option value="${s.id}"${cur === s.id ? " selected" : ""}>${s.label}</option>`).join("");
 }
 
-export function timeRangeScopeNote() {
-  if (isMetricsConnected()) {
-    return `Traffic & impact: <strong>${getDisplayLabel()}</strong> from <strong>Prometheus</strong>. ` +
-      `Green underline = current config/identity. Admin API is used for health, config, and operations only.`;
-  }
-  return `<strong>Metrics store not connected</strong> — statistics and charts require Prometheus (` +
-    `<code>AdminConsole:Metrics</code>). Health, config, and operations still work via Local Admin API.`;
-}
-
 // —— Grafana-style picker ——
 
 /** @type {HTMLElement|null} */

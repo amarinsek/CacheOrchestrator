@@ -21,18 +21,12 @@ import {
   num,
   pct,
   pipelineBar,
-  spreadCell,
   thMetric,
   tipAttr,
 } from "./format.js";
 import {
   appendMetricsRangeParams,
-  getDisplayLabel,
-  getPromRange,
-  isMetricsConnected,
-  isWindowedEffective,
   setMetricsCapability,
-  timeRangeScopeNote,
 } from "./time-range.js";
 import {
   applyButtonHtml,
@@ -170,8 +164,6 @@ async function paintOverviewBody(o, params, soft) {
     if (bannerHost) bannerHost.innerHTML = connectivityBanner(o.instances);
     const kpis = $("#ovKpis");
     if (kpis) kpis.innerHTML = overviewKpiHtml(o, windowStats);
-    const scopeNote = $("#ovScopeNote");
-    if (scopeNote) scopeNote.innerHTML = timeRangeScopeNote();
     const pipe = $("#ovPipeline");
     if (pipe) pipe.innerHTML = pipelineBar(windowed ? windowStats.pipeline : o.pipeline, true);
     const alerts = $("#ovAlerts");
@@ -220,7 +212,6 @@ async function paintOverviewBody(o, params, soft) {
   paintPage(`
     <div id="ovRoot">
     <div id="ovBannerHost">${connectivityBanner(o.instances)}</div>
-    <p class="muted stats-scope-note" id="ovScopeNote">${timeRangeScopeNote()}</p>
     <div class="kpi-row" id="ovKpis">${overviewKpiHtml(o, windowStats)}</div>
     <div class="card">
       <h2>Cluster pipeline</h2>
@@ -324,9 +315,7 @@ function bindGotoHints(root) {
 function overviewKpiHtml(o, windowStats = null) {
   const promOk = windowStats && windowStats.status === "Connected";
   const noData = promOk && windowStats.noData;
-  const scopeTip = promOk
-    ? `Prometheus window (${getDisplayLabel()})`
-    : "Metrics store required for traffic KPIs";
+  const scopeTip = promOk ? "Selected range" : "Metrics store required for traffic KPIs";
 
   const imp = promOk ? (windowStats.impact || {}) : {};
   const oc = !promOk || noData || windowStats.ocHitShare == null
@@ -347,8 +336,6 @@ function overviewKpiHtml(o, windowStats = null) {
       <div class="kpi"${tipAttr("fcHitShare")} title="${esc(scopeTip)}"><div class="label">FC hit %</div><div class="value">${fc}</div></div>
       <div class="kpi"${tipAttr("factoryShare")} title="${esc(scopeTip)}"><div class="label">Factory %</div><div class="value">${fac}</div></div>
       <div class="kpi"${tipAttr("estTimeSaved")}><div class="label">Time saved</div><div class="value" style="font-size:1rem">${promOk ? fmtDurationMs(imp.estFactoryTimeSavedMs) : noDataHtml()}</div></div>
-      <div class="kpi"${tipAttr("cacheBenefit")}><div class="label">Benefit</div><div class="value" style="font-size:1rem">${promOk ? impactBandLabel(imp.benefit, { html: true }) : noDataHtml()}</div></div>
-      <div class="kpi"${tipAttr("cacheCandidate")}><div class="label">Candidate</div><div class="value" style="font-size:1rem">${promOk ? impactBandLabel(imp.candidate, { html: true }) : noDataHtml()}</div></div>
       <div class="kpi kpi-hints" role="link" tabindex="0" data-goto-hints="1" title="Open Hints"><div class="label">Cluster hints</div><div class="value">${severityStack(promOk ? windowStats.hintSummary : o.hintSummary)}</div></div>`;
 }
 
@@ -533,11 +520,9 @@ export async function renderEndpointsList(params, opts = {}) {
 
   paintPage(`
     ${connectivityBanner(instanceList)}
-    <p class="muted stats-scope-note">${timeRangeScopeNote()}</p>
     <div class="card">
       <h2>Endpoints <span class="badge">primary unit</span></h2>
       ${promOk ? `
-      <p class="muted" style="margin-top:0">From Prometheus window. Endpoints need <code>route</code> label (IncludeEndpointLabel).</p>
       <form class="toolbar" id="epFilters">
         <label>Search<input name="search" type="search" value="${esc(search)}" placeholder="route or domain" /></label>
         ${multiSelectHtml("epDom", "Domains", domainOpts, selDomains)}
@@ -660,18 +645,17 @@ function endpointDetailHeadHtml(ep) {
         <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${pct(factoryShareOf(ep.fc), ep.fc?.lowRequestSample, "request")}</div></div>
         ${impactKpiRowHtml(ep.impact)}
       </div>
-      <p class="muted">Pipeline · Prometheus (${esc(getDisplayLabel())})</p>
+      <p class="muted">Pipeline</p>
       ${pipelineBar(ep.pipeline, true)}
     </div>
     <div class="detail-grid">
       ${layerDetailOc(ep.oc)}
       ${layerDetailFc(ep.fc)}
-      ${impactDetailHtml(ep.impact, getDisplayLabel())}
+      ${impactDetailHtml(ep.impact)}
     </div>
     ${ep.byInstance?.length ? `
     <div class="card">
-      <h2>By instance <span class="badge">spread</span></h2>
-      ${ep.instanceSpread ? `<p class="muted">OC hit share ${spreadCell(ep.instanceSpread.ocHitShare)} · FC hit share ${spreadCell(ep.instanceSpread.fcHitShare)} · Factory share ${spreadCell(ep.instanceSpread.factoryShare ?? ep.instanceSpread.originShare)}</p>` : ""}
+      <h2>By instance</h2>
       <table class="dense">
         <thead><tr>
           ${thMetric("Instance", "instance", { fromKey: true })}
@@ -753,7 +737,6 @@ export async function renderDomainsList(params, opts = {}) {
 
   paintPage(`
     ${connectivityBanner(instanceList)}
-    <p class="muted stats-scope-note">${timeRangeScopeNote()}</p>
     <div class="card">
       <h2>Domains</h2>
       ${promOk ? `
@@ -857,13 +840,13 @@ function domainDetailHeadHtml(name, domain, cfg) {
         <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${pct(factoryShareOf(domain.fc), domain.fc?.lowRequestSample, "request")}</div></div>
         ${impactKpiRowHtml(domain.impact)}
       </div>
-      <p class="muted">Pipeline · Prometheus (${esc(getDisplayLabel())})</p>
+      <p class="muted">Pipeline</p>
       ${pipelineBar(domain.pipeline, true)}
     </div>
     <div class="detail-grid">
       ${layerDetailOc(domain.oc)}
       ${layerDetailFc(domain.fc)}
-      ${impactDetailHtml(domain.impact, getDisplayLabel())}
+      ${impactDetailHtml(domain.impact)}
       ${cfg ? `
       <div class="detail-block">
         <h3>Effective config <span class="badge" title="Current values (not scoped to the selected time range)">current</span></h3>
@@ -881,7 +864,6 @@ function domainDetailHeadHtml(name, domain, cfg) {
     ${domain.byInstance?.length ? `
     <div class="card">
       <h2>By instance</h2>
-      ${domain.instanceSpread ? `<p class="muted">OC hit share ${spreadCell(domain.instanceSpread.ocHitShare)} · FC hit share ${spreadCell(domain.instanceSpread.fcHitShare)} · Factory share ${spreadCell(domain.instanceSpread.factoryShare ?? domain.instanceSpread.originShare)}</p>` : ""}
       <table class="dense">
         <thead><tr>
           ${thMetric("Instance", "instance", { fromKey: true })}
@@ -975,7 +957,6 @@ export async function renderInstancesList(params = new URLSearchParams(), opts =
 
   paintPage(`
     ${connectivityBanner(overview.instances || [])}
-    <p class="muted stats-scope-note">${timeRangeScopeNote()}</p>
     <div class="card">
       <h2>Instances ${severityStack(hintSum)}</h2>
       <form class="toolbar" id="instFilters">
@@ -1051,24 +1032,20 @@ function instanceDetailHeadHtml(id, inst, stats, st, startedTitle, promOk = fals
     ? startedTitle.replace("T", " ").replace(/\.\d+Z$/, "Z")
     : "—";
   const reqFromDomains = (stats.domains || []).reduce((s, d) => s + (d.requests || 0), 0);
-  const trafficNote = promOk
-    ? `Prometheus (${getDisplayLabel()})`
-    : "Metrics store required for traffic";
   return `
     <div class="card">
-      <h2>Instance <code class="current-value" title="Current value (not scoped to the selected time range)">${esc(id)}</code>
+      <h2>Instance <code>${esc(id)}</code>
         <span class="status-${esc(st)}">${esc(st)}</span>
         ${severityStack(inst?.hintSummary)}
       </h2>
-      <p class="muted">${currentValueHtml(`<code>${esc(inst?.url || "—")}</code>`)}
-        · reported ${currentValueHtml(`<code>${esc(inst?.reportedInstanceId || "—")}</code>`)}
+      <p class="muted"><code>${esc(inst?.url || "—")}</code>
+        · reported <code>${esc(inst?.reportedInstanceId || "—")}</code>
         · latency ${formatLatencyMs(inst?.latencyMs)}
         ${inst?.error ? ` · <span class="status-Down">${esc(inst.error)}</span>` : ""}
       </p>
-      <p class="muted stats-scope-note">${esc(trafficNote)}</p>
       <div class="kpi-row">
-        <div class="kpi" title="${esc(startedTitle)}"><div class="label">Uptime</div><div class="value" style="font-size:1.05rem">${currentValueHtml(esc(formatUptime(inst?.uptimeSeconds)))}</div></div>
-        <div class="kpi" title="Current value (not scoped to the selected time range)"><div class="label">Started (UTC)</div><div class="value" style="font-size:0.85rem">${currentValueHtml(esc(startedDisp))}</div></div>
+        <div class="kpi" title="${esc(startedTitle)}"><div class="label">Uptime</div><div class="value" style="font-size:1.05rem">${esc(formatUptime(inst?.uptimeSeconds))}</div></div>
+        <div class="kpi"><div class="label">Started (UTC)</div><div class="value" style="font-size:0.85rem">${esc(startedDisp)}</div></div>
         <div class="kpi"><div class="label">Req</div><div class="value">${promOk ? num(reqFromDomains) : noDataHtml()}</div></div>
         <div class="kpi"><div class="label">Domains</div><div class="value">${promOk ? (stats.domains || []).length : noDataHtml()}</div></div>
         <div class="kpi"><div class="label">Endpoints</div><div class="value">${promOk ? (stats.endpoints || []).length : noDataHtml()}</div></div>
@@ -1139,13 +1116,12 @@ export async function renderHintsPage(params, opts = {}) {
   rows.sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9) || a.code.localeCompare(b.code));
 
   paintPage(`
-    <p class="muted stats-scope-note">${timeRangeScopeNote()}</p>
     <div class="card">
       <h2>Hints ${severityStack(filtersActive ? shownSummary : totalSummary)}
         ${filtersActive ? `<span class="badge muted" title="Visible / all">${shownSummary.total}/${totalSummary.total}</span>` : ""}
       </h2>
       <p class="muted">${promOk
-        ? "Rule-based recommendations from <strong>Prometheus</strong> window stats."
+        ? "Rule-based recommendations for the selected range."
         : "Metrics store required for hints."}
         Filters combine (AND). Empty hint mark is <strong>○</strong>.
         ${filtersActive ? " Severity KPIs show <strong>visible/total</strong> for the current filter." : ""}
