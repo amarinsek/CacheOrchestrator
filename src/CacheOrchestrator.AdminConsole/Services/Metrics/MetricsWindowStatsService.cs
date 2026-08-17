@@ -62,42 +62,45 @@ public sealed class MetricsWindowStatsService
             string rw = window.PromRangeDuration;
             IReadOnlyList<string> domainFilter = ParseCsv(domainsCsv);
 
+            // Window counts: current − value@window_start (missing start → full current).
+            // Do NOT use increase(): it skips the first sample of a new series, so the first
+            // request(s) after an empty Prom stay at 0 forever until more scrapes arrive.
             Task<IReadOnlyList<PrometheusInstantSample>> ocTask = QueryAsync(
-                IncreaseBy("domain,result", MetricsPanelCatalog.OcRequests, rw, domainFilter),
+                WindowCountBy("domain,result", MetricsPanelCatalog.OcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> fcTask = QueryAsync(
-                IncreaseBy("domain,result", MetricsPanelCatalog.FcRequests, rw, domainFilter),
+                WindowCountBy("domain,result", MetricsPanelCatalog.FcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> invTask = QueryAsync(
-                IncreaseBy("domain", MetricsPanelCatalog.Invalidations, rw, domainFilter),
+                WindowCountBy("domain", MetricsPanelCatalog.Invalidations, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facSumTask = QueryAsync(
-                IncreaseBy("domain", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),
+                WindowCountBy("domain", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facCntTask = QueryAsync(
-                IncreaseBy("domain", MetricsPanelCatalog.FactoryDurationCount, rw, domainFilter),
+                WindowCountBy("domain", MetricsPanelCatalog.FactoryDurationCount, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> ocRouteTask = QueryAsync(
-                IncreaseBy("route,result,domain", MetricsPanelCatalog.OcRequests, rw, domainFilter),
+                WindowCountBy("route,result,domain", MetricsPanelCatalog.OcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> fcRouteTask = QueryAsync(
-                IncreaseBy("route,result,domain", MetricsPanelCatalog.FcRequests, rw, domainFilter),
+                WindowCountBy("route,result,domain", MetricsPanelCatalog.FcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facSumRouteTask = QueryAsync(
-                IncreaseBy("route,domain", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),
+                WindowCountBy("route,domain", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facCntRouteTask = QueryAsync(
-                IncreaseBy("route,domain", MetricsPanelCatalog.FactoryDurationCount, rw, domainFilter),
+                WindowCountBy("route,domain", MetricsPanelCatalog.FactoryDurationCount, rw, domainFilter),
                 window.End, cancellationToken);
             // Per-instance (scrape label instance_id → missing becomes "undefined")
             Task<IReadOnlyList<PrometheusInstantSample>> ocInstTask = QueryAsync(
-                IncreaseBy("domain,result,instance_id", MetricsPanelCatalog.OcRequests, rw, domainFilter),
+                WindowCountBy("domain,result,instance_id", MetricsPanelCatalog.OcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> fcInstTask = QueryAsync(
-                IncreaseBy("domain,result,instance_id", MetricsPanelCatalog.FcRequests, rw, domainFilter),
+                WindowCountBy("domain,result,instance_id", MetricsPanelCatalog.FcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> invInstTask = QueryAsync(
-                IncreaseBy("domain,instance_id", MetricsPanelCatalog.Invalidations, rw, domainFilter),
+                WindowCountBy("domain,instance_id", MetricsPanelCatalog.Invalidations, rw, domainFilter),
                 window.End, cancellationToken);
             Task<FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>>> cfgTask =
                 _fanOut.GetDomainsAsync(cancellationToken);
@@ -279,14 +282,29 @@ public sealed class MetricsWindowStatsService
         }
     }
 
-    private static string IncreaseBy(
+    /// <summary>
+    /// Count of events in the window for a counter (or histogram sum/count).
+    /// <list type="bullet">
+    /// <item>If the series existed at window start: <c>now - then</c> (clamped ≥ 0).</item>
+    /// <item>If the series is new in the window: full current value (includes the first request).</item>
+    /// </list>
+    /// Using <c>increase()</c> alone under-counts because Prom skips the first sample of a new series.
+    /// </summary>
+    private static string WindowCountBy(
         string byLabels,
         string metric,
         string rangeDuration,
         IReadOnlyList<string> domainFilter)
     {
         string sel = BuildDomainSelector(domainFilter);
-        return $"sum by ({byLabels}) (increase({metric}{sel}[{rangeDuration}]))";
+        string m = metric + sel;
+        // offset must match the selected window (e.g. 900s for 15m, 3600s for 1h).
+        string offset = rangeDuration;
+        return
+            "clamp_min((" +
+            $"sum by ({byLabels}) ({m})" +
+            $" - sum by ({byLabels}) ({m} offset {offset})" +
+            $") or sum by ({byLabels}) ({m} unless on ({byLabels}) {m} offset {offset}), 0)";
     }
 
     private static string BuildDomainSelector(IReadOnlyList<string> domains)

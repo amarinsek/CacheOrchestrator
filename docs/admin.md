@@ -279,7 +279,7 @@ When **not configured**, the Metrics page explains how to enable it; Overview om
 
 When Range is **Last N / absolute**, Overview, Domains, Endpoints, detail **traffic**, and **Hints** use `/api/stats/window` (Prometheus). **Green underline** = current config/identity (Version, TTL, …), not the window. **Process totals** still use Local Admin `/stats/v2` fan-out.
 
-Window aggregates use PromQL `increase(...[window])` on OC/FC/invalidate counters (by `domain`/`result`; endpoints by `route`). Factory duration uses histogram `_sum`/`_count` when scraped. Per-instance breakdown uses scrape label `instance_id` (lab: `playground-1`); missing label → **`undefined`**.
+Window aggregates use **window delta** (current counter − counter at window start; new series → full current value), not bare `increase()`, so the first request after an empty Prometheus is not lost. Grouping: OC/FC/invalidate by `domain`/`result`; endpoints by `route`. Factory duration uses histogram `_sum`/`_count`. Per-instance: scrape `instance_id` (lab: `playground-1`); missing → **`undefined`**. Counts still update only after a scrape (lab ~5s).
 
 `HintEngine` runs on window domain/endpoint rows (same declarative paths as process totals). Config-only rules still receive Admin domain config when fan-out succeeds. Rules needing factory-failure rates may not fire until those samples exist on the window model.
 
