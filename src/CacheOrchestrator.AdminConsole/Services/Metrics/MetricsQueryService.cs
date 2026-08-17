@@ -125,7 +125,7 @@ public sealed class MetricsQueryService
         CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = _time.GetUtcNow();
-        ResolvedWindow window = ResolveWindow(range, from, to, now);
+        MetricsWindow window = MetricsWindow.Resolve(range, from, to, now);
 
         MetricsStatusDto status = await GetStatusAsync(probe: true, cancellationToken).ConfigureAwait(false);
         if (status.Status != MetricsStoreStatusCodes.Connected)
@@ -240,7 +240,7 @@ public sealed class MetricsQueryService
         CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = _time.GetUtcNow();
-        ResolvedWindow window = ResolveWindow(range, from, to, now);
+        MetricsWindow window = MetricsWindow.Resolve(range, from, to, now);
         // Summary rate() windows use a relative token nearest the absolute duration.
         string rateWindow = window.IsAbsolute
             ? MetricsRange.NearestToken(window.End - window.Start)
@@ -302,58 +302,6 @@ public sealed class MetricsQueryService
                 Error = ex.Message,
             };
         }
-    }
-
-    private sealed record ResolvedWindow(
-        DateTimeOffset Start,
-        DateTimeOffset End,
-        string Step,
-        string RangeLabel,
-        bool IsAbsolute);
-
-    /// <summary>
-    /// Relative <paramref name="range"/> (15m…7d) or absolute <paramref name="from"/>/<paramref name="to"/>
-    /// (ISO-8601 / unix seconds). Absolute wins when both from and to parse.
-    /// </summary>
-    private static ResolvedWindow ResolveWindow(string? range, string? from, string? to, DateTimeOffset now)
-    {
-        DateTimeOffset? fromUtc = TryParseTime(from);
-        DateTimeOffset? toUtc = TryParseTime(to);
-        if (fromUtc is DateTimeOffset f && toUtc is DateTimeOffset t && t > f)
-        {
-            TimeSpan dur = t - f;
-            if (dur > TimeSpan.FromDays(31))
-                f = t - TimeSpan.FromDays(31);
-            return new ResolvedWindow(f, t, MetricsRange.StepForDuration(t - f), "custom", IsAbsolute: true);
-        }
-
-        string resolved = MetricsRange.Normalize(range, "1h");
-        DateTimeOffset end = now;
-        DateTimeOffset start = end - MetricsRange.ToTimeSpan(resolved);
-        return new ResolvedWindow(start, end, MetricsRange.StepFor(resolved), resolved, IsAbsolute: false);
-    }
-
-    private static DateTimeOffset? TryParseTime(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-            return null;
-        string s = raw.Trim();
-        if (long.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long unix))
-        {
-            // Seconds vs ms heuristic
-            if (unix > 1_000_000_000_000L)
-                return DateTimeOffset.FromUnixTimeMilliseconds(unix);
-            if (unix > 1_000_000_000L)
-                return DateTimeOffset.FromUnixTimeSeconds(unix);
-        }
-
-        if (DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
-                out DateTimeOffset dto))
-            return dto;
-        if (DateTimeOffset.TryParse(s, out dto))
-            return dto.ToUniversalTime();
-        return null;
     }
 
     private async Task<double?> InstantValueAsync(

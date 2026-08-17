@@ -287,12 +287,13 @@ export function timeRangeSelectHtml(opts = {}) {
 
 export function timeRangeScopeNote() {
   if (isWindowedEffective()) {
-    return `Traffic KPIs: <strong>${getDisplayLabel()}</strong> (Metrics store). Config and identity fields are current values.`;
+    return `Traffic & impact: <strong>${getDisplayLabel()}</strong> from <strong>Prometheus</strong>. ` +
+      `Green underline = current config/identity (not windowed). Charts use the same window.`;
   }
   if (state.mode === "windowed" && metricsCapability !== "connected") {
-    return `Showing <strong>${PROCESS_TOTALS_LABEL}</strong> — Metrics store not connected (windowed range kept as preference).`;
+    return `Showing <strong>${PROCESS_TOTALS_LABEL}</strong> — Prometheus not connected (windowed range kept as preference). Charts unavailable.`;
   }
-  return `Traffic KPIs: <strong>${PROCESS_TOTALS_LABEL}</strong> (cumulative Admin counters since process start).`;
+  return `Traffic & impact: <strong>${PROCESS_TOTALS_LABEL}</strong> from Admin API (since process start). Charts require Prometheus.`;
 }
 
 // —— Grafana-style picker (button in nav; panel portaled to document.body) ——

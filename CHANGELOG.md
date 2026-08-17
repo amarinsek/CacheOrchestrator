@@ -30,10 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Console global **Range** picker: Process totals vs Last 15m–7d / absolute from–to (Grafana-style); Metrics `from`/`to` query params
 - Console Metrics UI: multi-select domains, empty-window charts + no-samples badge, shared chart cards on Overview, enlarge-modal refresh
 - Console: current-value styling (green underline), Metrics store card on Instances, breadcrumbs only on detail pages
+- Console **`GET /api/stats/window`** — domain/endpoint traffic + impact from Prometheus for the selected Range; Overview/Domains/Endpoints use it when windowed
 
 ### Documentation
 
-- `docs/admin.md` — stats v2; `docs/observability.md` — `factory.duration`
+- `docs/admin.md` — stats v2, windowed vs process totals; `docs/observability.md` — `factory.duration`
 
 ## [2.1.0] - 2026-08-15
 

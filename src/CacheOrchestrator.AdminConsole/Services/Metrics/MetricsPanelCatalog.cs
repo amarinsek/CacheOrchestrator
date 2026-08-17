@@ -25,6 +25,12 @@ public static class MetricsPanelCatalog
     /// <summary>Canonical factory-path duration histogram (miss/stale only).</summary>
     public const string FactoryDurationBucket = "cache_orchestrator_factory_duration_milliseconds_bucket";
 
+    /// <summary>OTel histogram sum companion for factory duration (ms).</summary>
+    public const string FactoryDurationSum = "cache_orchestrator_factory_duration_milliseconds_sum";
+
+    /// <summary>OTel histogram count companion for factory duration.</summary>
+    public const string FactoryDurationCount = "cache_orchestrator_factory_duration_milliseconds_count";
+
     /// <summary>Factory result size histogram (bytes).</summary>
     public const string FactoryResultSizeBucket = "cache_orchestrator_factory_result_size_bytes_bucket";
 

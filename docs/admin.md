@@ -9,7 +9,9 @@ This page covers architecture, security, and production. To run the App: [Admin 
 
 - One process, curl or a script — enable the Admin API.
 - A dashboard across instances — Admin Console App, with the Admin API on each target.
-- Time series (“last hour”) — optional **Admin Console App → Prometheus** (`AdminConsole:Metrics`). Lifetime counters stay on Local Admin; sliding windows come from scraped `CacheOrchestrator` meter series.
+- Time window (“last hour”) — optional **Admin Console App → Prometheus** (`AdminConsole:Metrics`). Console **Range** chooses:
+  - **Process totals** — Local Admin `/stats/v2` counters since process start  
+  - **Last N / from–to** — all traffic & impact from Prometheus (`GET /api/stats/window`); green-underlined fields stay **current** (config/identity); charts use the same window
 
 Writes (invalidate, Version, TTL) change live cache state. Restrict who can reach these endpoints.
 
@@ -265,11 +267,21 @@ Dev stack (Playground + Prometheus + Admin Console labs): [samples/CacheOrchestr
 | `BearerToken` | empty | Optional `Authorization: Bearer` |
 | `PathPrefix` | empty | e.g. `/prometheus` behind a reverse proxy |
 
-When **not configured**, the Metrics page explains how to enable it; Overview omits history cards. When **configured but unreachable**, the UI shows **Disconnected** with the same **Provider · host** (from `BaseUrl`) plus not connected / error text — so the target is always visible even when the probe fails (no fake zeros).
+When **not configured**, the Metrics page explains how to enable it; Overview omits history cards; Range windowed shortcuts fall back to process totals. When **configured but unreachable**, the UI shows **Disconnected** with the same **Provider · host** (from `BaseUrl`) plus not connected / error text — so the target is always visible even when the probe fails (no fake zeros). Metrics store status also appears on **Instances**.
 
-Admin Console App API: `GET /api/metrics/status`, `/catalog`, `/series`, `/summary`.
+#### Windowed stats (Prometheus)
 
-`GET /api/metrics/series` query params: `range`, `panels`, `domains`, `instances` (scrape label `instance_id`), `routes` (stable endpoint key, e.g. `GET /api/catalog`). Detail pages embed scoped charts (domain / instance / endpoint). Endpoint series need core `Cache:Metrics:IncludeEndpointLabel` (default true) and samples in the selected range—empty charts show a neutral notice, not a hard “feature disabled” claim.
+| Console API | Role |
+|-------------|------|
+| `GET /api/stats/window` | Domain/endpoint counters + shares + impact for the selected window (`range` and/or `from`/`to`, optional `domains`) |
+| `GET /api/metrics/series` | Chart panels (`range`, `from`/`to`, `panels`, `domains`, `instances`, `routes`) |
+| `GET /api/metrics/summary` | Compact rates/shares for the window |
+
+When Range is **Last N / absolute**, Overview, Domains, Endpoints, and detail **traffic** use `/api/stats/window` (Prometheus). **Green underline** = current config/identity (Version, TTL, …), not the window. **Process totals** still use Local Admin `/stats/v2` fan-out.
+
+Window aggregates use PromQL `increase(...[window])` on OC/FC/invalidate counters (by `domain`/`result`; endpoints by `route`). Factory duration uses histogram `_sum`/`_count` when scraped. Missing scrape `instance_id` is treated as **`undefined`** when multi-instance series are present.
+
+Endpoint window rows need core `Cache:Metrics:IncludeEndpointLabel` (default true). If disabled, domain-level window stats still work; endpoint rows stay empty.
 
 ### Run (local)
 
@@ -284,9 +296,9 @@ Quick operator steps: [Admin Console App README](../src/CacheOrchestrator.AdminC
 ### What the SPA shows
 
 - Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/FC/Factory shares, Req, Inv, hints, optional metrics store pill) → **menu**  
-- Overview: instances; **top 5 domains** and **top 5 endpoints** after sorting the **full** aggregated lists; optional **last 1h** embed when Metrics store is connected  
-- Lists: filters, search, sort; detail pages; Hints page  
-- **Metrics** (`#/metrics`): window charts from Prometheus (req rate, OC/FC shares, invalidations, schedule phase, cluster failures, FC p95)  
+- Overview: instances (Admin health); **top 5 domains/endpoints** from process totals **or** Prometheus window (Range); charts when Metrics connected  
+- Lists: filters, search, sort; detail pages; Hints page (windowed hints share DTO shape — rule packs may lag)  
+- **Metrics** (`#/metrics`): window charts from Prometheus; multi-select domains; global Range (relative + absolute from/to)  
 - **Operations** (`#/operations`): invalidate / version / TTL; banner **HTTP fan-out** vs **Cluster bus (distribute)**; cluster probe table; last-run mode in result  
 - Auto-refresh interval in `localStorage`  
 

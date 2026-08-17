@@ -53,6 +53,7 @@ builder.Services.AddSingleton<StatsDeltaCache>();
 builder.Services.AddSingleton<AdminFanOutService>();
 builder.Services.AddSingleton<IMetricsQueryClient, PrometheusMetricsQueryClient>();
 builder.Services.AddSingleton<MetricsQueryService>();
+builder.Services.AddSingleton<MetricsWindowStatsService>();
 
 // OpenAPI + Scalar UI for operator host (all environments — Admin Console is not public internet by default).
 builder.Services.AddOpenApi();
@@ -285,6 +286,23 @@ api.MapGet("/metrics/summary", async (
         .GetSummaryAsync(range, from, to, cancellationToken)
         .ConfigureAwait(false);
     return Results.Ok(summary);
+});
+
+/// <summary>
+/// Domain/endpoint stats for the selected Metrics time window (Prometheus), not process totals.
+/// </summary>
+api.MapGet("/stats/window", async (
+    string? range,
+    string? from,
+    string? to,
+    string? domains,
+    MetricsWindowStatsService windowStats,
+    CancellationToken cancellationToken) =>
+{
+    WindowStatsDto result = await windowStats
+        .GetAsync(range, from, to, domains, cancellationToken)
+        .ConfigureAwait(false);
+    return Results.Ok(result);
 });
 
 api.MapGet("/hints/rules", (HintEngine engine, HintRuleRegistry registry) =>

@@ -130,7 +130,8 @@ export async function renderOverview(params = new URLSearchParams(), opts = {}) 
 }
 
 async function paintOverviewBody(o, params, soft) {
-  const windowSummary = await fetchWindowSummaryIfNeeded();
+  // Windowed mode: all traffic KPIs/tables from Prometheus; process totals only when Range says so.
+  const windowStats = await fetchWindowStatsIfNeeded();
 
   const offline = allInstancesDown(o.instances);
   const noCfg = noInstancesConfigured(o.instances);
@@ -140,8 +141,17 @@ async function paintOverviewBody(o, params, soft) {
   const domSort = params.get("domSort") || "factoryShare";
   const epSort = params.get("epSort") || "factoryShare";
   const instancesSorted = sortInstances(o.instances || [], instSort);
-  const top5Domains = sortDomains(o.topDomains || [], domSort).slice(0, 5);
-  const top5Endpoints = sortEndpoints(o.topEndpoints || [], epSort).slice(0, 5);
+  const windowed = isWindowedEffective() && windowStats && windowStats.status === "Connected";
+  const srcDomains = windowed ? (windowStats.domains || []) : (o.topDomains || []);
+  const srcEndpoints = windowed ? (windowStats.endpoints || []) : (o.topEndpoints || []);
+  // Overlay version from process overview when window rows have empty version.
+  const verByName = Object.fromEntries((o.topDomains || []).map((d) => [d.name, d.version]));
+  const domainsForTable = srcDomains.map((d) =>
+    (d.version == null || d.version === "") && verByName[d.name]
+      ? { ...d, version: verByName[d.name] }
+      : d);
+  const top5Domains = sortDomains(domainsForTable, domSort).slice(0, 5);
+  const top5Endpoints = sortEndpoints(srcEndpoints, epSort).slice(0, 5);
 
   const offlineDetail =
     "Start target apps with Cache:Admin:Enabled and matching ApiKey, then refresh.";
@@ -154,11 +164,11 @@ async function paintOverviewBody(o, params, soft) {
     const bannerHost = $("#ovBannerHost");
     if (bannerHost) bannerHost.innerHTML = connectivityBanner(o.instances);
     const kpis = $("#ovKpis");
-    if (kpis) kpis.innerHTML = overviewKpiHtml(o, windowSummary);
+    if (kpis) kpis.innerHTML = overviewKpiHtml(o, windowStats);
     const scopeNote = $("#ovScopeNote");
     if (scopeNote) scopeNote.innerHTML = timeRangeScopeNote();
     const pipe = $("#ovPipeline");
-    if (pipe) pipe.innerHTML = pipelineBar(o.pipeline, true);
+    if (pipe) pipe.innerHTML = pipelineBar(windowed ? windowStats.pipeline : o.pipeline, true);
     const alerts = $("#ovAlerts");
     if (alerts) {
       alerts.innerHTML = o.alerts?.length
@@ -206,10 +216,10 @@ async function paintOverviewBody(o, params, soft) {
     <div id="ovRoot">
     <div id="ovBannerHost">${connectivityBanner(o.instances)}</div>
     <p class="muted stats-scope-note" id="ovScopeNote">${timeRangeScopeNote()}</p>
-    <div class="kpi-row" id="ovKpis">${overviewKpiHtml(o, windowSummary)}</div>
+    <div class="kpi-row" id="ovKpis">${overviewKpiHtml(o, windowStats)}</div>
     <div class="card">
       <h2>Cluster pipeline</h2>
-      <div id="ovPipeline">${pipelineBar(o.pipeline, true)}</div>
+      <div id="ovPipeline">${pipelineBar(windowed ? windowStats.pipeline : o.pipeline, true)}</div>
       <p class="muted" style="margin:0.5rem 0 0;font-size:0.85rem" title="${esc(METRIC_TITLES.pipeline)}">OC hit share · FC hit share · Factory share · Bypass — shares of total requests</p>
     </div>
     <div id="ovAlerts">${o.alerts?.length ? `<div class="card"><h2>Alerts</h2><ul class="alert-list">${o.alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}</div>
@@ -303,35 +313,34 @@ function bindGotoHints(root) {
 }
 
 /**
- * @param {object} o overview DTO
- * @param {object|null} [windowSummary] metrics summary when windowed
+ * @param {object} o overview DTO (instances / health always Admin)
+ * @param {object|null} [windowStats] /api/stats/window when Range is windowed + Prom connected
  */
-function overviewKpiHtml(o, windowSummary = null) {
-  const imp = o.impact || {};
-  const recent = o.impactRecent;
-  const windowed = isWindowedEffective() && windowSummary && windowSummary.status === "Connected";
-  const noData = windowed && windowSummary.noData;
+function overviewKpiHtml(o, windowStats = null) {
+  const windowed = isWindowedEffective() && windowStats && windowStats.status === "Connected";
+  const noData = windowed && windowStats.noData;
   const scopeTip = windowed
-    ? `Windowed (${getDisplayLabel()}) from Metrics store`
+    ? `Windowed (${getDisplayLabel()}) from Prometheus`
     : "Process totals (Admin counters since process start)";
 
+  const imp = windowed ? (windowStats.impact || {}) : (o.impact || {});
+  const recent = o.impactRecent;
   const oc = windowed
-    ? (noData || windowSummary.ocHitShare == null
+    ? (noData || windowStats.ocHitShare == null
       ? noDataHtml("No OC hit samples in this range")
-      : pct(windowSummary.ocHitShare))
+      : pct(windowStats.ocHitShare))
     : pct(o.ocHitShare);
   const fc = windowed
-    ? (noData || windowSummary.fcHitRate == null
+    ? (noData || windowStats.fcHitShare == null
       ? noDataHtml("No FC hit samples in this range")
-      : pct(windowSummary.fcHitRate))
+      : pct(windowStats.fcHitShare))
     : pct(o.pipeline?.fcHitShare);
   const fac = windowed
-    ? (noData || windowSummary.factoryShare == null
+    ? (noData || windowStats.factoryShare == null
       ? noDataHtml("No factory-share samples in this range")
-      : pct(windowSummary.factoryShare))
+      : pct(windowStats.factoryShare))
     : pct(factoryShareOf(o));
 
-  // Impact bands/time-saved still from Admin process totals until Prom impact lands.
   const recentWin = o.recentWindowLabel ? esc(o.recentWindowLabel) : "";
   const recentBlock = !windowed && recent
     ? `
@@ -339,27 +348,32 @@ function overviewKpiHtml(o, windowSummary = null) {
       <div class="kpi" title="Poll-delta benefit (${recentWin})"><div class="label">Recent benefit</div><div class="value" style="font-size:1rem">${impactBandLabel(recent.benefit, { html: true })}</div></div>`
     : "";
 
+  const winLabel = windowed ? " <span class=\"muted\">window</span>" : " <span class=\"muted\">totals</span>";
+
   return `
       <div class="kpi"><div class="label">Instances up</div><div class="value ${instancesUpClass(o)}">${o.healthyCount} / ${(o.instances || []).length}</div></div>
-      <div class="kpi" title="${esc(scopeTip)}"><div class="label">${windowed ? "Req rate" : "Requests"}</div><div class="value">${windowed ? (windowSummary.requestRate != null ? esc(Number(windowSummary.requestRate).toFixed(2)) + "/s" : noDataHtml()) : num(o.totalRequests)}</div></div>
+      <div class="kpi" title="${esc(scopeTip)}"><div class="label">Requests</div><div class="value">${windowed ? (noData ? noDataHtml() : num(windowStats.totalRequests)) : num(o.totalRequests)}</div></div>
+      <div class="kpi" title="${esc(scopeTip)}"><div class="label">Invalidations</div><div class="value">${windowed ? (noData ? noDataHtml() : num(windowStats.totalInvalidations)) : num(o.totalInvalidations)}</div></div>
       <div class="kpi"${tipAttr("ocHitShare")} title="${esc(scopeTip)}"><div class="label">OC hit %</div><div class="value">${oc}</div></div>
       <div class="kpi"${tipAttr("fcHitShare")} title="${esc(scopeTip)}"><div class="label">FC hit %</div><div class="value">${fc}</div></div>
       <div class="kpi"${tipAttr("factoryShare")} title="${esc(scopeTip)}"><div class="label">Factory %</div><div class="value">${fac}</div></div>
-      <div class="kpi"${tipAttr("estTimeSaved")}><div class="label">Time saved <span class="muted">totals</span></div><div class="value" style="font-size:1rem">${fmtDurationMs(imp.estFactoryTimeSavedMs)}</div></div>
-      <div class="kpi"${tipAttr("cacheBenefit")}><div class="label">Benefit <span class="muted">totals</span></div><div class="value" style="font-size:1rem">${impactBandLabel(imp.benefit, { html: true })}</div></div>
-      <div class="kpi"${tipAttr("cacheCandidate")}><div class="label">Candidate <span class="muted">totals</span></div><div class="value" style="font-size:1rem">${impactBandLabel(imp.candidate, { html: true })}</div></div>
+      <div class="kpi"${tipAttr("estTimeSaved")}><div class="label">Time saved${winLabel}</div><div class="value" style="font-size:1rem">${fmtDurationMs(imp.estFactoryTimeSavedMs)}</div></div>
+      <div class="kpi"${tipAttr("cacheBenefit")}><div class="label">Benefit${winLabel}</div><div class="value" style="font-size:1rem">${impactBandLabel(imp.benefit, { html: true })}</div></div>
+      <div class="kpi"${tipAttr("cacheCandidate")}><div class="label">Candidate${winLabel}</div><div class="value" style="font-size:1rem">${impactBandLabel(imp.candidate, { html: true })}</div></div>
       ${recentBlock}
       <div class="kpi kpi-hints" role="link" tabindex="0" data-goto-hints="1" title="Open Hints"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>`;
 }
 
-async function fetchWindowSummaryIfNeeded() {
+/** Prometheus window stats (domains/endpoints/impact) when Range is windowed. */
+async function fetchWindowStatsIfNeeded(domainsCsv) {
   if (!isWindowedEffective()) return null;
   try {
     const q = appendMetricsRangeParams(new URLSearchParams());
-    const summary = await api("/api/metrics/summary?" + q.toString());
-    if (summary?.status === "Connected") setMetricsCapability("connected");
-    else if (summary?.status === "Disconnected") setMetricsCapability("disconnected");
-    return summary;
+    if (domainsCsv) q.set("domains", domainsCsv);
+    const w = await api("/api/stats/window?" + q.toString());
+    if (w?.status === "Connected") setMetricsCapability("connected");
+    else if (w?.status === "Disconnected") setMetricsCapability("disconnected");
+    return w;
   } catch {
     setMetricsCapability("disconnected");
     return null;
@@ -397,15 +411,35 @@ export async function renderEndpointsList(params, opts = {}) {
   let domainOpts = [];
   let list = [];
   let loadError = null;
-  if (!noCfg && !offline && !(selDomains !== null && selDomains.length === 0)
+  const windowed = isWindowedEffective();
+  if (!noCfg && !(selDomains !== null && selDomains.length === 0)
       && !(selInstances !== null && selInstances.length === 0)) {
     try {
-      const statsForFilters = await api("/api/stats?scope=all");
-      domainOpts = (statsForFilters.domains || []).map((d) => ({ id: d.name, label: d.name }));
-      const q = new URLSearchParams({ sort, take, skip: String(skip), search });
-      if (selInstances !== null) q.set("instances", selInstances.length ? selInstances.join(",") : "__none__");
-      if (selDomains !== null) q.set("domains", selDomains.length ? selDomains.join(",") : "__none__");
-      list = await api("/api/endpoints?" + q.toString());
+      if (windowed) {
+        const domainsCsv = selDomains?.length ? selDomains.join(",") : undefined;
+        const w = await fetchWindowStatsIfNeeded(domainsCsv);
+        if (w?.status === "Connected") {
+          domainOpts = (w.domains || []).map((d) => ({ id: d.name, label: d.name }));
+          list = sortEndpoints(w.endpoints || [], sort);
+          if (search) {
+            const q = search.toLowerCase();
+            list = list.filter((e) =>
+              (e.route || "").toLowerCase().includes(q)
+              || (e.configuredDomain || "").toLowerCase().includes(q));
+          }
+          const takeN = Number(take) || 50;
+          list = list.slice(skip, skip + takeN);
+        } else {
+          loadError = w?.error || "Metrics store not connected — switch Range to Process totals.";
+        }
+      } else if (!offline) {
+        const statsForFilters = await api("/api/stats?scope=all");
+        domainOpts = (statsForFilters.domains || []).map((d) => ({ id: d.name, label: d.name }));
+        const q = new URLSearchParams({ sort, take, skip: String(skip), search });
+        if (selInstances !== null) q.set("instances", selInstances.length ? selInstances.join(",") : "__none__");
+        if (selDomains !== null) q.set("domains", selDomains.length ? selDomains.join(",") : "__none__");
+        list = await api("/api/endpoints?" + q.toString());
+      }
     } catch (err) {
       loadError = err.message;
     }
@@ -416,23 +450,25 @@ export async function renderEndpointsList(params, opts = {}) {
     } catch { /* filters optional */ }
   }
 
-  const emptyKind = noCfg ? "config" : offline ? "offline" : loadError ? "error" : "endpoints";
+  const emptyKind = noCfg ? "config" : (!windowed && offline) ? "offline" : loadError ? "error" : "endpoints";
   const emptyCtx = {
     kind: emptyKind,
     title: loadError ? "Failed to load endpoints" : undefined,
     detail: loadError
-      || (offline ? "All target apps are down. Start them with Local Admin enabled." : undefined),
+      || ((!windowed && offline) ? "All target apps are down. Start them with Local Admin enabled." : undefined),
   };
 
   paintPage(`
     ${connectivityBanner(instanceList)}
+    <p class="muted stats-scope-note">${timeRangeScopeNote()}</p>
     <div class="card">
       <h2>Endpoints <span class="badge">primary unit</span></h2>
-      ${!offline && !noCfg ? `
-      <p class="muted" style="margin-top:0">Filter: <strong>All</strong> = no filter · explicit selection applies · <strong>None</strong> = empty list.</p>
+      ${!noCfg ? `
+      <p class="muted" style="margin-top:0">Filter: <strong>All</strong> = no filter · explicit selection applies · <strong>None</strong> = empty list.
+        ${windowed ? " Windowed: endpoints require Prometheus <code>route</code> label (IncludeEndpointLabel)." : ""}</p>
       <form class="toolbar" id="epFilters">
         <label>Search<input name="search" type="search" value="${esc(search)}" placeholder="route or domain" /></label>
-        ${multiSelectHtml("epInst", "Instances", instanceOpts, selInstances)}
+        ${windowed ? "" : multiSelectHtml("epInst", "Instances", instanceOpts, selInstances)}
         ${multiSelectHtml("epDom", "Domains", domainOpts, selDomains)}
         ${sortSelectHtml("sort", sort, EP_SORT_OPTS)}
         ${applyButtonHtml()}
@@ -492,8 +528,16 @@ export async function renderEndpointDetail(routeName, opts = {}) {
   ]);
   beginPageLoad(soft, `<p class="muted">Loading ${esc(routeName)}…</p>`);
 
-  const stats = await api("/api/stats?scope=all&groupByInstance=true");
-  let ep = (stats.endpoints || []).find((e) => e.route === routeName);
+  const windowed = isWindowedEffective();
+  let ep;
+  if (windowed) {
+    const w = await fetchWindowStatsIfNeeded();
+    ep = (w?.endpoints || []).find((e) => e.route === routeName);
+  }
+  if (!ep) {
+    const stats = await api("/api/stats?scope=all&groupByInstance=true").catch(() => ({ endpoints: [] }));
+    ep = (stats.endpoints || []).find((e) => e.route === routeName);
+  }
   if (!ep) {
     if (!(soft && mainHasContent())) {
       paintPage(`<div class="card"><p class="status-Down">Endpoint not found: <code>${esc(routeName)}</code></p>
@@ -552,13 +596,13 @@ function endpointDetailHeadHtml(ep) {
         <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${pct(factoryShareOf(ep.fc), ep.fc?.lowRequestSample, "request")}</div></div>
         ${impactKpiRowHtml(ep.impact)}
       </div>
-      <p class="muted">Pipeline · lifetime counters (since process start)</p>
+      <p class="muted">Pipeline · ${isWindowedEffective() ? "Prometheus window (" + esc(getDisplayLabel()) + ")" : "process totals (since process start)"}</p>
       ${pipelineBar(ep.pipeline, true)}
     </div>
     <div class="detail-grid">
       ${layerDetailOc(ep.oc)}
       ${layerDetailFc(ep.fc)}
-      ${impactDetailHtml(ep.impact, "since process start")}
+      ${impactDetailHtml(ep.impact, isWindowedEffective() ? getDisplayLabel() : "since process start")}
     </div>
     ${ep.byInstance?.length ? `
     <div class="card">
@@ -619,35 +663,56 @@ export async function renderDomainsList(params, opts = {}) {
 
   let domains = [];
   let loadError = null;
-  if (!noCfg && !offline && !(selInstances !== null && selInstances.length === 0)) {
+  const windowed = isWindowedEffective();
+  if (!noCfg && !(selInstances !== null && selInstances.length === 0)) {
     try {
-      const q = new URLSearchParams({ scope: "all" });
-      if (selInstances !== null) q.set("instances", selInstances.join(","));
-      const stats = await api("/api/stats?" + q.toString());
-      domains = stats.domains || [];
+      if (windowed) {
+        // Traffic from Prometheus window; instance multi-select not applied (scrape labels).
+        const w = await fetchWindowStatsIfNeeded();
+        if (w?.status === "Connected") {
+          domains = w.domains || [];
+          // Overlay current Version from Admin when available.
+          try {
+            const stats = await api("/api/stats?scope=all");
+            const ver = Object.fromEntries((stats.domains || []).map((d) => [d.name, d]));
+            domains = domains.map((d) => {
+              const a = ver[d.name];
+              return a ? { ...d, version: a.version, versionIsRuntimeOverride: a.versionIsRuntimeOverride } : d;
+            });
+          } catch { /* keep window-only rows */ }
+        } else {
+          loadError = w?.error || "Metrics store not connected — switch Range to Process totals.";
+        }
+      } else if (!offline) {
+        const q = new URLSearchParams({ scope: "all" });
+        if (selInstances !== null) q.set("instances", selInstances.join(","));
+        const stats = await api("/api/stats?" + q.toString());
+        domains = stats.domains || [];
+      }
     } catch (err) {
       loadError = err.message;
     }
   }
 
   domains = sortDomains(filterDomainsBySearch(domains, search), sort);
-  const emptyKind = noCfg ? "config" : offline ? "offline" : loadError ? "error" : "domains";
+  const emptyKind = noCfg ? "config" : (!windowed && offline) ? "offline" : loadError ? "error" : "domains";
 
   paintPage(`
     ${connectivityBanner(instanceList)}
+    <p class="muted stats-scope-note">${timeRangeScopeNote()}</p>
     <div class="card">
       <h2>Domains</h2>
-      ${!offline && !noCfg ? `
+      ${!noCfg ? `
       <form class="toolbar" id="domFilters">
         <label>Search<input name="search" type="search" value="${esc(search)}" placeholder="domain name" /></label>
-        ${multiSelectHtml("domInst", "Instances", instanceOpts, selInstances)}
+        ${windowed ? "" : multiSelectHtml("domInst", "Instances", instanceOpts, selInstances)}
         ${sortSelectHtml("sort", sort, DOMAIN_SORT_OPTS)}
         ${applyButtonHtml()}
       </form>` : ""}
       ${domainTableHtml(domains, {
         kind: emptyKind,
         title: loadError ? "Failed to load domains" : undefined,
-        detail: loadError || (offline ? "All target apps are down." : undefined),
+        detail: loadError || ((!windowed && offline) ? "All target apps are down." : undefined),
       })}
     </div>`, soft);
 
@@ -676,11 +741,20 @@ export async function renderDomainDetail(name, opts = {}) {
   ]);
   beginPageLoad(soft, `<p class="muted">Loading domain ${esc(name)}…</p>`);
 
-  const [stats, cfgFan] = await Promise.all([
-    api("/api/stats?scope=all&groupByInstance=true"),
-    api("/api/domains"),
+  const windowed = isWindowedEffective();
+  const [stats, cfgFan, windowStats] = await Promise.all([
+    api("/api/stats?scope=all&groupByInstance=true").catch(() => ({ domains: [] })),
+    api("/api/domains").catch(() => ({ data: [] })),
+    windowed ? fetchWindowStatsIfNeeded() : Promise.resolve(null),
   ]);
-  let d = (stats.domains || []).find((x) => x.name === name);
+  let d = windowed && windowStats?.status === "Connected"
+    ? (windowStats.domains || []).find((x) => x.name === name)
+    : (stats.domains || []).find((x) => x.name === name);
+  // Prefer Admin version/current when window row has empty version.
+  const adminDom = (stats.domains || []).find((x) => x.name === name);
+  if (d && adminDom && (!d.version || d.version === "")) {
+    d = { ...d, version: adminDom.version, versionIsRuntimeOverride: adminDom.versionIsRuntimeOverride };
+  }
   const cfg = (cfgFan.data || []).find((x) => x.name === name);
 
   if (!d && !cfg) {
@@ -733,13 +807,13 @@ function domainDetailHeadHtml(name, domain, cfg) {
         <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${pct(factoryShareOf(domain.fc), domain.fc?.lowRequestSample, "request")}</div></div>
         ${impactKpiRowHtml(domain.impact)}
       </div>
-      <p class="muted">Pipeline · lifetime counters (since process start)</p>
+      <p class="muted">Pipeline · ${isWindowedEffective() ? "Prometheus window (" + esc(getDisplayLabel()) + ")" : "process totals (since process start)"}</p>
       ${pipelineBar(domain.pipeline, true)}
     </div>
     <div class="detail-grid">
       ${layerDetailOc(domain.oc)}
       ${layerDetailFc(domain.fc)}
-      ${impactDetailHtml(domain.impact, "since process start")}
+      ${impactDetailHtml(domain.impact, isWindowedEffective() ? getDisplayLabel() : "since process start")}
       ${cfg ? `
       <div class="detail-block">
         <h3>Effective config <span class="badge" title="Current values (not scoped to the selected time range)">current</span></h3>
