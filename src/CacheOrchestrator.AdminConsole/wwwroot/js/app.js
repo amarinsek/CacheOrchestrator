@@ -1,22 +1,7 @@
 /**
  * CacheOrchestrator Admin UI — SPA entry point.
  *
- * Module layout (ES modules, no bundler):
- *   dom.js          query helpers
- *   api.js          /api/* client
- *   format.js       numbers, units, pipeline bar
- *   hints.js        recommendation badges / lists / collect
- *   filters.js      multi-select, sort, search
- *   tables.js       entity tables + empty states
- *   router.js       hash routing helpers
- *   shell.js        sticky header metrics + soft auto-refresh
- *   charts.js       SVG line charts for Metrics
- *   views-metrics.js Metrics page + overview embed
- *   views.js        page renderers + route({ soft })
- *   app.js          bootstrap (this file)
- *
  * Soft refresh: fetch in background, repaint without "Loading…" flash (no SPA framework).
- *
  * Static files are served by ASP.NET Core (`UseDefaultFiles` + `UseStaticFiles`).
  */
 
@@ -27,6 +12,11 @@ import {
   scheduleRefresh,
   setRouteHandler,
 } from "./shell.js";
+import {
+  mountTimeRangePicker,
+  setMetricsCapability,
+  subscribe as subscribeTimeRange,
+} from "./time-range.js";
 import { route } from "./views.js";
 
 setRouteHandler(route);
@@ -51,11 +41,42 @@ async function paintBrandVersion() {
   }
 }
 
+function onTimeRangeChange() {
+  route({ soft: true });
+  refreshHeader({ silent: true });
+}
+
+function initTimeRangeControl() {
+  const host = document.getElementById("navTimeRangeHost");
+  if (!host) return;
+  host._trOnChange = onTimeRangeChange;
+  mountTimeRangePicker(host, { onChange: onTimeRangeChange });
+  subscribeTimeRange(() => {
+    mountTimeRangePicker(host, { onChange: onTimeRangeChange });
+    host._trOnChange = onTimeRangeChange;
+  });
+}
+
+/** Probe Metrics store so windowed shortcuts enable/disable correctly. */
+async function refreshMetricsCapability() {
+  try {
+    const status = await api("/api/metrics/status");
+    const s = (status?.status || "").toLowerCase();
+    if (s === "connected") setMetricsCapability("connected");
+    else if (s === "disconnected") setMetricsCapability("disconnected");
+    else if (s === "notconfigured" || s === "not_configured") setMetricsCapability("not_configured");
+    else setMetricsCapability("unknown");
+  } catch {
+    setMetricsCapability("not_configured");
+  }
+}
+
 initRefreshControls();
 scheduleRefresh();
+initTimeRangeControl();
 paintBrandVersion();
+refreshMetricsCapability();
 // Single first paint path (overview fetch is deduped if header also loads).
 route().then(() => {
-  // Ensure chrome strip is filled even if overview paint path skipped header.
   refreshHeader({ silent: true });
 });

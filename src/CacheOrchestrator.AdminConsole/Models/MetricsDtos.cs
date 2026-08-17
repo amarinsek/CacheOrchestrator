@@ -119,11 +119,17 @@ public sealed class MetricsSeriesResponseDto
     /// <summary><see cref="MetricsStoreStatusCodes"/>.</summary>
     public required string Status { get; init; }
 
-    /// <summary>Resolved range token.</summary>
+    /// <summary>Resolved range token (<c>15m</c>…<c>7d</c>) or <c>custom</c> for absolute from/to.</summary>
     public required string Range { get; init; }
 
     /// <summary>Step used for the query (Prometheus duration, e.g. 30s).</summary>
     public required string Step { get; init; }
+
+    /// <summary>Window start (UTC) used for the query.</summary>
+    public DateTimeOffset? FromUtc { get; init; }
+
+    /// <summary>Window end (UTC) used for the query.</summary>
+    public DateTimeOffset? ToUtc { get; init; }
 
     /// <summary>When the query finished.</summary>
     public DateTimeOffset QueriedAtUtc { get; init; }
@@ -144,6 +150,12 @@ public sealed class MetricsSummaryDto
     /// <summary>Resolved range.</summary>
     public required string Range { get; init; }
 
+    /// <summary>Window start (UTC) when absolute or resolved relative.</summary>
+    public DateTimeOffset? FromUtc { get; init; }
+
+    /// <summary>Window end (UTC) when absolute or resolved relative.</summary>
+    public DateTimeOffset? ToUtc { get; init; }
+
     /// <summary>When evaluated.</summary>
     public DateTimeOffset QueriedAtUtc { get; init; }
 
@@ -161,6 +173,14 @@ public sealed class MetricsSummaryDto
 
     /// <summary>Invalidations per second, latest sample.</summary>
     public double? InvalidationRate { get; init; }
+
+    /// <summary>
+    /// Approximate factory share 0–1 over the range (FC miss rate / OC request rate).
+    /// </summary>
+    public double? FactoryShare { get; init; }
+
+    /// <summary>True when no samples were found for core panels (empty window).</summary>
+    public bool NoData { get; init; }
 }
 
 /// <summary>Parses UI range tokens and maps to step sizes.</summary>
@@ -206,4 +226,25 @@ public static class MetricsRange
         "7d" => TimeSpan.FromDays(7),
         _ => TimeSpan.FromHours(1),
     };
+
+    /// <summary>Step size for an arbitrary window duration (absolute from/to).</summary>
+    public static string StepForDuration(TimeSpan duration)
+    {
+        if (duration <= TimeSpan.FromMinutes(20)) return "15s";
+        if (duration <= TimeSpan.FromHours(2)) return "30s";
+        if (duration <= TimeSpan.FromHours(8)) return "1m";
+        if (duration <= TimeSpan.FromHours(30)) return "2m";
+        if (duration <= TimeSpan.FromDays(8)) return "15m";
+        return "1h";
+    }
+
+    /// <summary>Best relative token for a duration (summary rate window / display).</summary>
+    public static string NearestToken(TimeSpan duration)
+    {
+        if (duration <= TimeSpan.FromMinutes(20)) return "15m";
+        if (duration <= TimeSpan.FromHours(2)) return "1h";
+        if (duration <= TimeSpan.FromHours(8)) return "6h";
+        if (duration <= TimeSpan.FromHours(30)) return "24h";
+        return "7d";
+    }
 }

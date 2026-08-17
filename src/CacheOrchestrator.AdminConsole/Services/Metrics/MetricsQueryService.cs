@@ -120,11 +120,12 @@ public sealed class MetricsQueryService
         string? domains,
         string? instances = null,
         string? routes = null,
+        string? from = null,
+        string? to = null,
         CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = _time.GetUtcNow();
-        string resolvedRange = MetricsRange.Normalize(range, _options.Metrics.DefaultRange);
-        string step = MetricsRange.StepFor(resolvedRange);
+        ResolvedWindow window = ResolveWindow(range, from, to, now);
 
         MetricsStatusDto status = await GetStatusAsync(probe: true, cancellationToken).ConfigureAwait(false);
         if (status.Status != MetricsStoreStatusCodes.Connected)
@@ -132,8 +133,10 @@ public sealed class MetricsQueryService
             return new MetricsSeriesResponseDto
             {
                 Status = status.Status,
-                Range = resolvedRange,
-                Step = step,
+                Range = window.RangeLabel,
+                Step = window.Step,
+                FromUtc = window.Start,
+                ToUtc = window.End,
                 QueriedAtUtc = now,
                 Error = status.Error,
                 Panels = [],
@@ -144,7 +147,9 @@ public sealed class MetricsQueryService
         IReadOnlyList<string> domainList = ParseCsv(domains);
         IReadOnlyList<string> instanceList = ParseCsv(instances);
         IReadOnlyList<string> routeList = ParseRouteCsv(routes);
-        DateTimeOffset start = now - MetricsRange.ToTimeSpan(resolvedRange);
+        DateTimeOffset start = window.Start;
+        DateTimeOffset end = window.End;
+        string step = window.Step;
         bool routeScoped = routeList.Count > 0;
 
         List<MetricsPanelDto> results = [];
@@ -169,7 +174,7 @@ public sealed class MetricsQueryService
             {
                 string promQl = MetricsPanelCatalog.BuildPromQl(info.Id, domainList, instanceList, routeList);
                 IReadOnlyList<PrometheusMatrixSeries> matrix = await _client
-                    .QueryRangeAsync(promQl, start, now, step, cancellationToken)
+                    .QueryRangeAsync(promQl, start, end, step, cancellationToken)
                     .ConfigureAwait(false);
 
                 List<MetricsSeriesDto> series = matrix
@@ -211,8 +216,10 @@ public sealed class MetricsQueryService
         return new MetricsSeriesResponseDto
         {
             Status = MetricsStoreStatusCodes.Connected,
-            Range = resolvedRange,
+            Range = window.RangeLabel,
             Step = step,
+            FromUtc = window.Start,
+            ToUtc = window.End,
             QueriedAtUtc = now,
             Panels = results,
         };
@@ -228,10 +235,16 @@ public sealed class MetricsQueryService
     /// <summary>Instant KPI snapshot for the Metrics toolbar.</summary>
     public async Task<MetricsSummaryDto> GetSummaryAsync(
         string? range,
+        string? from = null,
+        string? to = null,
         CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = _time.GetUtcNow();
-        string resolvedRange = MetricsRange.Normalize(range, _options.Metrics.DefaultRange);
+        ResolvedWindow window = ResolveWindow(range, from, to, now);
+        // Summary rate() windows use a relative token nearest the absolute duration.
+        string rateWindow = window.IsAbsolute
+            ? MetricsRange.NearestToken(window.End - window.Start)
+            : window.RangeLabel;
 
         MetricsStatusDto status = await GetStatusAsync(probe: true, cancellationToken).ConfigureAwait(false);
         if (status.Status != MetricsStoreStatusCodes.Connected)
@@ -239,7 +252,9 @@ public sealed class MetricsQueryService
             return new MetricsSummaryDto
             {
                 Status = status.Status,
-                Range = resolvedRange,
+                Range = window.RangeLabel,
+                FromUtc = window.Start,
+                ToUtc = window.End,
                 QueriedAtUtc = now,
                 Error = status.Error,
             };
@@ -247,20 +262,32 @@ public sealed class MetricsQueryService
 
         try
         {
-            double? requestRate = await InstantValueAsync("request_rate", cancellationToken).ConfigureAwait(false);
-            double? ocHit = await InstantValueAsync("oc_hit_share", cancellationToken).ConfigureAwait(false);
-            double? fcHit = await InstantValueAsync("fc_hit_rate", cancellationToken).ConfigureAwait(false);
-            double? inv = await InstantValueAsync("invalidation_rate", cancellationToken).ConfigureAwait(false);
+            double? requestRate = await InstantValueAsync("request_rate", rateWindow, cancellationToken)
+                .ConfigureAwait(false);
+            double? ocHit = await InstantValueAsync("oc_hit_share", rateWindow, cancellationToken)
+                .ConfigureAwait(false);
+            double? fcHit = await InstantValueAsync("fc_hit_rate", rateWindow, cancellationToken)
+                .ConfigureAwait(false);
+            double? inv = await InstantValueAsync("invalidation_rate", rateWindow, cancellationToken)
+                .ConfigureAwait(false);
+            double? factoryShare = await InstantValueAsync("factory_share", rateWindow, cancellationToken)
+                .ConfigureAwait(false);
+
+            bool noData = requestRate is null && ocHit is null && fcHit is null && inv is null && factoryShare is null;
 
             return new MetricsSummaryDto
             {
                 Status = MetricsStoreStatusCodes.Connected,
-                Range = resolvedRange,
+                Range = window.RangeLabel,
+                FromUtc = window.Start,
+                ToUtc = window.End,
                 QueriedAtUtc = now,
                 RequestRate = requestRate,
                 OcHitShare = ocHit,
                 FcHitRate = fcHit,
                 InvalidationRate = inv,
+                FactoryShare = factoryShare,
+                NoData = noData,
             };
         }
         catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
@@ -268,16 +295,73 @@ public sealed class MetricsQueryService
             return new MetricsSummaryDto
             {
                 Status = MetricsStoreStatusCodes.Disconnected,
-                Range = resolvedRange,
+                Range = window.RangeLabel,
+                FromUtc = window.Start,
+                ToUtc = window.End,
                 QueriedAtUtc = now,
                 Error = ex.Message,
             };
         }
     }
 
-    private async Task<double?> InstantValueAsync(string panelId, CancellationToken cancellationToken)
+    private sealed record ResolvedWindow(
+        DateTimeOffset Start,
+        DateTimeOffset End,
+        string Step,
+        string RangeLabel,
+        bool IsAbsolute);
+
+    /// <summary>
+    /// Relative <paramref name="range"/> (15m…7d) or absolute <paramref name="from"/>/<paramref name="to"/>
+    /// (ISO-8601 / unix seconds). Absolute wins when both from and to parse.
+    /// </summary>
+    private static ResolvedWindow ResolveWindow(string? range, string? from, string? to, DateTimeOffset now)
     {
-        string promQl = MetricsPanelCatalog.BuildSummaryPromQl(panelId);
+        DateTimeOffset? fromUtc = TryParseTime(from);
+        DateTimeOffset? toUtc = TryParseTime(to);
+        if (fromUtc is DateTimeOffset f && toUtc is DateTimeOffset t && t > f)
+        {
+            TimeSpan dur = t - f;
+            if (dur > TimeSpan.FromDays(31))
+                f = t - TimeSpan.FromDays(31);
+            return new ResolvedWindow(f, t, MetricsRange.StepForDuration(t - f), "custom", IsAbsolute: true);
+        }
+
+        string resolved = MetricsRange.Normalize(range, "1h");
+        DateTimeOffset end = now;
+        DateTimeOffset start = end - MetricsRange.ToTimeSpan(resolved);
+        return new ResolvedWindow(start, end, MetricsRange.StepFor(resolved), resolved, IsAbsolute: false);
+    }
+
+    private static DateTimeOffset? TryParseTime(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+        string s = raw.Trim();
+        if (long.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long unix))
+        {
+            // Seconds vs ms heuristic
+            if (unix > 1_000_000_000_000L)
+                return DateTimeOffset.FromUnixTimeMilliseconds(unix);
+            if (unix > 1_000_000_000L)
+                return DateTimeOffset.FromUnixTimeSeconds(unix);
+        }
+
+        if (DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                out DateTimeOffset dto))
+            return dto;
+        if (DateTimeOffset.TryParse(s, out dto))
+            return dto.ToUniversalTime();
+        return null;
+    }
+
+    private async Task<double?> InstantValueAsync(
+        string panelId,
+        string rangeWindow,
+        CancellationToken cancellationToken)
+    {
+        string promQl = MetricsPanelCatalog.BuildSummaryPromQl(panelId, rangeWindow);
         IReadOnlyList<PrometheusInstantSample> samples = await _client
             .QueryInstantAsync(promQl, timeUtc: null, cancellationToken)
             .ConfigureAwait(false);

@@ -115,10 +115,17 @@ code { font-size: 0.9em; }
   padding: 0.75rem 1.25rem 0.65rem;
 }
 
-.brand-api {
+.brand-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
   flex-shrink: 0;
   align-self: flex-start;
-  margin-top: 0.35rem;
+  margin-top: 0.2rem;
+}
+
+.brand-api {
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -130,9 +137,215 @@ code { font-size: 0.9em; }
   background: #121820;
 }
 
+.nav-time-range {
+  display: flex;
+  align-items: center;
+  margin-right: 0.25rem;
+  position: relative;
+}
+
+/* Grafana-style time range picker (panel is position:fixed on body — not clipped by nav). */
+.tr-picker { position: relative; z-index: 50; }
+.tr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  max-width: 16rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #121820;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+}
+.tr-btn:hover,
+.tr-btn[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: #fff;
+}
+.tr-btn-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 13rem;
+}
+.tr-btn-caret { color: var(--muted); font-size: 0.7rem; flex-shrink: 0; }
+
+/* Fixed dropdown: appended under body so chrome overflow never clips it. */
+.tr-panel {
+  position: fixed;
+  z-index: 500;
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  min-width: 30rem;
+  max-width: min(36rem, calc(100vw - 1rem));
+  max-height: min(28rem, calc(100vh - 4rem));
+  background: #151c24;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.tr-panel.hidden { display: none !important; }
+.tr-col {
+  padding: 0.75rem 0.85rem;
+  min-width: 12rem;
+}
+.tr-rel {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  max-height: min(26rem, calc(100vh - 5rem));
+  overflow: auto;
+  flex: 0 0 auto;
+}
+.tr-col-title {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 0.45rem;
+}
+.tr-rel-btn {
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 0.84rem;
+  padding: 0.38rem 0.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.tr-rel-btn:hover:not(:disabled) { background: #1e2833; }
+.tr-rel-btn.active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: #9ec9f5;
+  font-weight: 600;
+}
+.tr-rel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.tr-abs {
+  min-width: 15rem;
+  flex: 1 1 auto;
+}
+.tr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.55rem;
+}
+.tr-field input {
+  font-size: 0.82rem;
+  padding: 0.4rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #0f1419;
+  color: var(--text);
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  color-scheme: dark;
+}
+.tr-apply {
+  width: 100%;
+  margin-top: 0.25rem;
+  font-size: 0.84rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, #121820);
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+}
+.tr-apply:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 40%, #121820); }
+.tr-apply:disabled { opacity: 0.45; cursor: not-allowed; }
+.tr-hint { font-size: 0.72rem; margin: 0.55rem 0 0; line-height: 1.4; color: var(--muted); }
+
+@media (max-width: 720px) {
+  .tr-panel {
+    flex-direction: column;
+    min-width: min(18rem, calc(100vw - 1rem));
+    max-height: calc(100vh - 3rem);
+  }
+  .tr-rel {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 40vh;
+  }
+}
+
 .brand-api:hover {
   color: var(--accent);
   border-color: var(--accent);
+  text-decoration: none;
+}
+
+/* Config / identity “current value” — underline only under the text (not the full grid cell). */
+.current-value,
+span.current-value,
+.kpi .value .current-value,
+td .current-value {
+  color: #fff;
+  border-bottom: 1px dashed var(--ok);
+  cursor: help;
+  text-decoration: none;
+  display: inline;
+  width: fit-content;
+  max-width: 100%;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Value column in kv grids: do not stretch underline across the cell. */
+.kv > .current-value,
+.kv > span.current-value {
+  justify-self: end;
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  color: #fff;
+  border-bottom: 1px dashed var(--ok);
+}
+
+.hm-range-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.hm-range-badge.windowed {
+  color: #6ea8fe;
+  border-color: #3a5a8a;
+}
+
+.hm-range-badge.process {
+  color: #9aa7b8;
+}
+
+.stats-scope-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+}
+
+/* Missing samples — plain dash, no underline (not a “current” or “low sample” signal). */
+.no-data-value {
+  color: #8b96a5;
+  cursor: help;
+  border-bottom: none;
   text-decoration: none;
 }
 
@@ -252,7 +465,9 @@ h1.brand-title,
   display: flex;
   gap: 0.15rem;
   align-items: center;
-  overflow-x: auto;
+  /* visible: time-range dropdown must not be clipped (was overflow-x:auto). */
+  overflow: visible;
+  flex-wrap: wrap;
 }
 
 .app-nav a {
@@ -456,8 +671,10 @@ a.btn-secondary:hover {
 .breadcrumb {
   padding: 0.5rem 1.25rem 0;
   font-size: 0.85rem;
-  min-height: 1.5rem;
+  min-height: 0;
 }
+.breadcrumb:not(:empty) { min-height: 1.5rem; }
+.breadcrumb[hidden] { display: none !important; }
 
 .app-main {
   max-width: 1200px;
@@ -769,12 +986,54 @@ button.secondary {
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
 }
 
-.chart-card .card-head { margin-bottom: 0.35rem; }
+.chart-card .card-head {
+  margin-bottom: 0.35rem;
+  flex-wrap: nowrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+}
+
+/* Title truncates; unit + expand stay on one line to the right. */
+.chart-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.chart-card-title h2 {
+  margin: 0;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+}
+
+.chart-card-title .badge {
+  flex: 0 0 auto;
+}
 
 .chart-card-actions {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+  flex: 0 0 auto;
+  max-width: 45%;
+}
+
+.chart-card-actions .chart-unit {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-no-samples {
+  cursor: help;
 }
 
 .chart-expand-btn {
@@ -1022,19 +1281,29 @@ body.chart-modal-open { overflow: hidden; }
   word-break: break-word;
 }
 
-.metrics-ov-chart .chart-wrap { min-height: 7rem; }
-.metrics-ov-chart .chart-svg { min-height: 6.5rem; }
-
 .chart-grid {
   stroke: var(--border);
   stroke-width: 1;
   stroke-dasharray: 3 3;
 }
 
+.chart-grid-v {
+  stroke: color-mix(in srgb, var(--border) 85%, transparent);
+  stroke-dasharray: 2 4;
+}
+
 .chart-axis {
   fill: var(--muted);
   font-size: 10px;
   font-family: var(--font);
+}
+
+.chart-axis-x {
+  font-size: 9.5px;
+}
+
+.chart-wrap-empty .chart-svg {
+  opacity: 0.95;
 }
 
 .chart-legend {
@@ -1069,16 +1338,7 @@ body.chart-modal-open { overflow: hidden; }
 
 .chart-warn { margin: 0.5rem 0 0; font-size: 0.82rem; }
 
-.metrics-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.75rem;
-}
-
-.metrics-ov-block .label {
-  font-size: 0.78rem;
-  margin-bottom: 0.25rem;
-}
+/* Overview uses the same .metrics-grid + .chart-card template as Metrics. */
 
 .sparkline {
   display: block;
@@ -1193,7 +1453,8 @@ tr.child td { background: #151c24; }
 }
 
 .kv { display: grid; grid-template-columns: 1fr auto; gap: 0.25rem 0.75rem; font-size: 0.85rem; }
-.kv span:first-child { color: var(--muted); }
+/* Label column only (odd children). Avoid :first-child — it also matches nested .current-value spans. */
+.kv > span:nth-child(odd) { color: var(--muted); }
 
 code { color: #cde; font-size: 0.9em; }
 

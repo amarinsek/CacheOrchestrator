@@ -15,6 +15,7 @@ import { $, setRefreshing } from "./dom.js";
 import { esc, fmtUnit, impactBandLabel, METRIC_TITLES, num, pct, pipelineBar } from "./format.js";
 import { severityStack } from "./hints.js";
 import { navigate } from "./router.js";
+import { getBadgeText, isWindowedEffective } from "./time-range.js";
 
 const REFRESH_KEY = "adminAutoRefreshSec";
 
@@ -163,7 +164,11 @@ export function renderHeader(o) {
     o.downCount ? `${o.downCount} down` : null,
   ].filter(Boolean).join(" · ");
 
+  const rangeWin = isWindowedEffective();
+  const rangeBadge = `<span class="hm-range-badge ${rangeWin ? "windowed" : "process"}" title="Stats time range">${esc(getBadgeText())}</span>`;
+
   $("#headerMetrics").innerHTML = `
+    <span class="hm" title="Stats time range">${rangeBadge}</span>
     <span class="hm" title="${esc(healthTitle)}">${healthDots}
       <strong class="${upClass}">${up}/${total || 0}</strong><span class="muted">\u2009up</span>
       ${down > 0 ? `<span class="status-Down">${fmtUnit(down, "down")}</span>` : ""}

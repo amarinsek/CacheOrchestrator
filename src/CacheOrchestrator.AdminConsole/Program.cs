@@ -256,13 +256,15 @@ api.MapGet("/metrics/series", async (
     string? domains,
     string? instances,
     string? routes,
+    string? from,
+    string? to,
     MetricsQueryService metrics,
     CancellationToken cancellationToken) =>
 {
     try
     {
         MetricsSeriesResponseDto result = await metrics
-            .GetSeriesAsync(range, panels, domains, instances, routes, cancellationToken)
+            .GetSeriesAsync(range, panels, domains, instances, routes, from, to, cancellationToken)
             .ConfigureAwait(false);
         return Results.Ok(result);
     }
@@ -274,10 +276,14 @@ api.MapGet("/metrics/series", async (
 
 api.MapGet("/metrics/summary", async (
     string? range,
+    string? from,
+    string? to,
     MetricsQueryService metrics,
     CancellationToken cancellationToken) =>
 {
-    MetricsSummaryDto summary = await metrics.GetSummaryAsync(range, cancellationToken).ConfigureAwait(false);
+    MetricsSummaryDto summary = await metrics
+        .GetSummaryAsync(range, from, to, cancellationToken)
+        .ConfigureAwait(false);
     return Results.Ok(summary);
 });
 

@@ -23,10 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cache_orchestrator.fc.duration` remains as legacy dual-write (all timed Fusion results)
 - Admin Console fan-out uses **`/stats/v2` only** (requires instance library ≥ 2.2; use Console 2.1 against older instances)
 - Console StatsAggregator merges raw counters, then derives shares + impact KPIs
-- Console Overview: lifetime + **poll-delta** impact; domain/endpoint detail impact blocks; sort by avoidance / time saved
+- Console Overview: process totals + **Recent** poll-delta; domain/endpoint detail impact blocks
 - Metrics panels: `factory_p95_ms`, `factory_run_rate`, `factory_share`, `factory_size_p95` (windowed)
 - **`Cache:Admin:TrackResultSize`** + Admin raw `factoryResultSize*`; OTel `cache_orchestrator.factory.result_size`
 - Console impact: **est. payload offload** / avg result size (feeds benefit/candidate cost)
+- Console global **Range** picker: Process totals vs Last 15m–7d / absolute from–to (Grafana-style); Metrics `from`/`to` query params
+- Console Metrics UI: multi-select domains, empty-window charts + no-samples badge, shared chart cards on Overview, enlarge-modal refresh
+- Console: current-value styling (green underline), Metrics store card on Instances, breadcrumbs only on detail pages
 
 ### Documentation
 

@@ -8,6 +8,7 @@
 import { api } from "./api.js";
 import { $, main, mainHasContent, paintMain } from "./dom.js";
 import {
+  currentValueHtml,
   esc,
   formatLatencyMs,
   formatUptime,
@@ -16,6 +17,7 @@ import {
   fmtUnit,
   impactBandLabel,
   METRIC_TITLES,
+  noDataHtml,
   num,
   pct,
   pipelineBar,
@@ -23,6 +25,15 @@ import {
   thMetric,
   tipAttr,
 } from "./format.js";
+import {
+  appendMetricsRangeParams,
+  getDisplayLabel,
+  getPromRange,
+  isProcessTotals,
+  isWindowedEffective,
+  setMetricsCapability,
+  timeRangeScopeNote,
+} from "./time-range.js";
 import {
   applyButtonHtml,
   bindMultiSelects,
@@ -65,7 +76,12 @@ import {
   layerDetailOc,
   noInstancesConfigured,
 } from "./tables.js";
-import { metricsOverviewSectionHtml, mountDetailMetrics, renderMetrics } from "./views-metrics.js";
+import {
+  formatMetricsProvider,
+  metricsOverviewSectionHtml,
+  mountDetailMetrics,
+  renderMetrics,
+} from "./views-metrics.js";
 
 /** First paint may show loading; soft refresh keeps previous content until data arrives. */
 function beginPageLoad(soft, loadingHtml) {
@@ -84,12 +100,12 @@ function paintPage(html, soft) {
 
 export async function renderOverview(params = new URLSearchParams(), opts = {}) {
   const soft = !!opts.soft;
-  setBreadcrumb([{ label: "Overview" }]);
+  setBreadcrumb([]);
 
   // Prefer last overview for instant paint (header may already have fetched it).
   const cached = shell.getLastOverview();
   if (cached && (!soft || !mainHasContent())) {
-    paintOverviewBody(cached, params, soft);
+    await paintOverviewBody(cached, params, soft);
   } else if (!soft && !mainHasContent()) {
     beginPageLoad(false, `<div class="card"><p class="muted">Loading overview…</p></div>`);
   }
@@ -110,10 +126,11 @@ export async function renderOverview(params = new URLSearchParams(), opts = {}) 
   shell.setLastOverview(o);
   shell.renderHeader(o);
   shell.updateNavHintsBadge(o.hintSummary);
-  paintOverviewBody(o, params, soft);
+  await paintOverviewBody(o, params, soft);
 }
 
-function paintOverviewBody(o, params, soft) {
+async function paintOverviewBody(o, params, soft) {
+  const windowSummary = await fetchWindowSummaryIfNeeded();
 
   const offline = allInstancesDown(o.instances);
   const noCfg = noInstancesConfigured(o.instances);
@@ -137,7 +154,9 @@ function paintOverviewBody(o, params, soft) {
     const bannerHost = $("#ovBannerHost");
     if (bannerHost) bannerHost.innerHTML = connectivityBanner(o.instances);
     const kpis = $("#ovKpis");
-    if (kpis) kpis.innerHTML = overviewKpiHtml(o);
+    if (kpis) kpis.innerHTML = overviewKpiHtml(o, windowSummary);
+    const scopeNote = $("#ovScopeNote");
+    if (scopeNote) scopeNote.innerHTML = timeRangeScopeNote();
     const pipe = $("#ovPipeline");
     if (pipe) pipe.innerHTML = pipelineBar(o.pipeline, true);
     const alerts = $("#ovAlerts");
@@ -186,7 +205,8 @@ function paintOverviewBody(o, params, soft) {
   paintPage(`
     <div id="ovRoot">
     <div id="ovBannerHost">${connectivityBanner(o.instances)}</div>
-    <div class="kpi-row" id="ovKpis">${overviewKpiHtml(o)}</div>
+    <p class="muted stats-scope-note" id="ovScopeNote">${timeRangeScopeNote()}</p>
+    <div class="kpi-row" id="ovKpis">${overviewKpiHtml(o, windowSummary)}</div>
     <div class="card">
       <h2>Cluster pipeline</h2>
       <div id="ovPipeline">${pipelineBar(o.pipeline, true)}</div>
@@ -282,34 +302,75 @@ function bindGotoHints(root) {
   });
 }
 
-function overviewKpiHtml(o) {
+/**
+ * @param {object} o overview DTO
+ * @param {object|null} [windowSummary] metrics summary when windowed
+ */
+function overviewKpiHtml(o, windowSummary = null) {
   const imp = o.impact || {};
   const recent = o.impactRecent;
-  const win = o.statsWindow ? esc(o.statsWindow) : "since process start";
+  const windowed = isWindowedEffective() && windowSummary && windowSummary.status === "Connected";
+  const noData = windowed && windowSummary.noData;
+  const scopeTip = windowed
+    ? `Windowed (${getDisplayLabel()}) from Metrics store`
+    : "Process totals (Admin counters since process start)";
+
+  const oc = windowed
+    ? (noData || windowSummary.ocHitShare == null
+      ? noDataHtml("No OC hit samples in this range")
+      : pct(windowSummary.ocHitShare))
+    : pct(o.ocHitShare);
+  const fc = windowed
+    ? (noData || windowSummary.fcHitRate == null
+      ? noDataHtml("No FC hit samples in this range")
+      : pct(windowSummary.fcHitRate))
+    : pct(o.pipeline?.fcHitShare);
+  const fac = windowed
+    ? (noData || windowSummary.factoryShare == null
+      ? noDataHtml("No factory-share samples in this range")
+      : pct(windowSummary.factoryShare))
+    : pct(factoryShareOf(o));
+
+  // Impact bands/time-saved still from Admin process totals until Prom impact lands.
   const recentWin = o.recentWindowLabel ? esc(o.recentWindowLabel) : "";
-  const recentBlock = recent
+  const recentBlock = !windowed && recent
     ? `
-      <div class="kpi" title="${esc(METRIC_TITLES.estTimeSaved)} (${recentWin})"><div class="label">Recent time saved</div><div class="value" style="font-size:1rem">${fmtDurationMs(recent.estFactoryTimeSavedMs)}</div></div>
-      <div class="kpi" title="${esc(METRIC_TITLES.cacheBenefit)} (${recentWin})"><div class="label">Recent benefit</div><div class="value" style="font-size:1rem">${impactBandLabel(recent.benefit, { html: true })}</div></div>`
-    : `<div class="kpi muted" title="Appears after a second Overview refresh while the Console is open"><div class="label">Recent window</div><div class="value" style="font-size:0.85rem">poll once more</div></div>`;
+      <div class="kpi" title="Poll-delta between Overview refreshes (${recentWin})"><div class="label">Recent time saved</div><div class="value" style="font-size:1rem">${fmtDurationMs(recent.estFactoryTimeSavedMs)}</div></div>
+      <div class="kpi" title="Poll-delta benefit (${recentWin})"><div class="label">Recent benefit</div><div class="value" style="font-size:1rem">${impactBandLabel(recent.benefit, { html: true })}</div></div>`
+    : "";
+
   return `
       <div class="kpi"><div class="label">Instances up</div><div class="value ${instancesUpClass(o)}">${o.healthyCount} / ${(o.instances || []).length}</div></div>
-      <div class="kpi" title="${esc(METRIC_TITLES.req)} (${win})"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
-      <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit %</div><div class="value">${pct(o.ocHitShare)}</div></div>
-      <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit %</div><div class="value">${pct(o.pipeline?.fcHitShare)}</div></div>
-      <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${pct(factoryShareOf(o))}</div></div>
-      <div class="kpi"${tipAttr("estTimeSaved")}><div class="label">Time saved</div><div class="value" style="font-size:1rem">${fmtDurationMs(imp.estFactoryTimeSavedMs)}</div></div>
-      <div class="kpi"${tipAttr("cacheBenefit")}><div class="label">Benefit</div><div class="value" style="font-size:1rem">${impactBandLabel(imp.benefit, { html: true })}</div></div>
-      <div class="kpi"${tipAttr("cacheCandidate")}><div class="label">Candidate</div><div class="value" style="font-size:1rem">${impactBandLabel(imp.candidate, { html: true })}</div></div>
+      <div class="kpi" title="${esc(scopeTip)}"><div class="label">${windowed ? "Req rate" : "Requests"}</div><div class="value">${windowed ? (windowSummary.requestRate != null ? esc(Number(windowSummary.requestRate).toFixed(2)) + "/s" : noDataHtml()) : num(o.totalRequests)}</div></div>
+      <div class="kpi"${tipAttr("ocHitShare")} title="${esc(scopeTip)}"><div class="label">OC hit %</div><div class="value">${oc}</div></div>
+      <div class="kpi"${tipAttr("fcHitShare")} title="${esc(scopeTip)}"><div class="label">FC hit %</div><div class="value">${fc}</div></div>
+      <div class="kpi"${tipAttr("factoryShare")} title="${esc(scopeTip)}"><div class="label">Factory %</div><div class="value">${fac}</div></div>
+      <div class="kpi"${tipAttr("estTimeSaved")}><div class="label">Time saved <span class="muted">totals</span></div><div class="value" style="font-size:1rem">${fmtDurationMs(imp.estFactoryTimeSavedMs)}</div></div>
+      <div class="kpi"${tipAttr("cacheBenefit")}><div class="label">Benefit <span class="muted">totals</span></div><div class="value" style="font-size:1rem">${impactBandLabel(imp.benefit, { html: true })}</div></div>
+      <div class="kpi"${tipAttr("cacheCandidate")}><div class="label">Candidate <span class="muted">totals</span></div><div class="value" style="font-size:1rem">${impactBandLabel(imp.candidate, { html: true })}</div></div>
       ${recentBlock}
       <div class="kpi kpi-hints" role="link" tabindex="0" data-goto-hints="1" title="Open Hints"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>`;
+}
+
+async function fetchWindowSummaryIfNeeded() {
+  if (!isWindowedEffective()) return null;
+  try {
+    const q = appendMetricsRangeParams(new URLSearchParams());
+    const summary = await api("/api/metrics/summary?" + q.toString());
+    if (summary?.status === "Connected") setMetricsCapability("connected");
+    else if (summary?.status === "Disconnected") setMetricsCapability("disconnected");
+    return summary;
+  } catch {
+    setMetricsCapability("disconnected");
+    return null;
+  }
 }
 
 // —— Endpoints ——
 
 export async function renderEndpointsList(params, opts = {}) {
   const soft = !!opts.soft;
-  setBreadcrumb([{ label: "Endpoints", href: "#/endpoints" }]);
+  setBreadcrumb([]);
   const search = params.get("search") || "";
   const sort = params.get("sort") || "requests";
   const take = params.get("take") || "50";
@@ -473,14 +534,18 @@ export async function renderEndpointDetail(routeName, opts = {}) {
 }
 
 function endpointDetailHeadHtml(ep) {
+  const domainBadge = ep.configuredDomain
+    ? currentValueHtml(`<a class="badge" href="#/domains?name=${encodeURIComponent(ep.configuredDomain)}">${esc(ep.configuredDomain)}</a>`)
+    : "";
   return `
     <div class="card">
       <h2><code>${esc(ep.route)}</code>
-        ${ep.configuredDomain ? `<a class="badge" href="#/domains?name=${encodeURIComponent(ep.configuredDomain)}">${esc(ep.configuredDomain)}</a>` : ""}
+        ${domainBadge}
         ${hintBadges(ep.hints)}
       </h2>
       ${recommendationsSectionHtml(ep.hints)}
       <div class="kpi-row">
+        <div class="kpi" title="Current value (not scoped to the selected time range)"><div class="label">Domain</div><div class="value" style="font-size:1rem">${ep.configuredDomain ? currentValueHtml(esc(ep.configuredDomain)) : "—"}</div></div>
         <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(ep.requests)}</div></div>
         <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit %</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowRequestSample, "request")}</div></div>
         <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit %</div><div class="value">${pct(ep.fc?.hitShare, ep.fc?.lowRequestSample, "request")}</div></div>
@@ -531,7 +596,7 @@ function endpointDetailHeadHtml(ep) {
 
 export async function renderDomainsList(params, opts = {}) {
   const soft = !!opts.soft;
-  setBreadcrumb([{ label: "Domains", href: "#/domains" }]);
+  setBreadcrumb([]);
   const search = params.get("search") || "";
   const sort = params.get("sort") || "requests";
   const selInstances = parseCsvParam(params, "instances");
@@ -649,6 +714,8 @@ export async function renderDomainDetail(name, opts = {}) {
 }
 
 function domainDetailHeadHtml(name, domain, cfg) {
+  const ver = domain.version || cfg?.version || "—";
+  const clientTtl = `${fmtUnit(cfg?.clientTtlSeconds, "s")} / ${fmtUnit(cfg?.clientTtlMinSeconds, "s")}`;
   return `
     <div class="card">
       <h2><code>${esc(name)}</code>
@@ -658,7 +725,7 @@ function domainDetailHeadHtml(name, domain, cfg) {
       </h2>
       ${recommendationsSectionHtml(domain.hints)}
       <div class="kpi-row">
-        <div class="kpi" title="${esc(domain.version || cfg?.version || "")}"><div class="label">Version</div><div class="value" style="font-size:1rem">${esc(domain.version || cfg?.version || "—")}</div></div>
+        <div class="kpi" title="Current value (not scoped to the selected time range)"><div class="label">Version</div><div class="value" style="font-size:1rem">${currentValueHtml(esc(ver))}</div></div>
         <div class="kpi" title="${esc(METRIC_TITLES.inv)}"><div class="label">Invalidations</div><div class="value">${num(domain.invalidations)}</div></div>
         <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(domain.requests)}</div></div>
         <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit %</div><div class="value">${pct(domain.oc?.hitShare, domain.oc?.lowRequestSample, "request")}</div></div>
@@ -675,15 +742,15 @@ function domainDetailHeadHtml(name, domain, cfg) {
       ${impactDetailHtml(domain.impact, "since process start")}
       ${cfg ? `
       <div class="detail-block">
-        <h3>Effective config</h3>
+        <h3>Effective config <span class="badge" title="Current values (not scoped to the selected time range)">current</span></h3>
         <div class="kv">
-          <span${tipAttr("oc")}>Output TTL</span><span>${fmtUnit(cfg.outputCacheTtlSeconds, "s")}</span>
-          <span${tipAttr("softTtl")}>Fusion soft</span><span>${fmtUnit(cfg.fusionCacheSoftTtlSeconds, "s")}</span>
-          <span${tipAttr("hardTtl")}>Fusion hard</span><span>${fmtUnit(cfg.fusionCacheHardTtlSeconds, "s")}</span>
-          <span${tipAttr("failSafe")}>Fail-safe</span><span>${fmtUnit(cfg.fusionCacheFailSafeSeconds, "s")}</span>
-          <span${tipAttr("clientTtl")}>Client TTL / min</span><span>${fmtUnit(cfg.clientTtlSeconds, "s")} / ${fmtUnit(cfg.clientTtlMinSeconds, "s")}</span>
-          <span${tipAttr("schedule")}>Schedule phase</span><span>${esc(cfg.schedulePhase || "—")}</span>
-          <span${tipAttr("fc")}>FC instance</span><span>${esc(cfg.fusionCacheInstanceName)}</span>
+          <span${tipAttr("oc")}>Output TTL</span>${currentValueHtml(fmtUnit(cfg.outputCacheTtlSeconds, "s"))}
+          <span${tipAttr("softTtl")}>Fusion soft</span>${currentValueHtml(fmtUnit(cfg.fusionCacheSoftTtlSeconds, "s"))}
+          <span${tipAttr("hardTtl")}>Fusion hard</span>${currentValueHtml(fmtUnit(cfg.fusionCacheHardTtlSeconds, "s"))}
+          <span${tipAttr("failSafe")}>Fail-safe</span>${currentValueHtml(fmtUnit(cfg.fusionCacheFailSafeSeconds, "s"))}
+          <span${tipAttr("clientTtl")}>Client TTL / min</span>${currentValueHtml(clientTtl)}
+          <span${tipAttr("schedule")}>Schedule phase</span>${currentValueHtml(esc(cfg.schedulePhase || "—"))}
+          <span${tipAttr("fc")}>FC instance</span>${currentValueHtml(esc(cfg.fusionCacheInstanceName || "—"))}
         </div>
       </div>` : ""}
     </div>
@@ -708,7 +775,7 @@ function domainDetailHeadHtml(name, domain, cfg) {
           ${domain.byInstance.map((bi) => `
             <tr class="clickable" data-id="${esc(bi.instanceId)}">
               <td><code>${esc(bi.instanceId)}</code></td>
-              <td>${esc(bi.version)}${bi.versionIsRuntimeOverride ? " *" : ""}</td>
+              <td>${currentValueHtml(esc(bi.version || "—"))}${bi.versionIsRuntimeOverride ? " *" : ""}</td>
               <td>${num(bi.requests)}</td>
               <td>${num(bi.invalidations)}</td>
               <td>${pct(bi.oc?.hitShare, bi.oc?.lowRequestSample, "request")}</td>
@@ -731,7 +798,7 @@ function domainDetailHeadHtml(name, domain, cfg) {
 
 export async function renderInstancesList(params = new URLSearchParams(), opts = {}) {
   const soft = !!opts.soft;
-  setBreadcrumb([{ label: "Instances", href: "#/instances" }]);
+  setBreadcrumb([]);
   const search = params.get("search") || "";
   const sort = params.get("sort") || "status";
 
@@ -749,6 +816,31 @@ export async function renderInstancesList(params = new URLSearchParams(), opts =
   shell.updateNavHintsBadge(overview.hintSummary);
   const list = sortInstances(filterInstancesBySearch(overview.instances || [], search), sort);
 
+  // Metrics store status lives here (not a banner on every Metrics page load).
+  let metricsCard = "";
+  try {
+    const ms = await api("/api/metrics/status");
+    if (ms.status !== "NotConfigured") {
+      const target = formatMetricsProvider(ms);
+      const st = ms.status === "Connected"
+        ? `<span class="badge ok">Connected</span>`
+        : `<span class="badge warn">Disconnected</span>`;
+      const lat = ms.latencyMs != null ? ` · probe ${Math.round(ms.latencyMs)} ms` : "";
+      const err = ms.error ? ` — ${esc(ms.error)}` : "";
+      metricsCard = `
+        <div class="card" id="instMetricsStoreCard">
+          <div class="card-head">
+            <h2 title="Optional Prometheus-compatible store for windowed Metrics charts">Metrics store</h2>
+            <a href="#/metrics">Open Metrics →</a>
+          </div>
+          <p style="margin:0">${st}
+            ${esc(target)}${lat}${err}
+          </p>
+          <p class="muted small" style="margin:0.5rem 0 0">Used for Range windows and Metrics charts. Configure <code>AdminConsole:Metrics</code>.</p>
+        </div>`;
+    }
+  } catch { /* optional */ }
+
   paintPage(`
     ${connectivityBanner(overview.instances || [])}
     <div class="card">
@@ -759,7 +851,8 @@ export async function renderInstancesList(params = new URLSearchParams(), opts =
         ${applyButtonHtml()}
       </form>
       ${instanceTableHtml(list)}
-    </div>`, soft);
+    </div>
+    ${metricsCard}`, soft);
 
   bindEntityTableClicks(main());
   bindEmptyStateActions(main());
@@ -815,20 +908,23 @@ export async function renderInstanceDetail(id, opts = {}) {
 }
 
 function instanceDetailHeadHtml(id, inst, stats, st, startedTitle) {
+  const startedDisp = startedTitle
+    ? startedTitle.replace("T", " ").replace(/\.\d+Z$/, "Z")
+    : "—";
   return `
     <div class="card">
-      <h2>Instance <code>${esc(id)}</code>
+      <h2>Instance <code class="current-value" title="Current value (not scoped to the selected time range)">${esc(id)}</code>
         <span class="status-${esc(st)}">${esc(st)}</span>
         ${severityStack(inst?.hintSummary)}
       </h2>
-      <p class="muted"><code>${esc(inst?.url || "")}</code>
-        · reported <code>${esc(inst?.reportedInstanceId || "—")}</code>
+      <p class="muted">${currentValueHtml(`<code>${esc(inst?.url || "—")}</code>`)}
+        · reported ${currentValueHtml(`<code>${esc(inst?.reportedInstanceId || "—")}</code>`)}
         · latency ${formatLatencyMs(inst?.latencyMs)}
         ${inst?.error ? ` · <span class="status-Down">${esc(inst.error)}</span>` : ""}
       </p>
       <div class="kpi-row">
-        <div class="kpi" title="${esc(startedTitle)}"><div class="label">Uptime</div><div class="value" style="font-size:1.05rem">${esc(formatUptime(inst?.uptimeSeconds))}</div></div>
-        <div class="kpi"><div class="label">Started (UTC)</div><div class="value" style="font-size:0.85rem">${esc(startedTitle ? startedTitle.replace("T", " ").replace(/\.\d+Z$/, "Z") : "—")}</div></div>
+        <div class="kpi" title="${esc(startedTitle)}"><div class="label">Uptime</div><div class="value" style="font-size:1.05rem">${currentValueHtml(esc(formatUptime(inst?.uptimeSeconds)))}</div></div>
+        <div class="kpi" title="Current value (not scoped to the selected time range)"><div class="label">Started (UTC)</div><div class="value" style="font-size:0.85rem">${currentValueHtml(esc(startedDisp))}</div></div>
         <div class="kpi"><div class="label">Req</div><div class="value">${num(inst?.requests ?? (stats.domains || []).reduce((s, d) => s + (d.requests || 0), 0))}</div></div>
         <div class="kpi"><div class="label">Domains</div><div class="value">${(stats.domains || []).length}</div></div>
         <div class="kpi"><div class="label">Endpoints</div><div class="value">${(stats.endpoints || []).length}</div></div>
@@ -848,7 +944,7 @@ function instanceDetailHeadHtml(id, inst, stats, st, startedTitle) {
 
 export async function renderHintsPage(params, opts = {}) {
   const soft = !!opts.soft;
-  setBreadcrumb([{ label: "Hints" }]);
+  setBreadcrumb([]);
   const selInstances = parseCsvParam(params, "instances");
   const selDomains = parseCsvParam(params, "domains");
   const selEndpoints = parseCsvParam(params, "endpoints");
@@ -965,7 +1061,7 @@ export async function renderHintsPage(params, opts = {}) {
 // —— Operations ——
 
 export async function renderOperations(params) {
-  setBreadcrumb([{ label: "Operations" }]);
+  setBreadcrumb([]);
   const domain = params.get("domain") || "hello";
   const target = params.get("target") || "all";
   const action = params.get("action") || "invalidate";
@@ -1181,7 +1277,7 @@ function shortError(msg) {
 
 export async function renderSettingsPage() {
   setNavActive("settings");
-  setBreadcrumb([{ label: "Settings" }]);
+  setBreadcrumb([]);
   beginPageLoad(false, `<div class="card"><p class="muted">Loading settings…</p></div>`);
 
   let payload;

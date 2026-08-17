@@ -15,6 +15,30 @@ export function esc(s) {
 }
 
 /**
+ * Mark config/identity as not time-scoped (white text + green dashed underline, like low-sample).
+ * Empty / em dash values are plain (no underline).
+ * @param {string} htmlInner Already-escaped or safe HTML fragment for the value
+ * @param {string} [tip]
+ */
+export function currentValueHtml(htmlInner, tip) {
+  const plain = String(htmlInner ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&mdash;|&#8212;|—|–|-/g, "—")
+    .trim();
+  if (!plain || plain === "—" || plain === "n/a" || plain === "N/A") {
+    return htmlInner || "—";
+  }
+  const t = tip || "Current value (not scoped to the selected time range)";
+  return `<span class="current-value" title="${esc(t)}">${htmlInner}</span>`;
+}
+
+/** Em dash for missing window samples — plain text, no underline. */
+export function noDataHtml(tip) {
+  const t = tip || "No samples in the selected time range";
+  return `<span class="no-data-value" title="${esc(t)}">—</span>`;
+}
+
+/**
  * Format a 0–1 ratio as a percentage string.
  * @param {number|null|undefined} rate
  * @param {boolean} [lowSample] when true, dashed underline + tooltip

@@ -17,16 +17,26 @@ const SERIES_COLORS = [
 ];
 
 /**
+ * True when series has at least one sample point.
+ * @param {Array<{ points?: Array }>|null|undefined} series
+ */
+export function seriesHasSamples(series) {
+  return (series || []).some((s) => (s.points || []).length > 0);
+}
+
+/**
  * Render a multi-series line chart as SVG HTML.
+ * When the selected time window is known (tMin/tMax) but there are no points,
+ * draws empty axes for that window (zero baseline) instead of a "No samples" box.
  * @param {Array<{ name: string, points: Array<{ t: number, v: number }> }>} series
- * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean }} [opts]
+ * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean, tMin?: number, tMax?: number, range?: string }} [opts]
  */
 export function lineChartHtml(series, opts = {}) {
   const height = opts.height || 200;
   const width = opts.width || 640;
   const built = buildChartModel(series, opts, width, height);
   if (!built) {
-    return `<div class="chart-empty muted">No samples</div>`;
+    return `<div class="chart-empty muted">No time window</div>`;
   }
   return chartMarkup(built, opts);
 }
@@ -36,7 +46,7 @@ export function lineChartHtml(series, opts = {}) {
  * and structure is unchanged (same series count/names). Returns true if updated in place.
  * @param {HTMLElement} host element that currently contains `.chart-wrap` or empty
  * @param {Array} series
- * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean }} [opts]
+ * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean, tMin?: number, tMax?: number, range?: string }} [opts]
  */
 export function updateChartInPlace(host, series, opts = {}) {
   if (!host) return false;
@@ -46,9 +56,10 @@ export function updateChartInPlace(host, series, opts = {}) {
   const fp = chartFingerprint(series, opts);
 
   if (!built) {
-    if (host.dataset.chartFp === "empty") return true;
-    host.dataset.chartFp = "empty";
-    host.innerHTML = `<div class="chart-empty muted">No samples</div>`;
+    if (host.dataset.chartFp === "nowindow" && host.dataset.chartRange === (opts.range || "")) return true;
+    host.dataset.chartFp = "nowindow";
+    host.dataset.chartRange = opts.range || "";
+    host.innerHTML = `<div class="chart-empty muted">No time window</div>`;
     return true;
   }
 
@@ -58,13 +69,20 @@ export function updateChartInPlace(host, series, opts = {}) {
     return true;
   }
 
+  // Range / empty↔data / window change always remounts so axes match the selected time window.
+  const rangeChanged = (host.dataset.chartRange || "") !== (opts.range || "")
+    || host.dataset.chartTMin !== String(opts.tMin ?? "")
+    || host.dataset.chartTMax !== String(opts.tMax ?? "")
+    || host.dataset.chartEmpty !== (built.empty ? "1" : "0");
+
   const prevNames = host.dataset.chartSeries || "";
   const nextNames = built.seriesNames.join("\0");
   const svg = wrap?.querySelector("svg.chart-svg");
-  const sameLayout = wrap && svg
+  const sameLayout = !rangeChanged && wrap && svg
     && prevNames === nextNames
     && host.dataset.chartUnit === (opts.unit || "")
-    && Number(host.dataset.chartYTicks || 3) === built.yTickCount;
+    && Number(host.dataset.chartYTicks || 3) === built.yTickCount
+    && Number(host.dataset.chartXTicks || 0) === built.xTickCount;
 
   if (sameLayout) {
     // Same series layout: only mutate path `d` and axis labels (no SVG remount).
@@ -72,15 +90,15 @@ export function updateChartInPlace(host, series, opts = {}) {
     built.paths.forEach((d, i) => {
       if (paths[i]) paths[i].setAttribute("d", d);
     });
-    const axisTexts = svg.querySelectorAll("text.chart-axis");
+    const axisY = svg.querySelectorAll("text.chart-axis-y");
     built.axisLabels.forEach((label, i) => {
-      if (axisTexts[i]) axisTexts[i].textContent = label;
+      if (axisY[i]) axisY[i].textContent = label;
     });
-    const gridLines = svg.querySelectorAll("line.chart-grid");
+    const hGrid = svg.querySelectorAll("line.chart-grid-h");
     built.gridYs.forEach((y, i) => {
-      if (gridLines[i]) {
-        gridLines[i].setAttribute("y1", String(y));
-        gridLines[i].setAttribute("y2", String(y));
+      if (hGrid[i]) {
+        hGrid[i].setAttribute("y1", String(y));
+        hGrid[i].setAttribute("y2", String(y));
       }
     });
     storeInteractionData(wrap, built, series, opts);
@@ -92,6 +110,11 @@ export function updateChartInPlace(host, series, opts = {}) {
   host.dataset.chartSeries = nextNames;
   host.dataset.chartUnit = opts.unit || "";
   host.dataset.chartYTicks = String(built.yTickCount);
+  host.dataset.chartXTicks = String(built.xTickCount);
+  host.dataset.chartRange = opts.range || "";
+  host.dataset.chartTMin = String(opts.tMin ?? "");
+  host.dataset.chartTMax = String(opts.tMax ?? "");
+  host.dataset.chartEmpty = built.empty ? "1" : "0";
   host.innerHTML = chartMarkup(built, opts);
   const newWrap = host.querySelector(":scope > .chart-wrap");
   if (newWrap) storeInteractionData(newWrap, built, series, opts);
@@ -99,11 +122,15 @@ export function updateChartInPlace(host, series, opts = {}) {
   return true;
 }
 
+/** @type {{ panelId: string, getPanelMap: () => Map<string, any> }|null} */
+let openModalCtx = null;
+
 /**
  * Modal enlarge for a chart card.
- * @param {{ title: string, series: Array, unit?: string }} opts
+ * @param {{ title: string, series: Array, unit?: string, range?: string, tMin?: number, tMax?: number, panelId?: string, description?: string }} opts
+ * @param {{ getPanelMap?: () => Map<string, any> }} [ctx]
  */
-export function openChartModal(opts) {
+export function openChartModal(opts, ctx = {}) {
   closeChartModal();
   const backdrop = document.createElement("div");
   backdrop.className = "chart-modal-backdrop";
@@ -116,6 +143,9 @@ export function openChartModal(opts) {
     height: 420,
     yTicks: 8,
     interactive: true,
+    range: opts.range,
+    tMin: opts.tMin,
+    tMax: opts.tMax,
   };
   const desc = opts.description && String(opts.description).trim();
   backdrop.innerHTML = `
@@ -123,22 +153,25 @@ export function openChartModal(opts) {
       <div class="chart-modal-head">
         <h2${desc ? ` title="${esc(desc)}"` : ""}>${esc(opts.title || "Chart")}</h2>
         <div class="chart-modal-actions">
+          <button type="button" class="secondary chart-modal-icon-btn" id="chartModalRefresh" aria-label="Refresh" title="Refresh all (same as menu ↻)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          </button>
           <button type="button" class="secondary chart-modal-icon-btn chart-modal-close" aria-label="Close" title="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
           </button>
         </div>
       </div>
       <div class="chart-modal-body">
-        ${lineChartHtml(series, chartOpts)}
-        <p class="muted small chart-hover-hint">Hover the chart to snap values at a point in time.</p>
+        <div data-chart-host data-modal-chart="1">${lineChartHtml(series, chartOpts)}</div>
+        <p class="muted small chart-hover-hint">Hover the chart to snap values at a point in time. Refresh reloads all page data (same as menu ↻).</p>
       </div>
     </div>`;
   document.body.appendChild(backdrop);
   document.body.classList.add("chart-modal-open");
 
-  const wrap = backdrop.querySelector(".chart-wrap");
+  const host = backdrop.querySelector("[data-modal-chart]");
+  const wrap = host?.querySelector(".chart-wrap");
   if (wrap) {
-    // Rebuild model once so interaction metadata is attached (markup alone has no JS state).
     const built = buildChartModel(series, chartOpts, chartOpts.width, chartOpts.height);
     if (built) {
       storeInteractionData(wrap, built, series, chartOpts);
@@ -146,8 +179,20 @@ export function openChartModal(opts) {
     }
   }
 
+  openModalCtx = {
+    panelId: opts.panelId || opts.id || "",
+    getPanelMap: ctx.getPanelMap || (() => new Map()),
+  };
+
   const close = () => closeChartModal();
   backdrop.querySelector(".chart-modal-close")?.addEventListener("click", close);
+  backdrop.querySelector("#chartModalRefresh")?.addEventListener("click", async () => {
+    // Force full soft refresh (same as menu refresh) then repaint modal from latest panel map.
+    if (typeof window.__adminRefresh === "function") {
+      await window.__adminRefresh();
+    }
+    refreshOpenChartModal();
+  });
   backdrop.addEventListener("click", (ev) => {
     if (ev.target === backdrop) close();
   });
@@ -159,12 +204,47 @@ export function openChartModal(opts) {
   document.addEventListener("keydown", onKey);
 }
 
+/** Soft-update the open enlarge modal from the latest panel map (auto-refresh / after ↻). */
+export function refreshOpenChartModal() {
+  if (!openModalCtx?.panelId) return;
+  const backdrop = document.getElementById("chartModalBackdrop");
+  if (!backdrop) return;
+  const map = openModalCtx.getPanelMap?.() || new Map();
+  const data = map.get(openModalCtx.panelId);
+  if (!data) return;
+  const host = backdrop.querySelector("[data-modal-chart]");
+  if (!host) return;
+  const chartOpts = {
+    unit: data.unit,
+    width: 960,
+    height: 420,
+    yTicks: 8,
+    interactive: true,
+    range: data.range,
+    tMin: data.tMin,
+    tMax: data.tMax,
+  };
+  // Remount interactive chart (hover bindings need a fresh wrap).
+  host.innerHTML = lineChartHtml(data.series || [], chartOpts);
+  const wrap = host.querySelector(".chart-wrap");
+  if (wrap) {
+    const built = buildChartModel(data.series || [], chartOpts, chartOpts.width, chartOpts.height);
+    if (built) {
+      storeInteractionData(wrap, built, data.series || [], chartOpts);
+      bindChartHover(wrap);
+    }
+  }
+  const title = backdrop.querySelector(".chart-modal-head h2");
+  if (title && data.title) title.textContent = data.title;
+}
+
 export function closeChartModal() {
   const el = document.getElementById("chartModalBackdrop");
   if (!el) return;
   if (el._onKey) document.removeEventListener("keydown", el._onKey);
   el.remove();
   document.body.classList.remove("chart-modal-open");
+  openModalCtx = null;
 }
 
 /**
@@ -183,7 +263,7 @@ export function bindChartExpand(root, getPanelMap) {
     const map = getPanelMap?.() || new Map();
     const data = map.get(panelId);
     if (!data) return;
-    openChartModal(data);
+    openChartModal({ ...data, panelId }, { getPanelMap });
   });
 }
 
@@ -191,35 +271,56 @@ function buildChartModel(series, opts, width, height) {
   const interactive = !!opts.interactive;
   const yTickCount = Math.max(2, Math.min(12, opts.yTicks || (interactive ? 8 : 3)));
   const padL = interactive ? 56 : 48;
-  const padR = interactive ? 16 : 12;
+  const padR = interactive ? 20 : 16;
   const padT = 14;
-  const padB = interactive ? 28 : 24;
+  // Extra bottom room for X-axis time labels (selected range window).
+  const padB = interactive ? 38 : 32;
   const plotW = width - padL - padR;
   const plotH = height - padT - padB;
 
   const allPoints = (series || []).flatMap((s) => s.points || []);
-  if (!allPoints.length) return null;
+  const hasWindow = opts.tMin != null && opts.tMax != null
+    && Number.isFinite(Number(opts.tMin)) && Number.isFinite(Number(opts.tMax))
+    && Number(opts.tMax) > Number(opts.tMin);
+  // Prefer drawing axes for the selected window even when there are zero samples
+  // (e.g. no invalidations in the range — empty chart, not a "missing data" box).
+  if (!allPoints.length && !hasWindow) return null;
 
-  let tMin = Infinity;
-  let tMax = -Infinity;
+  let dataTMin = Infinity;
+  let dataTMax = -Infinity;
   let vMin = Infinity;
   let vMax = -Infinity;
   for (const p of allPoints) {
-    if (p.t < tMin) tMin = p.t;
-    if (p.t > tMax) tMax = p.t;
+    if (p.t < dataTMin) dataTMin = p.t;
+    if (p.t > dataTMax) dataTMax = p.t;
     if (p.v < vMin) vMin = p.v;
     if (p.v > vMax) vMax = p.v;
   }
+
+  const empty = allPoints.length === 0;
+
+  // Prefer explicit window (selected range) so X-axis shows the full time window.
+  let tMin = hasWindow ? Number(opts.tMin) : dataTMin;
+  let tMax = hasWindow ? Number(opts.tMax) : dataTMax;
+  // Expand if samples fall slightly outside (clock skew / scrape lag).
+  if (!empty && Number.isFinite(dataTMin) && dataTMin < tMin) tMin = dataTMin;
+  if (!empty && Number.isFinite(dataTMax) && dataTMax > tMax) tMax = dataTMax;
   if (tMax <= tMin) tMax = tMin + 1;
-  if (vMax <= vMin) {
-    vMin = vMin > 0 ? vMin * 0.9 : vMin - 1;
-    vMax = vMax < 0 ? vMax * 0.9 : vMax + 1;
-  }
-  if (opts.unit === "percent") {
-    vMin = Math.min(vMin, 0);
-    vMax = Math.max(vMax, Math.min(1, vMax * 1.05 + 0.01));
-  } else if (vMin > 0) {
+
+  if (empty) {
     vMin = 0;
+    vMax = opts.unit === "percent" ? 1 : 1;
+  } else {
+    if (vMax <= vMin) {
+      vMin = vMin > 0 ? vMin * 0.9 : vMin - 1;
+      vMax = vMax < 0 ? vMax * 0.9 : vMax + 1;
+    }
+    if (opts.unit === "percent") {
+      vMin = Math.min(vMin, 0);
+      vMax = Math.max(vMax, Math.min(1, vMax * 1.05 + 0.01));
+    } else if (vMin > 0) {
+      vMin = 0;
+    }
   }
 
   const xOf = (t) => padL + ((t - tMin) / (tMax - tMin)) * plotW;
@@ -232,36 +333,61 @@ function buildChartModel(series, opts, width, height) {
     fractions.push(i / (yTickCount - 1));
   }
 
-  const gridSvg = fractions.map((f) => {
+  const hGridSvg = fractions.map((f) => {
     const v = vMin + (vMax - vMin) * f;
     const y = yOf(v);
     gridYs.push(y);
     const label = formatAxis(v, opts.unit);
     axisLabels.push(label);
-    return `<line class="chart-grid" x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" />
-      <text class="chart-axis" x="${padL - 6}" y="${y + 3}" text-anchor="end">${esc(label)}</text>`;
+    return `<line class="chart-grid chart-grid-h" x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" />
+      <text class="chart-axis chart-axis-y" x="${padL - 6}" y="${y + 3}" text-anchor="end">${esc(label)}</text>`;
+  }).join("");
+
+  // X-axis ticks + vertical helpers across the selected time window.
+  const span = tMax - tMin;
+  const xTickCount = pickXTickCount(span, interactive);
+  const xFracs = [];
+  for (let i = 0; i < xTickCount; i++) {
+    xFracs.push(i / (xTickCount - 1));
+  }
+
+  const vGridSvg = xFracs.map((f) => {
+    const t = tMin + span * f;
+    const x = xOf(t);
+    return `<line class="chart-grid chart-grid-v" x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${padT + plotH}" />`;
+  }).join("");
+
+  const xAxisSvg = xFracs.map((f, i) => {
+    const t = tMin + span * f;
+    const x = xOf(t);
+    const anchor = i === 0 ? "start" : i === xFracs.length - 1 ? "end" : "middle";
+    return `<text class="chart-axis chart-axis-x" x="${x.toFixed(1)}" y="${height - 8}" text-anchor="${anchor}">${esc(formatAxisTime(t, span))}</text>`;
   }).join("");
 
   const paths = [];
-  const pathSvg = (series || []).map((s, i) => {
-    const pts = s.points || [];
-    if (pts.length < 1) {
-      paths.push("");
-      return "";
-    }
-    const d = pts
-      .map((p, idx) => `${idx === 0 ? "M" : "L"}${xOf(p.t).toFixed(1)},${yOf(p.v).toFixed(1)}`)
-      .join(" ");
-    paths.push(d);
-    const color = SERIES_COLORS[i % SERIES_COLORS.length];
-    const sw = interactive ? 2.1 : 1.75;
-    return `<path class="chart-line" d="${d}" fill="none" stroke="${color}" stroke-width="${sw}" />`;
-  }).join("");
+  const pathSvg = empty
+    ? ""
+    : (series || []).map((s, i) => {
+      const pts = s.points || [];
+      if (pts.length < 1) {
+        paths.push("");
+        return "";
+      }
+      const d = pts
+        .map((p, idx) => `${idx === 0 ? "M" : "L"}${xOf(p.t).toFixed(1)},${yOf(p.v).toFixed(1)}`)
+        .join(" ");
+      paths.push(d);
+      const color = SERIES_COLORS[i % SERIES_COLORS.length];
+      const sw = interactive ? 2.1 : 1.75;
+      return `<path class="chart-line" d="${d}" fill="none" stroke="${color}" stroke-width="${sw}" />`;
+    }).join("");
 
-  const legend = (series || []).map((s, i) => {
-    const color = SERIES_COLORS[i % SERIES_COLORS.length];
-    return `<span class="chart-legend-item"><span class="chart-swatch" style="background:${color}"></span>${esc(s.name)}</span>`;
-  }).join("");
+  const legend = empty
+    ? ""
+    : (series || []).map((s, i) => {
+      const color = SERIES_COLORS[i % SERIES_COLORS.length];
+      return `<span class="chart-legend-item"><span class="chart-swatch" style="background:${color}"></span>${esc(s.name)}</span>`;
+    }).join("");
 
   return {
     width,
@@ -276,16 +402,35 @@ function buildChartModel(series, opts, width, height) {
     tMax,
     vMin,
     vMax,
-    gridSvg,
+    gridSvg: hGridSvg + vGridSvg,
+    xAxisSvg,
     pathSvg,
     legend,
     paths,
     gridYs,
     axisLabels,
     yTickCount,
-    seriesNames: (series || []).map((s) => s.name || ""),
+    xTickCount,
+    seriesNames: empty ? [] : (series || []).map((s) => s.name || ""),
     interactive,
+    empty,
   };
+}
+
+function pickXTickCount(spanSec, interactive) {
+  // More ticks in modal; keep card charts readable.
+  if (interactive) {
+    if (spanSec <= 900) return 5;
+    if (spanSec <= 3600) return 6;
+    if (spanSec <= 6 * 3600) return 6;
+    if (spanSec <= 24 * 3600) return 6;
+    return 7;
+  }
+  if (spanSec <= 900) return 4;
+  if (spanSec <= 3600) return 5;
+  if (spanSec <= 6 * 3600) return 5;
+  if (spanSec <= 24 * 3600) return 5;
+  return 5;
 }
 
 function chartMarkup(built, opts) {
@@ -301,15 +446,20 @@ function chartMarkup(built, opts) {
   const tip = interactive
     ? `<div class="chart-tooltip" hidden></div>`
     : "";
+  const legend = built.legend
+    ? `<div class="chart-legend">${built.legend}</div>`
+    : "";
+  const emptyCls = built.empty ? " chart-wrap-empty" : "";
   return `
-    <div class="chart-wrap${interactive ? " chart-wrap-interactive" : ""}">
+    <div class="chart-wrap${interactive ? " chart-wrap-interactive" : ""}${emptyCls}">
       <svg class="chart-svg" viewBox="0 0 ${built.width} ${built.height}" role="img" aria-label="Time series chart" preserveAspectRatio="xMidYMid meet">
         ${built.gridSvg}
+        ${built.xAxisSvg || ""}
         ${built.pathSvg}
         ${overlay}
       </svg>
       ${tip}
-      <div class="chart-legend">${built.legend}</div>
+      ${legend}
     </div>`;
 }
 
@@ -523,7 +673,14 @@ function nearestVertexAcrossSeries(series, built, mx, my, maxPx) {
 }
 
 function chartFingerprint(series, opts) {
-  const parts = [opts.unit || "", String(opts.yTicks || ""), opts.interactive ? "1" : "0"];
+  const parts = [
+    opts.unit || "",
+    String(opts.yTicks || ""),
+    opts.interactive ? "1" : "0",
+    opts.range || "",
+    String(opts.tMin ?? ""),
+    String(opts.tMax ?? ""),
+  ];
   for (const s of series || []) {
     parts.push(s.name || "");
     for (const p of s.points || []) {
@@ -531,6 +688,21 @@ function chartFingerprint(series, opts) {
     }
   }
   return parts.join("|");
+}
+
+/** Compact X-axis label; longer windows include day. */
+function formatAxisTime(t, spanSec) {
+  if (t == null || Number.isNaN(t)) return "";
+  const ms = t > 1e12 ? t : t * 1000;
+  try {
+    const d = new Date(ms);
+    if (spanSec >= 86400) {
+      return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return String(t);
+  }
 }
 
 /**

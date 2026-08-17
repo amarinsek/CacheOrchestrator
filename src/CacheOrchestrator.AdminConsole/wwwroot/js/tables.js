@@ -10,6 +10,7 @@
 
 import { instanceStatus } from "./api.js";
 import {
+  currentValueHtml,
   esc,
   formatLatencyMs,
   formatUptime,
@@ -29,7 +30,7 @@ import { navigate } from "./router.js";
 
 export function endpointRowHtml(e) {
   const domainCell = e.configuredDomain
-    ? `<a href="#/domains?name=${encodeURIComponent(e.configuredDomain)}">${esc(e.configuredDomain)}</a>`
+    ? currentValueHtml(`<a href="#/domains?name=${encodeURIComponent(e.configuredDomain)}">${esc(e.configuredDomain)}</a>`)
     : "—";
   return `<tr class="clickable entity-row" data-entity="endpoint" data-route="${esc(e.route)}">
     <td class="col-name"><code>${esc(e.route)}</code></td>
@@ -76,7 +77,7 @@ export function endpointTableHtml(list, emptyCtx = {}) {
 export function domainRowHtml(d) {
   return `<tr class="clickable entity-row" data-entity="domain" data-name="${esc(d.name)}">
     <td class="col-name"><code>${esc(d.name)}</code>${d.versionIsRuntimeOverride ? ' <span class="badge">rt</span>' : ""}</td>
-    <td class="col-metric"><span class="cell-ellipsis" title="${esc(d.version)}">${esc(d.version)}</span></td>
+    <td class="col-metric">${currentValueHtml(`<span class="cell-ellipsis">${esc(d.version || "—")}</span>`)}</td>
     <td class="col-num">${num(d.requests)}</td>
     <td class="col-num" title="${esc(METRIC_TITLES.inv)}">${num(d.invalidations)}</td>
     <td class="col-pipe">${pipelineBar(d.pipeline)}</td>
