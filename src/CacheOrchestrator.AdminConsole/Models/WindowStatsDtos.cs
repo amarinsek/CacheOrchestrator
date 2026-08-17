@@ -60,4 +60,7 @@ public sealed class WindowStatsDto
     /// True when Prometheus returned no counter samples for core OC series in the window.
     /// </summary>
     public bool NoData { get; init; }
+
+    /// <summary>Hint summary over window domain/endpoint rows (same engine as process totals).</summary>
+    public AdminHintSummaryDto HintSummary { get; init; } = new();
 }

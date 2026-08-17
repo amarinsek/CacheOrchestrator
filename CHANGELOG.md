@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Console Metrics UI: multi-select domains, empty-window charts + no-samples badge, shared chart cards on Overview, enlarge-modal refresh
 - Console: current-value styling (green underline), Metrics store card on Instances, breadcrumbs only on detail pages
 - Console **`GET /api/stats/window`** — domain/endpoint traffic + impact from Prometheus for the selected Range; Overview/Domains/Endpoints use it when windowed
+- Window stats attach **HintEngine** results (same rule pack as process totals) + optional **by-instance** rows (`instance_id`, missing → `undefined`)
 
 ### Documentation
 

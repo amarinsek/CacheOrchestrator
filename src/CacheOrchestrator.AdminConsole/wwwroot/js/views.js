@@ -361,7 +361,7 @@ function overviewKpiHtml(o, windowStats = null) {
       <div class="kpi"${tipAttr("cacheBenefit")}><div class="label">Benefit${winLabel}</div><div class="value" style="font-size:1rem">${impactBandLabel(imp.benefit, { html: true })}</div></div>
       <div class="kpi"${tipAttr("cacheCandidate")}><div class="label">Candidate${winLabel}</div><div class="value" style="font-size:1rem">${impactBandLabel(imp.candidate, { html: true })}</div></div>
       ${recentBlock}
-      <div class="kpi kpi-hints" role="link" tabindex="0" data-goto-hints="1" title="Open Hints"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>`;
+      <div class="kpi kpi-hints" role="link" tabindex="0" data-goto-hints="1" title="Open Hints"><div class="label">Cluster hints${windowed ? " <span class=\"muted\">window</span>" : ""}</div><div class="value">${severityStack(windowed ? (windowStats.hintSummary || o.hintSummary) : o.hintSummary)}</div></div>`;
 }
 
 /** Prometheus window stats (domains/endpoints/impact) when Range is windowed. */
@@ -1026,19 +1026,26 @@ export async function renderHintsPage(params, opts = {}) {
 
   beginPageLoad(soft, `<div class="card"><p class="muted">Loading hints…</p></div>`);
 
-  const [instanceList, stats] = await Promise.all([
+  const windowed = isWindowedEffective();
+  const [instanceList, stats, windowStats] = await Promise.all([
     api("/api/instances"),
-    api("/api/stats?scope=all&groupByInstance=true"),
+    windowed ? Promise.resolve({ domains: [], endpoints: [] }) : api("/api/stats?scope=all&groupByInstance=true"),
+    windowed ? fetchWindowStatsIfNeeded() : Promise.resolve(null),
   ]);
 
-  const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
-  const domainOpts = (stats.domains || []).map((d) => ({ id: d.name, label: d.name }));
-  const endpointOpts = (stats.endpoints || []).map((e) => ({ id: e.route, label: e.route }));
+  // Windowed: hints evaluated server-side on Prometheus window rows; process totals: Admin stats.
+  const statsForHints = windowed && windowStats?.status === "Connected"
+    ? { domains: windowStats.domains || [], endpoints: windowStats.endpoints || [] }
+    : stats;
 
-  let rows = collectHintRows(stats);
+  const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
+  const domainOpts = (statsForHints.domains || []).map((d) => ({ id: d.name, label: d.name }));
+  const endpointOpts = (statsForHints.endpoints || []).map((e) => ({ id: e.route, label: e.route }));
+
+  let rows = collectHintRows(statsForHints);
   const totalSummary = summarizeHints(rows);
-  // Nav badge always reflects unfiltered cluster totals.
-  shell.updateNavHintsBadge(totalSummary);
+  // Nav badge: window summary when windowed, else process-total overview later refresh.
+  shell.updateNavHintsBadge(windowed && windowStats?.hintSummary ? windowStats.hintSummary : totalSummary);
 
   const filtersActive = selInstances !== null || selDomains !== null || selEndpoints !== null || !!severity;
 
@@ -1065,15 +1072,18 @@ export async function renderHintsPage(params, opts = {}) {
   rows.sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9) || a.code.localeCompare(b.code));
 
   paintPage(`
+    <p class="muted stats-scope-note">${timeRangeScopeNote()}</p>
     <div class="card">
       <h2>Hints ${severityStack(filtersActive ? shownSummary : totalSummary)}
         ${filtersActive ? `<span class="badge muted" title="Visible / all">${shownSummary.total}/${totalSummary.total}</span>` : ""}
       </h2>
-      <p class="muted">Rule-based recommendations from live stats. Filters combine (AND). Empty hint mark is <strong>○</strong>.
+      <p class="muted">Rule-based recommendations from ${windowed ? "Prometheus <strong>window</strong> stats" : "Admin <strong>process totals</strong>"}.
+        Filters combine (AND). Empty hint mark is <strong>○</strong>.
         ${filtersActive ? " Severity KPIs show <strong>visible/total</strong> for the current filter." : ""}
+        ${windowed ? " Rules that need config-only or factory-failure samples may not fire until those paths exist in the window model." : ""}
       </p>
       <form class="toolbar" id="hintFilters">
-        ${multiSelectHtml("hInst", "Instances", instanceOpts, selInstances)}
+        ${windowed ? "" : multiSelectHtml("hInst", "Instances", instanceOpts, selInstances)}
         ${multiSelectHtml("hDom", "Domains", domainOpts, selDomains)}
         ${multiSelectHtml("hEp", "Endpoints", endpointOpts, selEndpoints)}
         <label>Severity

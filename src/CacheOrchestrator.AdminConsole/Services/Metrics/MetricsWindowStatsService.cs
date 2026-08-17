@@ -1,5 +1,6 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Models;
+using CacheOrchestrator.AdminConsole.Services.Hints;
 
 namespace CacheOrchestrator.AdminConsole.Services.Metrics;
 
@@ -11,18 +12,26 @@ public sealed class MetricsWindowStatsService
 {
     private readonly IMetricsQueryClient _client;
     private readonly MetricsQueryService _status;
+    private readonly HintEngine _hints;
+    private readonly AdminFanOutService _fanOut;
     private readonly TimeProvider _time;
 
     public MetricsWindowStatsService(
         IMetricsQueryClient client,
         MetricsQueryService status,
+        HintEngine hints,
+        AdminFanOutService fanOut,
         TimeProvider time)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(status);
+        ArgumentNullException.ThrowIfNull(hints);
+        ArgumentNullException.ThrowIfNull(fanOut);
         ArgumentNullException.ThrowIfNull(time);
         _client = client;
         _status = status;
+        _hints = hints;
+        _fanOut = fanOut;
         _time = time;
     }
 
@@ -53,38 +62,50 @@ public sealed class MetricsWindowStatsService
             string rw = window.PromRangeDuration;
             IReadOnlyList<string> domainFilter = ParseCsv(domainsCsv);
 
-            // Parallel instant queries evaluated at window end.
             Task<IReadOnlyList<PrometheusInstantSample>> ocTask = QueryAsync(
-                IncreaseBy("domain,result", MetricsPanelCatalog.OcRequests, rw, domainFilter, byRoute: false),
+                IncreaseBy("domain,result", MetricsPanelCatalog.OcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> fcTask = QueryAsync(
-                IncreaseBy("domain,result", MetricsPanelCatalog.FcRequests, rw, domainFilter, byRoute: false),
+                IncreaseBy("domain,result", MetricsPanelCatalog.FcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> invTask = QueryAsync(
-                IncreaseBy("domain", MetricsPanelCatalog.Invalidations, rw, domainFilter, byRoute: false),
+                IncreaseBy("domain", MetricsPanelCatalog.Invalidations, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facSumTask = QueryAsync(
-                IncreaseBy("domain", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter, byRoute: false),
+                IncreaseBy("domain", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facCntTask = QueryAsync(
-                IncreaseBy("domain", MetricsPanelCatalog.FactoryDurationCount, rw, domainFilter, byRoute: false),
+                IncreaseBy("domain", MetricsPanelCatalog.FactoryDurationCount, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> ocRouteTask = QueryAsync(
-                IncreaseBy("route,result,domain", MetricsPanelCatalog.OcRequests, rw, domainFilter, byRoute: true),
+                IncreaseBy("route,result,domain", MetricsPanelCatalog.OcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> fcRouteTask = QueryAsync(
-                IncreaseBy("route,result,domain", MetricsPanelCatalog.FcRequests, rw, domainFilter, byRoute: true),
+                IncreaseBy("route,result,domain", MetricsPanelCatalog.FcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facSumRouteTask = QueryAsync(
-                IncreaseBy("route,domain", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter, byRoute: true),
+                IncreaseBy("route,domain", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facCntRouteTask = QueryAsync(
-                IncreaseBy("route,domain", MetricsPanelCatalog.FactoryDurationCount, rw, domainFilter, byRoute: true),
+                IncreaseBy("route,domain", MetricsPanelCatalog.FactoryDurationCount, rw, domainFilter),
                 window.End, cancellationToken);
+            // Per-instance (scrape label instance_id → missing becomes "undefined")
+            Task<IReadOnlyList<PrometheusInstantSample>> ocInstTask = QueryAsync(
+                IncreaseBy("domain,result,instance_id", MetricsPanelCatalog.OcRequests, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> fcInstTask = QueryAsync(
+                IncreaseBy("domain,result,instance_id", MetricsPanelCatalog.FcRequests, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> invInstTask = QueryAsync(
+                IncreaseBy("domain,instance_id", MetricsPanelCatalog.Invalidations, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>>> cfgTask =
+                _fanOut.GetDomainsAsync(cancellationToken);
 
             await Task.WhenAll(
                     ocTask, fcTask, invTask, facSumTask, facCntTask,
-                    ocRouteTask, fcRouteTask, facSumRouteTask, facCntRouteTask)
+                    ocRouteTask, fcRouteTask, facSumRouteTask, facCntRouteTask,
+                    ocInstTask, fcInstTask, invInstTask, cfgTask)
                 .ConfigureAwait(false);
 
             Dictionary<string, LayerBucket> domains = new(StringComparer.OrdinalIgnoreCase);
@@ -93,13 +114,19 @@ public sealed class MetricsWindowStatsService
             AccumulateInv(domains, await invTask.ConfigureAwait(false));
             AccumulateFactoryDuration(domains, await facSumTask.ConfigureAwait(false), await facCntTask.ConfigureAwait(false), keyLabel: "domain");
 
+            // domain → instanceId → bucket
+            Dictionary<string, Dictionary<string, LayerBucket>> domainInst = new(StringComparer.OrdinalIgnoreCase);
+            AccumulateLayerByInstance(domainInst, await ocInstTask.ConfigureAwait(false), isOc: true);
+            AccumulateLayerByInstance(domainInst, await fcInstTask.ConfigureAwait(false), isOc: false);
+            AccumulateInvByInstance(domainInst, await invInstTask.ConfigureAwait(false));
+
             IReadOnlyList<PrometheusInstantSample> ocRoute = await ocRouteTask.ConfigureAwait(false);
             IReadOnlyList<PrometheusInstantSample> fcRoute = await fcRouteTask.ConfigureAwait(false);
             Dictionary<string, LayerBucket> routes = new(StringComparer.Ordinal);
             AccumulateLayer(routes, ocRoute, isOc: true, keyLabel: "route");
             AccumulateLayer(routes, fcRoute, isOc: false, keyLabel: "route");
             AccumulateFactoryDuration(routes, await facSumRouteTask.ConfigureAwait(false), await facCntRouteTask.ConfigureAwait(false), keyLabel: "route");
-            // Map route → configured domain from first sample label
+
             Dictionary<string, string> routeDomain = new(StringComparer.Ordinal);
             foreach (PrometheusInstantSample s in ocRoute.Concat(fcRoute))
             {
@@ -109,12 +136,41 @@ public sealed class MetricsWindowStatsService
                     routeDomain[route] = dom;
             }
 
+            Dictionary<string, AdminDomainConfigDto> configByName = new(StringComparer.OrdinalIgnoreCase);
+            FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>> cfgFan = await cfgTask.ConfigureAwait(false);
+            foreach (AdminDomainConfigDto c in cfgFan.Data ?? [])
+            {
+                configByName.TryAdd(c.Name, c);
+            }
+
             List<AdminDomainStatsDto> domainRows = [];
             foreach ((string name, LayerBucket b) in domains.OrderByDescending(kv => kv.Value.Requests))
             {
-                if (string.IsNullOrEmpty(name) || name is "_" or "undefined")
+                if (string.IsNullOrEmpty(name) || name is "_")
                     continue;
-                domainRows.Add(ToDomain(name, b));
+
+                List<AdminDomainStatsDto>? byInstance = null;
+                AdminInstanceSpreadDto? spread = null;
+                if (domainInst.TryGetValue(name, out Dictionary<string, LayerBucket>? instMap) && instMap.Count > 0)
+                {
+                    byInstance = instMap
+                        .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                        .Select(kv => ToDomain(name, kv.Value, instanceId: kv.Key))
+                        .ToList();
+                    spread = new AdminInstanceSpreadDto
+                    {
+                        OcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Oc.HitShare)),
+                        FcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.HitShare)),
+                        FactoryShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.FactoryShare)),
+                    };
+                }
+
+                configByName.TryGetValue(name, out AdminDomainConfigDto? cfg);
+                string version = cfg?.Version ?? "";
+                bool verRt = cfg?.VersionIsRuntimeOverride ?? false;
+
+                AdminDomainStatsDto row = ToDomain(name, b, instanceId: null, version, verRt, byInstance, spread);
+                domainRows.Add(_hints.WithHints(row, cfg));
             }
 
             List<AdminEndpointStatsDto> endpointRows = [];
@@ -123,7 +179,8 @@ public sealed class MetricsWindowStatsService
                 if (string.IsNullOrEmpty(route))
                     continue;
                 routeDomain.TryGetValue(route, out string? dom);
-                endpointRows.Add(ToEndpoint(route, dom, b));
+                AdminEndpointStatsDto ep = ToEndpoint(route, dom, b);
+                endpointRows.Add(_hints.WithHints(ep));
             }
 
             // Nest endpoints under domains for detail convenience
@@ -141,22 +198,29 @@ public sealed class MetricsWindowStatsService
                 list.Add(ep);
             }
 
-            domainRows = domainRows.Select(d => new AdminDomainStatsDto
+            domainRows = domainRows.Select(d =>
             {
-                Name = d.Name,
-                Version = d.Version,
-                VersionIsRuntimeOverride = d.VersionIsRuntimeOverride,
-                SchedulePhase = d.SchedulePhase,
-                Invalidations = d.Invalidations,
-                Requests = d.Requests,
-                Oc = d.Oc,
-                Fc = d.Fc,
-                Pipeline = d.Pipeline,
-                Impact = d.Impact,
-                Hints = d.Hints,
-                Endpoints = byDom.TryGetValue(d.Name, out List<AdminEndpointStatsDto>? eps)
-                    ? eps
-                    : Array.Empty<AdminEndpointStatsDto>(),
+                IReadOnlyList<AdminEndpointStatsDto> eps = byDom.TryGetValue(d.Name, out List<AdminEndpointStatsDto>? list)
+                    ? list
+                    : Array.Empty<AdminEndpointStatsDto>();
+                return new AdminDomainStatsDto
+                {
+                    Name = d.Name,
+                    InstanceId = d.InstanceId,
+                    Version = d.Version,
+                    VersionIsRuntimeOverride = d.VersionIsRuntimeOverride,
+                    SchedulePhase = d.SchedulePhase,
+                    Invalidations = d.Invalidations,
+                    Requests = d.Requests,
+                    Oc = d.Oc,
+                    Fc = d.Fc,
+                    Pipeline = d.Pipeline,
+                    Impact = d.Impact,
+                    Hints = d.Hints,
+                    ByInstance = d.ByInstance,
+                    InstanceSpread = d.InstanceSpread,
+                    Endpoints = eps,
+                };
             }).ToList();
 
             LayerBucket cluster = domains.Values.Aggregate(new LayerBucket(), (a, b) => a.Add(b));
@@ -166,6 +230,9 @@ public sealed class MetricsWindowStatsService
                 cluster.FactoryRuns,
                 cluster.FactoryDurationSumMs,
                 cluster.FactoryDurationCount);
+
+            IReadOnlyList<AdminHintDto> allHints = HintEngine.CollectFromStats(domainRows, endpointRows);
+            AdminHintSummaryDto hintSummary = HintEngine.Summarize(allHints);
 
             bool noData = domains.Count == 0 || req == 0;
 
@@ -187,6 +254,7 @@ public sealed class MetricsWindowStatsService
                 Domains = domainRows,
                 Endpoints = endpointRows,
                 NoData = noData,
+                HintSummary = hintSummary,
             };
         }
         catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or System.Text.Json.JsonException)
@@ -206,7 +274,6 @@ public sealed class MetricsWindowStatsService
         }
         catch
         {
-            // Missing metric (e.g. no route label / no factory histogram) → empty, not fatal.
             return [];
         }
     }
@@ -215,11 +282,9 @@ public sealed class MetricsWindowStatsService
         string byLabels,
         string metric,
         string rangeDuration,
-        IReadOnlyList<string> domainFilter,
-        bool byRoute)
+        IReadOnlyList<string> domainFilter)
     {
         string sel = BuildDomainSelector(domainFilter);
-        // increase over the full window; sum by labels (missing labels coalesce later).
         return $"sum by ({byLabels}) (increase({metric}{sel}[{rangeDuration}]))";
     }
 
@@ -256,46 +321,28 @@ public sealed class MetricsWindowStatsService
             string key = Label(s.Metric, keyLabel);
             if (key.Length == 0)
                 continue;
-            string result = Label(s.Metric, "result").ToLowerInvariant();
-            long n = ToCount(s.Value);
-            if (n == 0)
+            ApplyResult(GetOrAdd(map, key), s, isOc);
+        }
+    }
+
+    private static void AccumulateLayerByInstance(
+        Dictionary<string, Dictionary<string, LayerBucket>> map,
+        IReadOnlyList<PrometheusInstantSample> samples,
+        bool isOc)
+    {
+        foreach (PrometheusInstantSample s in samples)
+        {
+            string domain = Label(s.Metric, "domain");
+            if (domain.Length == 0)
                 continue;
-
-            if (!map.TryGetValue(key, out LayerBucket? b))
+            string inst = InstanceId(s.Metric);
+            if (!map.TryGetValue(domain, out Dictionary<string, LayerBucket>? instMap))
             {
-                b = new LayerBucket();
-                map[key] = b;
+                instMap = new Dictionary<string, LayerBucket>(StringComparer.OrdinalIgnoreCase);
+                map[domain] = instMap;
             }
 
-            if (isOc)
-            {
-                switch (result)
-                {
-                    case "hit": b.OcHits += n; break;
-                    case "miss": b.OcMisses += n; break;
-                    case "bypass": b.OcBypass += n; break;
-                    default:
-                        // unknown result → count as bypass-ish other for denominator
-                        b.OcBypass += n;
-                        break;
-                }
-            }
-            else
-            {
-                switch (result)
-                {
-                    case "hit": b.FcHits += n; break;
-                    case "miss":
-                        b.FcMisses += n;
-                        b.FactoryRuns += n; // factory path ≈ FC miss
-                        break;
-                    case "stale": b.FcStale += n; break;
-                    case "bypass": b.FcBypass += n; break;
-                    default:
-                        b.FcBypass += n;
-                        break;
-                }
-            }
+            ApplyResult(GetOrAdd(instMap, inst), s, isOc);
         }
     }
 
@@ -311,13 +358,30 @@ public sealed class MetricsWindowStatsService
             long n = ToCount(s.Value);
             if (n == 0)
                 continue;
-            if (!map.TryGetValue(key, out LayerBucket? b))
+            GetOrAdd(map, key).Invalidations += n;
+        }
+    }
+
+    private static void AccumulateInvByInstance(
+        Dictionary<string, Dictionary<string, LayerBucket>> map,
+        IReadOnlyList<PrometheusInstantSample> samples)
+    {
+        foreach (PrometheusInstantSample s in samples)
+        {
+            string domain = Label(s.Metric, "domain");
+            if (domain.Length == 0)
+                continue;
+            string inst = InstanceId(s.Metric);
+            long n = ToCount(s.Value);
+            if (n == 0)
+                continue;
+            if (!map.TryGetValue(domain, out Dictionary<string, LayerBucket>? instMap))
             {
-                b = new LayerBucket();
-                map[key] = b;
+                instMap = new Dictionary<string, LayerBucket>(StringComparer.OrdinalIgnoreCase);
+                map[domain] = instMap;
             }
 
-            b.Invalidations += n;
+            GetOrAdd(instMap, inst).Invalidations += n;
         }
     }
 
@@ -332,13 +396,7 @@ public sealed class MetricsWindowStatsService
             string key = Label(s.Metric, keyLabel);
             if (key.Length == 0 || s.Value is not double v)
                 continue;
-            if (!map.TryGetValue(key, out LayerBucket? b))
-            {
-                b = new LayerBucket();
-                map[key] = b;
-            }
-
-            b.FactoryDurationSumMs += v;
+            GetOrAdd(map, key).FactoryDurationSumMs += v;
         }
 
         foreach (PrometheusInstantSample s in counts)
@@ -349,24 +407,70 @@ public sealed class MetricsWindowStatsService
             long n = ToCount(s.Value);
             if (n == 0)
                 continue;
-            if (!map.TryGetValue(key, out LayerBucket? b))
-            {
-                b = new LayerBucket();
-                map[key] = b;
-            }
-
-            b.FactoryDurationCount += n;
+            GetOrAdd(map, key).FactoryDurationCount += n;
         }
     }
 
-    private static AdminDomainStatsDto ToDomain(string name, LayerBucket b)
+    private static void ApplyResult(LayerBucket b, PrometheusInstantSample s, bool isOc)
+    {
+        string result = Label(s.Metric, "result").ToLowerInvariant();
+        long n = ToCount(s.Value);
+        if (n == 0)
+            return;
+
+        if (isOc)
+        {
+            switch (result)
+            {
+                case "hit": b.OcHits += n; break;
+                case "miss": b.OcMisses += n; break;
+                case "bypass": b.OcBypass += n; break;
+                default: b.OcBypass += n; break;
+            }
+        }
+        else
+        {
+            switch (result)
+            {
+                case "hit": b.FcHits += n; break;
+                case "miss":
+                    b.FcMisses += n;
+                    b.FactoryRuns += n;
+                    break;
+                case "stale": b.FcStale += n; break;
+                case "bypass": b.FcBypass += n; break;
+                default: b.FcBypass += n; break;
+            }
+        }
+    }
+
+    private static LayerBucket GetOrAdd(Dictionary<string, LayerBucket> map, string key)
+    {
+        if (!map.TryGetValue(key, out LayerBucket? b))
+        {
+            b = new LayerBucket();
+            map[key] = b;
+        }
+
+        return b;
+    }
+
+    private static AdminDomainStatsDto ToDomain(
+        string name,
+        LayerBucket b,
+        string? instanceId = null,
+        string version = "",
+        bool versionIsRuntimeOverride = false,
+        IReadOnlyList<AdminDomainStatsDto>? byInstance = null,
+        AdminInstanceSpreadDto? spread = null)
     {
         var (req, oc, fc, pipe) = b.BuildLayers();
         return new AdminDomainStatsDto
         {
             Name = name,
-            Version = "", // current value filled by config overlay in UI when needed
-            VersionIsRuntimeOverride = false,
+            InstanceId = instanceId,
+            Version = version,
+            VersionIsRuntimeOverride = versionIsRuntimeOverride,
             SchedulePhase = null,
             Invalidations = b.Invalidations,
             Requests = req,
@@ -376,6 +480,8 @@ public sealed class MetricsWindowStatsService
             Impact = ImpactMath.Compute(req, b.FactoryRuns, b.FactoryDurationSumMs, b.FactoryDurationCount),
             Endpoints = [],
             Hints = [],
+            ByInstance = byInstance,
+            InstanceSpread = spread,
         };
     }
 
@@ -399,8 +505,20 @@ public sealed class MetricsWindowStatsService
     {
         if (metric.TryGetValue(name, out string? v) && !string.IsNullOrWhiteSpace(v))
             return v.Trim();
-        // Instance scrape labels sometimes use different keys — not used as domain/route keys here.
         return "";
+    }
+
+    /// <summary>
+    /// Prefer scrape/resource label <c>instance_id</c>; missing → <see cref="MetricsWindow.UndefinedInstanceId"/>.
+    /// </summary>
+    private static string InstanceId(IReadOnlyDictionary<string, string> metric)
+    {
+        if (metric.TryGetValue(MetricsPanelCatalog.InstanceIdLabel, out string? v) && !string.IsNullOrWhiteSpace(v))
+            return v.Trim();
+        // Some scrapes only have Prometheus "instance" (host:port) — still better than collapsing silently.
+        if (metric.TryGetValue("instance", out string? host) && !string.IsNullOrWhiteSpace(host))
+            return host.Trim();
+        return MetricsWindow.UndefinedInstanceId;
     }
 
     private static long ToCount(double? v)
@@ -437,6 +555,7 @@ public sealed class MetricsWindowStatsService
             Domains = [],
             Endpoints = [],
             NoData = true,
+            HintSummary = new AdminHintSummaryDto(),
         };
 
     private sealed class LayerBucket

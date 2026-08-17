@@ -277,9 +277,11 @@ When **not configured**, the Metrics page explains how to enable it; Overview om
 | `GET /api/metrics/series` | Chart panels (`range`, `from`/`to`, `panels`, `domains`, `instances`, `routes`) |
 | `GET /api/metrics/summary` | Compact rates/shares for the window |
 
-When Range is **Last N / absolute**, Overview, Domains, Endpoints, and detail **traffic** use `/api/stats/window` (Prometheus). **Green underline** = current config/identity (Version, TTL, …), not the window. **Process totals** still use Local Admin `/stats/v2` fan-out.
+When Range is **Last N / absolute**, Overview, Domains, Endpoints, detail **traffic**, and **Hints** use `/api/stats/window` (Prometheus). **Green underline** = current config/identity (Version, TTL, …), not the window. **Process totals** still use Local Admin `/stats/v2` fan-out.
 
-Window aggregates use PromQL `increase(...[window])` on OC/FC/invalidate counters (by `domain`/`result`; endpoints by `route`). Factory duration uses histogram `_sum`/`_count` when scraped. Missing scrape `instance_id` is treated as **`undefined`** when multi-instance series are present.
+Window aggregates use PromQL `increase(...[window])` on OC/FC/invalidate counters (by `domain`/`result`; endpoints by `route`). Factory duration uses histogram `_sum`/`_count` when scraped. Per-instance breakdown uses scrape label `instance_id` (lab: `playground-1`); missing label → **`undefined`**.
+
+`HintEngine` runs on window domain/endpoint rows (same declarative paths as process totals). Config-only rules still receive Admin domain config when fan-out succeeds. Rules needing factory-failure rates may not fire until those samples exist on the window model.
 
 Endpoint window rows need core `Cache:Metrics:IncludeEndpointLabel` (default true). If disabled, domain-level window stats still work; endpoint rows stay empty.
 
@@ -297,7 +299,7 @@ Quick operator steps: [Admin Console App README](../src/CacheOrchestrator.AdminC
 
 - Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/FC/Factory shares, Req, Inv, hints, optional metrics store pill) → **menu**  
 - Overview: instances (Admin health); **top 5 domains/endpoints** from process totals **or** Prometheus window (Range); charts when Metrics connected  
-- Lists: filters, search, sort; detail pages; Hints page (windowed hints share DTO shape — rule packs may lag)  
+- Lists: filters, search, sort; detail pages; Hints page (windowed: same rules on Prometheus rows)  
 - **Metrics** (`#/metrics`): window charts from Prometheus; multi-select domains; global Range (relative + absolute from/to)  
 - **Operations** (`#/operations`): invalidate / version / TTL; banner **HTTP fan-out** vs **Cluster bus (distribute)**; cluster probe table; last-run mode in result  
 - Auto-refresh interval in `localStorage`  
