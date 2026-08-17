@@ -297,6 +297,12 @@ public sealed class MetricsWindowStatsService
                 cluster.FactoryRuns,
                 cluster.FactoryDurationSumMs,
                 cluster.FactoryDurationCount);
+            // Sum per-domain estimates so cluster Time saved matches the domains table
+            // (blended cluster avg distorts when domains have different factory costs).
+            double domainTimeSavedSum = domainRows
+                .Sum(d => d.Impact?.EstFactoryTimeSavedMs ?? 0);
+            if (domainRows.Count > 0)
+                impact = ImpactMath.WithEstTimeSaved(impact, domainTimeSavedSum);
 
             IReadOnlyList<AdminHintDto> allHints = HintEngine.CollectFromStats(domainRows, endpointRows);
             AdminHintSummaryDto hintSummary = HintEngine.Summarize(allHints);

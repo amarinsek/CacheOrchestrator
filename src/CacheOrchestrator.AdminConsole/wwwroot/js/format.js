@@ -80,7 +80,9 @@ export const METRIC_TITLES = {
   factoryAvoidance:
     "Factory avoidance — 1 − factoryRuns/requests (share of requests that did not run the factory). Process lifetime unless a metrics window is used.",
   estTimeSaved:
-    "Estimated factory time saved — avoided factory calls × average factory duration (ms). Requires Admin TrackLatency / factory duration samples.",
+    "Estimated factory time saved — avoided factory calls × average factory duration (ms). Cluster total is the sum of per-domain estimates.",
+  reqRate: "Average requests per second over the selected Range (requests ÷ window length).",
+  factoryFailures: "Factory failures (hard fail / fail-safe stale path) in the selected Range.",
   cacheBenefit:
     "Cache benefit band (HIGH / MEDIUM / LOW_GAIN / AT_RISK / LOW / UNKNOWN) from avoidance × factory cost.",
   cacheCandidate:
@@ -240,7 +242,11 @@ export function fmtUnit(value, unit) {
   return `${s}\u2009${unit}`;
 }
 
-/** Human uptime from whole seconds: "3 h 12 m", "45 s", etc. */
+/**
+ * Human uptime from whole seconds.
+ * Always two units (except bare seconds) with zero-padded secondary so table cells
+ * keep a stable width across soft refresh.
+ */
 export function formatUptime(seconds) {
   if (seconds == null || seconds < 0 || Number.isNaN(Number(seconds))) return "—";
   const s = Math.floor(Number(seconds));
@@ -248,10 +254,36 @@ export function formatUptime(seconds) {
   const h = Math.floor((s % 86400) / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
-  if (d > 0) return `${fmtUnit(d, "d")} ${fmtUnit(h, "h")}`;
-  if (h > 0) return `${fmtUnit(h, "h")} ${fmtUnit(m, "m")}`;
-  if (m > 0) return `${fmtUnit(m, "m")} ${fmtUnit(sec, "s")}`;
-  return fmtUnit(sec, "s");
+  const p2 = (n) => String(n).padStart(2, "0");
+  if (d > 0) return `${d}\u2009d ${p2(h)}\u2009h`;
+  if (h > 0) return `${h}\u2009h ${p2(m)}\u2009m`;
+  if (m > 0) return `${m}\u2009m ${p2(sec)}\u2009s`;
+  return `${sec}\u2009s`;
+}
+
+/**
+ * Requests per second for a window: requests / windowSeconds.
+ * @param {number|null|undefined} requests
+ * @param {number|null|undefined} windowSeconds
+ */
+export function fmtRequestRate(requests, windowSeconds) {
+  const sec = Number(windowSeconds);
+  const req = Number(requests);
+  if (!Number.isFinite(sec) || sec <= 0 || !Number.isFinite(req) || req < 0) return "—";
+  const r = req / sec;
+  if (r < 0.01) return r.toFixed(3);
+  if (r < 10) return r.toFixed(2);
+  if (r < 100) return r.toFixed(1);
+  return num(Math.round(r));
+}
+
+/** Window length in seconds from window-stats / metrics envelope. */
+export function windowSecondsOf(w) {
+  if (!w?.fromUtc || !w?.toUtc) return null;
+  const a = Date.parse(w.fromUtc);
+  const b = Date.parse(w.toUtc);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return null;
+  return (b - a) / 1000;
 }
 
 /** Round-trip latency for health probes. */

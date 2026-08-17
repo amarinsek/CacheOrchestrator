@@ -58,22 +58,15 @@ public static class ImpactMath
             ? (double)sizeSum / factoryResultSizeCount
             : null;
 
+        // Per-scope estimate: avoided factory calls × this scope's avg factory duration.
+        // Cluster totals should sum per-domain estimates (see WithEstTimeSaved) — a blended
+        // cluster avg under/over-states when domains have different factory costs.
         long avoided = Math.Max(0, requests - factoryRuns);
         double? timeSavedMs = avgMs is double a ? avoided * a : null;
         double? payloadOffload = avgSize is double s ? avoided * s : null;
         double? paidMs = factoryDurationSumMs;
 
-        double? timeSavedRatio = null;
-        if (timeSavedMs is double ts && paidMs is double paid)
-        {
-            double denom = ts + paid;
-            if (denom > 0)
-                timeSavedRatio = ts / denom;
-        }
-        else if (timeSavedMs is double tsOnly && tsOnly > 0 && factoryRuns == 0)
-        {
-            timeSavedRatio = 1.0;
-        }
+        double? timeSavedRatio = TimeSavedRatioOf(timeSavedMs, paidMs, factoryRuns);
 
         string durationCost = CostLevelDuration(avgMs, lowDuration);
         string sizeCost = CostLevelSize(avgSize, lowSize);
@@ -100,6 +93,54 @@ public static class ImpactMath
             LowDurationSample = lowDuration,
             LowSizeSample = lowSize
         };
+    }
+
+    /// <summary>
+    /// Replaces estimated time saved (e.g. cluster KPI = sum of domain estimates).
+    /// Recalculates <see cref="CacheImpactKpiDto.TimeSavedRatio"/> from the new value.
+    /// </summary>
+    public static CacheImpactKpiDto WithEstTimeSaved(CacheImpactKpiDto src, double? estFactoryTimeSavedMs)
+    {
+        ArgumentNullException.ThrowIfNull(src);
+        return new CacheImpactKpiDto
+        {
+            FactoryAvoidance = src.FactoryAvoidance,
+            FactoryShare = src.FactoryShare,
+            AvgFactoryDurationMs = src.AvgFactoryDurationMs,
+            EstFactoryTimeSavedMs = estFactoryTimeSavedMs,
+            TimeSavedRatio = TimeSavedRatioOf(estFactoryTimeSavedMs, src.FactoryDurationSumMs, factoryRuns: -1),
+            FactoryDurationSumMs = src.FactoryDurationSumMs,
+            FactoryDurationCount = src.FactoryDurationCount,
+            AvgFactoryResultSizeBytes = src.AvgFactoryResultSizeBytes,
+            EstPayloadOffloadBytes = src.EstPayloadOffloadBytes,
+            FactoryResultSizeSumBytes = src.FactoryResultSizeSumBytes,
+            FactoryResultSizeCount = src.FactoryResultSizeCount,
+            Benefit = src.Benefit,
+            Candidate = src.Candidate,
+            LowRequestSample = src.LowRequestSample,
+            LowDurationSample = src.LowDurationSample,
+            LowSizeSample = src.LowSizeSample
+        };
+    }
+
+    /// <param name="factoryRuns">
+    /// Pass 0 to allow ratio=1 when only time-saved exists; pass -1 to skip that special case
+    /// (used when substituting a summed estimate).
+    /// </param>
+    private static double? TimeSavedRatioOf(double? timeSavedMs, double? paidMs, long factoryRuns)
+    {
+        if (timeSavedMs is double ts && paidMs is double paid)
+        {
+            double denom = ts + paid;
+            if (denom > 0)
+                return ts / denom;
+        }
+        else if (factoryRuns == 0 && timeSavedMs is double tsOnly && tsOnly > 0)
+        {
+            return 1.0;
+        }
+
+        return null;
     }
 
     /// <summary>Cost level from average factory duration: LOW / MEDIUM / HIGH / UNKNOWN.</summary>

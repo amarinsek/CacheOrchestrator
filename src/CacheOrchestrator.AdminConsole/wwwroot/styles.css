@@ -1601,6 +1601,22 @@ code { color: #cde; font-size: 0.9em; }
 
 .entity-table .col-name { min-width: 10rem; }
 .entity-table .col-pipe { min-width: 5rem; }
+.entity-table .col-rate {
+  width: 4.5rem;
+  min-width: 4.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.entity-table .col-uptime,
+td.col-uptime,
+th.col-uptime {
+  width: 7.5rem;
+  min-width: 7.5rem;
+  max-width: 7.5rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 
 /*
  * Help cursor only on non-interactive explainers with title.

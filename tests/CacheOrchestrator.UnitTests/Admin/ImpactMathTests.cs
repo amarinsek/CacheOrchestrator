@@ -79,4 +79,19 @@ public class ImpactMathTests
         kpi.Benefit.Should().Be("HIGH"); // high avoidance + high size cost
         kpi.Candidate.Should().Be("STRONG");
     }
+
+    [Fact]
+    public void WithEstTimeSaved_OverridesClusterEstimate_KeepsOtherFields()
+    {
+        CacheImpactKpiDto kpi = ImpactMath.Compute(
+            requests: 10_000,
+            factoryRuns: 500,
+            factoryDurationSumMs: 500 * 80,
+            factoryDurationCount: 500);
+
+        CacheImpactKpiDto summed = ImpactMath.WithEstTimeSaved(kpi, 1_800 + 530 + 5_100);
+        summed.EstFactoryTimeSavedMs.Should().Be(7_430);
+        summed.AvgFactoryDurationMs.Should().Be(kpi.AvgFactoryDurationMs);
+        summed.Benefit.Should().Be(kpi.Benefit);
+    }
 }

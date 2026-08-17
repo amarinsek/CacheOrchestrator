@@ -23,6 +23,7 @@ import {
   pipelineBar,
   thMetric,
   tipAttr,
+  windowSecondsOf,
 } from "./format.js";
 import {
   appendMetricsRangeParams,
@@ -45,6 +46,7 @@ import {
   sortEndpoints,
   sortInstances,
   sortSelectHtml,
+  withRequestRates,
 } from "./filters.js";
 import {
   collectHintRows,
@@ -142,8 +144,9 @@ async function paintOverviewBody(o, params, soft) {
     const cfgFan = await api("/api/domains");
     verByName = Object.fromEntries((cfgFan.data || []).map((d) => [d.name, d.version]));
   } catch { /* optional */ }
-  const srcDomains = promOk ? (windowStats.domains || []) : [];
-  const srcEndpoints = promOk ? (windowStats.endpoints || []) : [];
+  const winSec = promOk ? windowSecondsOf(windowStats) : null;
+  const srcDomains = promOk ? withRequestRates(windowStats.domains || [], winSec) : [];
+  const srcEndpoints = promOk ? withRequestRates(windowStats.endpoints || [], winSec) : [];
   const domainsForTable = srcDomains.map((d) =>
     (d.version == null || d.version === "") && verByName[d.name]
       ? { ...d, version: verByName[d.name] }
@@ -489,13 +492,14 @@ export async function renderEndpointsList(params, opts = {}) {
       if (w?.status === "Connected") {
         promOk = true;
         domainOpts = (w.domains || []).map((d) => ({ id: d.name, label: d.name }));
-        list = sortEndpoints(w.endpoints || [], sort);
+        list = withRequestRates(w.endpoints || [], windowSecondsOf(w));
         if (search) {
           const q = search.toLowerCase();
           list = list.filter((e) =>
             (e.route || "").toLowerCase().includes(q)
             || (e.configuredDomain || "").toLowerCase().includes(q));
         }
+        list = sortEndpoints(list, sort);
         const takeN = Number(take) || 50;
         list = list.slice(skip, skip + takeN);
       } else {
@@ -716,7 +720,7 @@ export async function renderDomainsList(params, opts = {}) {
     const w = await fetchWindowStatsIfNeeded();
     if (w?.status === "Connected") {
       promOk = true;
-      domains = w.domains || [];
+      domains = withRequestRates(w.domains || [], windowSecondsOf(w));
       try {
         const cfgFan = await api("/api/domains");
         const ver = Object.fromEntries((cfgFan.data || []).map((d) => [d.name, d]));
@@ -770,8 +774,9 @@ export async function renderDomainsList(params, opts = {}) {
   bindEntityTableClicks(main());
 }
 
-export async function renderDomainDetail(name, opts = {}) {
+export async function renderDomainDetail(name, params = new URLSearchParams(), opts = {}) {
   const soft = !!opts.soft;
+  const epSort = params.get("epSort") || "requests";
   setBreadcrumb([
     { label: "Domains", href: "#/domains" },
     { label: name },
@@ -796,10 +801,18 @@ export async function renderDomainDetail(name, opts = {}) {
   }
 
   const domain = d || { name, requests: 0, oc: {}, fc: {}, pipeline: {}, endpoints: [], hints: [] };
+  const winSec = windowStats?.status === "Connected" ? windowSecondsOf(windowStats) : null;
+  const endpointsSorted = sortEndpoints(
+    withRequestRates(domain.endpoints || [], winSec),
+    epSort);
 
   if (soft && $("#domMetricsMount")?.dataset?.metricsReady === "1") {
     const head = $("#domDetailHead");
     if (head) head.innerHTML = domainDetailHeadHtml(name, domain, cfg);
+    const epHost = $("#domEpTable");
+    if (epHost) {
+      epHost.innerHTML = endpointTableHtml(endpointsSorted);
+    }
     bindEntityTableClicks(main());
     main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
       tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
@@ -810,6 +823,13 @@ export async function renderDomainDetail(name, opts = {}) {
 
   paintPage(`
     <div id="domDetailHead">${domainDetailHeadHtml(name, domain, cfg)}</div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Endpoints in domain</h2>
+        ${inlineSortSelectHtml("domEpSort", epSort, EP_SORT_OPTS)}
+      </div>
+      <div id="domEpTable">${endpointTableHtml(endpointsSorted)}</div>
+    </div>
     <div id="domMetricsMount"></div>
     <p><a href="#/domains">← Domains</a> · <a href="#/operations?domain=${encodeURIComponent(name)}">Operations</a></p>`, soft);
 
@@ -817,6 +837,9 @@ export async function renderDomainDetail(name, opts = {}) {
     tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
   });
   bindEntityTableClicks(main());
+  $("#domEpSort")?.addEventListener("change", (ev) => {
+    navigate("domains", { name, epSort: ev.target.value });
+  });
   mountDetailMetrics("domMetricsMount", { scope: "domain", domain: name });
 }
 
@@ -897,11 +920,7 @@ function domainDetailHeadHtml(name, domain, cfg) {
             </tr>`).join("")}
         </tbody>
       </table>
-    </div>` : ""}
-    <div class="card">
-      <h2>Endpoints in domain</h2>
-      ${endpointTableHtml(domain.endpoints || [])}
-    </div>`;
+    </div>` : ""}`;
 }
 
 // —— Instances ——
@@ -984,8 +1003,10 @@ export async function renderInstancesList(params = new URLSearchParams(), opts =
   });
 }
 
-export async function renderInstanceDetail(id, opts = {}) {
+export async function renderInstanceDetail(id, params = new URLSearchParams(), opts = {}) {
   const soft = !!opts.soft;
+  const domSort = params.get("domSort") || "requests";
+  const epSort = params.get("epSort") || "requests";
   setBreadcrumb([
     { label: "Instances", href: "#/instances" },
     { label: id },
@@ -1011,10 +1032,27 @@ export async function renderInstanceDetail(id, opts = {}) {
     windowStats,
     id,
     inst?.reportedInstanceId);
+  const winSec = promOk ? windowSecondsOf(windowStats) : null;
+  const domainsSorted = sortDomains(withRequestRates(stats.domains || [], winSec), domSort);
+  const endpointsSorted = sortEndpoints(
+    withRequestRates(stats.endpoints || [], winSec),
+    epSort).slice(0, 50);
 
   if (soft && $("#instMetricsMount")?.dataset?.metricsReady === "1") {
     const head = $("#instDetailHead");
     if (head) head.innerHTML = instanceDetailHeadHtml(id, inst, stats, st, startedTitle, promOk);
+    const domHost = $("#instDomTable");
+    if (domHost) {
+      domHost.innerHTML = promOk
+        ? domainTableHtml(domainsSorted)
+        : metricsRequiredEmpty();
+    }
+    const epHost = $("#instEpTable");
+    if (epHost) {
+      epHost.innerHTML = promOk
+        ? endpointTableHtml(endpointsSorted)
+        : metricsRequiredEmpty();
+    }
     bindEntityTableClicks(main());
     mountDetailMetrics("instMetricsMount", { scope: "instance", instanceId: id });
     return;
@@ -1022,11 +1060,31 @@ export async function renderInstanceDetail(id, opts = {}) {
 
   paintPage(`
     <div id="instDetailHead">${instanceDetailHeadHtml(id, inst, stats, st, startedTitle, promOk)}</div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Domains on instance</h2>
+        ${promOk ? inlineSortSelectHtml("instDomSort", domSort, DOMAIN_SORT_OPTS) : ""}
+      </div>
+      <div id="instDomTable">${promOk ? domainTableHtml(domainsSorted) : metricsRequiredEmpty()}</div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Endpoints on instance</h2>
+        ${promOk ? inlineSortSelectHtml("instEpSort", epSort, EP_SORT_OPTS) : ""}
+      </div>
+      <div id="instEpTable">${promOk ? endpointTableHtml(endpointsSorted) : metricsRequiredEmpty()}</div>
+    </div>
     <div id="instMetricsMount"></div>
     <p><a href="#/instances">← Instances</a>
       · <a href="#/operations?target=instance:${encodeURIComponent(id)}">Operations on this instance</a></p>`, soft);
 
   bindEntityTableClicks(main());
+  $("#instDomSort")?.addEventListener("change", (ev) => {
+    navigate("instances", { id, domSort: ev.target.value, epSort });
+  });
+  $("#instEpSort")?.addEventListener("change", (ev) => {
+    navigate("instances", { id, domSort, epSort: ev.target.value });
+  });
   mountDetailMetrics("instMetricsMount", { scope: "instance", instanceId: id });
 }
 
@@ -1049,19 +1107,11 @@ function instanceDetailHeadHtml(id, inst, stats, st, startedTitle, promOk = fals
           <div class="label">Status</div>
           <div class="value status-${esc(st)}" style="font-size:1.05rem">${esc(st)}</div>
         </div>
-        <div class="kpi" title="${esc(startedTitle)}"><div class="label">Uptime</div><div class="value" style="font-size:1.05rem">${esc(formatUptime(inst?.uptimeSeconds))}</div></div>
+        <div class="kpi" title="${esc(startedTitle)}"><div class="label">Uptime</div><div class="value col-uptime" style="font-size:1.05rem">${esc(formatUptime(inst?.uptimeSeconds))}</div></div>
         <div class="kpi"><div class="label">Started (UTC)</div><div class="value" style="font-size:0.85rem">${esc(startedDisp)}</div></div>
         <div class="kpi" title="Admin probe latency"><div class="label">Latency</div><div class="value" style="font-size:1.05rem">${formatLatencyMs(inst?.latencyMs)}</div></div>
         <div class="kpi"><div class="label">Req</div><div class="value">${promOk ? num(reqFromDomains) : noDataHtml()}</div></div>
       </div>
-    </div>
-    <div class="card">
-      <h2>Domains on instance</h2>
-      ${promOk ? domainTableHtml(stats.domains || []) : metricsRequiredEmpty()}
-    </div>
-    <div class="card">
-      <h2>Endpoints on instance</h2>
-      ${promOk ? endpointTableHtml((stats.endpoints || []).slice(0, 50)) : metricsRequiredEmpty()}
     </div>`;
 }
 
@@ -1760,11 +1810,11 @@ export async function route(opts = {}) {
           else await renderEndpointsList(params, { soft });
         } else if (root === "domains") {
           const name = params.get("name");
-          if (name) await renderDomainDetail(name, { soft });
+          if (name) await renderDomainDetail(name, params, { soft });
           else await renderDomainsList(params, { soft });
         } else if (root === "instances") {
           const id = params.get("id");
-          if (id) await renderInstanceDetail(id, { soft });
+          if (id) await renderInstanceDetail(id, params, { soft });
           else await renderInstancesList(params, { soft });
         } else if (root === "operations") {
           await renderOperations(params);

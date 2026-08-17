@@ -2,8 +2,8 @@
  * Shared entity list tables and empty / connectivity chrome.
  *
  * Column contracts (list surfaces — keep stable across pages):
- * - Endpoints: Route | Domain | Req | Pipeline | … | Benefit | Candidate | Hints
- * - Domains:   Domain | Version | Req | Inv | Pipeline | … | Benefit | Candidate | Hints | Ops
+ * - Endpoints: Route | Domain | Req | Req/s | Pipeline | … | Benefit | Candidate | Hints
+ * - Domains:   Domain | Req | Req/s | Inv | Pipeline | … | Benefit | Candidate | Hints | Ops
  * - Instances: Id | Status | URL | Req | Uptime | Latency | Error | Hints
  * Layer rates (e.g. FC miss rate) stay on detail views only.
  */
@@ -16,6 +16,7 @@ import {
   formatUptime,
   factoryShareOf,
   fmtDurationMs,
+  fmtRequestRate,
   impactBandLabel,
   METRIC_TITLES,
   noDataHtml,
@@ -33,10 +34,14 @@ export function endpointRowHtml(e) {
   const domainCell = e.configuredDomain
     ? currentValueHtml(`<a href="#/domains?name=${encodeURIComponent(e.configuredDomain)}">${esc(e.configuredDomain)}</a>`)
     : "—";
+  const rate = e._requestRate != null
+    ? fmtRequestRate(e.requests, e._windowSeconds)
+    : "—";
   return `<tr class="clickable entity-row" data-entity="endpoint" data-route="${esc(e.route)}">
     <td class="col-name"><code>${esc(e.route)}</code></td>
     <td class="col-domain">${domainCell}</td>
     <td class="col-num">${num(e.requests)}</td>
+    <td class="col-num col-rate" title="${esc(METRIC_TITLES.reqRate)}">${rate}</td>
     <td class="col-pipe">${pipelineBar(e.pipeline)}</td>
     <td class="col-metric">${pct(e.oc?.hitShare, e.oc?.lowRequestSample, "request")}</td>
     <td class="col-metric">${pct(e.fc?.hitShare, e.fc?.lowRequestSample, "request")}</td>
@@ -59,6 +64,7 @@ export function endpointTableHtml(list, emptyCtx = {}) {
           ${thMetric("Route", "route", { fromKey: true })}
           ${thMetric("Domain", "domain", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
+          ${thMetric("Req/s", "reqRate", { fromKey: true, className: "col-rate" })}
           ${thMetric("Pipeline", "pipeline", { fromKey: true })}
           ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
           ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
@@ -76,10 +82,13 @@ export function endpointTableHtml(list, emptyCtx = {}) {
 // —— Domain table ——
 
 export function domainRowHtml(d) {
+  const rate = d._requestRate != null
+    ? fmtRequestRate(d.requests, d._windowSeconds)
+    : "—";
   return `<tr class="clickable entity-row" data-entity="domain" data-name="${esc(d.name)}">
     <td class="col-name"><code>${esc(d.name)}</code>${d.versionIsRuntimeOverride ? ' <span class="badge">rt</span>' : ""}</td>
-    <td class="col-metric">${currentValueHtml(`<span class="cell-ellipsis">${esc(d.version || "—")}</span>`)}</td>
     <td class="col-num">${num(d.requests)}</td>
+    <td class="col-num col-rate" title="${esc(METRIC_TITLES.reqRate)}">${rate}</td>
     <td class="col-num" title="${esc(METRIC_TITLES.inv)}">${num(d.invalidations)}</td>
     <td class="col-pipe">${pipelineBar(d.pipeline)}</td>
     <td class="col-metric">${pct(d.oc?.hitShare, d.oc?.lowRequestSample, "request")}</td>
@@ -102,8 +111,8 @@ export function domainTableHtml(list, emptyCtx = {}) {
       <thead>
         <tr>
           ${thMetric("Domain", "domain", { fromKey: true })}
-          ${thMetric("Version", "version", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
+          ${thMetric("Req/s", "reqRate", { fromKey: true, className: "col-rate" })}
           ${thMetric("Inv", "inv", { fromKey: true })}
           ${thMetric("Pipeline", "pipeline", { fromKey: true })}
           ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
@@ -137,7 +146,7 @@ export function instanceRowHtml(i) {
     <td class="status-${esc(st)}">${esc(st)}</td>
     <td><code class="cell-ellipsis" title="${esc(i.url)}">${esc(i.url)}</code></td>
     <td class="col-num" title="Prometheus window">${reqCell}</td>
-    <td title="${esc(started || "start time unknown")}">${esc(up)}</td>
+    <td class="col-uptime" title="${esc(started || "start time unknown")}">${esc(up)}</td>
     <td>${formatLatencyMs(i.latencyMs)}</td>
     <td class="muted"><span class="cell-ellipsis" title="${esc(i.error || "")}">${esc(i.error || "—")}</span></td>
     <td class="col-hints">${severityStack(i.hintSummary)}</td>
@@ -160,7 +169,7 @@ export function instanceTableHtml(list, emptyCtx = {}) {
           ${thMetric("Status", "status", { fromKey: true })}
           ${thMetric("URL", "url", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
-          ${thMetric("Uptime", "uptime", { fromKey: true })}
+          ${thMetric("Uptime", "uptime", { fromKey: true, className: "col-uptime" })}
           ${thMetric("Latency", "latency", { fromKey: true })}
           ${thMetric("Error", "error", { fromKey: true })}
           ${thMetric("Hints", "hints", { fromKey: true })}
