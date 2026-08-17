@@ -68,7 +68,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability
 
 ### In this stage
 
-One app process with full **ops surface**: Admin API (live counters, `TrackLatency` + `TrackResultSize` for impact KPIs), Prometheus (`/metrics`), Admin Console (dashboard / fan-out / hints / impact). Caching itself is still InMemory — observability does not change how OC/FC store data. Rebuild images after library changes (`docker compose … up --build`) so Console and playground pick up `/stats/v2` and new metrics.
+One app process with full **ops surface**: Admin API (health, config, invalidate; optional process-lifetime `/stats`), Prometheus (`/metrics` from the `CacheOrchestrator` meter), Admin Console (dashboard / fan-out / **Prom-only** stats & hints / impact). Caching itself is still InMemory — observability does not change how OC/FC store data. Rebuild images after library changes (`docker compose … up --build`) so Console and playground pick up OTEL instruments and window-stats BFF.
 
 → [observability.md](../../../docs/observability.md) · [admin.md](../../../docs/admin.md)
 

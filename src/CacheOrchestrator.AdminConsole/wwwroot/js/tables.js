@@ -18,6 +18,7 @@ import {
   fmtDurationMs,
   impactBandLabel,
   METRIC_TITLES,
+  noDataHtml,
   num,
   pct,
   pipelineBar,
@@ -127,11 +128,15 @@ export function instanceRowHtml(i) {
     : "";
   const up = formatUptime(i.uptimeSeconds);
   const st = instanceStatus(i.status);
+  // Req is Prometheus window only (null = metrics offline / not attached).
+  const reqCell = i.requests == null
+    ? noDataHtml("Metrics store required for request counts")
+    : num(i.requests);
   return `<tr class="clickable entity-row" data-entity="instance" data-id="${esc(i.id)}">
     <td class="col-name"><code>${esc(i.id)}</code></td>
     <td class="status-${esc(st)}">${esc(st)}</td>
     <td><code class="cell-ellipsis" title="${esc(i.url)}">${esc(i.url)}</code></td>
-    <td class="col-num">${num(i.requests)}</td>
+    <td class="col-num" title="Prometheus window">${reqCell}</td>
     <td title="${esc(started || "start time unknown")}">${esc(up)}</td>
     <td>${formatLatencyMs(i.latencyMs)}</td>
     <td class="muted"><span class="cell-ellipsis" title="${esc(i.error || "")}">${esc(i.error || "—")}</span></td>
@@ -375,7 +380,7 @@ export function impactDetailHtml(impact, windowLabel) {
     return `
     <div class="detail-block">
       <h3>Cache impact</h3>
-      <p class="muted">No impact KPIs (enable Local Admin stats and prefer instance library ≥ 2.2 with <code>/stats/v2</code>).</p>
+      <p class="muted">No impact KPIs in this Prometheus window (need factory samples / traffic).</p>
     </div>`;
   }
   const win = windowLabel ? ` · ${esc(windowLabel)}` : "";

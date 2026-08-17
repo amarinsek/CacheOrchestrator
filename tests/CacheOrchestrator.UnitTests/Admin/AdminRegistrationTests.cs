@@ -76,8 +76,9 @@ public class AdminRegistrationTests
         HttpResponseMessage stats = await client.GetAsync("/cache-admin/local/stats", Ct);
         stats.StatusCode.Should().Be(HttpStatusCode.OK);
 
+        // stats/v2 was removed; analytics prefer OTEL/Prometheus.
         HttpResponseMessage statsV2 = await client.GetAsync("/cache-admin/local/stats/v2", Ct);
-        statsV2.StatusCode.Should().Be(HttpStatusCode.OK);
+        statsV2.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]

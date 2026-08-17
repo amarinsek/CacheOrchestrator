@@ -226,8 +226,22 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         catch (Exception ex)
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            if (factoryFailed && _logger.IsEnabled(LogLevel.Warning))
-                _logger.LogWarning(ex, "FusionCache ERROR Key={Key}, Error={Error}", key, ex.Message);
+            if (factoryFailed)
+            {
+                // Hard factory failure (no fail-safe stale returned) — OTEL result=fail for analytics.
+                sw.Stop();
+                RecordFusionAndAdmin(
+                    http,
+                    opts.Domain,
+                    opts.Domain,
+                    "fail",
+                    durationMs: sw.ElapsedMilliseconds,
+                    elapsedTicks: sw.ElapsedTicks,
+                    resultSizeBytes: null);
+                if (_logger.IsEnabled(LogLevel.Warning))
+                    _logger.LogWarning(ex, "FusionCache ERROR Key={Key}, Error={Error}", key, ex.Message);
+            }
+
             throw;
         }
 

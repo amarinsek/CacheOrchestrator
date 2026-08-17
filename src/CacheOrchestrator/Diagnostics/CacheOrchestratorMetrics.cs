@@ -147,7 +147,7 @@ public static class CacheOrchestratorMetrics
     /// Records a FusionCache operation outcome (and optional duration).
     /// </summary>
     /// <param name="domain">Domain name.</param>
-    /// <param name="result">Result code: hit, miss, stale, bypass, off.</param>
+    /// <param name="result">Result code: hit, miss, stale, fail, bypass, off.</param>
     /// <param name="durationMs">Optional duration in milliseconds.</param>
     /// <param name="route">Optional stable endpoint key when IncludeEndpointLabel is enabled.</param>
     /// <param name="resultSizeBytes">Optional measured factory result size (bytes) on miss.</param>
@@ -166,8 +166,8 @@ public static class CacheOrchestratorMetrics
             // Legacy: all timed GetOrSet outcomes (dashboards may still use this).
             FcDurationMs.Record(ms, tags);
 
-            // Canonical factory cost: only when the value factory ran (miss or fail-safe stale).
-            if (result is "miss" or "stale")
+            // Canonical factory cost: factory ran (miss, fail-safe stale, or hard fail).
+            if (result is "miss" or "stale" or "fail")
                 FactoryDurationMs.Record(ms, tags);
         }
 

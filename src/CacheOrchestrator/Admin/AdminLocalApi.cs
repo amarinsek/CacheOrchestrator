@@ -81,11 +81,11 @@ public static class AdminLocalApi
             });
         });
 
-        // Legacy fat DTO (v1). Prefer /stats/v2; remove in 3.0.
+        // Obsolete: process-lifetime counters. Prefer OTEL/Prometheus for analytics.
+        // Kept for external tools; Admin Console stats UI uses Prometheus only.
+#pragma warning disable CS0618
         group.MapGet("/stats", (AdminQueryService query) => Results.Ok(query.GetStats()));
-
-        // Canonical raw counters (v2).
-        group.MapGet("/stats/v2", (AdminQueryService query) => Results.Ok(query.GetStatsRaw()));
+#pragma warning restore CS0618
 
         group.MapGet("/endpoints", (AdminQueryService query) => Results.Ok(query.GetEndpoints()));
 

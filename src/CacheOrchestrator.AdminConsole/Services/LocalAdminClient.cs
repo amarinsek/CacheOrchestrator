@@ -37,10 +37,16 @@ public sealed class LocalAdminClient : ILocalAdminClient
         GetAsync<AdminHealthDto>(instance, "/health", cancellationToken);
 
     /// <inheritdoc />
+    [Obsolete("Prefer Prometheus window stats. Console does not call instance /stats for the stats UI.")]
     public Task<InstanceCallOutcome<AdminLiveStatsRawSnapshot>> GetStatsAsync(
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default) =>
-        GetAsync<AdminLiveStatsRawSnapshot>(instance, "/stats/v2", cancellationToken);
+        Task.FromResult(new InstanceCallOutcome<AdminLiveStatsRawSnapshot>
+        {
+            InstanceId = instance.Id,
+            Succeeded = false,
+            Error = "Console stats use Prometheus (/api/stats/window). Local Admin /stats is process-lifetime diagnostics only.",
+        });
 
     /// <inheritdoc />
     public async Task<InstanceCallOutcome<IReadOnlyList<AdminEndpointInfoDto>>> GetEndpointsAsync(

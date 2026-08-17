@@ -105,7 +105,7 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
       <div class="card">${emptyStateHtml("metrics-config", {
         title: "Metrics storage not configured",
         detail: status.error
-          || "Set AdminConsole:Metrics:Enabled, Provider, and BaseUrl to show time series from Prometheus. Use Range → Process totals for Admin counters.",
+          || "Set AdminConsole:Metrics:Enabled, Provider, and BaseUrl. All Console statistics require Prometheus.",
         actions: [
           { label: "Refresh", onclick: "window.__adminRefresh && window.__adminRefresh()" },
           { label: "Overview", href: "#/overview" },
@@ -139,12 +139,11 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
   }
 
   const selDomains = parseCsvParam(params, "domains");
-  // Domain list: Admin config/stats (same as Endpoints/Hints). Not Prom label_values —
-  // that would miss domains with zero traffic in the window.
+  // Domain filter options from window stats (or config fan-out as fallback names).
   let domainOpts = [];
   try {
-    const stats = await api("/api/stats?scope=all");
-    domainOpts = (stats.domains || []).map((d) => ({ id: d.name, label: d.name }));
+    const cfg = await api("/api/domains");
+    domainOpts = (cfg.data || []).map((d) => ({ id: d.name, label: d.name }));
   } catch { /* empty multi-select */ }
 
   let summary = null;

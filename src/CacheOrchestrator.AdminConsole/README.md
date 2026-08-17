@@ -6,9 +6,9 @@ Admin Console App for multi-instance CacheOrchestrator: live stats, domain setti
 
 It calls the **Admin API** on each instance you list (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).
 
-**Stats:** Console **2.2+** uses Local Admin **`GET …/stats/v2`** (raw counters) and derives shares + **impact KPIs** (factory avoidance, est. time saved, benefit/candidate) in the Console. Requires instance package **≥ 2.2**. For older instances, use **Admin Console 2.1**.
+**Stats (Prom-only):** Console **2.2+** traffic KPIs, domain/endpoint tables, impact, and hints come from **Prometheus** (`AdminConsole:Metrics` + `GET /api/stats/window`). Local Admin API is used for health, domain config, and operations (invalidate / Version / TTL) only. Instance process-lifetime `GET …/stats` remains for diagnostics but is **not** used by the stats UI.
 
-**Impact windows:** Overview shows lifetime impact plus optional **poll-delta** (“recent”) after a second refresh. Windowed charts need Prometheus (`AdminConsole:Metrics`) and instruments such as `cache_orchestrator.factory.duration`.
+**Impact / charts:** Need Prometheus scrape of the `CacheOrchestrator` meter (e.g. `cache_orchestrator.fc.requests`, `cache_orchestrator.factory.duration`). Without Metrics store, statistics and charts are unavailable.
 
 This host is **not** a NuGet package. It targets **.NET 10** only.  
 Monitored app instances may still run on **.NET 8** or **.NET 10** — Admin talks **HTTP only**, so Admin TFM does not need to match instance TFMs.

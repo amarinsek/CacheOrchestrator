@@ -49,7 +49,6 @@ builder.Services.AddSingleton<ILocalAdminClient, LocalAdminClient>();
 builder.Services.AddSingleton<IHintRuleDisableStore, HintRuleDisableStore>();
 builder.Services.AddSingleton<HintRuleRegistry>();
 builder.Services.AddSingleton<HintEngine>();
-builder.Services.AddSingleton<StatsDeltaCache>();
 builder.Services.AddSingleton<AdminFanOutService>();
 builder.Services.AddSingleton<IMetricsQueryClient, PrometheusMetricsQueryClient>();
 builder.Services.AddSingleton<MetricsQueryService>();
@@ -111,6 +110,7 @@ api.MapGet("/distribution", async (AdminFanOutService fanOut, CancellationToken 
     return Results.Ok(capability);
 });
 
+// Obsolete empty shell — SPA traffic stats use GET /api/stats/window (Prometheus).
 api.MapGet("/stats", async (
     string? scope,
     bool? groupByInstance,
@@ -120,9 +120,11 @@ api.MapGet("/stats", async (
 {
     try
     {
+#pragma warning disable CS0618
         ClusterStatsDto stats = await fanOut
             .GetStatsAsync(scope, cancellationToken, groupByInstance ?? false, instances)
             .ConfigureAwait(false);
+#pragma warning restore CS0618
         return Results.Ok(stats);
     }
     catch (KeyNotFoundException ex)
@@ -135,6 +137,7 @@ api.MapGet("/stats", async (
     }
 });
 
+// Obsolete empty list — SPA uses /api/stats/window for endpoint traffic.
 api.MapGet("/endpoints", async (
     string? sort,
     int? take,
@@ -150,6 +153,7 @@ api.MapGet("/endpoints", async (
 {
     try
     {
+#pragma warning disable CS0618
         IReadOnlyList<CacheOrchestrator.Admin.AdminEndpointStatsDto> list =
             await fanOut
                 .GetTopEndpointsAsync(
@@ -164,6 +168,7 @@ api.MapGet("/endpoints", async (
                     minRequests ?? 0,
                     skip ?? 0)
                 .ConfigureAwait(false);
+#pragma warning restore CS0618
         return Results.Ok(list);
     }
     catch (KeyNotFoundException ex)

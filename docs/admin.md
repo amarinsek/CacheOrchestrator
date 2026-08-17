@@ -7,11 +7,9 @@ Two pieces work together:
 
 This page covers architecture, security, and production. To run the App: [Admin README](../src/CacheOrchestrator.AdminConsole/README.md). Hint rules: [admin-hints.md](admin-hints.md).
 
-- One process, curl or a script — enable the Admin API.
-- A dashboard across instances — Admin Console App, with the Admin API on each target.
-- Time window (“last hour”) — optional **Admin Console App → Prometheus** (`AdminConsole:Metrics`). Console **Range** chooses:
-  - **Process totals** — Local Admin `/stats/v2` counters since process start  
-  - **Last N / from–to** — all traffic & impact from Prometheus (`GET /api/stats/window`); green-underlined fields stay **current** (config/identity); charts use the same window
+- One process, curl or a script — enable the Admin API (health, config, invalidate, Version/TTL; optional process-lifetime `/stats` diagnostics).
+- A dashboard across instances — Admin Console App, with the Admin API on each target **and** Prometheus (`AdminConsole:Metrics`) for all traffic stats.
+- Time window (“last hour”) — Console **Range** (Last N / absolute from–to) drives **all** traffic & impact from Prometheus (`GET /api/stats/window`). Green-underlined fields stay **current** (config/identity). Without Metrics store, health/config/operations still work; statistics and charts do not.
 
 Writes (invalidate, Version, TTL) change live cache state. Restrict who can reach these endpoints.
 
@@ -33,8 +31,7 @@ Writes (invalidate, Version, TTL) change live cache state. Restrict who can reac
 ```
 
 - Admin Console App is **never** on the end-user caching hot path.  
-- Each instance keeps its **own** L1 Output Cache / FusionCache counters.  
-- Aggregation is **sum / recompute shares** (`StatsAggregator`, `AdminStatsMath`).  
+- **Console traffic stats** come only from the OTEL meter scraped into Prometheus (`increase()` over the selected Range per domain/route/`instance_id`). Local Admin `/stats` is process-lifetime diagnostics only (obsolete for analytics).  
 - Runtime **Version** and **TTL** overlays are **process-local** on each node unless the optional [cluster bus](cluster-bus.md) publishes them (`distribute: true` / Admin Console App **bus-distribute**). Without bus, Admin Console App **fan-out** must hit every instance that should change.
 
 ---
@@ -130,8 +127,7 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | `Healthy`, `InstanceId`, `StartedAtUtc`, `UptimeSeconds`, `Requests` |
-| GET | `/stats/v2` | **Canonical** live raw counters (no shares/rates; optional factory duration) |
-| GET | `/stats` | Legacy fat DTO (shares + rates); projected from raw — prefer `/stats/v2` |
+| GET | `/stats` | **Obsolete** process-lifetime fat DTO (shares + rates) — diagnostics / external tools only; Admin Console does **not** use this for the stats UI |
 | GET | `/endpoints` | Discovered + counted routes |
 | GET | `/domains` | Effective domain options snapshot |
 | POST | `/invalidate` | Domain / entity invalidation |
@@ -140,13 +136,15 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 
 Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
-### Stats v2 (raw — preferred)
+**Removed:** `GET …/stats/v2` (raw snapshot endpoint). Analytics should use the OTEL meter `CacheOrchestrator` (Prometheus) and Console `GET /api/stats/window`.
 
-`GET …/stats/v2` returns process-lifetime **raw counters** per domain/endpoint, for example:
+### Local Admin `/stats` (process-lifetime, obsolete for analytics)
 
-`ocHits`, `ocMisses`, `ocBypass`, `fcHits`, `fcMisses`, `fcStale`, `fcBypass`, `factoryRuns`, `factoryFailures`, and when `Cache:Admin:TrackLatency` is true: `factoryDurationSumMs` / `factoryDurationCount` (factory path only: miss/stale). When `Cache:Admin:TrackResultSize` is true: `factoryResultSizeSumBytes` / `factoryResultSizeCount` for cheap-to-measure results (string UTF-8, byte buffers, seekable streams).
+Still available for curl/scripts: process-lifetime counters projected into a fat DTO (shares + rates). When `Cache:Admin:TrackLatency` / `TrackResultSize` are on, factory duration and result-size sums are included.
 
-Shares, rates, pipeline, and impact KPIs are computed by the Admin Console (or other clients). Request denominator:
+**Prefer** Prometheus for multi-instance and time windows. Admin Console traffic UI is Prom-only.
+
+Request denominator (same model as window rows):
 
 ```text
 requests = (ocHits+ocMisses+ocBypass) if > 0
@@ -154,10 +152,10 @@ requests = (ocHits+ocMisses+ocBypass) if > 0
 factoryShare = factoryRuns / requests
 ```
 
-### Stats model v1 (shares vs rates — legacy `/stats`)
+### Stats model (shares vs rates)
 
 1. **Output Cache** events on HTTP responses (hit / miss / bypass).  
-2. **FusionCache** events on data path (hit / miss / stale / bypass, factory runs/failures).  
+2. **FusionCache** events on data path (hit / miss / stale / fail / bypass, factory runs/failures).  
 
 
 | Metric type | Question it answers |
@@ -267,21 +265,21 @@ Dev stack (Playground + Prometheus + Admin Console labs): [samples/CacheOrchestr
 | `BearerToken` | empty | Optional `Authorization: Bearer` |
 | `PathPrefix` | empty | e.g. `/prometheus` behind a reverse proxy |
 
-When **not configured**, the Metrics page explains how to enable it; Overview omits history cards; Range windowed shortcuts fall back to process totals. When **configured but unreachable**, the UI shows **Disconnected** with the same **Provider · host** (from `BaseUrl`) plus not connected / error text — so the target is always visible even when the probe fails (no fake zeros). Metrics store status also appears on **Instances**.
+When **not configured**, statistics and charts are unavailable (UI shows Metrics offline); health, domain config, and operations still work via Local Admin API. When **configured but unreachable**, the UI shows **Disconnected** with the same **Provider · host** (from `BaseUrl`) plus not connected / error text — so the target is always visible even when the probe fails (no fake zeros). Metrics store status also appears on **Instances**.
 
-#### Windowed stats (Prometheus)
+#### Windowed stats (Prometheus) — Console traffic source
 
 | Console API | Role |
 |-------------|------|
-| `GET /api/stats/window` | Domain/endpoint counters + shares + impact for the selected window (`range` and/or `from`/`to`, optional `domains`) |
+| `GET /api/stats/window` | Domain/endpoint counters + shares + impact + hints for the selected window (`range` and/or `from`/`to`, optional `domains`) |
 | `GET /api/metrics/series` | Chart panels (`range`, `from`/`to`, `panels`, `domains`, `instances`, `routes`) |
 | `GET /api/metrics/summary` | Compact rates/shares for the window |
 
-When Range is **Last N / absolute**, Overview, Domains, Endpoints, detail **traffic**, and **Hints** use `/api/stats/window` (Prometheus). **Green underline** = current config/identity (Version, TTL, …), not the window. **Process totals** still use Local Admin `/stats/v2` fan-out.
+Overview, Domains, Endpoints, detail **traffic**, header KPIs, and **Hints** use `/api/stats/window` only. **Green underline** = current config/identity (Version, TTL, …), not the window. Local Admin process counters are **not** used for Console stats.
 
-Window aggregates use **window delta** (current counter − counter at window start; new series → full current value), not bare `increase()`, so the first request after an empty Prometheus is not lost. Grouping: OC/FC/invalidate by `domain`/`result`; endpoints by `route`. Factory duration uses histogram `_sum`/`_count`. Per-instance: scrape `instance_id` (lab: `playground-1`); missing → **`undefined`**. Counts still update only after a scrape (lab ~5s).
+Window aggregates use Prometheus **`increase(metric[range])`** over the selected Range (same idea as chart `rate`/`increase`), so domains/endpoints that had traffic mid-window still count even if OTEL later stops exporting those labels. Instant `now − offset` is **not** used for that reason. Rows with **zero requests** (and no invalidations) in the window are **omitted** from domain/endpoint tables — charts may still draw historical curves for series present in TSDB. Brand-new series with only one scrape may under-count until the next scrape (fallback: current value when the series did not exist at window start). Grouping: OC/FC/invalidate by `domain`/`result`; endpoints by `route`. Factory duration uses histogram `_sum`/`_count`. Fusion `result=fail` (hard factory throw) maps to factory failures. Per-instance: scrape `instance_id` (lab: `playground-1`); missing → **`undefined`**.
 
-`HintEngine` runs on window domain/endpoint rows (same declarative paths as process totals). Config-only rules still receive Admin domain config when fan-out succeeds. Rules needing factory-failure rates may not fire until those samples exist on the window model.
+`HintEngine` runs on window domain/endpoint rows. Config-only rules still receive Admin domain config when fan-out succeeds. Rules needing factory-failure rates need `result=fail` or `stale` samples in the window.
 
 Endpoint window rows need core `Cache:Metrics:IncludeEndpointLabel` (default true). If disabled, domain-level window stats still work; endpoint rows stay empty.
 
@@ -297,16 +295,16 @@ Quick operator steps: [Admin Console App README](../src/CacheOrchestrator.AdminC
 
 ### What the SPA shows
 
-- Chrome: brand → **metrics strip** (`N/M up`, pipeline, OC/FC/Factory shares, Req, Inv, hints, optional metrics store pill) → **menu**  
-- Overview: instances (Admin health); **top 5 domains/endpoints** from process totals **or** Prometheus window (Range); charts when Metrics connected  
-- Lists: filters, search, sort; detail pages; Hints page (windowed: same rules on Prometheus rows)  
+- Chrome: brand → **metrics strip** (health from Admin; traffic KPIs from Prometheus Range; optional metrics store pill) → **menu**  
+- Overview: instances (Admin health); **top 5 domains/endpoints** from Prometheus window; charts when Metrics connected  
+- Lists: filters, search, sort; detail pages; Hints page (same rules on Prometheus window rows)  
 - **Metrics** (`#/metrics`): window charts from Prometheus; multi-select domains; global Range (relative + absolute from/to)  
 - **Operations** (`#/operations`): invalidate / version / TTL; banner **HTTP fan-out** vs **Cluster bus (distribute)**; cluster probe table; last-run mode in result  
 - Auto-refresh interval in `localStorage`  
 
 ### Recommendation hints
 
-Evaluated **only in the Admin Console App** after fan-out aggregation (`HintEngine` + JSON packs).  
+Evaluated **only in the Admin Console App** on Prometheus window stats (`HintEngine` + JSON packs), plus domain config for config-only rules.  
 **Customizable:** product defaults in `hints/core-hints.json`; extra packs via `AdminConsole:Hints:RuleFiles`; enable/disable in **Settings**. UI does not invent rules.
 
 Step-by-step custom rules (ships with Admin): [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md).  
@@ -316,11 +314,12 @@ Repo overview: [admin-hints.md](admin-hints.md).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/overview` | Cluster overview + instances + top domains/endpoints + hints |
+| GET | `/api/overview` | Instance health / connectivity only (no traffic counters) |
 | GET | `/api/instances` | Health probe fan-out |
 | GET | `/api/distribution` | Probe `…/cluster/info`; recommended write mode (fan-out vs bus-distribute) |
-| GET | `/api/stats?scope=all\|instance:{id}&groupByInstance=` | Aggregated live stats |
-| GET | `/api/endpoints?…` | Endpoint list (search/sort/page/filters) |
+| GET | `/api/stats/window?range=&from=&to=&domains=` | **Traffic stats** (Prometheus): domains/endpoints + impact + hints |
+| GET | `/api/stats` | Obsolete empty shell (kept for wire compatibility) |
+| GET | `/api/endpoints` | Obsolete empty list (SPA uses `/api/stats/window`) |
 | GET | `/api/domains` | Domain config fan-out |
 | GET | `/api/metrics/status` | Metrics store probe (`NotConfigured` / `Disconnected` / `Connected`) |
 | GET | `/api/metrics/catalog` | Allowlisted chart panels |

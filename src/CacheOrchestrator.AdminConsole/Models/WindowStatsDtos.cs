@@ -4,7 +4,7 @@ namespace CacheOrchestrator.AdminConsole.Models;
 
 /// <summary>
 /// Cluster stats derived from Prometheus for a selected time window
-/// (not Local Admin process totals).
+/// (Prometheus-only; Local Admin process counters are not used).
 /// </summary>
 public sealed class WindowStatsDto
 {
@@ -61,6 +61,6 @@ public sealed class WindowStatsDto
     /// </summary>
     public bool NoData { get; init; }
 
-    /// <summary>Hint summary over window domain/endpoint rows (same engine as process totals).</summary>
+    /// <summary>Hint summary over window domain/endpoint rows.</summary>
     public AdminHintSummaryDto HintSummary { get; init; } = new();
 }

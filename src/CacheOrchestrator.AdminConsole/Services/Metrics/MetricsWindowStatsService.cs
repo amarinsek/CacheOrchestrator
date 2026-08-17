@@ -62,9 +62,9 @@ public sealed class MetricsWindowStatsService
             string rw = window.PromRangeDuration;
             IReadOnlyList<string> domainFilter = ParseCsv(domainsCsv);
 
-            // Window counts: current − value@window_start (missing start → full current).
-            // Do NOT use increase(): it skips the first sample of a new series, so the first
-            // request(s) after an empty Prom stay at 0 forever until more scrapes arrive.
+            // Window counts via increase() over the selected range.
+            // Do NOT use instant (now − offset): OTEL often stops exporting idle label sets, so
+            // domains/endpoints vanish from tables while range charts still show their curves.
             Task<IReadOnlyList<PrometheusInstantSample>> ocTask = QueryAsync(
                 WindowCountBy("domain,result", MetricsPanelCatalog.OcRequests, rw, domainFilter),
                 window.End, cancellationToken);
@@ -102,13 +102,28 @@ public sealed class MetricsWindowStatsService
             Task<IReadOnlyList<PrometheusInstantSample>> invInstTask = QueryAsync(
                 WindowCountBy("domain,instance_id", MetricsPanelCatalog.Invalidations, rw, domainFilter),
                 window.End, cancellationToken);
+            // Endpoint × instance (for instance detail endpoint list)
+            Task<IReadOnlyList<PrometheusInstantSample>> ocRouteInstTask = QueryAsync(
+                WindowCountBy("route,result,instance_id", MetricsPanelCatalog.OcRequests, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> fcRouteInstTask = QueryAsync(
+                WindowCountBy("route,result,instance_id", MetricsPanelCatalog.FcRequests, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> facSumRouteInstTask = QueryAsync(
+                WindowCountBy("route,instance_id", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> facCntRouteInstTask = QueryAsync(
+                WindowCountBy("route,instance_id", MetricsPanelCatalog.FactoryDurationCount, rw, domainFilter),
+                window.End, cancellationToken);
             Task<FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>>> cfgTask =
                 _fanOut.GetDomainsAsync(cancellationToken);
 
             await Task.WhenAll(
                     ocTask, fcTask, invTask, facSumTask, facCntTask,
                     ocRouteTask, fcRouteTask, facSumRouteTask, facCntRouteTask,
-                    ocInstTask, fcInstTask, invInstTask, cfgTask)
+                    ocInstTask, fcInstTask, invInstTask,
+                    ocRouteInstTask, fcRouteInstTask, facSumRouteInstTask, facCntRouteInstTask,
+                    cfgTask)
                 .ConfigureAwait(false);
 
             Dictionary<string, LayerBucket> domains = new(StringComparer.OrdinalIgnoreCase);
@@ -129,6 +144,16 @@ public sealed class MetricsWindowStatsService
             AccumulateLayer(routes, ocRoute, isOc: true, keyLabel: "route");
             AccumulateLayer(routes, fcRoute, isOc: false, keyLabel: "route");
             AccumulateFactoryDuration(routes, await facSumRouteTask.ConfigureAwait(false), await facCntRouteTask.ConfigureAwait(false), keyLabel: "route");
+
+            // route → instanceId → bucket
+            Dictionary<string, Dictionary<string, LayerBucket>> routeInst = new(StringComparer.Ordinal);
+            AccumulateLayerByKeyInstance(routeInst, await ocRouteInstTask.ConfigureAwait(false), isOc: true, keyLabel: "route");
+            AccumulateLayerByKeyInstance(routeInst, await fcRouteInstTask.ConfigureAwait(false), isOc: false, keyLabel: "route");
+            AccumulateFactoryDurationByKeyInstance(
+                routeInst,
+                await facSumRouteInstTask.ConfigureAwait(false),
+                await facCntRouteInstTask.ConfigureAwait(false),
+                keyLabel: "route");
 
             Dictionary<string, string> routeDomain = new(StringComparer.Ordinal);
             foreach (PrometheusInstantSample s in ocRoute.Concat(fcRoute))
@@ -153,20 +178,31 @@ public sealed class MetricsWindowStatsService
                 if (string.IsNullOrEmpty(name) || name is "_" || name.Contains('/', StringComparison.Ordinal))
                     continue;
 
+                // increase() can still surface idle series (0 delta) or factory-only residual samples.
+                // Traffic tables only list domains with real window activity.
+                if (b.Requests <= 0 && b.Invalidations <= 0)
+                    continue;
+
                 List<AdminDomainStatsDto>? byInstance = null;
                 AdminInstanceSpreadDto? spread = null;
                 if (domainInst.TryGetValue(name, out Dictionary<string, LayerBucket>? instMap) && instMap.Count > 0)
                 {
                     byInstance = instMap
                         .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                        .Where(kv => kv.Value.Requests > 0 || kv.Value.Invalidations > 0)
                         .Select(kv => ToDomain(name, kv.Value, instanceId: kv.Key))
                         .ToList();
-                    spread = new AdminInstanceSpreadDto
+                    if (byInstance.Count == 0)
+                        byInstance = null;
+                    else
                     {
-                        OcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Oc.HitShare)),
-                        FcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.HitShare)),
-                        FactoryShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.FactoryShare)),
-                    };
+                        spread = new AdminInstanceSpreadDto
+                        {
+                            OcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Oc.HitShare)),
+                            FcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.HitShare)),
+                            FactoryShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.FactoryShare)),
+                        };
+                    }
                 }
 
                 configByName.TryGetValue(name, out AdminDomainConfigDto? cfg);
@@ -182,8 +218,35 @@ public sealed class MetricsWindowStatsService
             {
                 if (string.IsNullOrEmpty(route))
                     continue;
+                // No traffic in this window → do not list (even if Prom still returns a 0 increase).
+                if (b.Requests <= 0)
+                    continue;
+
                 routeDomain.TryGetValue(route, out string? dom);
-                AdminEndpointStatsDto ep = ToEndpoint(route, dom, b);
+
+                List<AdminEndpointStatsDto>? byInstance = null;
+                AdminInstanceSpreadDto? spread = null;
+                if (routeInst.TryGetValue(route, out Dictionary<string, LayerBucket>? instMap) && instMap.Count > 0)
+                {
+                    byInstance = instMap
+                        .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                        .Where(kv => kv.Value.Requests > 0)
+                        .Select(kv => ToEndpoint(route, dom, kv.Value, instanceId: kv.Key))
+                        .ToList();
+                    if (byInstance.Count == 0)
+                        byInstance = null;
+                    else
+                    {
+                        spread = new AdminInstanceSpreadDto
+                        {
+                            OcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Oc.HitShare)),
+                            FcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.HitShare)),
+                            FactoryShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.FactoryShare)),
+                        };
+                    }
+                }
+
+                AdminEndpointStatsDto ep = ToEndpoint(route, dom, b, instanceId: null, byInstance, spread);
                 endpointRows.Add(_hints.WithHints(ep));
             }
 
@@ -283,12 +346,11 @@ public sealed class MetricsWindowStatsService
     }
 
     /// <summary>
-    /// Count of events in the window for a counter (or histogram sum/count).
-    /// <list type="bullet">
-    /// <item>If the series existed at window start: <c>now - then</c> (clamped ≥ 0).</item>
-    /// <item>If the series is new in the window: full current value (includes the first request).</item>
-    /// </list>
-    /// Using <c>increase()</c> alone under-counts because Prom skips the first sample of a new series.
+    /// Count of events in the selected window for a counter (or histogram sum/count).
+    /// Uses <c>increase(m[window])</c> so series that went idle / stopped exporting mid-window
+    /// still contribute (same samples charts use via <c>rate</c>/<c>increase</c>).
+    /// Instant <c>now − offset</c> only sees currently live series and drops idle domains.
+    /// New series with a single scrape may under-count until a second sample (scrape interval).
     /// </summary>
     private static string WindowCountBy(
         string byLabels,
@@ -298,13 +360,15 @@ public sealed class MetricsWindowStatsService
     {
         string sel = BuildDomainSelector(domainFilter);
         string m = metric + sel;
-        // offset must match the selected window (e.g. 900s for 15m, 3600s for 1h).
-        string offset = rangeDuration;
+        // Primary: full-window increase (handles counter resets + stale/idle series).
+        // Fallback: live series that did not exist at window start (brand-new label set) —
+        // increase() can be 0 with only one sample; use current cumulative value instead.
         return
-            "clamp_min((" +
-            $"sum by ({byLabels}) ({m})" +
-            $" - sum by ({byLabels}) ({m} offset {offset})" +
-            $") or sum by ({byLabels}) ({m} unless on ({byLabels}) {m} offset {offset}), 0)";
+            $"(" +
+            $"sum by ({byLabels}) (clamp_min(increase({m}[{rangeDuration}]), 0))" +
+            $") or (" +
+            $"sum by ({byLabels}) ({m} unless on ({byLabels}) {m} offset {rangeDuration})" +
+            $")";
     }
 
     private static string BuildDomainSelector(IReadOnlyList<string> domains)
@@ -347,21 +411,71 @@ public sealed class MetricsWindowStatsService
     private static void AccumulateLayerByInstance(
         Dictionary<string, Dictionary<string, LayerBucket>> map,
         IReadOnlyList<PrometheusInstantSample> samples,
-        bool isOc)
+        bool isOc) =>
+        AccumulateLayerByKeyInstance(map, samples, isOc, keyLabel: "domain");
+
+    /// <summary>
+    /// Groups samples by primary key label (domain or route) then <c>instance_id</c>.
+    /// </summary>
+    private static void AccumulateLayerByKeyInstance(
+        Dictionary<string, Dictionary<string, LayerBucket>> map,
+        IReadOnlyList<PrometheusInstantSample> samples,
+        bool isOc,
+        string keyLabel)
     {
         foreach (PrometheusInstantSample s in samples)
         {
-            string domain = Label(s.Metric, "domain");
-            if (domain.Length == 0)
+            string key = Label(s.Metric, keyLabel);
+            if (key.Length == 0)
                 continue;
             string inst = InstanceId(s.Metric);
-            if (!map.TryGetValue(domain, out Dictionary<string, LayerBucket>? instMap))
+            if (!map.TryGetValue(key, out Dictionary<string, LayerBucket>? instMap))
             {
                 instMap = new Dictionary<string, LayerBucket>(StringComparer.OrdinalIgnoreCase);
-                map[domain] = instMap;
+                map[key] = instMap;
             }
 
             ApplyResult(GetOrAdd(instMap, inst), s, isOc);
+        }
+    }
+
+    private static void AccumulateFactoryDurationByKeyInstance(
+        Dictionary<string, Dictionary<string, LayerBucket>> map,
+        IReadOnlyList<PrometheusInstantSample> sums,
+        IReadOnlyList<PrometheusInstantSample> counts,
+        string keyLabel)
+    {
+        foreach (PrometheusInstantSample s in sums)
+        {
+            string key = Label(s.Metric, keyLabel);
+            if (key.Length == 0 || s.Value is not double v || v <= 0)
+                continue;
+            string inst = InstanceId(s.Metric);
+            if (!map.TryGetValue(key, out Dictionary<string, LayerBucket>? instMap))
+            {
+                instMap = new Dictionary<string, LayerBucket>(StringComparer.OrdinalIgnoreCase);
+                map[key] = instMap;
+            }
+
+            GetOrAdd(instMap, inst).FactoryDurationSumMs += v;
+        }
+
+        foreach (PrometheusInstantSample s in counts)
+        {
+            string key = Label(s.Metric, keyLabel);
+            if (key.Length == 0)
+                continue;
+            long n = ToCount(s.Value);
+            if (n == 0)
+                continue;
+            string inst = InstanceId(s.Metric);
+            if (!map.TryGetValue(key, out Dictionary<string, LayerBucket>? instMap))
+            {
+                instMap = new Dictionary<string, LayerBucket>(StringComparer.OrdinalIgnoreCase);
+                map[key] = instMap;
+            }
+
+            GetOrAdd(instMap, inst).FactoryDurationCount += n;
         }
     }
 
@@ -413,7 +527,7 @@ public sealed class MetricsWindowStatsService
         foreach (PrometheusInstantSample s in sums)
         {
             string key = Label(s.Metric, keyLabel);
-            if (key.Length == 0 || s.Value is not double v)
+            if (key.Length == 0 || s.Value is not double v || v <= 0)
                 continue;
             GetOrAdd(map, key).FactoryDurationSumMs += v;
         }
@@ -456,7 +570,13 @@ public sealed class MetricsWindowStatsService
                     b.FcMisses += n;
                     b.FactoryRuns += n;
                     break;
-                case "stale": b.FcStale += n; break;
+                case "stale":
+                    b.FcStale += n;
+                    b.FactoryFailures += n; // fail-safe after factory issues
+                    break;
+                case "fail":
+                    b.FactoryFailures += n; // hard factory throw (OTEL)
+                    break;
                 case "bypass": b.FcBypass += n; break;
                 default: b.FcBypass += n; break;
             }
@@ -504,18 +624,27 @@ public sealed class MetricsWindowStatsService
         };
     }
 
-    private static AdminEndpointStatsDto ToEndpoint(string route, string? domain, LayerBucket b)
+    private static AdminEndpointStatsDto ToEndpoint(
+        string route,
+        string? domain,
+        LayerBucket b,
+        string? instanceId = null,
+        IReadOnlyList<AdminEndpointStatsDto>? byInstance = null,
+        AdminInstanceSpreadDto? spread = null)
     {
         var (req, oc, fc, pipe) = b.BuildLayers();
         return new AdminEndpointStatsDto
         {
             Route = route,
+            InstanceId = instanceId,
             ConfiguredDomain = string.IsNullOrEmpty(domain) ? null : domain,
             Requests = req,
             Oc = oc,
             Fc = fc,
             Pipeline = pipe,
             Impact = ImpactMath.Compute(req, b.FactoryRuns, b.FactoryDurationSumMs, b.FactoryDurationCount),
+            ByInstance = byInstance,
+            InstanceSpread = spread,
             Hints = [],
         };
     }
@@ -587,6 +716,7 @@ public sealed class MetricsWindowStatsService
         public long FcStale;
         public long FcBypass;
         public long FactoryRuns;
+        public long FactoryFailures;
         public long Invalidations;
         public double FactoryDurationSumMs;
         public long FactoryDurationCount;
@@ -604,6 +734,7 @@ public sealed class MetricsWindowStatsService
             FcStale += o.FcStale;
             FcBypass += o.FcBypass;
             FactoryRuns += o.FactoryRuns;
+            FactoryFailures += o.FactoryFailures;
             Invalidations += o.Invalidations;
             FactoryDurationSumMs += o.FactoryDurationSumMs;
             FactoryDurationCount += o.FactoryDurationCount;
@@ -614,6 +745,6 @@ public sealed class MetricsWindowStatsService
             AdminStatsMath.BuildAll(
                 OcHits, OcMisses, OcBypass,
                 FcHits, FcMisses, FcStale, FcBypass,
-                FactoryRuns, factoryFailures: 0);
+                FactoryRuns, FactoryFailures);
     }
 }

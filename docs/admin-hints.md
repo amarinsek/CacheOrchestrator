@@ -24,10 +24,12 @@ Hints never change cache behaviour, TTLs, or invalidation.
 ## Architecture (repository)
 
 ```
-Local Admin /stats  →  Admin Console App fan-out (StatsAggregator)
-                    →  HintEngine (JSON rules)
-                    →  entity.Hints[] + HintSummary
-                    →  SPA (badges, Hints page, Settings)
+Prometheus (OTEL meter)  →  Admin Console /api/stats/window
+                         →  HintEngine (JSON rules)
+                         →  entity.Hints[] + HintSummary
+                         →  SPA (badges, Hints page, Settings)
+
+Domain config (optional) →  Admin fan-out /api/domains  →  config-only rules
 ```
 
 | Piece | Role |

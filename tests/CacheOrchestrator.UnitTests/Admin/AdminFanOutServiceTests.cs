@@ -2,7 +2,6 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Models;
 using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.AdminConsole.Services;
-using CacheOrchestrator.AdminConsole.Services.Hints;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
@@ -43,67 +42,58 @@ public class AdminFanOutServiceTests
     }
 
     [Fact]
-    public async Task GetStatsAsync_AggregatesSuccessfulInstances_IgnoresFailures()
+    public async Task GetStatsAsync_ReturnsEmptyShell_PromOnlyConsole()
     {
         FakeLocalAdminClient client = new();
-        client.Stats["a"] = new AdminLiveStatsRawSnapshot
-        {
-            InstanceId = "a",
-            CollectedAtUtc = DateTimeOffset.UtcNow,
-            Domains =
-            [
-                new AdminDomainCountersDto
-                {
-                    Name = "catalog",
-                    Version = "1",
-                    OcHits = 10,
-                    FcHits = 5,
-                    FcMisses = 5,
-                    FactoryRuns = 5
-                }
-            ],
-            UnassignedEndpoints = [],
-            Endpoints = []
-        };
-        client.FailStats.Add("b");
-
         AdminFanOutService sut = CreateSut(client,
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             new AdminInstanceOptions { Id = "b", Url = "http://b" });
 
+#pragma warning disable CS0618
         ClusterStatsDto stats = await sut.GetStatsAsync("all", TestContext.Current.CancellationToken);
+#pragma warning restore CS0618
 
-        stats.Instances.Should().HaveCount(2);
-        stats.Instances.Count(i => i.Succeeded).Should().Be(1);
-        stats.Domains.Should().ContainSingle(d => d.Name == "catalog" && d.Oc.Hits == 10);
-        stats.Domains[0].Impact.Should().NotBeNull();
+        stats.Domains.Should().BeEmpty();
+        stats.Endpoints.Should().BeEmpty();
+        stats.Instances.Should().BeEmpty();
+        client.StatsCallCountById.Should().BeEmpty("Console no longer fans out instance /stats");
     }
 
     [Fact]
-    public async Task GetStatsAsync_SkipsKnownDownInstance_OnSecondCall()
+    public async Task GetOverviewAsync_HealthOnly_NoTrafficCounters()
     {
         FakeLocalAdminClient client = new();
-        client.FailStats.Add("b");
-        client.Stats["a"] = new AdminLiveStatsRawSnapshot
-        {
-            InstanceId = "a",
-            CollectedAtUtc = DateTimeOffset.UtcNow,
-            Domains = [],
-            UnassignedEndpoints = [],
-            Endpoints = []
-        };
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        OverviewDto overview = await sut.GetOverviewAsync(TestContext.Current.CancellationToken);
+
+        overview.Instances.Should().HaveCount(2);
+        overview.HealthyCount.Should().Be(2);
+        overview.TopDomains.Should().BeEmpty();
+        overview.TopEndpoints.Should().BeEmpty();
+        overview.TotalRequests.Should().Be(0);
+        overview.StatsWindow.Should().Be("metrics-store");
+    }
+
+    [Fact]
+    public async Task GetInstancesAsync_SkipsKnownDownInstance_OnSecondCall()
+    {
+        FakeLocalAdminClient client = new();
+        client.FailHealth.Add("b");
 
         AdminFanOutService sut = CreateSut(client,
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             new AdminInstanceOptions { Id = "b", Url = "http://b" });
 
-        await sut.GetStatsAsync("all", TestContext.Current.CancellationToken);
-        int afterFirst = client.StatsCallCountById.GetValueOrDefault("b");
+        await sut.GetInstancesAsync(TestContext.Current.CancellationToken);
+        int afterFirst = client.HealthCallCountById.GetValueOrDefault("b");
         afterFirst.Should().Be(1);
 
-        await sut.GetStatsAsync("all", TestContext.Current.CancellationToken);
-        client.StatsCallCountById.GetValueOrDefault("b").Should().Be(1, "down instance is skipped until re-probe");
-        client.StatsCallCountById.GetValueOrDefault("a").Should().Be(2);
+        await sut.GetInstancesAsync(TestContext.Current.CancellationToken);
+        client.HealthCallCountById.GetValueOrDefault("b").Should().Be(1, "down instance is skipped until re-probe");
+        client.HealthCallCountById.GetValueOrDefault("a").Should().Be(2);
     }
 
     [Fact]
@@ -231,30 +221,38 @@ public class AdminFanOutServiceTests
         };
         Microsoft.Extensions.Options.IOptions<AdminConsoleOptions> options = Options.Create(opts);
         InstanceReachabilityCache reachability = new(options, TimeProvider.System);
-        HintEngine hints = TestHintEngine.Create(opts);
-        return new AdminFanOutService(client, options, reachability, hints, new StatsDeltaCache());
+        return new AdminFanOutService(client, options, reachability);
     }
 
     private sealed class FakeLocalAdminClient : ILocalAdminClient
     {
         public Dictionary<string, AdminLiveStatsRawSnapshot> Stats { get; } = new(StringComparer.Ordinal);
         public HashSet<string> FailStats { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> FailHealth { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, int> StatsCallCountById { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, int> HealthCallCountById { get; } = new(StringComparer.Ordinal);
         public List<string> InvalidateCalls { get; } = [];
         public Dictionary<string, LocalClusterInfoDto> ClusterInfo { get; } = new(StringComparer.Ordinal);
         public AdminInvalidateRequest? LastInvalidateBody { get; private set; }
 
         public Task<InstanceCallOutcome<AdminHealthDto>> GetHealthAsync(
             AdminInstanceOptions instance,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(Ok(instance.Id, new AdminHealthDto
+            CancellationToken cancellationToken = default)
+        {
+            HealthCallCountById[instance.Id] = HealthCallCountById.GetValueOrDefault(instance.Id) + 1;
+            if (FailHealth.Contains(instance.Id) || FailStats.Contains(instance.Id))
+                return Task.FromResult(Fail<AdminHealthDto>(instance.Id, "down"));
+
+            return Task.FromResult(Ok(instance.Id, new AdminHealthDto
             {
                 Healthy = true,
                 InstanceId = instance.Id,
                 UtcNow = DateTimeOffset.UtcNow,
                 AdminEnabled = true
             }));
+        }
 
+#pragma warning disable CS0618
         public Task<InstanceCallOutcome<AdminLiveStatsRawSnapshot>> GetStatsAsync(
             AdminInstanceOptions instance,
             CancellationToken cancellationToken = default)
@@ -275,6 +273,7 @@ public class AdminFanOutServiceTests
 
             return Task.FromResult(Ok(instance.Id, snap));
         }
+#pragma warning restore CS0618
 
         public Task<InstanceCallOutcome<IReadOnlyList<AdminEndpointInfoDto>>> GetEndpointsAsync(
             AdminInstanceOptions instance,

@@ -73,7 +73,11 @@ internal sealed class AdminQueryService
         };
     }
 
-    /// <summary>Canonical raw stats (Admin API <c>GET …/stats/v2</c>).</summary>
+    /// <summary>
+    /// Raw process-lifetime counters (internal / diagnostics).
+    /// Prefer OTEL meter <c>CacheOrchestrator</c> + Prometheus for analytics.
+    /// </summary>
+    [Obsolete("Prefer OTEL/Prometheus. Process-lifetime raw stats are for diagnostics only.")]
     public AdminLiveStatsRawSnapshot GetStatsRaw()
     {
         string instanceId = AdminInstanceId.Resolve(_options.CurrentValue);
@@ -177,10 +181,14 @@ internal sealed class AdminQueryService
     }
 
     /// <summary>
-    /// Legacy fat stats (Admin API <c>GET …/stats</c>). Projects from <see cref="GetStatsRaw"/>.
+    /// Process-lifetime fat stats (Admin API <c>GET …/stats</c>).
+    /// Obsolete for analytics — prefer OTEL/Prometheus. Kept for API compatibility.
     /// </summary>
+    [Obsolete("Prefer OTEL/Prometheus for analytics. GET …/stats is process-lifetime diagnostics only.")]
     public AdminLiveStatsSnapshot GetStats() =>
+#pragma warning disable CS0618
         AdminStatsV1Mapper.ToLiveSnapshot(GetStatsRaw());
+#pragma warning restore CS0618
 
     public IReadOnlyList<AdminEndpointInfoDto> GetEndpoints() => _endpoints.GetEndpoints();
 

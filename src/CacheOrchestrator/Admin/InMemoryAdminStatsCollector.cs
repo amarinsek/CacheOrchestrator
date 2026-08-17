@@ -181,6 +181,10 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
                 Interlocked.Increment(ref set.FcStale);
                 Interlocked.Increment(ref set.FcFactoryFailures);
                 break;
+            case "fail":
+                // Hard factory throw (no fail-safe value returned).
+                Interlocked.Increment(ref set.FcFactoryFailures);
+                break;
             case "bypass":
                 Interlocked.Increment(ref set.FcBypass);
                 break;
@@ -189,7 +193,7 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
                 break;
         }
 
-        // Factory-path duration only (miss / stale). Hits must not dilute avg factory cost.
+        // Factory-path duration only (miss / stale / hard fail). Hits must not dilute avg factory cost.
         if (TrackLatency
             && elapsedTicks is long ticks
             && IsFactoryPathResult(result))
@@ -209,9 +213,9 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
         }
     }
 
-    /// <summary>Results where the value factory ran (success or fail-safe failure path).</summary>
+    /// <summary>Results where the value factory ran (success, fail-safe stale, or hard fail).</summary>
     internal static bool IsFactoryPathResult(string result) =>
-        result is "miss" or "stale";
+        result is "miss" or "stale" or "fail";
 
     private static AdminDomainCountersDto ToDomainCounters(
         string name,
