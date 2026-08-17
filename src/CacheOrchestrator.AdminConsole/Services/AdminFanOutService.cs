@@ -17,12 +17,14 @@ public sealed class AdminFanOutService
     private readonly TimeProvider _time;
     private readonly InstanceReachabilityCache _reachability;
     private readonly HintEngine _hints;
+    private readonly StatsDeltaCache _delta;
 
     public AdminFanOutService(
         ILocalAdminClient client,
         IOptions<AdminConsoleOptions> options,
         InstanceReachabilityCache reachability,
         HintEngine hints,
+        StatsDeltaCache? deltaCache = null,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(client);
@@ -33,6 +35,7 @@ public sealed class AdminFanOutService
         _options = options.Value;
         _reachability = reachability;
         _hints = hints;
+        _delta = deltaCache ?? new StatsDeltaCache(timeProvider);
         _time = timeProvider ?? TimeProvider.System;
     }
 
@@ -119,8 +122,8 @@ public sealed class AdminFanOutService
     {
         IReadOnlyList<AdminInstanceOptions> targets = ResolveInstanceFilter(scope, instances);
 
-        // Stats + domains in parallel; both skip known-down instances (no stacked timeouts).
-        Task<List<InstanceCallOutcome<AdminLiveStatsSnapshot>>> statsTask = FanOutAsync(
+        // Stats v2 (raw) + domains in parallel; both skip known-down instances (no stacked timeouts).
+        Task<List<InstanceCallOutcome<AdminLiveStatsRawSnapshot>>> statsTask = FanOutAsync(
             targets,
             (inst, ct) => _client.GetStatsAsync(inst, ct),
             cancellationToken,
@@ -132,7 +135,7 @@ public sealed class AdminFanOutService
             skipKnownDown: true);
         await Task.WhenAll(statsTask, domainsTask).ConfigureAwait(false);
 
-        List<InstanceCallOutcome<AdminLiveStatsSnapshot>> outcomes = await statsTask.ConfigureAwait(false);
+        List<InstanceCallOutcome<AdminLiveStatsRawSnapshot>> outcomes = await statsTask.ConfigureAwait(false);
         RecordDataOutcomes(outcomes);
 
         List<InstanceStatsContributionDto> contributions = outcomes.Select(o => new InstanceStatsContributionDto
@@ -143,7 +146,7 @@ public sealed class AdminFanOutService
             Snapshot = o.Value
         }).ToList();
 
-        List<AdminLiveStatsSnapshot> ok = outcomes
+        List<AdminLiveStatsRawSnapshot> ok = outcomes
             .Where(o => o.Succeeded && o.Value is not null)
             .Select(o => o.Value!)
             .ToList();
@@ -214,9 +217,48 @@ public sealed class AdminFanOutService
         long fcS = stats.Domains.Sum(d => d.Fc.Stale);
         long fcB = stats.Domains.Sum(d => d.Fc.Bypass);
         long runs = stats.Domains.Sum(d => d.Fc.FactoryRuns);
+        double durationSum = 0;
+        long durationCount = 0;
+        long sizeSum = 0;
+        long sizeCount = 0;
+        foreach (AdminDomainStatsDto d in stats.Domains)
+        {
+            if (d.Impact is { FactoryDurationCount: > 0, FactoryDurationSumMs: double ms })
+            {
+                durationSum += ms;
+                durationCount += d.Impact.FactoryDurationCount;
+            }
+
+            if (d.Impact is { FactoryResultSizeCount: > 0, FactoryResultSizeSumBytes: long sz })
+            {
+                sizeSum += sz;
+                sizeCount += d.Impact.FactoryResultSizeCount;
+            }
+        }
+
         long fails = stats.Domains.Sum(d => d.Fc.FactoryFailures);
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
             AdminStatsMath.BuildAll(ocH, ocM, ocB, fcH, fcM, fcS, fcB, runs, fails);
+
+        long requestDenom = totalRequests > 0
+            ? totalRequests
+            : AdminStatsMath.Requests(ocH, ocM, ocB, fcH, fcM, fcS, fcB);
+        CacheImpactKpiDto clusterImpact = ImpactMath.Compute(
+            requestDenom,
+            runs,
+            durationCount > 0 ? durationSum : null,
+            durationCount,
+            sizeCount > 0 ? sizeSum : null,
+            sizeCount);
+
+        (CacheImpactKpiDto? recentImpact, string? recentLabel) = _delta.RecordAndDiff(
+            scopeKey: "overview:all",
+            requests: requestDenom,
+            factoryRuns: runs,
+            factoryDurationSumMs: durationCount > 0 ? durationSum : null,
+            factoryDurationCount: durationCount,
+            factoryResultSizeSumBytes: sizeCount > 0 ? sizeSum : null,
+            factoryResultSizeCount: sizeCount);
 
         // Alerts = problems only (down / degraded). Multi-instance itself is normal when
         // the console is configured with more than one target — do not alert on count alone.
@@ -227,6 +269,10 @@ public sealed class AdminFanOutService
             alerts.Add($"{down} instance(s) down.");
         if (degraded > 0)
             alerts.Add($"{degraded} instance(s) degraded.");
+        if (clusterImpact.Candidate == "NEEDS_TUNING")
+            alerts.Add("Cluster factory share is high — cache may not be absorbing traffic.");
+        if (clusterImpact.Candidate == "POOR" && !clusterImpact.LowRequestSample)
+            alerts.Add("Low traffic and cheap factory — limited cache impact overall.");
 
         // Full lists for Overview: UI sorts by the user's key, then takes top 5.
         // Do not pre-filter here — otherwise re-sort only reshuffles a partial pool.
@@ -302,7 +348,11 @@ public sealed class AdminFanOutService
             DomainCount = stats.Domains.Count,
             EndpointCount = stats.Endpoints.Count,
             HintSummary = clusterHints,
-            TopHints = topHints
+            TopHints = topHints,
+            Impact = clusterImpact,
+            StatsWindow = "since process start",
+            ImpactRecent = recentImpact,
+            RecentWindowLabel = recentLabel
         };
     }
 
@@ -364,6 +414,8 @@ public sealed class AdminFanOutService
             "ochitshare" => all.OrderByDescending(e => e.Oc.HitShare ?? -1),
             "fchitshare" => all.OrderByDescending(e => e.Fc.HitShare ?? -1),
             "factoryshare" or "originshare" => all.OrderByDescending(e => e.Fc.FactoryShare ?? -1),
+            "factoryavoidance" => all.OrderByDescending(e => e.Impact?.FactoryAvoidance ?? -1),
+            "esttimesaved" => all.OrderByDescending(e => e.Impact?.EstFactoryTimeSavedMs ?? -1),
             "ocmissrate" => all.OrderByDescending(e => e.Oc.MissRate ?? -1),
             "fcmissshare" => all.OrderByDescending(e => e.Fc.MissShare ?? -1),
             "fcmissrate" or "missrate" => all.OrderByDescending(e => e.Fc.MissRate ?? -1),

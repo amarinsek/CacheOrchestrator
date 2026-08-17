@@ -49,29 +49,47 @@ builder.Services.AddSingleton<ILocalAdminClient, LocalAdminClient>();
 builder.Services.AddSingleton<IHintRuleDisableStore, HintRuleDisableStore>();
 builder.Services.AddSingleton<HintRuleRegistry>();
 builder.Services.AddSingleton<HintEngine>();
+builder.Services.AddSingleton<StatsDeltaCache>();
 builder.Services.AddSingleton<AdminFanOutService>();
 builder.Services.AddSingleton<IMetricsQueryClient, PrometheusMetricsQueryClient>();
 builder.Services.AddSingleton<MetricsQueryService>();
 
-// OpenAPI document for Scalar (Development only).
+// OpenAPI + Scalar UI for operator host (all environments — Admin Console is not public internet by default).
 builder.Services.AddOpenApi();
 
 WebApplication app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+app.MapOpenApi();
+// Default UI: /scalar  (Scalar.AspNetCore 2.x). Keep /scalar/v1 as a redirect for old bookmarks.
+app.MapScalarApiReference(options =>
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
-    {
-        options.WithTitle("CacheOrchestrator Admin Console");
-        options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-    });
-}
+    options.WithTitle("CacheOrchestrator Admin Console");
+    options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+});
+app.MapGet("/scalar/v1", () => Results.Redirect("/scalar"));
+app.MapGet("/scalar/v1/{**rest}", (string? rest) =>
+    Results.Redirect(string.IsNullOrEmpty(rest) ? "/scalar" : $"/scalar/{rest}"));
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 RouteGroupBuilder api = app.MapGroup("/api").WithTags("Admin Console");
+
+api.MapGet("/about", () =>
+{
+    System.Reflection.Assembly asm = typeof(Program).Assembly;
+    string? informational = asm
+        .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+        .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+        .FirstOrDefault()
+        ?.InformationalVersion;
+    string version = informational ?? asm.GetName().Version?.ToString() ?? "dev";
+    // MinVer may append +commit; keep display short.
+    int plus = version.IndexOf('+', StringComparison.Ordinal);
+    if (plus > 0)
+        version = version[..plus];
+    return Results.Ok(new { version, product = "CacheOrchestrator Admin Console" });
+});
 
 api.MapGet("/overview", async (AdminFanOutService fanOut, CancellationToken cancellationToken) =>
 {

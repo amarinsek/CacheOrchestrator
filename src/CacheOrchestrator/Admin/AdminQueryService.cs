@@ -5,6 +5,7 @@ namespace CacheOrchestrator.Admin;
 
 /// <summary>
 /// Assembles Local Admin read models (stats, domain config) from live counters + options.
+/// Canonical path is raw (v2); fat (v1) is projected via <see cref="AdminStatsV1Mapper"/>.
 /// </summary>
 internal sealed class AdminQueryService
 {
@@ -46,13 +47,13 @@ internal sealed class AdminQueryService
         long requests = 0;
         try
         {
-            AdminLiveStatsSnapshot snap = _stats.GetSnapshot();
-            foreach (AdminDomainStatsDto d in snap.Domains)
-                requests += d.Requests;
+            AdminLiveStatsRawSnapshot snap = _stats.GetRawSnapshot();
+            foreach (AdminDomainCountersDto d in snap.Domains)
+                requests += RequestDenominator(d);
             if (requests == 0)
             {
-                foreach (AdminEndpointStatsDto e in snap.UnassignedEndpoints)
-                    requests += e.Requests;
+                foreach (AdminEndpointCountersDto e in snap.UnassignedEndpoints)
+                    requests += RequestDenominator(e);
             }
         }
         catch
@@ -72,27 +73,28 @@ internal sealed class AdminQueryService
         };
     }
 
-    public AdminLiveStatsSnapshot GetStats()
+    /// <summary>Canonical raw stats (Admin API <c>GET …/stats/v2</c>).</summary>
+    public AdminLiveStatsRawSnapshot GetStatsRaw()
     {
         string instanceId = AdminInstanceId.Resolve(_options.CurrentValue);
-        AdminLiveStatsSnapshot raw = _stats.GetSnapshot();
+        AdminLiveStatsRawSnapshot raw = _stats.GetRawSnapshot();
         IReadOnlyList<AdminEndpointInfoDto> discovered = _endpoints.GetEndpoints();
 
         Dictionary<string, AdminEndpointInfoDto> discoveredByRoute =
             discovered.ToDictionary(e => e.Route, StringComparer.Ordinal);
 
-        Dictionary<string, List<AdminEndpointStatsDto>> byDomain = new(StringComparer.Ordinal);
-        List<AdminEndpointStatsDto> unassigned = [];
-        List<AdminEndpointStatsDto> allEndpoints = [];
+        Dictionary<string, List<AdminEndpointCountersDto>> byDomain = new(StringComparer.Ordinal);
+        List<AdminEndpointCountersDto> unassigned = [];
+        List<AdminEndpointCountersDto> allEndpoints = [];
 
-        foreach (AdminEndpointStatsDto ep in raw.UnassignedEndpoints)
+        foreach (AdminEndpointCountersDto ep in raw.UnassignedEndpoints)
         {
             string? domain = null;
             if (discoveredByRoute.TryGetValue(ep.Route, out AdminEndpointInfoDto? info))
                 domain = info.ConfiguredDomain;
             domain ??= ep.ConfiguredDomain;
 
-            AdminEndpointStatsDto normalized = CloneEndpoint(ep, instanceId, domain);
+            AdminEndpointCountersDto normalized = CloneEndpoint(ep, instanceId, domain);
             allEndpoints.Add(normalized);
 
             if (string.IsNullOrEmpty(domain))
@@ -101,7 +103,7 @@ internal sealed class AdminQueryService
                 continue;
             }
 
-            if (!byDomain.TryGetValue(domain, out List<AdminEndpointStatsDto>? list))
+            if (!byDomain.TryGetValue(domain, out List<AdminEndpointCountersDto>? list))
             {
                 list = [];
                 byDomain[domain] = list;
@@ -111,7 +113,7 @@ internal sealed class AdminQueryService
         }
 
         HashSet<string> domainNames = new(StringComparer.Ordinal);
-        foreach (AdminDomainStatsDto d in raw.Domains)
+        foreach (AdminDomainCountersDto d in raw.Domains)
             domainNames.Add(d.Name);
         foreach (string d in _options.CurrentValue.Domains.Keys)
             domainNames.Add(DomainName.Normalize(d));
@@ -123,17 +125,17 @@ internal sealed class AdminQueryService
                 domainNames.Add(ep.ConfiguredDomain);
         }
 
-        Dictionary<string, AdminDomainStatsDto> rawDomains =
+        Dictionary<string, AdminDomainCountersDto> rawDomains =
             raw.Domains.ToDictionary(d => d.Name, StringComparer.Ordinal);
 
-        List<AdminDomainStatsDto> domains = [];
+        List<AdminDomainCountersDto> domains = [];
         foreach (string name in domainNames.OrderBy(n => n, StringComparer.Ordinal))
         {
             DomainCacheOptions opts = _domainOptions.GetOrCreateDomainOptions(name);
             DomainRuntimeOverride? ov = _overrides.Get(name);
-            rawDomains.TryGetValue(name, out AdminDomainStatsDto? counters);
+            rawDomains.TryGetValue(name, out AdminDomainCountersDto? counters);
 
-            if (!byDomain.TryGetValue(name, out List<AdminEndpointStatsDto>? epList))
+            if (!byDomain.TryGetValue(name, out List<AdminEndpointCountersDto>? epList))
                 epList = [];
 
             HashSet<string> present = new(epList.Select(e => e.Route), StringComparer.Ordinal);
@@ -144,63 +146,27 @@ internal sealed class AdminQueryService
                 if (!present.Add(info.Route))
                     continue;
 
-                AdminEndpointStatsDto empty = EmptyEndpoint(info.Route, name, instanceId);
+                AdminEndpointCountersDto empty = EmptyEndpoint(info.Route, name, instanceId);
                 epList.Add(empty);
                 allEndpoints.Add(empty);
             }
 
             epList.Sort(static (a, b) => string.CompareOrdinal(a.Route, b.Route));
 
-            (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
-                counters is null
-                    ? EmptyStats()
-                    : (
-                        counters.Requests,
-                        counters.Oc,
-                        counters.Fc,
-                        counters.Pipeline);
+            AdminDomainCountersDto row = BuildDomainRow(
+                name,
+                instanceId,
+                opts,
+                ov,
+                counters,
+                epList);
 
-            // If domain counters empty but endpoints have traffic, rebuild from endpoint sums.
-            if (requests == 0 && epList.Count > 0)
-            {
-                long ocH = 0, ocM = 0, ocB = 0, fcH = 0, fcM = 0, fcS = 0, fcB = 0, runs = 0, fails = 0;
-                foreach (AdminEndpointStatsDto e in epList)
-                {
-                    ocH += e.Oc.Hits;
-                    ocM += e.Oc.Misses;
-                    ocB += e.Oc.Bypass;
-                    fcH += e.Fc.Hits;
-                    fcM += e.Fc.Misses;
-                    fcS += e.Fc.Stale;
-                    fcB += e.Fc.Bypass;
-                    runs += e.Fc.FactoryRuns;
-                    fails += e.Fc.FactoryFailures;
-                }
-
-                (requests, oc, fc, pipeline) = AdminStatsMath.BuildAll(
-                    ocH, ocM, ocB, fcH, fcM, fcS, fcB, runs, fails);
-            }
-
-            domains.Add(new AdminDomainStatsDto
-            {
-                Name = name,
-                InstanceId = instanceId,
-                Version = opts.Version,
-                VersionIsRuntimeOverride = ov?.Version is not null,
-                SchedulePhase = ResolveSchedulePhase(opts),
-                LastInvalidationUtc = counters?.LastInvalidationUtc,
-                Invalidations = counters?.Invalidations ?? 0,
-                Requests = requests,
-                Oc = oc,
-                Fc = fc,
-                Pipeline = pipeline,
-                Endpoints = epList
-            });
+            domains.Add(row);
         }
 
         allEndpoints.Sort(static (a, b) => string.CompareOrdinal(a.Route, b.Route));
 
-        return new AdminLiveStatsSnapshot
+        return new AdminLiveStatsRawSnapshot
         {
             InstanceId = instanceId,
             CollectedAtUtc = _time.GetUtcNow(),
@@ -209,6 +175,12 @@ internal sealed class AdminQueryService
             Endpoints = allEndpoints
         };
     }
+
+    /// <summary>
+    /// Legacy fat stats (Admin API <c>GET …/stats</c>). Projects from <see cref="GetStatsRaw"/>.
+    /// </summary>
+    public AdminLiveStatsSnapshot GetStats() =>
+        AdminStatsV1Mapper.ToLiveSnapshot(GetStatsRaw());
 
     public IReadOnlyList<AdminEndpointInfoDto> GetEndpoints() => _endpoints.GetEndpoints();
 
@@ -225,7 +197,7 @@ internal sealed class AdminQueryService
                 names.Add(ep.ConfiguredDomain);
         }
 
-        foreach (AdminDomainStatsDto d in _stats.GetSnapshot().Domains)
+        foreach (AdminDomainCountersDto d in _stats.GetRawSnapshot().Domains)
             names.Add(d.Name);
 
         return [.. names.OrderBy(n => n, StringComparer.Ordinal).Select(GetDomainConfig)];
@@ -274,6 +246,105 @@ internal sealed class AdminQueryService
         };
     }
 
+    private AdminDomainCountersDto BuildDomainRow(
+        string name,
+        string instanceId,
+        DomainCacheOptions opts,
+        DomainRuntimeOverride? ov,
+        AdminDomainCountersDto? counters,
+        List<AdminEndpointCountersDto> epList)
+    {
+        long ocH = counters?.OcHits ?? 0;
+        long ocM = counters?.OcMisses ?? 0;
+        long ocB = counters?.OcBypass ?? 0;
+        long fcH = counters?.FcHits ?? 0;
+        long fcM = counters?.FcMisses ?? 0;
+        long fcS = counters?.FcStale ?? 0;
+        long fcB = counters?.FcBypass ?? 0;
+        long runs = counters?.FactoryRuns ?? 0;
+        long fails = counters?.FactoryFailures ?? 0;
+        double? durationSum = counters?.FactoryDurationSumMs;
+        long durationCount = counters?.FactoryDurationCount ?? 0;
+        long? sizeSum = counters?.FactoryResultSizeSumBytes;
+        long sizeCount = counters?.FactoryResultSizeCount ?? 0;
+
+        long domainRequests = AdminStatsMath.Requests(ocH, ocM, ocB, fcH, fcM, fcS, fcB);
+
+        // If domain counters empty but endpoints have traffic, rebuild from endpoint sums.
+        if (domainRequests == 0 && epList.Count > 0)
+        {
+            ocH = ocM = ocB = fcH = fcM = fcS = fcB = runs = fails = 0;
+            durationSum = null;
+            durationCount = 0;
+            sizeSum = null;
+            sizeCount = 0;
+            double sumMs = 0;
+            long sumCount = 0;
+            long sumSize = 0;
+            long sumSizeCount = 0;
+            foreach (AdminEndpointCountersDto e in epList)
+            {
+                ocH += e.OcHits;
+                ocM += e.OcMisses;
+                ocB += e.OcBypass;
+                fcH += e.FcHits;
+                fcM += e.FcMisses;
+                fcS += e.FcStale;
+                fcB += e.FcBypass;
+                runs += e.FactoryRuns;
+                fails += e.FactoryFailures;
+                if (e.FactoryDurationCount > 0 && e.FactoryDurationSumMs is double ms)
+                {
+                    sumMs += ms;
+                    sumCount += e.FactoryDurationCount;
+                }
+
+                if (e.FactoryResultSizeCount > 0 && e.FactoryResultSizeSumBytes is long sz)
+                {
+                    sumSize += sz;
+                    sumSizeCount += e.FactoryResultSizeCount;
+                }
+            }
+
+            if (sumCount > 0)
+            {
+                durationSum = sumMs;
+                durationCount = sumCount;
+            }
+
+            if (sumSizeCount > 0)
+            {
+                sizeSum = sumSize;
+                sizeCount = sumSizeCount;
+            }
+        }
+
+        return new AdminDomainCountersDto
+        {
+            Name = name,
+            InstanceId = instanceId,
+            Version = opts.Version,
+            VersionIsRuntimeOverride = ov?.Version is not null,
+            SchedulePhase = ResolveSchedulePhase(opts),
+            LastInvalidationUtc = counters?.LastInvalidationUtc,
+            Invalidations = counters?.Invalidations ?? 0,
+            OcHits = ocH,
+            OcMisses = ocM,
+            OcBypass = ocB,
+            FcHits = fcH,
+            FcMisses = fcM,
+            FcStale = fcS,
+            FcBypass = fcB,
+            FactoryRuns = runs,
+            FactoryFailures = fails,
+            FactoryDurationSumMs = durationSum,
+            FactoryDurationCount = durationCount,
+            FactoryResultSizeSumBytes = sizeSum,
+            FactoryResultSizeCount = sizeCount,
+            Endpoints = epList
+        };
+    }
+
     private string? ResolveSchedulePhase(DomainCacheOptions opts)
     {
         if (opts.ScheduledUpdateUtc is null)
@@ -284,8 +355,8 @@ internal sealed class AdminQueryService
         return phase == "n/a" ? null : phase;
     }
 
-    private static AdminEndpointStatsDto CloneEndpoint(
-        AdminEndpointStatsDto ep,
+    private static AdminEndpointCountersDto CloneEndpoint(
+        AdminEndpointCountersDto ep,
         string instanceId,
         string? domain) =>
         new()
@@ -293,27 +364,36 @@ internal sealed class AdminQueryService
             Route = ep.Route,
             InstanceId = instanceId,
             ConfiguredDomain = domain,
-            Requests = ep.Requests,
-            Oc = ep.Oc,
-            Fc = ep.Fc,
-            Pipeline = ep.Pipeline
+            OcHits = ep.OcHits,
+            OcMisses = ep.OcMisses,
+            OcBypass = ep.OcBypass,
+            FcHits = ep.FcHits,
+            FcMisses = ep.FcMisses,
+            FcStale = ep.FcStale,
+            FcBypass = ep.FcBypass,
+            FactoryRuns = ep.FactoryRuns,
+            FactoryFailures = ep.FactoryFailures,
+            FactoryDurationSumMs = ep.FactoryDurationSumMs,
+            FactoryDurationCount = ep.FactoryDurationCount,
+            FactoryResultSizeSumBytes = ep.FactoryResultSizeSumBytes,
+            FactoryResultSizeCount = ep.FactoryResultSizeCount
         };
 
-    private static AdminEndpointStatsDto EmptyEndpoint(string route, string domain, string instanceId)
-    {
-        (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) = EmptyStats();
-        return new AdminEndpointStatsDto
+    private static AdminEndpointCountersDto EmptyEndpoint(string route, string domain, string instanceId) =>
+        new()
         {
             Route = route,
             InstanceId = instanceId,
-            ConfiguredDomain = domain,
-            Requests = requests,
-            Oc = oc,
-            Fc = fc,
-            Pipeline = pipeline
+            ConfiguredDomain = domain
         };
-    }
 
-    private static (long, AdminLayerDto, AdminFusionLayerDto, AdminPipelineDto) EmptyStats() =>
-        AdminStatsMath.BuildAll(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    private static long RequestDenominator(AdminDomainCountersDto d) =>
+        AdminStatsMath.Requests(
+            d.OcHits, d.OcMisses, d.OcBypass,
+            d.FcHits, d.FcMisses, d.FcStale, d.FcBypass);
+
+    private static long RequestDenominator(AdminEndpointCountersDto e) =>
+        AdminStatsMath.Requests(
+            e.OcHits, e.OcMisses, e.OcBypass,
+            e.FcHits, e.FcMisses, e.FcStale, e.FcBypass);
 }

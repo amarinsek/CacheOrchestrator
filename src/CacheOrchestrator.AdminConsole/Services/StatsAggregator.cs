@@ -3,24 +3,23 @@ using CacheOrchestrator.Admin;
 namespace CacheOrchestrator.AdminConsole.Services;
 
 /// <summary>
-/// Pure aggregation of Local Admin stats snapshots across instances.
-/// Counters are summed; rates/shares recomputed from sums; optional by-instance spreads.
+/// Aggregates Local Admin <strong>raw</strong> stats (v2) across instances.
+/// Sums counters; recomputes rates/shares and impact KPIs in the Console.
 /// </summary>
 public static class StatsAggregator
 {
-    /// <summary>Merges domain counters by domain name.</summary>
-    /// <param name="includeByInstance">When true, attach per-instance rows and spreads.</param>
+    /// <summary>Merges domain counters by domain name from raw v2 snapshots.</summary>
     public static IReadOnlyList<AdminDomainStatsDto> MergeDomains(
-        IReadOnlyList<AdminLiveStatsSnapshot> snapshots,
+        IReadOnlyList<AdminLiveStatsRawSnapshot> snapshots,
         bool includeByInstance = false)
     {
         ArgumentNullException.ThrowIfNull(snapshots);
 
         Dictionary<string, MutableDomain> map = new(StringComparer.Ordinal);
 
-        foreach (AdminLiveStatsSnapshot snap in snapshots)
+        foreach (AdminLiveStatsRawSnapshot snap in snapshots)
         {
-            foreach (AdminDomainStatsDto domain in snap.Domains)
+            foreach (AdminDomainCountersDto domain in snap.Domains)
             {
                 if (!map.TryGetValue(domain.Name, out MutableDomain? acc))
                 {
@@ -38,21 +37,21 @@ public static class StatsAggregator
             .ToArray();
     }
 
-    /// <summary>Merges endpoints by route (cluster-wide).</summary>
+    /// <summary>Merges endpoints by route (cluster-wide) from raw v2 snapshots.</summary>
     public static IReadOnlyList<AdminEndpointStatsDto> MergeEndpoints(
-        IReadOnlyList<AdminLiveStatsSnapshot> snapshots,
+        IReadOnlyList<AdminLiveStatsRawSnapshot> snapshots,
         bool includeByInstance = false)
     {
         ArgumentNullException.ThrowIfNull(snapshots);
 
         Dictionary<string, MutableEndpoint> map = new(StringComparer.Ordinal);
-        foreach (AdminLiveStatsSnapshot snap in snapshots)
+        foreach (AdminLiveStatsRawSnapshot snap in snapshots)
         {
-            IEnumerable<AdminEndpointStatsDto> eps = snap.Endpoints.Count > 0
+            IEnumerable<AdminEndpointCountersDto> eps = snap.Endpoints.Count > 0
                 ? snap.Endpoints
                 : snap.Domains.SelectMany(d => d.Endpoints).Concat(snap.UnassignedEndpoints);
 
-            foreach (AdminEndpointStatsDto ep in eps)
+            foreach (AdminEndpointCountersDto ep in eps)
             {
                 if (!map.TryGetValue(ep.Route, out MutableEndpoint? acc))
                 {
@@ -70,17 +69,17 @@ public static class StatsAggregator
             .ToArray();
     }
 
-    /// <summary>Merges unassigned endpoints by route key.</summary>
+    /// <summary>Merges unassigned endpoints by route key from raw v2 snapshots.</summary>
     public static IReadOnlyList<AdminEndpointStatsDto> MergeUnassignedEndpoints(
-        IReadOnlyList<AdminLiveStatsSnapshot> snapshots,
+        IReadOnlyList<AdminLiveStatsRawSnapshot> snapshots,
         bool includeByInstance = false)
     {
         ArgumentNullException.ThrowIfNull(snapshots);
 
         Dictionary<string, MutableEndpoint> map = new(StringComparer.Ordinal);
-        foreach (AdminLiveStatsSnapshot snap in snapshots)
+        foreach (AdminLiveStatsRawSnapshot snap in snapshots)
         {
-            foreach (AdminEndpointStatsDto ep in snap.UnassignedEndpoints)
+            foreach (AdminEndpointCountersDto ep in snap.UnassignedEndpoints)
             {
                 if (!map.TryGetValue(ep.Route, out MutableEndpoint? acc))
                 {
@@ -96,6 +95,100 @@ public static class StatsAggregator
             .OrderBy(e => e.Route, StringComparer.Ordinal)
             .Select(e => e.ToDto(includeByInstance))
             .ToArray();
+    }
+
+    /// <summary>Projects one raw domain row to fat + impact (single instance).</summary>
+    public static AdminDomainStatsDto ToDomainStats(AdminDomainCountersDto raw, string? instanceId = null)
+    {
+        ArgumentNullException.ThrowIfNull(raw);
+        (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
+            AdminStatsMath.BuildAll(
+                raw.OcHits, raw.OcMisses, raw.OcBypass,
+                raw.FcHits, raw.FcMisses, raw.FcStale, raw.FcBypass,
+                raw.FactoryRuns, raw.FactoryFailures);
+
+        return new AdminDomainStatsDto
+        {
+            Name = raw.Name,
+            InstanceId = raw.InstanceId ?? instanceId,
+            Version = raw.Version,
+            VersionIsRuntimeOverride = raw.VersionIsRuntimeOverride,
+            SchedulePhase = raw.SchedulePhase,
+            LastInvalidationUtc = raw.LastInvalidationUtc,
+            Invalidations = raw.Invalidations,
+            Requests = requests,
+            Oc = oc,
+            Fc = fc,
+            Pipeline = pipeline,
+            Impact = BuildImpact(
+                requests,
+                raw.FactoryRuns,
+                raw.FactoryDurationSumMs,
+                raw.FactoryDurationCount,
+                raw.FactoryResultSizeSumBytes,
+                raw.FactoryResultSizeCount),
+            Endpoints = raw.Endpoints.Select(e => ToEndpointStats(e, instanceId)).ToArray()
+        };
+    }
+
+    /// <summary>Projects one raw endpoint row to fat + impact.</summary>
+    public static AdminEndpointStatsDto ToEndpointStats(AdminEndpointCountersDto raw, string? instanceId = null)
+    {
+        ArgumentNullException.ThrowIfNull(raw);
+        (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
+            AdminStatsMath.BuildAll(
+                raw.OcHits, raw.OcMisses, raw.OcBypass,
+                raw.FcHits, raw.FcMisses, raw.FcStale, raw.FcBypass,
+                raw.FactoryRuns, raw.FactoryFailures);
+
+        return new AdminEndpointStatsDto
+        {
+            Route = raw.Route,
+            InstanceId = raw.InstanceId ?? instanceId,
+            ConfiguredDomain = raw.ConfiguredDomain,
+            Requests = requests,
+            Oc = oc,
+            Fc = fc,
+            Pipeline = pipeline,
+            Impact = BuildImpact(
+                requests,
+                raw.FactoryRuns,
+                raw.FactoryDurationSumMs,
+                raw.FactoryDurationCount,
+                raw.FactoryResultSizeSumBytes,
+                raw.FactoryResultSizeCount)
+        };
+    }
+
+    private static CacheImpactKpiDto BuildImpact(
+        long requests,
+        long factoryRuns,
+        double? durationSumMs,
+        long durationCount,
+        long? sizeSumBytes = null,
+        long sizeCount = 0)
+    {
+        CacheImpactKpiDto impact = ImpactMath.Compute(
+            requests, factoryRuns, durationSumMs, durationCount, sizeSumBytes, sizeCount);
+        return new CacheImpactKpiDto
+        {
+            FactoryAvoidance = impact.FactoryAvoidance,
+            FactoryShare = impact.FactoryShare,
+            AvgFactoryDurationMs = impact.AvgFactoryDurationMs,
+            EstFactoryTimeSavedMs = impact.EstFactoryTimeSavedMs,
+            TimeSavedRatio = impact.TimeSavedRatio,
+            FactoryDurationSumMs = durationSumMs,
+            FactoryDurationCount = durationCount,
+            AvgFactoryResultSizeBytes = impact.AvgFactoryResultSizeBytes,
+            EstPayloadOffloadBytes = impact.EstPayloadOffloadBytes,
+            FactoryResultSizeSumBytes = sizeSumBytes,
+            FactoryResultSizeCount = sizeCount,
+            Benefit = impact.Benefit,
+            Candidate = impact.Candidate,
+            LowRequestSample = impact.LowRequestSample,
+            LowDurationSample = impact.LowDurationSample,
+            LowSizeSample = impact.LowSizeSample
+        };
     }
 
     private sealed class MutableDomain(string name)
@@ -109,10 +202,14 @@ public static class StatsAggregator
 
         private long _ocHits, _ocMisses, _ocBypass;
         private long _fcHits, _fcMisses, _fcStale, _fcBypass, _fcRuns, _fcFails;
+        private double _durationSumMs;
+        private long _durationCount;
+        private long _sizeSumBytes;
+        private long _sizeCount;
         private readonly Dictionary<string, MutableEndpoint> _endpoints = new(StringComparer.Ordinal);
         private readonly List<AdminDomainStatsDto> _instanceRows = [];
 
-        public void Add(AdminDomainStatsDto d, string instanceId)
+        public void Add(AdminDomainCountersDto d, string instanceId)
         {
             Version ??= d.Version;
             VersionIsRuntimeOverride |= d.VersionIsRuntimeOverride;
@@ -124,33 +221,30 @@ public static class StatsAggregator
                 LastInvalidationUtc = t;
             }
 
-            _ocHits += d.Oc.Hits;
-            _ocMisses += d.Oc.Misses;
-            _ocBypass += d.Oc.Bypass;
-            _fcHits += d.Fc.Hits;
-            _fcMisses += d.Fc.Misses;
-            _fcStale += d.Fc.Stale;
-            _fcBypass += d.Fc.Bypass;
-            _fcRuns += d.Fc.FactoryRuns;
-            _fcFails += d.Fc.FactoryFailures;
-
-            _instanceRows.Add(new AdminDomainStatsDto
+            _ocHits += d.OcHits;
+            _ocMisses += d.OcMisses;
+            _ocBypass += d.OcBypass;
+            _fcHits += d.FcHits;
+            _fcMisses += d.FcMisses;
+            _fcStale += d.FcStale;
+            _fcBypass += d.FcBypass;
+            _fcRuns += d.FactoryRuns;
+            _fcFails += d.FactoryFailures;
+            if (d.FactoryDurationCount > 0 && d.FactoryDurationSumMs is double ms)
             {
-                Name = d.Name,
-                InstanceId = d.InstanceId ?? instanceId,
-                Version = d.Version,
-                VersionIsRuntimeOverride = d.VersionIsRuntimeOverride,
-                SchedulePhase = d.SchedulePhase,
-                LastInvalidationUtc = d.LastInvalidationUtc,
-                Invalidations = d.Invalidations,
-                Requests = d.Requests,
-                Oc = d.Oc,
-                Fc = d.Fc,
-                Pipeline = d.Pipeline,
-                Endpoints = d.Endpoints
-            });
+                _durationSumMs += ms;
+                _durationCount += d.FactoryDurationCount;
+            }
 
-            foreach (AdminEndpointStatsDto ep in d.Endpoints)
+            if (d.FactoryResultSizeCount > 0 && d.FactoryResultSizeSumBytes is long sz)
+            {
+                _sizeSumBytes += sz;
+                _sizeCount += d.FactoryResultSizeCount;
+            }
+
+            _instanceRows.Add(ToDomainStats(d, d.InstanceId ?? instanceId));
+
+            foreach (AdminEndpointCountersDto ep in d.Endpoints)
             {
                 if (!_endpoints.TryGetValue(ep.Route, out MutableEndpoint? acc))
                 {
@@ -169,6 +263,9 @@ public static class StatsAggregator
                     _ocHits, _ocMisses, _ocBypass,
                     _fcHits, _fcMisses, _fcStale, _fcBypass,
                     _fcRuns, _fcFails);
+
+            double? durationSum = _durationCount > 0 ? _durationSumMs : null;
+            long? sizeSum = _sizeCount > 0 ? _sizeSumBytes : null;
 
             List<AdminEndpointStatsDto> endpoints = _endpoints.Values
                 .OrderBy(e => e.Route, StringComparer.Ordinal)
@@ -199,7 +296,8 @@ public static class StatsAggregator
                 Pipeline = pipeline,
                 Endpoints = endpoints,
                 ByInstance = byInstance,
-                InstanceSpread = spread
+                InstanceSpread = spread,
+                Impact = BuildImpact(requests, _fcRuns, durationSum, _durationCount, sizeSum, _sizeCount)
             };
         }
     }
@@ -211,31 +309,37 @@ public static class StatsAggregator
 
         private long _ocHits, _ocMisses, _ocBypass;
         private long _fcHits, _fcMisses, _fcStale, _fcBypass, _fcRuns, _fcFails;
+        private double _durationSumMs;
+        private long _durationCount;
+        private long _sizeSumBytes;
+        private long _sizeCount;
         private readonly List<AdminEndpointStatsDto> _instanceRows = [];
 
-        public void Add(AdminEndpointStatsDto ep, string instanceId)
+        public void Add(AdminEndpointCountersDto ep, string instanceId)
         {
             ConfiguredDomain ??= ep.ConfiguredDomain;
-            _ocHits += ep.Oc.Hits;
-            _ocMisses += ep.Oc.Misses;
-            _ocBypass += ep.Oc.Bypass;
-            _fcHits += ep.Fc.Hits;
-            _fcMisses += ep.Fc.Misses;
-            _fcStale += ep.Fc.Stale;
-            _fcBypass += ep.Fc.Bypass;
-            _fcRuns += ep.Fc.FactoryRuns;
-            _fcFails += ep.Fc.FactoryFailures;
-
-            _instanceRows.Add(new AdminEndpointStatsDto
+            _ocHits += ep.OcHits;
+            _ocMisses += ep.OcMisses;
+            _ocBypass += ep.OcBypass;
+            _fcHits += ep.FcHits;
+            _fcMisses += ep.FcMisses;
+            _fcStale += ep.FcStale;
+            _fcBypass += ep.FcBypass;
+            _fcRuns += ep.FactoryRuns;
+            _fcFails += ep.FactoryFailures;
+            if (ep.FactoryDurationCount > 0 && ep.FactoryDurationSumMs is double ms)
             {
-                Route = ep.Route,
-                InstanceId = ep.InstanceId ?? instanceId,
-                ConfiguredDomain = ep.ConfiguredDomain ?? ConfiguredDomain,
-                Requests = ep.Requests,
-                Oc = ep.Oc,
-                Fc = ep.Fc,
-                Pipeline = ep.Pipeline
-            });
+                _durationSumMs += ms;
+                _durationCount += ep.FactoryDurationCount;
+            }
+
+            if (ep.FactoryResultSizeCount > 0 && ep.FactoryResultSizeSumBytes is long sz)
+            {
+                _sizeSumBytes += sz;
+                _sizeCount += ep.FactoryResultSizeCount;
+            }
+
+            _instanceRows.Add(ToEndpointStats(ep, ep.InstanceId ?? instanceId));
         }
 
         public AdminEndpointStatsDto ToDto(bool includeByInstance)
@@ -245,6 +349,9 @@ public static class StatsAggregator
                     _ocHits, _ocMisses, _ocBypass,
                     _fcHits, _fcMisses, _fcStale, _fcBypass,
                     _fcRuns, _fcFails);
+
+            double? durationSum = _durationCount > 0 ? _durationSumMs : null;
+            long? sizeSum = _sizeCount > 0 ? _sizeSumBytes : null;
 
             IReadOnlyList<AdminEndpointStatsDto>? byInstance = null;
             AdminInstanceSpreadDto? spread = null;
@@ -265,7 +372,8 @@ public static class StatsAggregator
                 Fc = fc,
                 Pipeline = pipeline,
                 ByInstance = byInstance,
-                InstanceSpread = spread
+                InstanceSpread = spread,
+                Impact = BuildImpact(requests, _fcRuns, durationSum, _durationCount, sizeSum, _sizeCount)
             };
         }
     }

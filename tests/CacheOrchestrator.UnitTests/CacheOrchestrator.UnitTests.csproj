@@ -59,9 +59,17 @@
     <ProjectReference Include="..\..\src\CacheOrchestrator.AdminConsole\CacheOrchestrator.AdminConsole.csproj" />
   </ItemGroup>
 
+  <!-- Admin Console–dependent tests are net10-only; core library Admin tests still run on net8. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-    <Compile Remove="Admin\**\*" />
-    <None Remove="Admin\**\*" />
+    <Compile Remove="Admin\AdminFanOutServiceTests.cs" />
+    <Compile Remove="Admin\HintRuleCompilerTests.cs" />
+    <Compile Remove="Admin\MetricsPanelCatalogTests.cs" />
+    <Compile Remove="Admin\MetricsQueryServiceTests.cs" />
+    <Compile Remove="Admin\RecommendationHintsTests.cs" />
+    <Compile Remove="Admin\StatsAggregatorTests.cs" />
+    <Compile Remove="Admin\ImpactMathTests.cs" />
+    <Compile Remove="Admin\StatsDeltaCacheTests.cs" />
+    <Compile Remove="Admin\TestHintEngine.cs" />
   </ItemGroup>
 
 </Project>

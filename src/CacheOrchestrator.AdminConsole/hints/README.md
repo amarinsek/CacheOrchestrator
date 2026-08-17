@@ -8,7 +8,7 @@ This folder ships with the **CacheOrchestrator Admin Console App**. It holds:
 | **`*.json`** (your packs) | Custom rules when listed in `RuleFiles` (Development default: this folder) |
 | **`disabled.local.json`** | Enable/disable from the Settings UI (**do not commit**; machine-local) |
 
-Hints are **read-only recommendations** built from live Admin stats (and domain config). They never change TTLs, Version, or invalidation.
+Hints are **read-only recommendations** built from the Console **derived** stats model (and domain config), not from raw instance JSON. After `/stats/v2` fan-out the Console computes shares and **impact** (`domain.impact.*` / `endpoint.impact.*`) before rules run. They never change TTLs, Version, or invalidation.
 
 You can add rules **without recompiling** the Admin Console App: drop a JSON file where `RuleFiles` points, then **Settings → Reload**.
 
@@ -25,7 +25,7 @@ In Docker, keep **`core-hints.json` in the image** (do not mount over all of `/a
 
 ## Why customize
 
-Default rules cover common factory-share (also known as origin), factory failure, schedule, and TTL problems. Teams often need:
+Default rules cover common factory-share (also known as origin), **impact** (poor candidate / at-risk / strong), factory failure, schedule, and TTL problems. Teams often need:
 
 - Stricter or looser thresholds  
 - Environment-specific codes (e.g. “staging factory share is OK until 40%”)  

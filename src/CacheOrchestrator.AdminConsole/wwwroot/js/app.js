@@ -20,6 +20,7 @@
  * Static files are served by ASP.NET Core (`UseDefaultFiles` + `UseStaticFiles`).
  */
 
+import { api } from "./api.js";
 import {
   initRefreshControls,
   refreshHeader,
@@ -38,8 +39,21 @@ if (!location.hash) {
   location.hash = "#/overview";
 }
 
+/** Small version next to brand (from MinVer informational version). */
+async function paintBrandVersion() {
+  const el = document.getElementById("brandVersion");
+  if (!el) return;
+  try {
+    const about = await api("/api/about");
+    if (about?.version) el.textContent = `v${about.version}`;
+  } catch {
+    /* ignore — chrome still works */
+  }
+}
+
 initRefreshControls();
 scheduleRefresh();
+paintBrandVersion();
 // Single first paint path (overview fetch is deduped if header also loads).
 route().then(() => {
   // Ensure chrome strip is filled even if overview paint path skipped header.

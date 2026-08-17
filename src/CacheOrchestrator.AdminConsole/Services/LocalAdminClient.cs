@@ -37,10 +37,10 @@ public sealed class LocalAdminClient : ILocalAdminClient
         GetAsync<AdminHealthDto>(instance, "/health", cancellationToken);
 
     /// <inheritdoc />
-    public Task<InstanceCallOutcome<AdminLiveStatsSnapshot>> GetStatsAsync(
+    public Task<InstanceCallOutcome<AdminLiveStatsRawSnapshot>> GetStatsAsync(
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default) =>
-        GetAsync<AdminLiveStatsSnapshot>(instance, "/stats", cancellationToken);
+        GetAsync<AdminLiveStatsRawSnapshot>(instance, "/stats/v2", cancellationToken);
 
     /// <inheritdoc />
     public async Task<InstanceCallOutcome<IReadOnlyList<AdminEndpointInfoDto>>> GetEndpointsAsync(

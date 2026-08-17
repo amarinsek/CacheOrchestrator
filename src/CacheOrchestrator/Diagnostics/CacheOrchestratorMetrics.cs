@@ -45,7 +45,19 @@ public static class CacheOrchestratorMetrics
         Meter.CreateHistogram<double>(
             "cache_orchestrator.fc.duration",
             unit: "ms",
-            description: "Fusion GetOrSet duration in milliseconds");
+            description: "Fusion GetOrSet duration in milliseconds (legacy; all results with a duration). Prefer factory.duration for factory cost.");
+
+    private static readonly Histogram<double> FactoryDurationMs =
+        Meter.CreateHistogram<double>(
+            "cache_orchestrator.factory.duration",
+            unit: "ms",
+            description: "Value factory wall time in milliseconds (miss/stale path only)");
+
+    private static readonly Histogram<double> FactoryResultSizeBytes =
+        Meter.CreateHistogram<double>(
+            "cache_orchestrator.factory.result_size",
+            unit: "By",
+            description: "Value factory result size in bytes when cheaply measurable (miss path)");
 
     private static readonly Counter<long> ClientSchedule =
         Meter.CreateCounter<long>(
@@ -137,17 +149,29 @@ public static class CacheOrchestratorMetrics
     /// <param name="result">Result code: hit, miss, stale, bypass, off.</param>
     /// <param name="durationMs">Optional duration in milliseconds.</param>
     /// <param name="route">Optional stable endpoint key when IncludeEndpointLabel is enabled.</param>
+    /// <param name="resultSizeBytes">Optional measured factory result size (bytes) on miss.</param>
     internal static void RecordFusion(
         string domain,
         string result,
         double? durationMs = null,
-        string? route = null)
+        string? route = null,
+        long? resultSizeBytes = null)
     {
         TagList tags = BuildDomainResultTags(domain, result, route);
         FcRequests.Add(1, tags);
 
         if (durationMs is double ms)
+        {
+            // Legacy: all timed GetOrSet outcomes (dashboards may still use this).
             FcDurationMs.Record(ms, tags);
+
+            // Canonical factory cost: only when the value factory ran (miss or fail-safe stale).
+            if (result is "miss" or "stale")
+                FactoryDurationMs.Record(ms, tags);
+        }
+
+        if (resultSizeBytes is long size && size >= 0 && result is "miss")
+            FactoryResultSizeBytes.Record(size, tags);
     }
 
     /// <summary>

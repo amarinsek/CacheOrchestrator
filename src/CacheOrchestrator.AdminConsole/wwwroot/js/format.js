@@ -53,6 +53,14 @@ export const METRIC_TITLES = {
     "FC hit share — fraction of all requests served from FusionCache without running the factory.",
   factoryShare:
     "Factory share — fraction of all requests where the Fusion factory ran (factoryRuns ÷ requests). Also known as origin share.",
+  factoryAvoidance:
+    "Factory avoidance — 1 − factoryRuns/requests (share of requests that did not run the factory). Process lifetime unless a metrics window is used.",
+  estTimeSaved:
+    "Estimated factory time saved — avoided factory calls × average factory duration (ms). Requires Admin TrackLatency / factory duration samples.",
+  cacheBenefit:
+    "Cache benefit band (HIGH / MEDIUM / LOW_GAIN / AT_RISK / LOW / UNKNOWN) from avoidance × factory cost.",
+  cacheCandidate:
+    "Cache candidate / worthiness (STRONG / VOLUME / LIMITED / POOR / NEEDS_TUNING / INSUFFICIENT_DATA) from traffic × cost × factory share.",
   factory: "Fusion factory runs (GetOrSet miss path that produced a value)",
   factoryFailures: "Fusion factory runs that threw or failed",
   factoryFailureRate: "Factory failures ÷ factory runs",
@@ -100,6 +108,49 @@ export function factoryShareOf(o) {
   if (o.factoryShare != null) return o.factoryShare;
   if (o.originShare != null) return o.originShare;
   return null;
+}
+
+/** @param {{ impact?: { factoryAvoidance?: number|null }|null }|null|undefined} row */
+export function factoryAvoidanceOf(row) {
+  const v = row?.impact?.factoryAvoidance;
+  return v == null ? null : v;
+}
+
+/**
+ * Human label for benefit/candidate bands.
+ * INSUFFICIENT_DATA → "low sample"; UNKNOWN (benefit) uses the same muted/dashed style.
+ * @param {string|null|undefined} band
+ * @param {{ html?: boolean }} [opts] when html, wrap low-confidence labels for CSS
+ */
+export function impactBandLabel(band, opts = {}) {
+  if (!band) return "—";
+  const raw = String(band).toUpperCase();
+  if (raw === "INSUFFICIENT_DATA") {
+    if (opts.html) {
+      return `<span class="low-sample-label" title="Low sample (total requests &lt; 20) — impact bands are not reliable yet">low sample</span>`;
+    }
+    return "low sample";
+  }
+  if (raw === "UNKNOWN") {
+    if (opts.html) {
+      return `<span class="low-sample-label" title="Unknown — not enough traffic sample, or factory cost (duration/size) not measured yet">unknown</span>`;
+    }
+    return "unknown";
+  }
+  return String(band).replaceAll("_", " ");
+}
+
+/**
+ * Human duration for estimated time saved (ms → s/min when large).
+ * @param {number|null|undefined} ms
+ */
+export function fmtDurationMs(ms) {
+  if (ms == null || Number.isNaN(ms)) return "—";
+  const n = Number(ms);
+  if (n < 1000) return `${Math.round(n)} ms`;
+  if (n < 60_000) return `${(n / 1000).toFixed(1)} s`;
+  if (n < 3_600_000) return `${(n / 60_000).toFixed(1)} min`;
+  return `${(n / 3_600_000).toFixed(2)} h`;
 }
 
 /** HTML title attribute from METRIC_TITLES key or raw text. */

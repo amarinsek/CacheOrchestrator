@@ -242,6 +242,22 @@ public sealed class OverviewDto
 
     /// <summary>Distinct top hint messages for overview (capped).</summary>
     public IReadOnlyList<AdminHintDto> TopHints { get; init; } = [];
+
+    /// <summary>Cluster-level impact KPIs (from summed domain counters; process lifetime).</summary>
+    public CacheImpactKpiDto? Impact { get; init; }
+
+    /// <summary>
+    /// Label for counter window, e.g. <c>since process start</c>.
+    /// </summary>
+    public string StatsWindow { get; init; } = "since process start";
+
+    /// <summary>
+    /// Impact over the last Admin Console poll interval (delta of lifetime counters), when available.
+    /// </summary>
+    public CacheImpactKpiDto? ImpactRecent { get; init; }
+
+    /// <summary>Label for <see cref="ImpactRecent"/> (e.g. last ~15s poll delta).</summary>
+    public string? RecentWindowLabel { get; init; }
 }
 
 /// <summary>Cluster (or single-instance) aggregated live stats.</summary>
@@ -284,8 +300,8 @@ public sealed class InstanceStatsContributionDto
     /// <summary>Error when failed.</summary>
     public string? Error { get; init; }
 
-    /// <summary>Local snapshot when succeeded.</summary>
-    public AdminLiveStatsSnapshot? Snapshot { get; init; }
+    /// <summary>Local raw stats v2 snapshot when succeeded.</summary>
+    public AdminLiveStatsRawSnapshot? Snapshot { get; init; }
 }
 
 /// <summary>Invalidate request for the Admin Console App (adds multi-instance target).</summary>

@@ -9,23 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Playground topology labs** — `samples/CacheOrchestrator.Sample/labs` (Compose **01–05**)
-- Sample **Bus** registration for multi-instance labs
-- **`OutputCacheVaryByHost`** (default `true`; multi-instance labs can set `false`)
+- Local Admin **`GET …/stats/v2`** — canonical raw counters (domains/endpoints); factory duration sum/count when `TrackLatency` is on
+- OTel histogram **`cache_orchestrator.factory.duration`** (ms; miss/stale factory path only)
+- `AdminLiveStatsRawSnapshot` / raw counter DTOs; `IAdminStatsCollector.GetRawSnapshot()`
+- `CacheImpactKpiDto` on domain/endpoint stats (filled by Admin Console)
+- Admin Console: **ImpactMath** (factory avoidance, est. time saved, benefit/candidate bands)
+- Admin Console hint paths `domain.impact.*` / `endpoint.impact.*` + core rules (poor candidate, at-risk, strong)
 
 ### Changed
 
-- Sample Prometheus `deploy/prometheus` helper replaced by **labs** stacks
-
-### Fixed
-
-- Admin Console: Overview no longer always alerts when multiple instances are configured
-- **Bus:** load `Microsoft.Extensions.ServiceDiscovery` only when `Membership=ServiceDiscovery`
-- **Bus:** ServiceDiscovery package **9.0** on net8 / **10.0** on net10
+- Local Admin live counters store **raw** values; legacy **`GET …/stats`** fat DTO is projected via `AdminStatsV1Mapper` (prefer `/stats/v2`)
+- Admin factory latency samples only on factory path (miss/stale), not on Fusion hits
+- `cache_orchestrator.fc.duration` remains as legacy dual-write (all timed Fusion results)
+- Admin Console fan-out uses **`/stats/v2` only** (requires instance library ≥ 2.2; use Console 2.1 against older instances)
+- Console StatsAggregator merges raw counters, then derives shares + impact KPIs
+- Console Overview: lifetime + **poll-delta** impact; domain/endpoint detail impact blocks; sort by avoidance / time saved
+- Metrics panels: `factory_p95_ms`, `factory_run_rate`, `factory_share`, `factory_size_p95` (windowed)
+- **`Cache:Admin:TrackResultSize`** + Admin raw `factoryResultSize*`; OTel `cache_orchestrator.factory.result_size`
+- Console impact: **est. payload offload** / avg result size (feeds benefit/candidate cost)
 
 ### Documentation
 
-- Labs / sample READMEs; Output Cache base policy + FAQ
+- `docs/admin.md` — stats v2; `docs/observability.md` — `factory.duration`
 
 ## [2.1.0] - 2026-08-15
 

@@ -110,7 +110,30 @@ code { font-size: 0.9em; }
 .chrome-brand {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   padding: 0.75rem 1.25rem 0.65rem;
+}
+
+.brand-api {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #121820;
+}
+
+.brand-api:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  text-decoration: none;
 }
 
 .brand-link {
@@ -176,6 +199,20 @@ h1.brand-title,
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.brand-version {
+  font-weight: 500;
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  opacity: 0.75;
+  margin-left: 0.35rem;
+  vertical-align: baseline;
+}
+
+.brand-version:empty {
+  display: none;
 }
 
 /*
@@ -325,10 +362,6 @@ select#selAutoRefresh option {
 .nav-refresh button:hover {
   color: var(--accent);
   filter: none;
-}
-
-.nav-api {
-  font-size: 0.85rem !important;
 }
 
 /* empty / offline states */
@@ -521,10 +554,61 @@ a.btn-secondary:hover {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.65rem 0.75rem;
+  overflow: hidden;
+  min-width: 0;
 }
 
-.kpi .label { font-size: 0.75rem; color: var(--muted); }
-.kpi .value { font-size: 1.2rem; font-weight: 650; margin-top: 0.15rem; }
+.kpi .label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kpi .value {
+  font-size: 1.2rem;
+  font-weight: 650;
+  margin-top: 0.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.kpi-hints,
+.hm-hints {
+  cursor: pointer;
+}
+
+.kpi-hints:hover {
+  border-color: var(--accent);
+}
+
+.hm-hints:hover {
+  color: var(--accent);
+}
+
+.cell-ellipsis {
+  display: inline-block;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.recommendations-block {
+  margin: 0 0 1rem;
+}
+
+.recommendations-block .hint-list {
+  margin: 0;
+}
+
+.recommendations-block + .kpi-row {
+  margin-top: 0.15rem;
+}
 
 table {
   width: 100%;
@@ -1035,7 +1119,26 @@ body.chart-modal-open { overflow: hidden; }
 }
 
 .low-n {
+  color: #9aa7b8;
   border-bottom: 1px dashed var(--warn);
+  cursor: help;
+}
+
+/* Impact band when sample is too small / benefit unknown. */
+.low-sample-label {
+  color: #8b96a5;
+  font-weight: 500;
+  font-size: 0.92em;
+  border-bottom: 1px dashed #c9a227;
+  cursor: help;
+  text-transform: lowercase;
+}
+
+/* Duration/size metrics when tracking off or no samples yet. */
+.na-tracking {
+  color: #8b96a5;
+  font-weight: 500;
+  border-bottom: 1px dashed #6b7280;
   cursor: help;
 }
 
@@ -1286,8 +1389,9 @@ th[title],
 }
 
 @media (max-width: 720px) {
-  .chrome-brand { padding: 0.55rem 0.85rem 0.5rem; }
+  .chrome-brand { padding: 0.55rem 0.85rem 0.5rem; flex-wrap: wrap; }
   .brand-link { gap: 0.75rem; }
+  .brand-api { margin-top: 0; }
   .brand-logo { width: 44px; height: 44px; border-radius: 10px; }
   .brand-title { font-size: 1.3rem; }
   .brand-subtitle { white-space: normal; }

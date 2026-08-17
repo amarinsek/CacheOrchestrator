@@ -46,23 +46,20 @@ public class AdminFanOutServiceTests
     public async Task GetStatsAsync_AggregatesSuccessfulInstances_IgnoresFailures()
     {
         FakeLocalAdminClient client = new();
-        (long req, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
-            AdminStatsMath.BuildAll(10, 0, 0, 5, 5, 0, 0, 5, 0);
-        client.Stats["a"] = new AdminLiveStatsSnapshot
+        client.Stats["a"] = new AdminLiveStatsRawSnapshot
         {
             InstanceId = "a",
             CollectedAtUtc = DateTimeOffset.UtcNow,
             Domains =
             [
-                new AdminDomainStatsDto
+                new AdminDomainCountersDto
                 {
                     Name = "catalog",
                     Version = "1",
-                    Requests = req,
-                    Oc = oc,
-                    Fc = fc,
-                    Pipeline = pipe,
-                    Endpoints = []
+                    OcHits = 10,
+                    FcHits = 5,
+                    FcMisses = 5,
+                    FactoryRuns = 5
                 }
             ],
             UnassignedEndpoints = [],
@@ -79,6 +76,7 @@ public class AdminFanOutServiceTests
         stats.Instances.Should().HaveCount(2);
         stats.Instances.Count(i => i.Succeeded).Should().Be(1);
         stats.Domains.Should().ContainSingle(d => d.Name == "catalog" && d.Oc.Hits == 10);
+        stats.Domains[0].Impact.Should().NotBeNull();
     }
 
     [Fact]
@@ -86,7 +84,7 @@ public class AdminFanOutServiceTests
     {
         FakeLocalAdminClient client = new();
         client.FailStats.Add("b");
-        client.Stats["a"] = new AdminLiveStatsSnapshot
+        client.Stats["a"] = new AdminLiveStatsRawSnapshot
         {
             InstanceId = "a",
             CollectedAtUtc = DateTimeOffset.UtcNow,
@@ -234,12 +232,12 @@ public class AdminFanOutServiceTests
         Microsoft.Extensions.Options.IOptions<AdminConsoleOptions> options = Options.Create(opts);
         InstanceReachabilityCache reachability = new(options, TimeProvider.System);
         HintEngine hints = TestHintEngine.Create(opts);
-        return new AdminFanOutService(client, options, reachability, hints);
+        return new AdminFanOutService(client, options, reachability, hints, new StatsDeltaCache());
     }
 
     private sealed class FakeLocalAdminClient : ILocalAdminClient
     {
-        public Dictionary<string, AdminLiveStatsSnapshot> Stats { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, AdminLiveStatsRawSnapshot> Stats { get; } = new(StringComparer.Ordinal);
         public HashSet<string> FailStats { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, int> StatsCallCountById { get; } = new(StringComparer.Ordinal);
         public List<string> InvalidateCalls { get; } = [];
@@ -257,16 +255,16 @@ public class AdminFanOutServiceTests
                 AdminEnabled = true
             }));
 
-        public Task<InstanceCallOutcome<AdminLiveStatsSnapshot>> GetStatsAsync(
+        public Task<InstanceCallOutcome<AdminLiveStatsRawSnapshot>> GetStatsAsync(
             AdminInstanceOptions instance,
             CancellationToken cancellationToken = default)
         {
             StatsCallCountById[instance.Id] = StatsCallCountById.GetValueOrDefault(instance.Id) + 1;
             if (FailStats.Contains(instance.Id))
-                return Task.FromResult(Fail<AdminLiveStatsSnapshot>(instance.Id, "down"));
+                return Task.FromResult(Fail<AdminLiveStatsRawSnapshot>(instance.Id, "down"));
 
-            if (!Stats.TryGetValue(instance.Id, out AdminLiveStatsSnapshot? snap))
-                snap = new AdminLiveStatsSnapshot
+            if (!Stats.TryGetValue(instance.Id, out AdminLiveStatsRawSnapshot? snap))
+                snap = new AdminLiveStatsRawSnapshot
                 {
                     InstanceId = instance.Id,
                     CollectedAtUtc = DateTimeOffset.UtcNow,

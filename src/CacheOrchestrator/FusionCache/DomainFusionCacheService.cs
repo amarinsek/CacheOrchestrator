@@ -244,13 +244,21 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         string resultCode = DataToMetric(dataResult);
         activity?.SetTag("cache.result", resultCode);
+
+        // Size only for successful factory materialization (miss), when cheap to measure.
+        // OTel records when non-null; Admin stores only if TrackResultSize.
+        long? resultSizeBytes = materialized && !factoryFailed
+            ? FactoryResultSize.TryEstimateBytes(result)
+            : null;
+
         RecordFusionAndAdmin(
             http,
             opts.Domain,
             opts.Domain,
             resultCode,
             durationMs: elapsed,
-            elapsedTicks: sw.ElapsedTicks);
+            elapsedTicks: sw.ElapsedTicks,
+            resultSizeBytes: resultSizeBytes);
 
         if (dataResult == DataCacheResult.Stale)
         {
@@ -358,19 +366,22 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         string? adminDomain,
         string result,
         double? durationMs,
-        long? elapsedTicks)
+        long? elapsedTicks,
+        long? resultSizeBytes = null)
     {
         CacheOrchestratorMetrics.ResolveEndpointKeys(
             http,
             forAdminStats: _adminStats.IsEnabled,
             out string? endpointKey,
             out string? metricsRoute);
-        CacheOrchestratorMetrics.RecordFusion(metricsDomain, result, durationMs, metricsRoute);
+        CacheOrchestratorMetrics.RecordFusion(
+            metricsDomain, result, durationMs, metricsRoute, resultSizeBytes);
 
         if (!_adminStats.IsEnabled)
             return;
 
         long? ticks = _adminStats.TrackLatency ? elapsedTicks : null;
-        _adminStats.RecordFusion(endpointKey, adminDomain, result, ticks);
+        long? size = _adminStats.TrackResultSize ? resultSizeBytes : null;
+        _adminStats.RecordFusion(endpointKey, adminDomain, result, ticks, size);
     }
 }

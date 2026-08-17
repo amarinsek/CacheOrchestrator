@@ -14,6 +14,9 @@ public interface IAdminStatsCollector
     /// <summary>Whether factory latency sum/count is tracked.</summary>
     bool TrackLatency { get; }
 
+    /// <summary>Whether factory result size sum/count is tracked.</summary>
+    bool TrackResultSize { get; }
+
     /// <summary>
     /// Records an Output Cache outcome.
     /// </summary>
@@ -29,11 +32,25 @@ public interface IAdminStatsCollector
     /// <param name="domain">Normalized domain, or null.</param>
     /// <param name="result"><c>hit</c>, <c>miss</c>, <c>stale</c>, <c>bypass</c>, etc.</param>
     /// <param name="elapsedTicks">Optional factory/get duration ticks when latency tracking is on.</param>
-    void RecordFusion(string? endpointKey, string? domain, string result, long? elapsedTicks = null);
+    /// <param name="resultSizeBytes">Optional measured factory result size when size tracking is on.</param>
+    void RecordFusion(
+        string? endpointKey,
+        string? domain,
+        string result,
+        long? elapsedTicks = null,
+        long? resultSizeBytes = null);
 
     /// <summary>Records a successful domain-scoped invalidation.</summary>
     void RecordInvalidation(string domain);
 
-    /// <summary>Snapshot of all counters for the Local Admin API.</summary>
+    /// <summary>
+    /// Canonical raw counter snapshot (Admin stats v2). Prefer this over <see cref="GetSnapshot"/>.
+    /// </summary>
+    AdminLiveStatsRawSnapshot GetRawSnapshot();
+
+    /// <summary>
+    /// Legacy fat snapshot (Admin stats v1). Projects from <see cref="GetRawSnapshot"/> via
+    /// <see cref="AdminStatsV1Mapper"/>. Prefer <see cref="GetRawSnapshot"/> for new code.
+    /// </summary>
     AdminLiveStatsSnapshot GetSnapshot();
 }

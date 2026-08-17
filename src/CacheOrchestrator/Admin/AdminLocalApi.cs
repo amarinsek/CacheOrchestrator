@@ -81,7 +81,11 @@ public static class AdminLocalApi
             });
         });
 
+        // Legacy fat DTO (v1). Prefer /stats/v2; remove in 3.0.
         group.MapGet("/stats", (AdminQueryService query) => Results.Ok(query.GetStats()));
+
+        // Canonical raw counters (v2).
+        group.MapGet("/stats/v2", (AdminQueryService query) => Results.Ok(query.GetStatsRaw()));
 
         group.MapGet("/endpoints", (AdminQueryService query) => Results.Ok(query.GetEndpoints()));
 

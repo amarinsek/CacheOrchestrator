@@ -77,6 +77,7 @@ public sealed class HintEngine
                 .Select(b => WithHints(b, config))
                 .ToArray(),
             InstanceSpread = domain.InstanceSpread,
+            Impact = domain.Impact,
             Hints = hints
         };
     }
@@ -96,6 +97,7 @@ public sealed class HintEngine
             Pipeline = ep.Pipeline,
             ByInstance = ep.ByInstance?.Select(WithHints).ToArray(),
             InstanceSpread = ep.InstanceSpread,
+            Impact = ep.Impact,
             Hints = hints
         };
     }

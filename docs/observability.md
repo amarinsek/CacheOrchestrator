@@ -48,7 +48,9 @@ Meter name: **`CacheOrchestrator`**
 | Instrument | Description |
 |------------|-------------|
 | `cache_orchestrator.fc.requests` | Fusion ops by `domain`, `result` (`hit`/`miss`/`stale`/`bypass`/`off`/`unresolved`; domain `_` when unresolved); optional `route` |
-| `cache_orchestrator.fc.duration` | Fusion duration (ms); optional `route` |
+| `cache_orchestrator.factory.duration` | **Canonical** factory wall time (ms) on miss/stale only; optional `route` |
+| `cache_orchestrator.factory.result_size` | Factory result size (bytes) when cheaply measurable on miss; optional `route` |
+| `cache_orchestrator.fc.duration` | Legacy Fusion GetOrSet duration (ms) for any timed result; prefer `factory.duration` for factory cost |
 | `cache_orchestrator.oc.requests` | Output outcomes by `domain`, `result`; optional `route` |
 | `cache_orchestrator.client.schedule` | Client Cache Schedule by `domain`, `phase` |
 | `cache_orchestrator.invalidate` | Successful full invalidations by `domain` |

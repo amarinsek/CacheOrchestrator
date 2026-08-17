@@ -185,9 +185,10 @@ export function inlineSortSelectHtml(id, current, options) {
 /** Sort keys offered on Endpoints list / Overview top-5. */
 export const EP_SORT_OPTS = [
   ["requests", "Requests"],
-  ["ocHitShare", "OC hit share"],
-  ["fcHitShare", "FC hit share"],
-  ["factoryShare", "Factory share"],
+  ["ocHitShare", "OC hit %"],
+  ["fcHitShare", "FC hit %"],
+  ["factoryShare", "Factory %"],
+  ["estTimeSaved", "Est. time saved"],
   ["route", "Route"],
 ];
 
@@ -195,9 +196,10 @@ export const EP_SORT_OPTS = [
 export const DOMAIN_SORT_OPTS = [
   ["requests", "Requests"],
   ["name", "Name"],
-  ["ocHitShare", "OC hit share"],
-  ["fcHitShare", "FC hit share"],
-  ["factoryShare", "Factory share"],
+  ["ocHitShare", "OC hit %"],
+  ["fcHitShare", "FC hit %"],
+  ["factoryShare", "Factory %"],
+  ["estTimeSaved", "Est. time saved"],
   ["invalidations", "Invalidations"],
   ["version", "Version"],
 ];
@@ -224,6 +226,12 @@ export function sortEndpoints(list, sort) {
       arr.sort((a, b) => cmpNumDesc(
         a.fc?.factoryShare ?? a.fc?.originShare,
         b.fc?.factoryShare ?? b.fc?.originShare));
+      break;
+    case "factoryAvoidance":
+      arr.sort((a, b) => cmpNumDesc(a.impact?.factoryAvoidance, b.impact?.factoryAvoidance));
+      break;
+    case "estTimeSaved":
+      arr.sort((a, b) => cmpNumDesc(a.impact?.estFactoryTimeSavedMs, b.impact?.estFactoryTimeSavedMs));
       break;
     case "ocHitShare":
       arr.sort((a, b) => cmpNumDesc(a.oc?.hitShare, b.oc?.hitShare));
@@ -253,6 +261,12 @@ export function sortDomains(list, sort) {
       arr.sort((a, b) => cmpNumDesc(
         a.fc?.factoryShare ?? a.fc?.originShare,
         b.fc?.factoryShare ?? b.fc?.originShare));
+      break;
+    case "factoryAvoidance":
+      arr.sort((a, b) => cmpNumDesc(a.impact?.factoryAvoidance, b.impact?.factoryAvoidance));
+      break;
+    case "estTimeSaved":
+      arr.sort((a, b) => cmpNumDesc(a.impact?.estFactoryTimeSavedMs, b.impact?.estFactoryTimeSavedMs));
       break;
     case "ocHitShare":
       arr.sort((a, b) => cmpNumDesc(a.oc?.hitShare, b.oc?.hitShare));

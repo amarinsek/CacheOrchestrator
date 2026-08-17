@@ -12,8 +12,9 @@
 
 import { api } from "./api.js";
 import { $, setRefreshing } from "./dom.js";
-import { esc, fmtUnit, METRIC_TITLES, num, pct, pipelineBar } from "./format.js";
+import { esc, fmtUnit, impactBandLabel, METRIC_TITLES, num, pct, pipelineBar } from "./format.js";
 import { severityStack } from "./hints.js";
+import { navigate } from "./router.js";
 
 const REFRESH_KEY = "adminAutoRefreshSec";
 
@@ -168,16 +169,29 @@ export function renderHeader(o) {
       ${down > 0 ? `<span class="status-Down">${fmtUnit(down, "down")}</span>` : ""}
       ${deg > 0 ? `<span class="status-Degraded">${fmtUnit(deg, "deg")}</span>` : ""}
     </span>
-    <span class="hm" title="Cluster recommendation urgency">${severityStack(hs)}</span>
+    <span class="hm hm-hints" role="link" tabindex="0" title="Open Hints" data-goto-hints="1">${severityStack(hs)}</span>
     <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(o.pipeline)}</span>
-    <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit share <strong>${pct(o.ocHitShare)}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit share <strong>${pct(o.pipeline?.fcHitShare)}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">Factory share <strong>${pct(o.factoryShare ?? o.originShare)}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit % <strong>${pct(o.ocHitShare)}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${pct(o.pipeline?.fcHitShare)}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">Factory % <strong>${pct(o.factoryShare ?? o.originShare)}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.cacheBenefit)}">Benefit <strong>${impactBandLabel(o.impact?.benefit, { html: true })}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.cacheCandidate)}">Candidate <strong>${impactBandLabel(o.impact?.candidate, { html: true })}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.req)}">Req <strong>${num(o.totalRequests)}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.inv)}">Inv <strong>${num(o.totalInvalidations)}</strong></span>
     <span class="hm muted" title="Domains and endpoints observed with traffic or config">${fmtUnit(o.domainCount, "dom")} · ${fmtUnit(o.endpointCount, "ep")}</span>
     ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
   `;
+  const hintsHit = $("#headerMetrics")?.querySelector("[data-goto-hints]");
+  if (hintsHit) {
+    const go = (ev) => {
+      ev.preventDefault();
+      navigate("hints");
+    };
+    hintsHit.addEventListener("click", go);
+    hintsHit.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") go(ev);
+    });
+  }
   refreshMetricsStatusPill();
 }
 

@@ -21,11 +21,12 @@
       <a href="#/overview" class="brand-link">
         <img src="/logo.png" alt="CacheOrchestrator logo" class="brand-logo" width="56" height="56" />
         <span class="brand-text">
-          <span class="brand-eyebrow">CacheOrchestrator</span>
+          <span class="brand-eyebrow">CacheOrchestrator <span class="brand-version" id="brandVersion" title="Admin Console version"></span></span>
           <h1 class="brand-title">Admin Console</h1>
           <span class="brand-subtitle">Multi-instance fan-out · live stats · operations</span>
         </span>
       </a>
+      <a href="/scalar" target="_blank" rel="noopener" class="brand-api" title="OpenAPI for Admin Console HTTP API (BFF; instances use /stats/v2)">API (v2)</a>
     </div>
 
     <div class="chrome-strip chrome-metrics" id="headerMetrics">
@@ -41,10 +42,6 @@
         <a href="#/metrics" data-nav="metrics" title="Windowed charts from optional Prometheus-compatible store">Metrics</a>
       </div>
       <div class="nav-right">
-        <a href="#/hints" data-nav="hints" class="nav-hints" title="Recommendation hints after fan-out aggregation">
-          <span data-nav-hints-badge class="nav-hints-badge"><span class="sev-stack empty">○</span></span>
-          Hints
-        </a>
         <div class="nav-refresh" title="Auto-refresh interval for soft page reload">
           <select id="selAutoRefresh" aria-label="Auto refresh">
             <option value="0">Off</option>
@@ -56,9 +53,12 @@
           </select>
           <button type="button" id="btnHeaderRefresh" title="Refresh now">↻</button>
         </div>
+        <a href="#/hints" data-nav="hints" class="nav-hints" title="Recommendation hints after fan-out aggregation">
+          <span data-nav-hints-badge class="nav-hints-badge"><span class="sev-stack empty">○</span></span>
+          Hints
+        </a>
         <a href="#/operations" data-nav="operations" title="Invalidate, version/TTL overlay, cluster bus distribute">Operations</a>
         <a href="#/settings" data-nav="settings" title="Hint rule packs, enable/disable codes">Settings</a>
-        <a href="/scalar/v1" target="_blank" rel="noopener" class="nav-api" title="OpenAPI document for Admin Console App HTTP API">API</a>
       </div>
     </nav>
   </div>

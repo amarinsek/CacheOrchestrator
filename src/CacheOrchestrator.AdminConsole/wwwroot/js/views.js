@@ -12,7 +12,9 @@ import {
   formatLatencyMs,
   formatUptime,
   factoryShareOf,
+  fmtDurationMs,
   fmtUnit,
+  impactBandLabel,
   METRIC_TITLES,
   num,
   pct,
@@ -42,7 +44,7 @@ import {
 import {
   collectHintRows,
   hintBadges,
-  hintListHtml,
+  recommendationsSectionHtml,
   severityStack,
   summarizeHints,
 } from "./hints.js";
@@ -56,6 +58,8 @@ import {
   domainTableHtml,
   emptyStateHtml,
   endpointTableHtml,
+  impactDetailHtml,
+  impactKpiRowHtml,
   instanceTableHtml,
   layerDetailFc,
   layerDetailOc,
@@ -162,6 +166,7 @@ function paintOverviewBody(o, params, soft) {
     }
     bindEntityTableClicks(main());
     bindEmptyStateActions(main());
+    bindGotoHints(main());
     const mount = $("#ovMetricsMount");
     metricsOverviewSectionHtml({ soft: true, mountEl: mount }).then((html) => {
       const m = $("#ovMetricsMount");
@@ -230,6 +235,7 @@ function paintOverviewBody(o, params, soft) {
 
   bindEntityTableClicks(main());
   bindEmptyStateActions(main());
+  bindGotoHints(main());
 
   const ovSortParams = (patch) => ({
     instSort,
@@ -261,15 +267,42 @@ function paintOverviewBody(o, params, soft) {
   });
 }
 
+function bindGotoHints(root) {
+  (root || document).querySelectorAll("[data-goto-hints]").forEach((el) => {
+    if (el.dataset.boundHints === "1") return;
+    el.dataset.boundHints = "1";
+    const go = (ev) => {
+      ev.preventDefault();
+      navigate("hints");
+    };
+    el.addEventListener("click", go);
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") go(ev);
+    });
+  });
+}
+
 function overviewKpiHtml(o) {
+  const imp = o.impact || {};
+  const recent = o.impactRecent;
+  const win = o.statsWindow ? esc(o.statsWindow) : "since process start";
+  const recentWin = o.recentWindowLabel ? esc(o.recentWindowLabel) : "";
+  const recentBlock = recent
+    ? `
+      <div class="kpi" title="${esc(METRIC_TITLES.estTimeSaved)} (${recentWin})"><div class="label">Recent time saved</div><div class="value" style="font-size:1rem">${fmtDurationMs(recent.estFactoryTimeSavedMs)}</div></div>
+      <div class="kpi" title="${esc(METRIC_TITLES.cacheBenefit)} (${recentWin})"><div class="label">Recent benefit</div><div class="value" style="font-size:1rem">${impactBandLabel(recent.benefit, { html: true })}</div></div>`
+    : `<div class="kpi muted" title="Appears after a second Overview refresh while the Console is open"><div class="label">Recent window</div><div class="value" style="font-size:0.85rem">poll once more</div></div>`;
   return `
       <div class="kpi"><div class="label">Instances up</div><div class="value ${instancesUpClass(o)}">${o.healthyCount} / ${(o.instances || []).length}</div></div>
-      <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
-      <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit share</div><div class="value">${pct(o.ocHitShare)}</div></div>
-      <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit share</div><div class="value">${pct(o.pipeline?.fcHitShare)}</div></div>
-      <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(o))}</div></div>
-      <div class="kpi"><div class="label">Domains / EP</div><div class="value" style="font-size:1rem">${num(o.domainCount)} / ${num(o.endpointCount)}</div></div>
-      <div class="kpi"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>`;
+      <div class="kpi" title="${esc(METRIC_TITLES.req)} (${win})"><div class="label">Requests</div><div class="value">${num(o.totalRequests)}</div></div>
+      <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit %</div><div class="value">${pct(o.ocHitShare)}</div></div>
+      <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit %</div><div class="value">${pct(o.pipeline?.fcHitShare)}</div></div>
+      <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${pct(factoryShareOf(o))}</div></div>
+      <div class="kpi"${tipAttr("estTimeSaved")}><div class="label">Time saved</div><div class="value" style="font-size:1rem">${fmtDurationMs(imp.estFactoryTimeSavedMs)}</div></div>
+      <div class="kpi"${tipAttr("cacheBenefit")}><div class="label">Benefit</div><div class="value" style="font-size:1rem">${impactBandLabel(imp.benefit, { html: true })}</div></div>
+      <div class="kpi"${tipAttr("cacheCandidate")}><div class="label">Candidate</div><div class="value" style="font-size:1rem">${impactBandLabel(imp.candidate, { html: true })}</div></div>
+      ${recentBlock}
+      <div class="kpi kpi-hints" role="link" tabindex="0" data-goto-hints="1" title="Open Hints"><div class="label">Cluster hints</div><div class="value">${severityStack(o.hintSummary)}</div></div>`;
 }
 
 // —— Endpoints ——
@@ -446,20 +479,21 @@ function endpointDetailHeadHtml(ep) {
         ${ep.configuredDomain ? `<a class="badge" href="#/domains?name=${encodeURIComponent(ep.configuredDomain)}">${esc(ep.configuredDomain)}</a>` : ""}
         ${hintBadges(ep.hints)}
       </h2>
-      <h3 class="section-sub">Recommendations</h3>
-      ${hintListHtml(ep.hints)}
+      ${recommendationsSectionHtml(ep.hints)}
       <div class="kpi-row">
         <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(ep.requests)}</div></div>
-        <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit share</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowRequestSample, "request")}</div></div>
-        <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit share</div><div class="value">${pct(ep.fc?.hitShare, ep.fc?.lowRequestSample, "request")}</div></div>
-        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(ep.fc), ep.fc?.lowRequestSample, "request")}</div></div>
+        <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit %</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowRequestSample, "request")}</div></div>
+        <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit %</div><div class="value">${pct(ep.fc?.hitShare, ep.fc?.lowRequestSample, "request")}</div></div>
+        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${pct(factoryShareOf(ep.fc), ep.fc?.lowRequestSample, "request")}</div></div>
+        ${impactKpiRowHtml(ep.impact)}
       </div>
-      <p class="muted">Pipeline</p>
+      <p class="muted">Pipeline · lifetime counters (since process start)</p>
       ${pipelineBar(ep.pipeline, true)}
     </div>
     <div class="detail-grid">
       ${layerDetailOc(ep.oc)}
       ${layerDetailFc(ep.fc)}
+      ${impactDetailHtml(ep.impact, "since process start")}
     </div>
     ${ep.byInstance?.length ? `
     <div class="card">
@@ -469,9 +503,12 @@ function endpointDetailHeadHtml(ep) {
         <thead><tr>
           ${thMetric("Instance", "instance", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
-          ${thMetric("OC hit share", "ocHitShare", { fromKey: true })}
-          ${thMetric("FC hit share", "fcHitShare", { fromKey: true })}
-          ${thMetric("Factory share", "factoryShare", { fromKey: true })}
+          ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
+          ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
+          ${thMetric("Factory %", "factoryShare", { fromKey: true })}
+          ${thMetric("Time saved", "estTimeSaved", { fromKey: true })}
+          ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
+          ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
         </tr></thead>
         <tbody>
           ${ep.byInstance.map((bi) => `
@@ -481,6 +518,9 @@ function endpointDetailHeadHtml(ep) {
               <td>${pct(bi.oc?.hitShare, bi.oc?.lowRequestSample, "request")}</td>
               <td>${pct(bi.fc?.hitShare, bi.fc?.lowRequestSample, "request")}</td>
               <td>${pct(factoryShareOf(bi.fc), bi.fc?.lowRequestSample, "request")}</td>
+              <td>${fmtDurationMs(bi.impact?.estFactoryTimeSavedMs)}</td>
+              <td>${impactBandLabel(bi.impact?.benefit, { html: true })}</td>
+              <td>${impactBandLabel(bi.impact?.candidate, { html: true })}</td>
             </tr>`).join("")}
         </tbody>
       </table>
@@ -616,21 +656,23 @@ function domainDetailHeadHtml(name, domain, cfg) {
         ${hintBadges(domain.hints)}
         <a class="badge" href="#/operations?domain=${encodeURIComponent(name)}">Operations</a>
       </h2>
-      <h3 class="section-sub">Recommendations</h3>
-      ${hintListHtml(domain.hints)}
+      ${recommendationsSectionHtml(domain.hints)}
       <div class="kpi-row">
-        <div class="kpi"><div class="label">Version</div><div class="value" style="font-size:1rem">${esc(domain.version || cfg?.version || "—")}</div></div>
-        <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(domain.requests)}</div></div>
-        <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit share</div><div class="value">${pct(domain.oc?.hitShare, domain.oc?.lowRequestSample, "request")}</div></div>
-        <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit share</div><div class="value">${pct(domain.fc?.hitShare, domain.fc?.lowRequestSample, "request")}</div></div>
-        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory share</div><div class="value">${pct(factoryShareOf(domain.fc), domain.fc?.lowRequestSample, "request")}</div></div>
+        <div class="kpi" title="${esc(domain.version || cfg?.version || "")}"><div class="label">Version</div><div class="value" style="font-size:1rem">${esc(domain.version || cfg?.version || "—")}</div></div>
         <div class="kpi" title="${esc(METRIC_TITLES.inv)}"><div class="label">Invalidations</div><div class="value">${num(domain.invalidations)}</div></div>
+        <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(domain.requests)}</div></div>
+        <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit %</div><div class="value">${pct(domain.oc?.hitShare, domain.oc?.lowRequestSample, "request")}</div></div>
+        <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit %</div><div class="value">${pct(domain.fc?.hitShare, domain.fc?.lowRequestSample, "request")}</div></div>
+        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${pct(factoryShareOf(domain.fc), domain.fc?.lowRequestSample, "request")}</div></div>
+        ${impactKpiRowHtml(domain.impact)}
       </div>
+      <p class="muted">Pipeline · lifetime counters (since process start)</p>
       ${pipelineBar(domain.pipeline, true)}
     </div>
     <div class="detail-grid">
       ${layerDetailOc(domain.oc)}
       ${layerDetailFc(domain.fc)}
+      ${impactDetailHtml(domain.impact, "since process start")}
       ${cfg ? `
       <div class="detail-block">
         <h3>Effective config</h3>
@@ -654,10 +696,13 @@ function domainDetailHeadHtml(name, domain, cfg) {
           ${thMetric("Instance", "instance", { fromKey: true })}
           ${thMetric("Version", "version", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
-          ${thMetric("OC hit share", "ocHitShare", { fromKey: true })}
-          ${thMetric("FC hit share", "fcHitShare", { fromKey: true })}
-          ${thMetric("Factory share", "factoryShare", { fromKey: true })}
           ${thMetric("Inv", "inv", { fromKey: true })}
+          ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
+          ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
+          ${thMetric("Factory %", "factoryShare", { fromKey: true })}
+          ${thMetric("Time saved", "estTimeSaved", { fromKey: true })}
+          ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
+          ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
         </tr></thead>
         <tbody>
           ${domain.byInstance.map((bi) => `
@@ -665,10 +710,13 @@ function domainDetailHeadHtml(name, domain, cfg) {
               <td><code>${esc(bi.instanceId)}</code></td>
               <td>${esc(bi.version)}${bi.versionIsRuntimeOverride ? " *" : ""}</td>
               <td>${num(bi.requests)}</td>
+              <td>${num(bi.invalidations)}</td>
               <td>${pct(bi.oc?.hitShare, bi.oc?.lowRequestSample, "request")}</td>
               <td>${pct(bi.fc?.hitShare, bi.fc?.lowRequestSample, "request")}</td>
               <td>${pct(factoryShareOf(bi.fc), bi.fc?.lowRequestSample, "request")}</td>
-              <td>${num(bi.invalidations)}</td>
+              <td>${fmtDurationMs(bi.impact?.estFactoryTimeSavedMs)}</td>
+              <td>${impactBandLabel(bi.impact?.benefit, { html: true })}</td>
+              <td>${impactBandLabel(bi.impact?.candidate, { html: true })}</td>
             </tr>`).join("")}
         </tbody>
       </table>

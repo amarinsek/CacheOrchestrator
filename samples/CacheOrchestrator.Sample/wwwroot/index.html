@@ -143,7 +143,7 @@
             <div class="modal-header">
                 <div>
                     <h2 class="modal-title">appsettings.json</h2>
-                    <p class="hint">Changes are saved to disk. ASP.NET Core reloads configuration automatically. All cached domains are invalidated on save.</p>
+                    <p class="hint">Changes are saved to disk and configuration reloads immediately (new Version, TTLs, client headers on the next request). Invalidation is separate — use <strong>Invalidate domain</strong> when you want a purge.</p>
                 </div>
                 <button id="btnCloseEditor" class="btn ghost icon-btn" aria-label="Close">✕</button>
             </div>

@@ -75,6 +75,9 @@ public class AdminRegistrationTests
 
         HttpResponseMessage stats = await client.GetAsync("/cache-admin/local/stats", Ct);
         stats.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        HttpResponseMessage statsV2 = await client.GetAsync("/cache-admin/local/stats/v2", Ct);
+        statsV2.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]

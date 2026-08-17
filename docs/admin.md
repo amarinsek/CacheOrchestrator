@@ -128,7 +128,8 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | `Healthy`, `InstanceId`, `StartedAtUtc`, `UptimeSeconds`, `Requests` |
-| GET | `/stats` | Live domain/endpoint counters (shares + rates) |
+| GET | `/stats/v2` | **Canonical** live raw counters (no shares/rates; optional factory duration) |
+| GET | `/stats` | Legacy fat DTO (shares + rates); projected from raw — prefer `/stats/v2` |
 | GET | `/endpoints` | Discovered + counted routes |
 | GET | `/domains` | Effective domain options snapshot |
 | POST | `/invalidate` | Domain / entity invalidation |
@@ -137,10 +138,25 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 
 Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
-### Stats model (shares vs rates)
+### Stats v2 (raw — preferred)
+
+`GET …/stats/v2` returns process-lifetime **raw counters** per domain/endpoint, for example:
+
+`ocHits`, `ocMisses`, `ocBypass`, `fcHits`, `fcMisses`, `fcStale`, `fcBypass`, `factoryRuns`, `factoryFailures`, and when `Cache:Admin:TrackLatency` is true: `factoryDurationSumMs` / `factoryDurationCount` (factory path only: miss/stale). When `Cache:Admin:TrackResultSize` is true: `factoryResultSizeSumBytes` / `factoryResultSizeCount` for cheap-to-measure results (string UTF-8, byte buffers, seekable streams).
+
+Shares, rates, pipeline, and impact KPIs are computed by the Admin Console (or other clients). Request denominator:
+
+```text
+requests = (ocHits+ocMisses+ocBypass) if > 0
+         else (fcHits+fcMisses+fcStale+fcBypass)
+factoryShare = factoryRuns / requests
+```
+
+### Stats model v1 (shares vs rates — legacy `/stats`)
 
 1. **Output Cache** events on HTTP responses (hit / miss / bypass).  
 2. **FusionCache** events on data path (hit / miss / stale / bypass, factory runs/failures).  
+
 
 | Metric type | Question it answers |
 |-------------|---------------------|

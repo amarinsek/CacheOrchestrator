@@ -15,8 +15,8 @@ public interface ILocalAdminClient
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default);
 
-    /// <summary>GET live stats for one instance.</summary>
-    Task<InstanceCallOutcome<AdminLiveStatsSnapshot>> GetStatsAsync(
+    /// <summary>GET live raw stats (v2) for one instance (<c>/stats/v2</c>).</summary>
+    Task<InstanceCallOutcome<AdminLiveStatsRawSnapshot>> GetStatsAsync(
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default);
 

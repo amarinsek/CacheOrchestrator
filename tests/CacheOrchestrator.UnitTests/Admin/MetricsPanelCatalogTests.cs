@@ -42,6 +42,21 @@ public class MetricsPanelCatalogTests
     }
 
     [Fact]
+    public void BuildPromQl_factory_panels()
+    {
+        string p95 = MetricsPanelCatalog.BuildPromQl("factory_p95_ms", ["catalog"]);
+        Assert.Contains(MetricsPanelCatalog.FactoryDurationBucket, p95, StringComparison.Ordinal);
+        Assert.Contains("histogram_quantile(0.95", p95, StringComparison.Ordinal);
+
+        string rate = MetricsPanelCatalog.BuildPromQl("factory_run_rate", null);
+        Assert.Contains("result=\"miss\"", rate, StringComparison.Ordinal);
+
+        string share = MetricsPanelCatalog.BuildPromQl("factory_share", null);
+        Assert.Contains(MetricsPanelCatalog.OcRequests, share, StringComparison.Ordinal);
+        Assert.Contains("result=\"miss\"", share, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SanitizeLabelValue_strips_injection_chars()
     {
         Assert.Equal("products_v1", MetricsPanelCatalog.SanitizeLabelValue("products_v1"));
