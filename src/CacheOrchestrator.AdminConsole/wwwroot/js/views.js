@@ -23,7 +23,6 @@ import {
   pipelineBar,
   thMetric,
   tipAttr,
-  windowSecondsOf,
 } from "./format.js";
 import {
   appendMetricsRangeParams,
@@ -46,8 +45,8 @@ import {
   sortEndpoints,
   sortInstances,
   sortSelectHtml,
-  withRequestRates,
 } from "./filters.js";
+import { renderLive } from "./views-live.js";
 import {
   collectHintRows,
   hintBadges,
@@ -144,9 +143,8 @@ async function paintOverviewBody(o, params, soft) {
     const cfgFan = await api("/api/domains");
     verByName = Object.fromEntries((cfgFan.data || []).map((d) => [d.name, d.version]));
   } catch { /* optional */ }
-  const winSec = promOk ? windowSecondsOf(windowStats) : null;
-  const srcDomains = promOk ? withRequestRates(windowStats.domains || [], winSec) : [];
-  const srcEndpoints = promOk ? withRequestRates(windowStats.endpoints || [], winSec) : [];
+  const srcDomains = promOk ? (windowStats.domains || []) : [];
+  const srcEndpoints = promOk ? (windowStats.endpoints || []) : [];
   const domainsForTable = srcDomains.map((d) =>
     (d.version == null || d.version === "") && verByName[d.name]
       ? { ...d, version: verByName[d.name] }
@@ -492,7 +490,7 @@ export async function renderEndpointsList(params, opts = {}) {
       if (w?.status === "Connected") {
         promOk = true;
         domainOpts = (w.domains || []).map((d) => ({ id: d.name, label: d.name }));
-        list = withRequestRates(w.endpoints || [], windowSecondsOf(w));
+        list = w.endpoints || [];
         if (search) {
           const q = search.toLowerCase();
           list = list.filter((e) =>
@@ -720,7 +718,7 @@ export async function renderDomainsList(params, opts = {}) {
     const w = await fetchWindowStatsIfNeeded();
     if (w?.status === "Connected") {
       promOk = true;
-      domains = withRequestRates(w.domains || [], windowSecondsOf(w));
+      domains = w.domains || [];
       try {
         const cfgFan = await api("/api/domains");
         const ver = Object.fromEntries((cfgFan.data || []).map((d) => [d.name, d]));
@@ -801,10 +799,7 @@ export async function renderDomainDetail(name, params = new URLSearchParams(), o
   }
 
   const domain = d || { name, requests: 0, oc: {}, fc: {}, pipeline: {}, endpoints: [], hints: [] };
-  const winSec = windowStats?.status === "Connected" ? windowSecondsOf(windowStats) : null;
-  const endpointsSorted = sortEndpoints(
-    withRequestRates(domain.endpoints || [], winSec),
-    epSort);
+  const endpointsSorted = sortEndpoints(domain.endpoints || [], epSort);
 
   if (soft && $("#domMetricsMount")?.dataset?.metricsReady === "1") {
     const head = $("#domDetailHead");
@@ -1032,11 +1027,8 @@ export async function renderInstanceDetail(id, params = new URLSearchParams(), o
     windowStats,
     id,
     inst?.reportedInstanceId);
-  const winSec = promOk ? windowSecondsOf(windowStats) : null;
-  const domainsSorted = sortDomains(withRequestRates(stats.domains || [], winSec), domSort);
-  const endpointsSorted = sortEndpoints(
-    withRequestRates(stats.endpoints || [], winSec),
-    epSort).slice(0, 50);
+  const domainsSorted = sortDomains(stats.domains || [], domSort);
+  const endpointsSorted = sortEndpoints(stats.endpoints || [], epSort).slice(0, 50);
 
   if (soft && $("#instMetricsMount")?.dataset?.metricsReady === "1") {
     const head = $("#instDetailHead");
@@ -1822,6 +1814,8 @@ export async function route(opts = {}) {
           await renderHintsPage(params, { soft });
         } else if (root === "metrics") {
           await renderMetrics(params, { soft });
+        } else if (root === "live") {
+          await renderLive(params, { soft });
         } else if (root === "settings") {
           if (!soft) await renderSettingsPage();
         } else if (!soft) {

@@ -115,6 +115,15 @@ public sealed class MetricsWindowStatsService
             Task<IReadOnlyList<PrometheusInstantSample>> facCntRouteInstTask = QueryAsync(
                 WindowCountBy("route,instance_id", MetricsPanelCatalog.FactoryDurationCount, rw, domainFilter),
                 window.End, cancellationToken);
+            // Peak 1m OC rate inside the selected Range (load in-window, not Range average).
+            string peakDomQl =
+                $"max_over_time(sum by (domain) (rate({MetricsPanelCatalog.OcRequests}{BuildDomainSelector(domainFilter)}[1m]))[{rw}:1m])";
+            string peakRouteQl =
+                $"max_over_time(sum by (route) (rate({MetricsPanelCatalog.OcRequests}{BuildDomainSelector(domainFilter)}[1m]))[{rw}:1m])";
+            Task<IReadOnlyList<PrometheusInstantSample>> peakDomTask =
+                QueryAsync(peakDomQl, window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> peakRouteTask =
+                QueryAsync(peakRouteQl, window.End, cancellationToken);
             Task<FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>>> cfgTask =
                 _fanOut.GetDomainsAsync(cancellationToken);
 
@@ -123,6 +132,7 @@ public sealed class MetricsWindowStatsService
                     ocRouteTask, fcRouteTask, facSumRouteTask, facCntRouteTask,
                     ocInstTask, fcInstTask, invInstTask,
                     ocRouteInstTask, fcRouteInstTask, facSumRouteInstTask, facCntRouteInstTask,
+                    peakDomTask, peakRouteTask,
                     cfgTask)
                 .ConfigureAwait(false);
 
@@ -250,6 +260,25 @@ public sealed class MetricsWindowStatsService
                 endpointRows.Add(_hints.WithHints(ep));
             }
 
+            Dictionary<string, double> peakByDomain = PeakMap(await peakDomTask.ConfigureAwait(false), "domain");
+            Dictionary<string, double> peakByRoute = PeakMap(await peakRouteTask.ConfigureAwait(false), "route");
+
+            endpointRows = endpointRows.Select(ep => new AdminEndpointStatsDto
+            {
+                Route = ep.Route,
+                InstanceId = ep.InstanceId,
+                ConfiguredDomain = ep.ConfiguredDomain,
+                Requests = ep.Requests,
+                PeakRequestRate = peakByRoute.TryGetValue(ep.Route, out double pr) ? pr : null,
+                Oc = ep.Oc,
+                Fc = ep.Fc,
+                Pipeline = ep.Pipeline,
+                ByInstance = ep.ByInstance,
+                InstanceSpread = ep.InstanceSpread,
+                Hints = ep.Hints,
+                Impact = ep.Impact,
+            }).ToList();
+
             // Nest endpoints under domains for detail convenience
             Dictionary<string, List<AdminEndpointStatsDto>> byDom = new(StringComparer.OrdinalIgnoreCase);
             foreach (AdminEndpointStatsDto ep in endpointRows)
@@ -279,6 +308,7 @@ public sealed class MetricsWindowStatsService
                     SchedulePhase = d.SchedulePhase,
                     Invalidations = d.Invalidations,
                     Requests = d.Requests,
+                    PeakRequestRate = peakByDomain.TryGetValue(d.Name, out double pd) ? pd : null,
                     Oc = d.Oc,
                     Fc = d.Fc,
                     Pipeline = d.Pipeline,
@@ -660,6 +690,22 @@ public sealed class MetricsWindowStatsService
         if (metric.TryGetValue(name, out string? v) && !string.IsNullOrWhiteSpace(v))
             return v.Trim();
         return "";
+    }
+
+    private static Dictionary<string, double> PeakMap(
+        IReadOnlyList<PrometheusInstantSample> samples,
+        string keyLabel)
+    {
+        Dictionary<string, double> map = new(StringComparer.OrdinalIgnoreCase);
+        foreach (PrometheusInstantSample s in samples)
+        {
+            string key = Label(s.Metric, keyLabel);
+            if (key.Length == 0 || s.Value is not double v || double.IsNaN(v) || double.IsInfinity(v) || v <= 0)
+                continue;
+            map[key] = Math.Max(map.GetValueOrDefault(key), v);
+        }
+
+        return map;
     }
 
     /// <summary>

@@ -317,7 +317,8 @@ Repo overview: [admin-hints.md](admin-hints.md).
 | GET | `/api/overview` | Instance health / connectivity only (no traffic counters) |
 | GET | `/api/instances` | Health probe fan-out |
 | GET | `/api/distribution` | Probe `…/cluster/info`; recommended write mode (fan-out vs bus-distribute) |
-| GET | `/api/stats/window?range=&from=&to=&domains=` | **Traffic stats** (Prometheus): domains/endpoints + impact + hints |
+| GET | `/api/live` | **Live** snapshot: fixed 1m rates + instance health (not Range-scoped) |
+| GET | `/api/stats/window?range=&from=&to=&domains=` | **Traffic stats** (Prometheus): domains/endpoints + impact + Peak RPS + hints |
 | GET | `/api/stats` | Obsolete empty shell (kept for wire compatibility) |
 | GET | `/api/endpoints` | Obsolete empty list (SPA uses `/api/stats/window`) |
 | GET | `/api/domains` | Domain config fan-out |

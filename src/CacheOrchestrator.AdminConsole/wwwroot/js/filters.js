@@ -185,7 +185,7 @@ export function inlineSortSelectHtml(id, current, options) {
 /** Sort keys offered on Endpoints list / Overview top-5. */
 export const EP_SORT_OPTS = [
   ["requests", "Requests"],
-  ["requestRate", "Req / s"],
+  ["peakRequestRate", "Peak RPS"],
   ["ocHitShare", "OC hit %"],
   ["fcHitShare", "FC hit %"],
   ["factoryShare", "Factory %"],
@@ -196,7 +196,7 @@ export const EP_SORT_OPTS = [
 /** Sort keys for Domains list. */
 export const DOMAIN_SORT_OPTS = [
   ["requests", "Requests"],
-  ["requestRate", "Req / s"],
+  ["peakRequestRate", "Peak RPS"],
   ["name", "Name"],
   ["ocHitShare", "OC hit %"],
   ["fcHitShare", "FC hit %"],
@@ -243,8 +243,11 @@ export function sortEndpoints(list, sort) {
     case "route":
       arr.sort((a, b) => (a.route || "").localeCompare(b.route || ""));
       break;
+    case "peakRequestRate":
     case "requestRate":
-      arr.sort((a, b) => cmpNumDesc(a._requestRate, b._requestRate));
+      arr.sort((a, b) => cmpNumDesc(
+        a.peakRequestRate ?? a._requestRate,
+        b.peakRequestRate ?? b._requestRate));
       break;
     case "requests":
     default:
@@ -281,8 +284,11 @@ export function sortDomains(list, sort) {
     case "invalidations":
       arr.sort((a, b) => cmpNumDesc(a.invalidations, b.invalidations));
       break;
+    case "peakRequestRate":
     case "requestRate":
-      arr.sort((a, b) => cmpNumDesc(a._requestRate, b._requestRate));
+      arr.sort((a, b) => cmpNumDesc(
+        a.peakRequestRate ?? a._requestRate,
+        b.peakRequestRate ?? b._requestRate));
       break;
     case "requests":
     default:
@@ -290,21 +296,6 @@ export function sortDomains(list, sort) {
       break;
   }
   return arr;
-}
-
-/**
- * Attach `_requestRate` for sorting/display from window length (seconds).
- * @param {Array} list
- * @param {number|null|undefined} windowSeconds
- */
-export function withRequestRates(list, windowSeconds) {
-  const sec = Number(windowSeconds);
-  const ok = Number.isFinite(sec) && sec > 0;
-  return (list || []).map((row) => ({
-    ...row,
-    _requestRate: ok && row.requests != null ? row.requests / sec : null,
-    _windowSeconds: ok ? sec : null,
-  }));
 }
 
 const STATUS_RANK = { Healthy: 0, Degraded: 1, Down: 2, 0: 0, 1: 1, 2: 2 };

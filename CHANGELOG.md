@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Admin Console **Live** page (`#/live`, `GET /api/live`) — near-real-time health/performance with fixed **1m** Prometheus rates (independent of Range)
+- Window stats **Peak RPS** on domain/endpoint rows (`max_over_time(rate(...[1m]))` in the selected Range)
 - OTel histogram **`cache_orchestrator.factory.duration`** (ms; miss/stale/**fail** factory path)
 - OTel Fusion **`result=fail`** on hard factory throw (no fail-safe value); Console window maps it to factory failures
 - `AdminLiveStatsRawSnapshot` / raw counter DTOs; `IAdminStatsCollector.GetRawSnapshot()`

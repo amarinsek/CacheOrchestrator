@@ -53,6 +53,7 @@ builder.Services.AddSingleton<AdminFanOutService>();
 builder.Services.AddSingleton<IMetricsQueryClient, PrometheusMetricsQueryClient>();
 builder.Services.AddSingleton<MetricsQueryService>();
 builder.Services.AddSingleton<MetricsWindowStatsService>();
+builder.Services.AddSingleton<LiveStatsService>();
 
 // OpenAPI + Scalar UI for operator host (all environments — Admin Console is not public internet by default).
 builder.Services.AddOpenApi();
@@ -308,6 +309,16 @@ api.MapGet("/stats/window", async (
         .GetAsync(range, from, to, domains, cancellationToken)
         .ConfigureAwait(false);
     return Results.Ok(result);
+});
+
+/// <summary>
+/// Live operational snapshot (fixed 1m Prometheus rates + instance health).
+/// Independent of the global Range picker.
+/// </summary>
+api.MapGet("/live", async (LiveStatsService live, CancellationToken cancellationToken) =>
+{
+    LiveSnapshotDto snapshot = await live.GetAsync(cancellationToken).ConfigureAwait(false);
+    return Results.Ok(snapshot);
 });
 
 api.MapGet("/hints/rules", (HintEngine engine, HintRuleRegistry registry) =>

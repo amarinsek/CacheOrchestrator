@@ -309,6 +309,12 @@ public sealed class AdminDomainStatsDto
     /// <summary>Request denominator for shares.</summary>
     public long Requests { get; init; }
 
+    /// <summary>
+    /// Peak OC request rate (req/s) in the selected window when filled by Admin Console
+    /// from Prometheus <c>max_over_time(rate(...[1m]))</c>. Null when unknown.
+    /// </summary>
+    public double? PeakRequestRate { get; init; }
+
     /// <summary>Output Cache counters + rates/shares.</summary>
     public required AdminLayerDto Oc { get; init; }
 
@@ -351,6 +357,12 @@ public sealed class AdminEndpointStatsDto
 
     /// <summary>Request denominator for shares.</summary>
     public long Requests { get; init; }
+
+    /// <summary>
+    /// Peak OC request rate (req/s) in the selected window when filled by Admin Console
+    /// from Prometheus. Null when unknown.
+    /// </summary>
+    public double? PeakRequestRate { get; init; }
 
     /// <summary>Output Cache layer.</summary>
     public required AdminLayerDto Oc { get; init; }

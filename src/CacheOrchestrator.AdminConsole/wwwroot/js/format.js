@@ -81,8 +81,10 @@ export const METRIC_TITLES = {
     "Factory avoidance — 1 − factoryRuns/requests (share of requests that did not run the factory). Process lifetime unless a metrics window is used.",
   estTimeSaved:
     "Estimated factory time saved — avoided factory calls × average factory duration (ms). Cluster total is the sum of per-domain estimates.",
-  reqRate: "Average requests per second over the selected Range (requests ÷ window length).",
+  reqRate: "Peak OC request rate (req/s) in the selected Range — max of 1-minute rates.",
+  peakRequestRate: "Peak OC request rate (req/s) in the selected Range — max of 1-minute rates.",
   factoryFailures: "Factory failures (hard fail / fail-safe stale path) in the selected Range.",
+  liveRps: "Live OC request rate (req/s) over a fixed 1-minute lookback (not the Range picker).",
   cacheBenefit:
     "Cache benefit band (HIGH / MEDIUM / LOW_GAIN / AT_RISK / LOW / UNKNOWN) from avoidance × factory cost.",
   cacheCandidate:
@@ -108,7 +110,7 @@ export const METRIC_TITLES = {
   instance: "Target app instance id (Cache:InstanceId)",
   url: "Base URL used by Admin fan-out for this instance",
   error: "Last probe or fan-out error message",
-  reqRate: "Request rate from external metrics store (windowed)",
+
   ocHitWindow: "Output Cache hit share over the selected metrics window",
   fcHitRateWindow: "Fusion layer hit rate over the selected metrics window",
   invRate: "Invalidation rate from external metrics store (windowed)",
@@ -262,28 +264,16 @@ export function formatUptime(seconds) {
 }
 
 /**
- * Requests per second for a window: requests / windowSeconds.
- * @param {number|null|undefined} requests
- * @param {number|null|undefined} windowSeconds
+ * Format a request rate (req/s) from Prometheus rate() / max_over_time(rate()).
+ * @param {number|null|undefined} rate
  */
-export function fmtRequestRate(requests, windowSeconds) {
-  const sec = Number(windowSeconds);
-  const req = Number(requests);
-  if (!Number.isFinite(sec) || sec <= 0 || !Number.isFinite(req) || req < 0) return "—";
-  const r = req / sec;
+export function fmtRequestRate(rate) {
+  const r = Number(rate);
+  if (!Number.isFinite(r) || r < 0) return "—";
   if (r < 0.01) return r.toFixed(3);
   if (r < 10) return r.toFixed(2);
   if (r < 100) return r.toFixed(1);
   return num(Math.round(r));
-}
-
-/** Window length in seconds from window-stats / metrics envelope. */
-export function windowSecondsOf(w) {
-  if (!w?.fromUtc || !w?.toUtc) return null;
-  const a = Date.parse(w.fromUtc);
-  const b = Date.parse(w.toUtc);
-  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return null;
-  return (b - a) / 1000;
 }
 
 /** Round-trip latency for health probes. */
