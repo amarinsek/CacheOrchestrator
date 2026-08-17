@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin Console: **ImpactMath** (factory avoidance, est. time saved, benefit/candidate bands)
 - Admin Console hint paths `domain.impact.*` / `endpoint.impact.*` + core rules (poor candidate, at-risk, strong)
 
+### Fixed
+
+- OTel `cache_orchestrator.invalidate` no longer uses entity scope paths (e.g. `product-crud/products/42`) as the `domain` label — only the domain name (cardinality-safe). Optional low-cardinality `kind` tag (Domain/Entity/EntityKind).
+
 ### Changed
 
 - Local Admin live counters store **raw** values; legacy **`GET …/stats`** fat DTO is projected via `AdminStatsV1Mapper` (prefer `/stats/v2`)

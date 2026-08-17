@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -184,11 +185,27 @@ public static class CacheOrchestratorMetrics
         OcRequests.Add(1, BuildDomainResultTags(domain, result, route));
 
     /// <summary>
-    /// Records a successful domain invalidation.
+    /// Records a successful invalidation attributed to a <strong>domain</strong> only.
+    /// Do not pass entity paths (e.g. <c>product-crud/products/42</c>) — that explodes series cardinality.
     /// </summary>
-    /// <param name="domain">Domain name.</param>
-    internal static void RecordInvalidate(string domain) =>
-        Invalidations.Add(1, new KeyValuePair<string, object?>("domain", domain));
+    /// <param name="domain">Normalized domain name (not entity id).</param>
+    /// <param name="kind">Optional invalidation kind for low-cardinality breakdown (Domain, Entity, EntityKind).</param>
+    internal static void RecordInvalidate(string domain, CacheInvalidationKind? kind = null)
+    {
+        if (string.IsNullOrWhiteSpace(domain) || domain.Contains('/', StringComparison.Ordinal))
+            return; // refuse high-cardinality / path-like labels
+
+        if (kind is null)
+        {
+            Invalidations.Add(1, new KeyValuePair<string, object?>("domain", domain));
+            return;
+        }
+
+        Invalidations.Add(
+            1,
+            new KeyValuePair<string, object?>("domain", domain),
+            new KeyValuePair<string, object?>("kind", kind.Value.ToString()));
+    }
 
     /// <summary>
     /// Records the Client Cache Schedule phase applied when writing <c>Cache-Control</c>.

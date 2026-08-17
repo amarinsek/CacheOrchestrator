@@ -346,7 +346,11 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
 
         if (fusionOk && outputOk)
         {
-            CacheOrchestratorMetrics.RecordInvalidate(scopeLabel);
+            // Metrics domain tag must stay low-cardinality: never entity id / path.
+            // scopeLabel may be "domain/entityKind/id" for entity invalidations.
+            string? metricsDomain = ResolveMetricsDomain(kind, scopeLabel, domain);
+            if (metricsDomain is not null)
+                CacheOrchestratorMetrics.RecordInvalidate(metricsDomain, kind);
             RecordAdminInvalidation(kind, scopeLabel);
         }
 
@@ -432,6 +436,28 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         }
 
         // Tag-only invalidations are not attributed to a single domain.
+    }
+
+    /// <summary>
+    /// Domain name for OTel <c>domain</c> label. Never uses resource ids (cardinality).
+    /// Tag-only invalidations return null (no domain series).
+    /// </summary>
+    private static string? ResolveMetricsDomain(CacheInvalidationKind kind, string scopeLabel, string? domain)
+    {
+        if (!string.IsNullOrWhiteSpace(domain))
+            return DomainName.Normalize(domain);
+
+        if (kind == CacheInvalidationKind.Domain && !string.IsNullOrWhiteSpace(scopeLabel))
+            return DomainName.Normalize(scopeLabel);
+
+        if (kind is CacheInvalidationKind.Entity or CacheInvalidationKind.EntityKind)
+        {
+            int slash = scopeLabel.IndexOf('/');
+            if (slash > 0)
+                return DomainName.Normalize(scopeLabel[..slash]);
+        }
+
+        return null;
     }
 
     private async ValueTask NotifyBeforeAsync(CacheInvalidationContext context, CancellationToken cancellationToken)

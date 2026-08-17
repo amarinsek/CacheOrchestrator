@@ -146,7 +146,8 @@ public sealed class MetricsWindowStatsService
             List<AdminDomainStatsDto> domainRows = [];
             foreach ((string name, LayerBucket b) in domains.OrderByDescending(kv => kv.Value.Requests))
             {
-                if (string.IsNullOrEmpty(name) || name is "_")
+                // Refuse path-like "domains" (legacy entity invalidation metric misuse: product-crud/products/42).
+                if (string.IsNullOrEmpty(name) || name is "_" || name.Contains('/', StringComparison.Ordinal))
                     continue;
 
                 List<AdminDomainStatsDto>? byInstance = null;
