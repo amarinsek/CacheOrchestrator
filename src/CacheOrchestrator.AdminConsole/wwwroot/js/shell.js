@@ -14,7 +14,6 @@ import { api } from "./api.js";
 import { $, setRefreshing } from "./dom.js";
 import { esc, fmtUnit, fmtDurationMs, METRIC_TITLES, noDataHtml, num, pct, pipelineBar } from "./format.js";
 import { severityStack } from "./hints.js";
-import { navigate } from "./router.js";
 import {
   appendMetricsRangeParams,
   setMetricsCapability,
@@ -183,7 +182,6 @@ export function renderHeader(o, windowStats = null) {
 
   const promOk = windowStats && windowStats.status === "Connected";
   const noData = promOk && windowStats.noData;
-  const hs = (promOk && windowStats.hintSummary) || o.hintSummary || { total: 0 };
   const healthTitle = [
     `${up}/${total} healthy`,
     o.degradedCount ? `${o.degradedCount} degraded` : null,
@@ -209,7 +207,7 @@ export function renderHeader(o, windowStats = null) {
   const domN = promOk ? (windowStats.domains || []).length : 0;
   const epN = promOk ? (windowStats.endpoints || []).length : 0;
 
-  // Order: health → Req/Inv → pipeline shares → Factory → Time saved → hints → counts
+  // Hints stay in the menu bar only (not duplicated here).
   $("#headerMetrics").innerHTML = `
     <span class="hm" title="${esc(healthTitle)}">${healthDots}
       <strong class="${upClass}">${up}/${total || 0}</strong><span class="muted">\u2009up</span>
@@ -223,21 +221,9 @@ export function renderHeader(o, windowStats = null) {
     <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${fc}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">Factory % <strong>${fac}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">Time saved <strong>${timeSaved}</strong></span>
-    <span class="hm hm-hints" role="link" tabindex="0" title="Open Hints" data-goto-hints="1">${severityStack(hs)}</span>
     <span class="hm muted" title="Domains and endpoints with traffic in the selected range">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
     ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
   `;
-  const hintsHit = $("#headerMetrics")?.querySelector("[data-goto-hints]");
-  if (hintsHit) {
-    const go = (ev) => {
-      ev.preventDefault();
-      navigate("hints");
-    };
-    hintsHit.addEventListener("click", go);
-    hintsHit.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") go(ev);
-    });
-  }
   refreshMetricsStatusPill();
 }
 

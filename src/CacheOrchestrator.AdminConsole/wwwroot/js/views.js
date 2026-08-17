@@ -823,16 +823,17 @@ export async function renderDomainDetail(name, opts = {}) {
 function domainDetailHeadHtml(name, domain, cfg) {
   const ver = domain.version || cfg?.version || "—";
   const clientTtl = `${fmtUnit(cfg?.clientTtlSeconds, "s")} / ${fmtUnit(cfg?.clientTtlMinSeconds, "s")}`;
+  const hasConfig = !!(cfg || (ver && ver !== "—"));
+  const verRt = !!(domain.versionIsRuntimeOverride || cfg?.versionIsRuntimeOverride);
   return `
     <div class="card">
       <h2><code>${esc(name)}</code>
-        ${domain.versionIsRuntimeOverride ? '<span class="badge">runtime version</span>' : ""}
+        ${verRt ? '<span class="badge">runtime version</span>' : ""}
         ${hintBadges(domain.hints)}
         <a class="badge" href="#/operations?domain=${encodeURIComponent(name)}">Operations</a>
       </h2>
       ${recommendationsSectionHtml(domain.hints)}
       <div class="kpi-row">
-        <div class="kpi" title="Current value (not scoped to the selected time range)"><div class="label">Version</div><div class="value" style="font-size:1rem">${currentValueHtml(esc(ver))}</div></div>
         <div class="kpi" title="${esc(METRIC_TITLES.inv)}"><div class="label">Invalidations</div><div class="value">${num(domain.invalidations)}</div></div>
         <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(domain.requests)}</div></div>
         <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit %</div><div class="value">${pct(domain.oc?.hitShare, domain.oc?.lowRequestSample, "request")}</div></div>
@@ -847,10 +848,12 @@ function domainDetailHeadHtml(name, domain, cfg) {
       ${layerDetailOc(domain.oc)}
       ${layerDetailFc(domain.fc)}
       ${impactDetailHtml(domain.impact)}
-      ${cfg ? `
+      ${hasConfig ? `
       <div class="detail-block">
         <h3>Effective config <span class="badge" title="Current values (not scoped to the selected time range)">current</span></h3>
         <div class="kv">
+          <span title="Domain version">Version</span>${currentValueHtml(esc(ver))}${verRt ? " *" : ""}
+          ${cfg ? `
           <span${tipAttr("oc")}>Output TTL</span>${currentValueHtml(fmtUnit(cfg.outputCacheTtlSeconds, "s"))}
           <span${tipAttr("softTtl")}>Fusion soft</span>${currentValueHtml(fmtUnit(cfg.fusionCacheSoftTtlSeconds, "s"))}
           <span${tipAttr("hardTtl")}>Fusion hard</span>${currentValueHtml(fmtUnit(cfg.fusionCacheHardTtlSeconds, "s"))}
@@ -858,6 +861,7 @@ function domainDetailHeadHtml(name, domain, cfg) {
           <span${tipAttr("clientTtl")}>Client TTL / min</span>${currentValueHtml(clientTtl)}
           <span${tipAttr("schedule")}>Schedule phase</span>${currentValueHtml(esc(cfg.schedulePhase || "—"))}
           <span${tipAttr("fc")}>FC instance</span>${currentValueHtml(esc(cfg.fusionCacheInstanceName || "—"))}
+          ` : ""}
         </div>
       </div>` : ""}
     </div>
@@ -950,7 +954,6 @@ export async function renderInstancesList(params = new URLSearchParams(), opts =
           <p style="margin:0">${st}
             ${esc(target)}${lat}${err}
           </p>
-          <p class="muted small" style="margin:0.5rem 0 0">Used for Range windows and all traffic stats. Configure <code>AdminConsole:Metrics</code>.</p>
         </div>`;
     }
   } catch { /* optional */ }
@@ -1032,23 +1035,24 @@ function instanceDetailHeadHtml(id, inst, stats, st, startedTitle, promOk = fals
     ? startedTitle.replace("T", " ").replace(/\.\d+Z$/, "Z")
     : "—";
   const reqFromDomains = (stats.domains || []).reduce((s, d) => s + (d.requests || 0), 0);
+  const errLine = inst?.error
+    ? `<p class="muted status-Down" style="margin:0.5rem 0 0">${esc(inst.error)}</p>`
+    : "";
   return `
     <div class="card">
       <h2>Instance <code>${esc(id)}</code>
-        <span class="status-${esc(st)}">${esc(st)}</span>
         ${severityStack(inst?.hintSummary)}
       </h2>
-      <p class="muted"><code>${esc(inst?.url || "—")}</code>
-        · reported <code>${esc(inst?.reportedInstanceId || "—")}</code>
-        · latency ${formatLatencyMs(inst?.latencyMs)}
-        ${inst?.error ? ` · <span class="status-Down">${esc(inst.error)}</span>` : ""}
-      </p>
+      ${errLine}
       <div class="kpi-row">
+        <div class="kpi" title="Instance health">
+          <div class="label">Status</div>
+          <div class="value status-${esc(st)}" style="font-size:1.05rem">${esc(st)}</div>
+        </div>
         <div class="kpi" title="${esc(startedTitle)}"><div class="label">Uptime</div><div class="value" style="font-size:1.05rem">${esc(formatUptime(inst?.uptimeSeconds))}</div></div>
         <div class="kpi"><div class="label">Started (UTC)</div><div class="value" style="font-size:0.85rem">${esc(startedDisp)}</div></div>
+        <div class="kpi" title="Admin probe latency"><div class="label">Latency</div><div class="value" style="font-size:1.05rem">${formatLatencyMs(inst?.latencyMs)}</div></div>
         <div class="kpi"><div class="label">Req</div><div class="value">${promOk ? num(reqFromDomains) : noDataHtml()}</div></div>
-        <div class="kpi"><div class="label">Domains</div><div class="value">${promOk ? (stats.domains || []).length : noDataHtml()}</div></div>
-        <div class="kpi"><div class="label">Endpoints</div><div class="value">${promOk ? (stats.endpoints || []).length : noDataHtml()}</div></div>
       </div>
     </div>
     <div class="card">
