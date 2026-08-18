@@ -44,7 +44,7 @@ Domain config (optional) →  Admin fan-out /api/domains  →  config-only rules
 
 Rules run **only in the Admin Console App**, not on each instance’s caching hot path.
 
-**Runtime evaluation is declarative JSON.** `RecommendationHints.cs` remains as a reference/unit-test helper for some legacy formulas; new product rules belong in `core-hints.json` or operator packs.
+**Runtime evaluation is declarative JSON** via `HintEngine` + `hints/core-hints.json` (and optional operator packs). Product rules belong in JSON packs, not C# helpers.
 
 ---
 
@@ -127,7 +127,7 @@ Exact thresholds and messages: open **`core-hints.json`** or Settings → click 
 | Product + operator packs | `hints/` |
 | Console DTOs (SPA / fan-out) | `Models/AdminConsoleModels.cs` |
 | Settings UI | `wwwroot/js/views.js` (`renderSettingsPage`) |
-| Attachment after fan-out | `Services/AdminFanOutService.cs`
+| Attachment on window stats | `Services/Metrics/MetricsWindowStatsService.cs` (`HintEngine`) |
 
 ---
 

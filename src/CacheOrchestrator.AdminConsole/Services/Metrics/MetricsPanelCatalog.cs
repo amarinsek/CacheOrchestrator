@@ -361,6 +361,30 @@ public static class MetricsPanelCatalog
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Window event count for Console tables: <c>last_over_time − offset</c>, with new-series fallback.
+    /// Do not use bare <c>increase()</c> here — see <c>MetricsWindowStatsService</c>.
+    /// </summary>
+    /// <param name="byLabels">Prometheus <c>sum by (...)</c> label list.</param>
+    /// <param name="metricSelector">Metric name plus optional <c>{…}</c> selector (no trailing space).</param>
+    /// <param name="rangeDuration">Window duration token (e.g. <c>900s</c>).</param>
+    public static string BuildWindowCountPromQl(string byLabels, string metricSelector, string rangeDuration)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(byLabels);
+        ArgumentException.ThrowIfNullOrWhiteSpace(metricSelector);
+        ArgumentException.ThrowIfNullOrWhiteSpace(rangeDuration);
+        string m = metricSelector.Trim();
+        string by = byLabels.Trim();
+        string rw = rangeDuration.Trim();
+        return
+            "clamp_min((" +
+            $"sum by ({by}) (last_over_time({m}[{rw}]))" +
+            $" - sum by ({by}) ({m} offset {rw})" +
+            $") or sum by ({by}) (" +
+            $"last_over_time({m}[{rw}]) unless on ({by}) {m} offset {rw}" +
+            "), 0)";
+    }
+
     /// <summary>Only allow safe label fragments (alnum, underscore, hyphen, dot).</summary>
     public static string SanitizeLabelValue(string? value)
     {

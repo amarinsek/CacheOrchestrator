@@ -43,3 +43,42 @@ export function mainHasContent() {
     return true;
   return el.children.length > 0 && !/loading/i.test(t);
 }
+
+/**
+ * First paint may show loading; soft refresh keeps previous content until data arrives.
+ * @param {boolean} soft
+ * @param {string} loadingHtml
+ */
+export function beginPageLoad(soft, loadingHtml) {
+  if (!soft || !mainHasContent()) {
+    main().innerHTML = loadingHtml;
+  }
+}
+
+/**
+ * Soft refresh preserves scroll; hard navigation replaces immediately.
+ * @param {string} html
+ * @param {boolean} soft
+ */
+export function paintPage(html, soft) {
+  if (soft) paintMain(html);
+  else main().innerHTML = html;
+}
+
+/**
+ * Shared KPI strip markup.
+ * @param {Array<{ label: string, valueHtml: string, title?: string, tipAttr?: string, className?: string, valueClass?: string, attrs?: string }>} items
+ * @param {string} [id] optional element id on the row
+ */
+export function kpiRowHtml(items, id) {
+  const idAttr = id ? ` id="${id}"` : "";
+  const cells = (items || []).map((it) => {
+    const title = it.title ? ` title="${it.title}"` : "";
+    const tip = it.tipAttr || "";
+    const cls = it.className ? ` ${it.className}` : "";
+    const valueCls = it.valueClass ? ` ${it.valueClass}` : "";
+    const extra = it.attrs ? ` ${it.attrs}` : "";
+    return `<div class="kpi${cls}"${title}${tip}${extra}><div class="label">${it.label}</div><div class="value${valueCls}">${it.valueHtml}</div></div>`;
+  }).join("");
+  return `<div class="kpi-row"${idAttr}>${cells}</div>`;
+}

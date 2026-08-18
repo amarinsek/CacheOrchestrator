@@ -37,38 +37,6 @@ public sealed class LocalAdminClient : ILocalAdminClient
         GetAsync<AdminHealthDto>(instance, "/health", cancellationToken);
 
     /// <inheritdoc />
-    [Obsolete("Prefer Prometheus window stats. Console does not call instance /stats for the stats UI.")]
-    public Task<InstanceCallOutcome<AdminLiveStatsRawSnapshot>> GetStatsAsync(
-        AdminInstanceOptions instance,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(new InstanceCallOutcome<AdminLiveStatsRawSnapshot>
-        {
-            InstanceId = instance.Id,
-            Succeeded = false,
-            Error = "Console stats use Prometheus (/api/stats/window). Local Admin /stats is process-lifetime diagnostics only.",
-        });
-
-    /// <inheritdoc />
-    public async Task<InstanceCallOutcome<IReadOnlyList<AdminEndpointInfoDto>>> GetEndpointsAsync(
-        AdminInstanceOptions instance,
-        CancellationToken cancellationToken = default)
-    {
-        InstanceCallOutcome<List<AdminEndpointInfoDto>> raw =
-            await GetAsync<List<AdminEndpointInfoDto>>(instance, "/endpoints", cancellationToken)
-                .ConfigureAwait(false);
-
-        return new InstanceCallOutcome<IReadOnlyList<AdminEndpointInfoDto>>
-        {
-            InstanceId = raw.InstanceId,
-            Succeeded = raw.Succeeded,
-            Value = raw.Value,
-            StatusCode = raw.StatusCode,
-            Error = raw.Error,
-            LatencyMs = raw.LatencyMs
-        };
-    }
-
-    /// <inheritdoc />
     public async Task<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>> GetDomainsAsync(
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default)

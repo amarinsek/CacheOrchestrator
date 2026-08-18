@@ -1,12 +1,27 @@
 using CacheOrchestrator.Admin;
-using CacheOrchestrator.AdminConsole.Services;
+using CacheOrchestrator.AdminConsole.Services.Hints;
 
 namespace CacheOrchestrator.UnitTests.Admin;
 
-public class RecommendationHintsTests
+/// <summary>
+/// Evaluates product <c>core-hints.json</c> through <see cref="HintEngine"/> (production path).
+/// </summary>
+public class HintEngineCoreHintsTests
 {
+    private readonly HintEngine _engine = TestHintEngine.Create();
+
     [Fact]
-    public void ForDomain_HealthyOc_LowFcLayerRate_DoesNotWarn()
+    public void Catalog_LoadsCorePack()
+    {
+        IReadOnlyList<HintRuleCatalogEntry> catalog = _engine.GetCatalog();
+        catalog.Should().NotBeEmpty();
+        catalog.Should().Contain(e => e.Code == "high-factory-share" && e.Scope == "domain");
+        catalog.Should().Contain(e => e.Code == "high-factory-share" && e.Scope == "endpoint");
+        catalog.Should().OnlyContain(e => e.IsBuiltIn);
+    }
+
+    [Fact]
+    public void EvaluateDomain_HealthyOc_LowFcLayerRate_DoesNotWarn()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
@@ -24,13 +39,13 @@ public class RecommendationHintsTests
             Pipeline = pipe
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(domain);
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(domain, config: null);
         hints.Select(h => h.Severity).Should().NotContain("Warning").And.NotContain("Critical");
         hints.Should().NotContain(h => h.Code == "low-fc-hit-rate");
     }
 
     [Fact]
-    public void ForEndpoint_HighOriginShare_EmitsWarning()
+    public void EvaluateEndpoint_HighFactoryShare_EmitsWarning()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
@@ -47,12 +62,12 @@ public class RecommendationHintsTests
             Pipeline = pipe
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForEndpoint(ep);
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateEndpoint(ep);
         hints.Should().Contain(h => h.Code == "high-factory-share" && h.Severity == "Warning");
     }
 
     [Fact]
-    public void ForDomain_OriginDominates_EmitsCritical()
+    public void EvaluateDomain_FactoryDominates_EmitsCritical()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
@@ -70,12 +85,12 @@ public class RecommendationHintsTests
             Pipeline = pipe
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(domain);
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(domain, config: null);
         hints.Should().Contain(h => h.Code == "critical-factory-share" && h.Severity == "Critical");
     }
 
     [Fact]
-    public void ForDomain_ClientTtlMuchLargerThanOutput_WithoutSchedule_EmitsInfo()
+    public void EvaluateDomain_ClientTtlMuchLargerThanOutput_WithoutSchedule_EmitsInfo()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -100,12 +115,12 @@ public class RecommendationHintsTests
             ClientTtlMinSeconds = 10
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(domain, cfg);
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(domain, cfg);
         hints.Should().Contain(h => h.Code == "client-ttl-gt-output");
     }
 
     [Fact]
-    public void ForDomain_ClientTtlLargerThanOutput_WithSchedule_DoesNotEmit()
+    public void EvaluateDomain_ClientTtlLargerThanOutput_WithSchedule_DoesNotEmit()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -131,12 +146,12 @@ public class RecommendationHintsTests
             SchedulePhase = "calm"
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(domain, cfg);
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(domain, cfg);
         hints.Should().NotContain(h => h.Code == "client-ttl-gt-output");
     }
 
     [Fact]
-    public void ForDomain_ApproachingSchedule_EmitsInfo()
+    public void EvaluateDomain_ApproachingSchedule_EmitsInfo()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -150,7 +165,7 @@ public class RecommendationHintsTests
             SchedulePhase = "approaching"
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
             new() { Name = "tiles", Version = "1", Requests = 50, Oc = oc, Fc = fc, Pipeline = pipe },
             cfg);
 
@@ -160,7 +175,7 @@ public class RecommendationHintsTests
     }
 
     [Fact]
-    public void ForDomain_HoldLongerThanADay_EmitsWarning()
+    public void EvaluateDomain_HoldLongerThanADay_EmitsWarning()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -174,7 +189,7 @@ public class RecommendationHintsTests
             SchedulePhase = "hold"
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
             new() { Name = "tiles", Version = "1", Requests = 50, Oc = oc, Fc = fc, Pipeline = pipe },
             cfg);
 
@@ -183,7 +198,7 @@ public class RecommendationHintsTests
     }
 
     [Fact]
-    public void ForDomain_FactoryFailures_EmitsWarning()
+    public void EvaluateDomain_FactoryFailures_EmitsWarning()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
@@ -201,12 +216,12 @@ public class RecommendationHintsTests
             Pipeline = pipe
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(domain);
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(domain, config: null);
         hints.Should().Contain(h => h.Code == "factory-failures" && h.Severity == "Warning");
     }
 
     [Fact]
-    public void ForDomain_MostFactoryRunsFail_EmitsCritical()
+    public void EvaluateDomain_MostFactoryRunsFail_EmitsCritical()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
@@ -224,12 +239,12 @@ public class RecommendationHintsTests
             Pipeline = pipe
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(domain);
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(domain, config: null);
         hints.Should().Contain(h => h.Code == "critical-factory-failures" && h.Severity == "Critical");
     }
 
     [Fact]
-    public void ForDomain_FewFactoryFailures_DoesNotHint()
+    public void EvaluateDomain_FewFactoryFailures_DoesNotHint()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
@@ -247,12 +262,13 @@ public class RecommendationHintsTests
             Pipeline = pipe
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(domain);
-        hints.Should().NotContain(h => h.Code == "factory-failures" || h.Code == "critical-factory-failures");
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(domain, config: null);
+        hints.Should().NotContain(h =>
+            h.Code == "factory-failures" || h.Code == "critical-factory-failures");
     }
 
     [Fact]
-    public void ForDomain_RuntimeVersionOverride_EmitsInfo()
+    public void EvaluateDomain_RuntimeVersionOverride_EmitsInfo()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -268,12 +284,12 @@ public class RecommendationHintsTests
             Pipeline = pipe
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(domain);
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(domain, config: null);
         hints.Should().Contain(h => h.Code == "runtime-override" && h.Severity == "Info");
     }
 
     [Fact]
-    public void ForDomain_FusionHardShorterThanSoft_EmitsWarning()
+    public void EvaluateDomain_FusionHardShorterThanSoft_EmitsWarning()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -287,7 +303,7 @@ public class RecommendationHintsTests
             FusionCacheHardTtlSeconds = 600
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
             new() { Name = "catalog", Version = "1", Requests = 50, Oc = oc, Fc = fc, Pipeline = pipe },
             cfg);
 
@@ -295,7 +311,7 @@ public class RecommendationHintsTests
     }
 
     [Fact]
-    public void ForDomain_ScheduleCannotRamp_EmitsInfo()
+    public void EvaluateDomain_ScheduleCannotRamp_EmitsInfo()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -311,7 +327,7 @@ public class RecommendationHintsTests
             SchedulePhase = "calm"
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
             new() { Name = "tiles", Version = "1", Requests = 50, Oc = oc, Fc = fc, Pipeline = pipe },
             cfg);
 
@@ -319,7 +335,7 @@ public class RecommendationHintsTests
     }
 
     [Fact]
-    public void ForDomain_HoldSchedule_EmitsInfo()
+    public void EvaluateDomain_HoldSchedule_EmitsInfo()
     {
         (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -333,10 +349,36 @@ public class RecommendationHintsTests
             SchedulePhase = "hold"
         };
 
-        IReadOnlyList<AdminHintDto> hints = RecommendationHints.ForDomain(
+        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
             new() { Name = "tiles", Version = "1", Requests = 50, Oc = oc, Fc = fc, Pipeline = pipe },
             cfg);
 
         hints.Should().Contain(h => h.Code == "schedule-phase" && h.Severity == "Info");
+    }
+
+    [Fact]
+    public void Summarize_And_CollectFromStats_AggregateAttachedHints()
+    {
+        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+            AdminStatsMath.BuildAll(
+                ocHits: 10, ocMisses: 40, ocBypass: 0,
+                fcHits: 5, fcMisses: 35, fcStale: 0, fcBypass: 0,
+                factoryRuns: 35, factoryFailures: 0);
+
+        AdminDomainStatsDto withHints = _engine.WithHints(new AdminDomainStatsDto
+        {
+            Name = "hot",
+            Version = "1",
+            Requests = 50,
+            Oc = oc,
+            Fc = fc,
+            Pipeline = pipe
+        });
+
+        IReadOnlyList<AdminHintDto> collected = HintEngine.CollectFromStats([withHints]);
+        collected.Should().NotBeEmpty();
+
+        AdminHintSummaryDto summary = HintEngine.Summarize(collected);
+        summary.Critical.Should().BeGreaterThan(0);
     }
 }

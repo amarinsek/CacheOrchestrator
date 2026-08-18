@@ -42,24 +42,6 @@ public class AdminFanOutServiceTests
     }
 
     [Fact]
-    public async Task GetStatsAsync_ReturnsEmptyShell_PromOnlyConsole()
-    {
-        FakeLocalAdminClient client = new();
-        AdminFanOutService sut = CreateSut(client,
-            new AdminInstanceOptions { Id = "a", Url = "http://a" },
-            new AdminInstanceOptions { Id = "b", Url = "http://b" });
-
-#pragma warning disable CS0618
-        ClusterStatsDto stats = await sut.GetStatsAsync("all", TestContext.Current.CancellationToken);
-#pragma warning restore CS0618
-
-        stats.Domains.Should().BeEmpty();
-        stats.Endpoints.Should().BeEmpty();
-        stats.Instances.Should().BeEmpty();
-        client.StatsCallCountById.Should().BeEmpty("Console no longer fans out instance /stats");
-    }
-
-    [Fact]
     public async Task GetOverviewAsync_HealthOnly_NoTrafficCounters()
     {
         FakeLocalAdminClient client = new();
@@ -207,6 +189,91 @@ public class AdminFanOutServiceTests
         cap.PreferredBusOriginId.Should().Be("b");
     }
 
+    [Fact]
+    public async Task GetDomainsAsync_MergesConfigsFromReachableInstances()
+    {
+        FakeLocalAdminClient client = new();
+        client.DomainsById["a"] =
+        [
+            new AdminDomainConfigDto
+            {
+                Name = "catalog",
+                Version = "1",
+                FusionCacheInstanceName = "default",
+            },
+        ];
+        client.DomainsById["b"] =
+        [
+            new AdminDomainConfigDto
+            {
+                Name = "catalog",
+                Version = "1",
+                FusionCacheInstanceName = "default",
+            },
+            new AdminDomainConfigDto
+            {
+                Name = "maps",
+                Version = "2",
+                FusionCacheInstanceName = "default",
+            },
+        ];
+
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>> result =
+            await sut.GetDomainsAsync(TestContext.Current.CancellationToken);
+
+        result.Results.Should().HaveCount(2);
+        result.Results.Should().OnlyContain(r => r.Succeeded);
+        result.Data.Should().NotBeNull();
+        result.Data!.Select(d => d.Name).Should().BeEquivalentTo(["catalog", "maps"]);
+    }
+
+    [Fact]
+    public async Task SetVersionAsync_FansOutWithDistributeFalse_WhenNoBus()
+    {
+        FakeLocalAdminClient client = new();
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        FanOutResultDto<object?> result = await sut.SetVersionAsync(
+            "catalog",
+            new AdminConsoleVersionRequest { Version = "bump", Target = "all" },
+            TestContext.Current.CancellationToken);
+
+        result.DistributionMode.Should().Be(DistributionModes.FanOut);
+        result.Distribute.Should().BeFalse();
+        client.VersionCalls.Should().BeEquivalentTo(["a:catalog", "b:catalog"]);
+        client.LastVersionBody!.Version.Should().Be("bump");
+        client.LastVersionBody.Distribute.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PatchTtlAsync_FansOutWithDistributeFalse_WhenNoBus()
+    {
+        FakeLocalAdminClient client = new();
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        FanOutResultDto<object?> result = await sut.PatchTtlAsync(
+            "catalog",
+            new AdminConsoleTtlPatchRequest
+            {
+                OutputCacheTtlSeconds = 120,
+                Target = "all",
+            },
+            TestContext.Current.CancellationToken);
+
+        result.DistributionMode.Should().Be(DistributionModes.FanOut);
+        client.TtlCalls.Should().BeEquivalentTo(["a:catalog", "b:catalog"]);
+        client.LastTtlBody!.OutputCacheTtlSeconds.Should().Be(120);
+        client.LastTtlBody.Distribute.Should().BeFalse();
+    }
+
     private static AdminFanOutService CreateSut(params AdminInstanceOptions[] instances) =>
         CreateSut(new FakeLocalAdminClient(), instances);
 
@@ -226,21 +293,24 @@ public class AdminFanOutServiceTests
 
     private sealed class FakeLocalAdminClient : ILocalAdminClient
     {
-        public Dictionary<string, AdminLiveStatsRawSnapshot> Stats { get; } = new(StringComparer.Ordinal);
-        public HashSet<string> FailStats { get; } = new(StringComparer.Ordinal);
         public HashSet<string> FailHealth { get; } = new(StringComparer.Ordinal);
-        public Dictionary<string, int> StatsCallCountById { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, int> HealthCallCountById { get; } = new(StringComparer.Ordinal);
         public List<string> InvalidateCalls { get; } = [];
+        public List<string> VersionCalls { get; } = [];
+        public List<string> TtlCalls { get; } = [];
         public Dictionary<string, LocalClusterInfoDto> ClusterInfo { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, IReadOnlyList<AdminDomainConfigDto>> DomainsById { get; } =
+            new(StringComparer.Ordinal);
         public AdminInvalidateRequest? LastInvalidateBody { get; private set; }
+        public AdminVersionRequest? LastVersionBody { get; private set; }
+        public AdminTtlPatchRequest? LastTtlBody { get; private set; }
 
         public Task<InstanceCallOutcome<AdminHealthDto>> GetHealthAsync(
             AdminInstanceOptions instance,
             CancellationToken cancellationToken = default)
         {
             HealthCallCountById[instance.Id] = HealthCallCountById.GetValueOrDefault(instance.Id) + 1;
-            if (FailHealth.Contains(instance.Id) || FailStats.Contains(instance.Id))
+            if (FailHealth.Contains(instance.Id))
                 return Task.FromResult(Fail<AdminHealthDto>(instance.Id, "down"));
 
             return Task.FromResult(Ok(instance.Id, new AdminHealthDto
@@ -252,41 +322,15 @@ public class AdminFanOutServiceTests
             }));
         }
 
-#pragma warning disable CS0618
-        public Task<InstanceCallOutcome<AdminLiveStatsRawSnapshot>> GetStatsAsync(
-            AdminInstanceOptions instance,
-            CancellationToken cancellationToken = default)
-        {
-            StatsCallCountById[instance.Id] = StatsCallCountById.GetValueOrDefault(instance.Id) + 1;
-            if (FailStats.Contains(instance.Id))
-                return Task.FromResult(Fail<AdminLiveStatsRawSnapshot>(instance.Id, "down"));
-
-            if (!Stats.TryGetValue(instance.Id, out AdminLiveStatsRawSnapshot? snap))
-                snap = new AdminLiveStatsRawSnapshot
-                {
-                    InstanceId = instance.Id,
-                    CollectedAtUtc = DateTimeOffset.UtcNow,
-                    Domains = [],
-                    UnassignedEndpoints = [],
-                    Endpoints = []
-                };
-
-            return Task.FromResult(Ok(instance.Id, snap));
-        }
-#pragma warning restore CS0618
-
-        public Task<InstanceCallOutcome<IReadOnlyList<AdminEndpointInfoDto>>> GetEndpointsAsync(
-            AdminInstanceOptions instance,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(Ok(instance.Id, (IReadOnlyList<AdminEndpointInfoDto>)[]));
-
         public Task<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>> GetDomainsAsync(
             AdminInstanceOptions instance,
             CancellationToken cancellationToken = default)
         {
-            if (FailStats.Contains(instance.Id))
+            if (FailHealth.Contains(instance.Id))
                 return Task.FromResult(Fail<IReadOnlyList<AdminDomainConfigDto>>(instance.Id, "down"));
-            return Task.FromResult(Ok(instance.Id, (IReadOnlyList<AdminDomainConfigDto>)[]));
+            if (!DomainsById.TryGetValue(instance.Id, out IReadOnlyList<AdminDomainConfigDto>? list))
+                list = [];
+            return Task.FromResult(Ok(instance.Id, list));
         }
 
         public Task<InstanceCallOutcome<CacheInvalidationResult>> InvalidateAsync(
@@ -303,15 +347,42 @@ public class AdminFanOutServiceTests
             AdminInstanceOptions instance,
             string domain,
             AdminVersionRequest body,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
+            CancellationToken cancellationToken = default)
+        {
+            VersionCalls.Add(instance.Id + ":" + domain);
+            LastVersionBody = body;
+            return Task.FromResult(Ok(instance.Id, new AdminDomainMutationResultDto
+            {
+                Domain = domain,
+                Effective = new AdminDomainConfigDto
+                {
+                    Name = domain,
+                    Version = body.Version ?? "generated",
+                    FusionCacheInstanceName = "default",
+                },
+            }));
+        }
 
         public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchTtlAsync(
             AdminInstanceOptions instance,
             string domain,
             AdminTtlPatchRequest body,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
+            CancellationToken cancellationToken = default)
+        {
+            TtlCalls.Add(instance.Id + ":" + domain);
+            LastTtlBody = body;
+            return Task.FromResult(Ok(instance.Id, new AdminDomainMutationResultDto
+            {
+                Domain = domain,
+                Effective = new AdminDomainConfigDto
+                {
+                    Name = domain,
+                    Version = "1",
+                    FusionCacheInstanceName = "default",
+                    OutputCacheTtlSeconds = body.OutputCacheTtlSeconds ?? 0,
+                },
+            }));
+        }
 
         public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
             AdminInstanceOptions instance,

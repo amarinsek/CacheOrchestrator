@@ -1,7 +1,7 @@
 /**
  * Recommendation-hint presentation and flattening.
  *
- * Live hints come from RecommendationHints on the Admin Console App.
+ * Live hints come from HintEngine (declarative core/operator packs) on the Admin Console App.
  * This module only renders them — it does not evaluate rules.
  */
 

@@ -18,25 +18,21 @@ public sealed class LiveStatsService
     private readonly IMetricsQueryClient _client;
     private readonly MetricsQueryService _metrics;
     private readonly AdminFanOutService _fanOut;
-    private readonly MetricsWindowStatsService _windowStats;
     private readonly TimeProvider _time;
 
     public LiveStatsService(
         IMetricsQueryClient client,
         MetricsQueryService metrics,
         AdminFanOutService fanOut,
-        MetricsWindowStatsService windowStats,
         TimeProvider time)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(metrics);
         ArgumentNullException.ThrowIfNull(fanOut);
-        ArgumentNullException.ThrowIfNull(windowStats);
         ArgumentNullException.ThrowIfNull(time);
         _client = client;
         _metrics = metrics;
         _fanOut = fanOut;
-        _windowStats = windowStats;
         _time = time;
     }
 
@@ -52,9 +48,9 @@ public sealed class LiveStatsService
         Task<FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>>> cfgTask =
             _fanOut.GetDomainsAsync(cancellationToken);
 
-        // Short window only for hint summary (not for rates).
-        Task<WindowStatsDto> hintsTask = _windowStats.GetAsync(
-            range: "15m", from: null, to: null, domainsCsv: null, cancellationToken);
+        // Do not nest MetricsWindowStatsService here: that ~18 Prom query set belongs to
+        // /api/stats/window (tables). Caching it for Live caused stale/missing table rows.
+        // Live hint chips stay empty until a dedicated lightweight hint path exists.
 
         IReadOnlyList<InstanceStatusDto> instances = await instancesTask.ConfigureAwait(false);
         MetricsStatusDto metricsStatus = await metricsTask.ConfigureAwait(false);
@@ -126,7 +122,7 @@ public sealed class LiveStatsService
                     clusterOc, clusterOcHit, clusterFcHit, clusterFac, clusterFail, clusterInv,
                     domOc, domOcHit, domFcHit, domFac, domFail,
                     epOc, epOcHit, epFcHit, epFac, epFail,
-                    instOc, cfgTask, hintsTask)
+                    instOc, cfgTask)
                 .ConfigureAwait(false);
 
             double? rps = FirstValue(await clusterOc.ConfigureAwait(false));
@@ -222,11 +218,6 @@ public sealed class LiveStatsService
 
             quiet.Sort(StringComparer.OrdinalIgnoreCase);
 
-            WindowStatsDto hintsWin = await hintsTask.ConfigureAwait(false);
-            AdminHintSummaryDto hints = hintsWin.Status == MetricsStoreStatusCodes.Connected
-                ? hintsWin.HintSummary
-                : new AdminHintSummaryDto();
-
             return new LiveSnapshotDto
             {
                 Status = MetricsStoreStatusCodes.Connected,
@@ -238,7 +229,7 @@ public sealed class LiveStatsService
                 Domains = domainRows,
                 Endpoints = endpointRows,
                 QuietDomains = quiet,
-                HintSummary = hints,
+                HintSummary = new AdminHintSummaryDto(),
             };
         }
         catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or System.Text.Json.JsonException)

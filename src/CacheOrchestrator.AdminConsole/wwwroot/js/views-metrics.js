@@ -10,7 +10,7 @@ import {
   seriesHasSamples,
   updateChartInPlace,
 } from "./charts.js";
-import { $, main, mainHasContent, paintMain } from "./dom.js";
+import { $, beginPageLoad, main, mainHasContent, paintPage } from "./dom.js";
 import {
   applyButtonHtml,
   bindMultiSelects,
@@ -81,16 +81,14 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
   const soft = !!opts.soft;
   setNavActive("metrics");
   setBreadcrumb([]);
-  if (!soft || !mainHasContent()) {
-    main().innerHTML = `<div class="card"><p class="muted">Loading metrics…</p></div>`;
-  }
+  beginPageLoad(soft, `<div class="card"><p class="muted">Loading metrics…</p></div>`);
 
   let status;
   try {
     status = await api("/api/metrics/status");
   } catch (err) {
     if (soft && mainHasContent()) return;
-    paint(`<div class="card">${emptyStateHtml("error", {
+    paintPage(`<div class="card">${emptyStateHtml("error", {
       title: "Cannot load metrics status",
       detail: err.message,
     })}</div>`, soft);
@@ -100,7 +98,7 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
 
   if (status.status === "NotConfigured") {
     setMetricsCapability("not_configured");
-    paint(`
+    paintPage(`
       <div class="card">${emptyStateHtml("metrics-config", {
         title: "Metrics not configured",
         detail: status.error
@@ -118,7 +116,7 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
   if (status.status === "Disconnected") {
     setMetricsCapability("disconnected");
     const target = formatMetricsProvider(status);
-    paint(`
+    paintPage(`
       <div class="card">${emptyStateHtml("metrics-offline", {
         title: `${target} · not connected`,
         detail: status.error || "Could not reach the metrics backend. Check URL, network, and credentials.",
@@ -163,13 +161,13 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
     }
   } catch (err) {
     if (soft && mainHasContent()) return;
-    paint(`<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`, soft);
+    paintPage(`<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`, soft);
     bindEmptyStateActions(main());
     return;
   }
 
   if (series.status === "Disconnected") {
-    paint(`
+    paintPage(`
       <div class="card">${emptyStateHtml("metrics-offline", {
         title: `${formatMetricsProvider(status)} · not connected`,
         detail: series.error || "Query failed.",
@@ -198,7 +196,7 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
     return;
   }
 
-  paint(`
+  paintPage(`
     <form class="toolbar" id="metricsToolbar">
       ${multiSelectHtml("metDom", "Domains", domainOpts, selDomains)}
       ${applyButtonHtml()}
@@ -244,10 +242,7 @@ function ensureChartExpandBound() {
   });
 }
 
-function paint(html, soft) {
-  if (soft) paintMain(html);
-  else main().innerHTML = html;
-}
+
 
 function softUpdateKpis(summary, series) {
   const root = $("#metricsKpis");

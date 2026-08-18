@@ -6,7 +6,7 @@
  */
 
 import { api } from "./api.js";
-import { $, main, mainHasContent, paintMain } from "./dom.js";
+import { $, beginPageLoad, main, mainHasContent, paintPage } from "./dom.js";
 import {
   currentValueHtml,
   esc,
@@ -77,19 +77,6 @@ import {
   mountDetailMetrics,
   renderMetrics,
 } from "./views-metrics.js";
-
-/** First paint may show loading; soft refresh keeps previous content until data arrives. */
-function beginPageLoad(soft, loadingHtml) {
-  if (!soft || !mainHasContent()) {
-    main().innerHTML = loadingHtml;
-  }
-}
-
-/** Soft refresh preserves scroll; hard navigation replaces immediately. */
-function paintPage(html, soft) {
-  if (soft) paintMain(html);
-  else main().innerHTML = html;
-}
 
 // —— Overview ——
 
@@ -460,7 +447,6 @@ export async function renderEndpointsList(params, opts = {}) {
   const sort = params.get("sort") || "requests";
   const take = params.get("take") || "50";
   const skip = Number(params.get("skip") || "0");
-  const selInstances = parseCsvParam(params, "instances");
   const selDomains = parseCsvParam(params, "domains");
 
   beginPageLoad(soft, `<div class="card"><p class="muted">Loading endpoints…</p></div>`);
@@ -474,10 +460,6 @@ export async function renderEndpointsList(params, opts = {}) {
     bindEmptyStateActions(main());
     return;
   }
-
-  const offline = allInstancesDown(instanceList);
-  const noCfg = noInstancesConfigured(instanceList);
-  const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
 
   let domainOpts = [];
   let list = [];
@@ -520,8 +502,49 @@ export async function renderEndpointsList(params, opts = {}) {
       detail: loadError || "Connect metrics to see endpoints.",
     };
 
+  const tableInner = promOk
+    ? `${endpointTableHtml(list, emptyCtx)}
+        ${list.length ? `
+        <div class="pager">
+          <button type="button" class="secondary" id="epPrev" ${skip <= 0 ? "disabled" : ""}>Prev</button>
+          <span>skip ${skip} · ${list.length} rows</span>
+          <button type="button" class="secondary" id="epNext" ${list.length < Number(take) ? "disabled" : ""}>Next</button>
+        </div>` : ""}`
+    : metricsRequiredEmpty(loadError);
+
+  const pageParams = () => ({
+    search,
+    sort,
+    take,
+    domains: csvParamFromSelection(selDomains),
+  });
+
+  const bindEpPager = () => {
+    $("#epPrev")?.addEventListener("click", () => navigate("endpoints", {
+      ...pageParams(),
+      skip: Math.max(0, skip - Number(take)),
+    }));
+    $("#epNext")?.addEventListener("click", () => navigate("endpoints", {
+      ...pageParams(),
+      skip: skip + Number(take),
+    }));
+  };
+
+  // Soft refresh: keep filter focus; only patch banner + table.
+  if (soft && $("#epRoot")) {
+    const banner = $("#epBanner");
+    if (banner) banner.innerHTML = connectivityBanner(instanceList);
+    const table = $("#epTable");
+    if (table) table.innerHTML = tableInner;
+    bindEmptyStateActions(main());
+    bindEntityTableClicks($("#epTable") || main());
+    bindEpPager();
+    return;
+  }
+
   paintPage(`
-    ${connectivityBanner(instanceList)}
+    <div id="epRoot">
+    <div id="epBanner">${connectivityBanner(instanceList)}</div>
     <div class="card">
       <h2>Endpoints <span class="badge">primary unit</span></h2>
       ${promOk ? `
@@ -531,16 +554,9 @@ export async function renderEndpointsList(params, opts = {}) {
         ${sortSelectHtml("sort", sort, EP_SORT_OPTS)}
         ${applyButtonHtml()}
       </form>
-      <div id="epTable">
-        ${endpointTableHtml(list, emptyCtx)}
-        ${list.length ? `
-        <div class="pager">
-          <button type="button" class="secondary" id="epPrev" ${skip <= 0 ? "disabled" : ""}>Prev</button>
-          <span>skip ${skip} · ${list.length} rows</span>
-          <button type="button" class="secondary" id="epNext" ${list.length < Number(take) ? "disabled" : ""}>Next</button>
-        </div>` : ""}
-      </div>`
-    : metricsRequiredEmpty(loadError)}
+      <div id="epTable">${tableInner}</div>`
+    : `<div id="epTable">${tableInner}</div>`}
+    </div>
     </div>`, soft);
 
   bindEmptyStateActions(main());
@@ -554,7 +570,6 @@ export async function renderEndpointsList(params, opts = {}) {
       const fd = new FormData(form);
       navigate("endpoints", {
         search: fd.get("search"),
-        instances: csvParamFromSelection(readMultiSelect(form, "epInst")),
         domains: csvParamFromSelection(readMultiSelect(form, "epDom")),
         sort: fd.get("sort"),
         take,
@@ -562,21 +577,7 @@ export async function renderEndpointsList(params, opts = {}) {
       });
     });
   }
-  const pageParams = () => ({
-    search,
-    sort,
-    take,
-    instances: csvParamFromSelection(selInstances),
-    domains: csvParamFromSelection(selDomains),
-  });
-  $("#epPrev")?.addEventListener("click", () => navigate("endpoints", {
-    ...pageParams(),
-    skip: Math.max(0, skip - Number(take)),
-  }));
-  $("#epNext")?.addEventListener("click", () => navigate("endpoints", {
-    ...pageParams(),
-    skip: skip + Number(take),
-  }));
+  bindEpPager();
 }
 
 export async function renderEndpointDetail(routeName, opts = {}) {
@@ -693,7 +694,6 @@ export async function renderDomainsList(params, opts = {}) {
   setBreadcrumb([]);
   const search = params.get("search") || "";
   const sort = params.get("sort") || "requests";
-  const selInstances = parseCsvParam(params, "instances");
 
   beginPageLoad(soft, `<div class="card"><p class="muted">Loading domains…</p></div>`);
 
@@ -706,10 +706,6 @@ export async function renderDomainsList(params, opts = {}) {
     bindEmptyStateActions(main());
     return;
   }
-
-  const offline = allInstancesDown(instanceList);
-  const noCfg = noInstancesConfigured(instanceList);
-  const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
 
   let domains = [];
   let loadError = null;
@@ -736,9 +732,27 @@ export async function renderDomainsList(params, opts = {}) {
 
   domains = sortDomains(filterDomainsBySearch(domains, search), sort);
   const emptyKind = !promOk ? "metrics-config" : loadError ? "error" : "domains";
+  const tableHtml = promOk
+    ? domainTableHtml(domains, {
+      kind: emptyKind,
+      title: loadError ? "Failed to load domains" : undefined,
+      detail: loadError,
+    })
+    : metricsRequiredEmpty(loadError);
+
+  if (soft && $("#domRoot")) {
+    const banner = $("#domBanner");
+    if (banner) banner.innerHTML = connectivityBanner(instanceList);
+    const table = $("#domTable");
+    if (table) table.innerHTML = tableHtml;
+    bindEmptyStateActions(main());
+    bindEntityTableClicks($("#domTable") || main());
+    return;
+  }
 
   paintPage(`
-    ${connectivityBanner(instanceList)}
+    <div id="domRoot">
+    <div id="domBanner">${connectivityBanner(instanceList)}</div>
     <div class="card">
       <h2>Domains</h2>
       ${promOk ? `
@@ -746,30 +760,24 @@ export async function renderDomainsList(params, opts = {}) {
         <label>Search<input name="search" type="search" value="${esc(search)}" placeholder="domain name" /></label>
         ${sortSelectHtml("sort", sort, DOMAIN_SORT_OPTS)}
         ${applyButtonHtml()}
-      </form>
-      ${domainTableHtml(domains, {
-        kind: emptyKind,
-        title: loadError ? "Failed to load domains" : undefined,
-        detail: loadError,
-      })}`
-    : metricsRequiredEmpty(loadError)}
+      </form>` : ""}
+      <div id="domTable">${tableHtml}</div>
+    </div>
     </div>`, soft);
 
   bindEmptyStateActions(main());
   const form = $("#domFilters");
   if (form) {
-    bindMultiSelects(form);
     form.addEventListener("submit", (ev) => {
       ev.preventDefault();
       const fd = new FormData(form);
       navigate("domains", {
         search: fd.get("search"),
         sort: fd.get("sort"),
-        instances: csvParamFromSelection(readMultiSelect(form, "domInst")),
       });
     });
   }
-  bindEntityTableClicks(main());
+  bindEntityTableClicks($("#domTable") || main());
 }
 
 export async function renderDomainDetail(name, params = new URLSearchParams(), opts = {}) {
@@ -972,20 +980,39 @@ export async function renderInstancesList(params = new URLSearchParams(), opts =
     }
   } catch { /* optional */ }
 
+  const bannerHtml = connectivityBanner(overview.instances || []);
+  const tableHtml = instanceTableHtml(list);
+
+  if (soft && $("#instRoot")) {
+    const banner = $("#instBanner");
+    if (banner) banner.innerHTML = bannerHtml;
+    const head = $("#instHead");
+    if (head) head.innerHTML = `Instances ${severityStack(hintSum)}`;
+    const table = $("#instTable");
+    if (table) table.innerHTML = tableHtml;
+    const metricsHost = $("#instMetricsHost");
+    if (metricsHost) metricsHost.innerHTML = metricsCard;
+    bindEntityTableClicks($("#instTable") || main());
+    bindEmptyStateActions(main());
+    return;
+  }
+
   paintPage(`
-    ${connectivityBanner(overview.instances || [])}
+    <div id="instRoot">
+    <div id="instBanner">${bannerHtml}</div>
     <div class="card">
-      <h2>Instances ${severityStack(hintSum)}</h2>
+      <h2 id="instHead">Instances ${severityStack(hintSum)}</h2>
       <form class="toolbar" id="instFilters">
         <label>Search<input name="search" type="search" value="${esc(search)}" placeholder="id or url" /></label>
         ${sortSelectHtml("sort", sort, INST_SORT_OPTS)}
         ${applyButtonHtml()}
       </form>
-      ${instanceTableHtml(list)}
+      <div id="instTable">${tableHtml}</div>
     </div>
-    ${metricsCard}`, soft);
+    <div id="instMetricsHost">${metricsCard}</div>
+    </div>`, soft);
 
-  bindEntityTableClicks(main());
+  bindEntityTableClicks($("#instTable") || main());
   bindEmptyStateActions(main());
 
   $("#instFilters")?.addEventListener("submit", (ev) => {
@@ -1112,24 +1139,19 @@ function instanceDetailHeadHtml(id, inst, stats, st, startedTitle, promOk = fals
 export async function renderHintsPage(params, opts = {}) {
   const soft = !!opts.soft;
   setBreadcrumb([]);
-  const selInstances = parseCsvParam(params, "instances");
   const selDomains = parseCsvParam(params, "domains");
   const selEndpoints = parseCsvParam(params, "endpoints");
   const severity = params.get("severity") || "";
 
   beginPageLoad(soft, `<div class="card"><p class="muted">Loading hints…</p></div>`);
 
-  const [instanceList, windowStats] = await Promise.all([
-    api("/api/instances"),
-    fetchWindowStatsIfNeeded(),
-  ]);
+  const windowStats = await fetchWindowStatsIfNeeded();
 
   const promOk = windowStats?.status === "Connected";
   const statsForHints = promOk
     ? { domains: windowStats.domains || [], endpoints: windowStats.endpoints || [] }
     : { domains: [], endpoints: [] };
 
-  const instanceOpts = (instanceList || []).map((i) => ({ id: i.id, label: i.id }));
   const domainOpts = (statsForHints.domains || []).map((d) => ({ id: d.name, label: d.name }));
   const endpointOpts = (statsForHints.endpoints || []).map((e) => ({ id: e.route, label: e.route }));
 
@@ -1137,12 +1159,8 @@ export async function renderHintsPage(params, opts = {}) {
   const totalSummary = summarizeHints(rows);
   shell.updateNavHintsBadge(promOk && windowStats?.hintSummary ? windowStats.hintSummary : totalSummary);
 
-  const filtersActive = selInstances !== null || selDomains !== null || selEndpoints !== null || !!severity;
+  const filtersActive = selDomains !== null || selEndpoints !== null || !!severity;
 
-  if (selInstances !== null) {
-    if (selInstances.length === 0) rows = [];
-    else rows = rows.filter((r) => !r.instanceId || selInstances.includes(r.instanceId));
-  }
   if (selDomains !== null) {
     if (selDomains.length === 0) rows = [];
     else rows = rows.filter((r) => !r.domain || selDomains.includes(r.domain));
@@ -1161,37 +1179,19 @@ export async function renderHintsPage(params, opts = {}) {
   const rank = { Critical: 0, Warning: 1, Info: 2 };
   rows.sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9) || a.code.localeCompare(b.code));
 
-  paintPage(`
-    <div class="card">
-      <h2>Hints ${severityStack(filtersActive ? shownSummary : totalSummary)}
-        ${filtersActive ? `<span class="badge muted" title="Visible / all">${shownSummary.total}/${totalSummary.total}</span>` : ""}
-      </h2>
-      <p class="muted">${promOk
-        ? "Recommendations for the selected time range."
-        : "Connect metrics to see recommendations."}
-        Filters combine (AND).
-        ${filtersActive ? " Severity counts show <strong>visible/total</strong> for the current filter." : ""}
-      </p>
-      ${!promOk ? metricsRequiredEmpty() : `
-      <form class="toolbar" id="hintFilters">
-        ${multiSelectHtml("hDom", "Domains", domainOpts, selDomains)}
-        ${multiSelectHtml("hEp", "Endpoints", endpointOpts, selEndpoints)}
-        <label>Severity
-          <select name="severity">
-            <option value="">All</option>
-            ${["Critical", "Warning", "Info"].map((s) =>
-              `<option value="${s}" ${severity === s ? "selected" : ""}>${s}</option>`).join("")}
-          </select>
-        </label>
-        ${applyButtonHtml()}
-      </form>
-      <div class="kpi-row">
+  const headHtml = `Hints ${severityStack(filtersActive ? shownSummary : totalSummary)}
+        ${filtersActive ? `<span class="badge muted" title="Visible / all">${shownSummary.total}/${totalSummary.total}</span>` : ""}`;
+  const kpiHtml = `
+      <div class="kpi-row" id="hintKpis">
         <div class="kpi"><div class="label">Critical</div><div class="value status-Down">${ratio(shownSummary.critical, totalSummary.critical)}</div></div>
         <div class="kpi"><div class="label">Warning</div><div class="value" style="color:var(--warn)">${ratio(shownSummary.warning, totalSummary.warning)}</div></div>
         <div class="kpi"><div class="label">Info</div><div class="value" style="color:var(--accent)">${ratio(shownSummary.info, totalSummary.info)}</div></div>
         <div class="kpi"><div class="label">Shown</div><div class="value">${ratio(shownSummary.total, totalSummary.total)}</div></div>
-      </div>
-      ${rows.length ? `
+      </div>`;
+  const tableHtml = !promOk
+    ? metricsRequiredEmpty()
+    : rows.length
+      ? `
       <table class="dense entity-table hints-table">
         <thead>
           <tr>
@@ -1211,10 +1211,47 @@ export async function renderHintsPage(params, opts = {}) {
               <td class="muted">${esc(r.entityType)}</td>
             </tr>`).join("")}
         </tbody>
-      </table>` : emptyStateHtml("filter", {
+      </table>`
+      : emptyStateHtml("filter", {
         title: "No hints to show",
         detail: "No recommendations for the current filters.",
-      })}`}
+      });
+
+  if (soft && $("#hintsRoot") && promOk) {
+    const head = $("#hintsHead");
+    if (head) head.innerHTML = headHtml;
+    const kpis = $("#hintKpis");
+    if (kpis) kpis.outerHTML = kpiHtml;
+    const table = $("#hintsTable");
+    if (table) table.innerHTML = tableHtml;
+    bindEmptyStateActions(main());
+    return;
+  }
+
+  paintPage(`
+    <div id="hintsRoot" class="card">
+      <h2 id="hintsHead">${headHtml}</h2>
+      <p class="muted">${promOk
+        ? "Recommendations for the selected time range."
+        : "Connect metrics to see recommendations."}
+        Filters combine (AND).
+        ${filtersActive ? " Severity counts show <strong>visible/total</strong> for the current filter." : ""}
+      </p>
+      ${!promOk ? tableHtml : `
+      <form class="toolbar" id="hintFilters">
+        ${multiSelectHtml("hDom", "Domains", domainOpts, selDomains)}
+        ${multiSelectHtml("hEp", "Endpoints", endpointOpts, selEndpoints)}
+        <label>Severity
+          <select name="severity">
+            <option value="">All</option>
+            ${["Critical", "Warning", "Info"].map((s) =>
+              `<option value="${s}" ${severity === s ? "selected" : ""}>${s}</option>`).join("")}
+          </select>
+        </label>
+        ${applyButtonHtml()}
+      </form>
+      ${kpiHtml}
+      <div id="hintsTable">${tableHtml}</div>`}
     </div>`, soft);
   bindEmptyStateActions(main());
 

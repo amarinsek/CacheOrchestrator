@@ -42,6 +42,22 @@ public class MetricsPanelCatalogTests
     }
 
     [Fact]
+    public void BuildWindowCountPromQl_UsesLastOverTimeDelta_NotBareIncrease()
+    {
+        // Bare increase() under-counts the first sample and can return 0 that blocks PromQL `or`,
+        // so a new series appears once then vanishes on the next scrape (Console table bug).
+        string q = MetricsPanelCatalog.BuildWindowCountPromQl(
+            "domain,result",
+            MetricsPanelCatalog.OcRequests,
+            "900s");
+
+        Assert.Contains("last_over_time(", q, StringComparison.Ordinal);
+        Assert.Contains("offset 900s", q, StringComparison.Ordinal);
+        Assert.Contains("unless on (domain,result)", q, StringComparison.Ordinal);
+        Assert.DoesNotContain("increase(", q, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BuildPromQl_factory_panels()
     {
         string p95 = MetricsPanelCatalog.BuildPromQl("factory_p95_ms", ["catalog"]);

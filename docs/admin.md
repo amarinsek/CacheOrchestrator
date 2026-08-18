@@ -272,6 +272,7 @@ When **not configured**, statistics and charts are unavailable (UI shows Metrics
 | Console API | Role |
 |-------------|------|
 | `GET /api/stats/window` | Domain/endpoint counters + shares + impact + hints for the selected window (`range` and/or `from`/`to`, optional `domains`) |
+
 | `GET /api/metrics/series` | Chart panels (`range`, `from`/`to`, `panels`, `domains`, `instances`, `routes`) |
 | `GET /api/metrics/summary` | Compact rates/shares for the window |
 
@@ -319,8 +320,6 @@ Repo overview: [admin-hints.md](admin-hints.md).
 | GET | `/api/distribution` | Probe `…/cluster/info`; recommended write mode (fan-out vs bus-distribute) |
 | GET | `/api/live` | **Live** snapshot: fixed 1m rates + instance health (not Range-scoped) |
 | GET | `/api/stats/window?range=&from=&to=&domains=` | **Traffic stats** (Prometheus): domains/endpoints + impact + Peak RPS + hints |
-| GET | `/api/stats` | Obsolete empty shell (kept for wire compatibility) |
-| GET | `/api/endpoints` | Obsolete empty list (SPA uses `/api/stats/window`) |
 | GET | `/api/domains` | Domain config fan-out |
 | GET | `/api/metrics/status` | Metrics store probe (`NotConfigured` / `Disconnected` / `Connected`) |
 | GET | `/api/metrics/catalog` | Allowlisted chart panels |

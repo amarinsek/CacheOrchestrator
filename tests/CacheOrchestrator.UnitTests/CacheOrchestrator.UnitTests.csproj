@@ -52,6 +52,7 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
   </ItemGroup>
 
   <!-- Admin Console App is net10.0-only; its unit tests compile/run only on net10.0. -->
@@ -62,13 +63,15 @@
   <!-- Admin Console–dependent tests are net10-only; core library Admin tests still run on net8. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
     <Compile Remove="Admin\AdminFanOutServiceTests.cs" />
+    <Compile Remove="Admin\AdminConsoleHostTests.cs" />
     <Compile Remove="Admin\HintRuleCompilerTests.cs" />
+    <Compile Remove="Admin\HintEngineCoreHintsTests.cs" />
+    <Compile Remove="Admin\LiveStatsServiceTests.cs" />
+    <Compile Remove="Admin\LocalAdminClientTests.cs" />
     <Compile Remove="Admin\MetricsPanelCatalogTests.cs" />
     <Compile Remove="Admin\MetricsQueryServiceTests.cs" />
-    <Compile Remove="Admin\RecommendationHintsTests.cs" />
-    <Compile Remove="Admin\StatsAggregatorTests.cs" />
+    <Compile Remove="Admin\MetricsWindowStatsServiceTests.cs" />
     <Compile Remove="Admin\ImpactMathTests.cs" />
-    <Compile Remove="Admin\StatsDeltaCacheTests.cs" />
     <Compile Remove="Admin\TestHintEngine.cs" />
   </ItemGroup>
 

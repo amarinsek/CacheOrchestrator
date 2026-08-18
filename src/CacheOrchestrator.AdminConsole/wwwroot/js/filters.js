@@ -218,83 +218,64 @@ function cmpNumDesc(a, b) {
   return (b ?? -Infinity) - (a ?? -Infinity);
 }
 
-/** Client-side endpoint sort (also used after API returns a page). */
-export function sortEndpoints(list, sort) {
-  const arr = [...(list || [])];
+/** Shared numeric sort keys for domain/endpoint traffic rows. */
+function sortByTrafficMetrics(arr, sort, nameKey) {
   switch (sort) {
     case "factoryShare":
     case "originShare":
       arr.sort((a, b) => cmpNumDesc(
         a.fc?.factoryShare ?? a.fc?.originShare,
         b.fc?.factoryShare ?? b.fc?.originShare));
-      break;
+      return true;
     case "factoryAvoidance":
       arr.sort((a, b) => cmpNumDesc(a.impact?.factoryAvoidance, b.impact?.factoryAvoidance));
-      break;
+      return true;
     case "estTimeSaved":
       arr.sort((a, b) => cmpNumDesc(a.impact?.estFactoryTimeSavedMs, b.impact?.estFactoryTimeSavedMs));
-      break;
+      return true;
     case "ocHitShare":
       arr.sort((a, b) => cmpNumDesc(a.oc?.hitShare, b.oc?.hitShare));
-      break;
+      return true;
     case "fcHitShare":
       arr.sort((a, b) => cmpNumDesc(a.fc?.hitShare, b.fc?.hitShare));
-      break;
-    case "route":
-      arr.sort((a, b) => (a.route || "").localeCompare(b.route || ""));
-      break;
+      return true;
     case "peakRequestRate":
     case "requestRate":
       arr.sort((a, b) => cmpNumDesc(
         a.peakRequestRate ?? a._requestRate,
         b.peakRequestRate ?? b._requestRate));
-      break;
+      return true;
     case "requests":
-    default:
       arr.sort((a, b) => cmpNumDesc(a.requests, b.requests));
-      break;
+      return true;
+    case "name":
+    case "route":
+      if (nameKey) {
+        arr.sort((a, b) => (a[nameKey] || "").localeCompare(b[nameKey] || ""));
+        return true;
+      }
+      return false;
+    default:
+      return false;
   }
+}
+
+/** Client-side endpoint sort (also used after API returns a page). */
+export function sortEndpoints(list, sort) {
+  const arr = [...(list || [])];
+  if (sortByTrafficMetrics(arr, sort, "route")) return arr;
+  arr.sort((a, b) => cmpNumDesc(a.requests, b.requests));
   return arr;
 }
 
 export function sortDomains(list, sort) {
   const arr = [...(list || [])];
-  switch (sort) {
-    case "name":
-      arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-      break;
-    case "factoryShare":
-    case "originShare":
-      arr.sort((a, b) => cmpNumDesc(
-        a.fc?.factoryShare ?? a.fc?.originShare,
-        b.fc?.factoryShare ?? b.fc?.originShare));
-      break;
-    case "factoryAvoidance":
-      arr.sort((a, b) => cmpNumDesc(a.impact?.factoryAvoidance, b.impact?.factoryAvoidance));
-      break;
-    case "estTimeSaved":
-      arr.sort((a, b) => cmpNumDesc(a.impact?.estFactoryTimeSavedMs, b.impact?.estFactoryTimeSavedMs));
-      break;
-    case "ocHitShare":
-      arr.sort((a, b) => cmpNumDesc(a.oc?.hitShare, b.oc?.hitShare));
-      break;
-    case "fcHitShare":
-      arr.sort((a, b) => cmpNumDesc(a.fc?.hitShare, b.fc?.hitShare));
-      break;
-    case "invalidations":
-      arr.sort((a, b) => cmpNumDesc(a.invalidations, b.invalidations));
-      break;
-    case "peakRequestRate":
-    case "requestRate":
-      arr.sort((a, b) => cmpNumDesc(
-        a.peakRequestRate ?? a._requestRate,
-        b.peakRequestRate ?? b._requestRate));
-      break;
-    case "requests":
-    default:
-      arr.sort((a, b) => cmpNumDesc(a.requests, b.requests));
-      break;
+  if (sort === "invalidations") {
+    arr.sort((a, b) => cmpNumDesc(a.invalidations, b.invalidations));
+    return arr;
   }
+  if (sortByTrafficMetrics(arr, sort, "name")) return arr;
+  arr.sort((a, b) => cmpNumDesc(a.requests, b.requests));
   return arr;
 }
 

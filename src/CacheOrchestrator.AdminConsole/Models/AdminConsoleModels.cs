@@ -260,50 +260,6 @@ public sealed class OverviewDto
     public string? RecentWindowLabel { get; init; }
 }
 
-/// <summary>Cluster (or single-instance) aggregated live stats.</summary>
-public sealed class ClusterStatsDto
-{
-    /// <summary>Scope label: <c>all</c> or <c>instance:{id}</c>.</summary>
-    public required string Scope { get; init; }
-
-    /// <summary>Whether per-instance breakdowns are included.</summary>
-    public bool GroupByInstance { get; init; }
-
-    /// <summary>UTC collection time on the Admin Console App.</summary>
-    public DateTimeOffset CollectedAtUtc { get; init; }
-
-    /// <summary>Per-instance raw snapshots that contributed.</summary>
-    public required IReadOnlyList<InstanceStatsContributionDto> Instances { get; init; }
-
-    /// <summary>Domains aggregated across contributing instances.</summary>
-    public required IReadOnlyList<AdminDomainStatsDto> Domains { get; init; }
-
-    /// <summary>
-    /// Endpoints as fundamental unit (cluster merge of all routes).
-    /// Prefer this over nested domain.endpoints for EP-first views.
-    /// </summary>
-    public required IReadOnlyList<AdminEndpointStatsDto> Endpoints { get; init; }
-
-    /// <summary>Endpoints without a domain after merge.</summary>
-    public required IReadOnlyList<AdminEndpointStatsDto> UnassignedEndpoints { get; init; }
-}
-
-/// <summary>One instance's contribution to cluster stats.</summary>
-public sealed class InstanceStatsContributionDto
-{
-    /// <summary>Configured instance id.</summary>
-    public required string InstanceId { get; init; }
-
-    /// <summary>Whether stats were obtained.</summary>
-    public bool Succeeded { get; init; }
-
-    /// <summary>Error when failed.</summary>
-    public string? Error { get; init; }
-
-    /// <summary>Local raw stats v2 snapshot when succeeded.</summary>
-    public AdminLiveStatsRawSnapshot? Snapshot { get; init; }
-}
-
 /// <summary>Invalidate request for the Admin Console App (adds multi-instance target).</summary>
 public sealed class AdminConsoleInvalidateRequest
 {

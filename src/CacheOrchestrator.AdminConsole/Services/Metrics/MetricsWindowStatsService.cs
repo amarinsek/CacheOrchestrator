@@ -37,6 +37,7 @@ public sealed class MetricsWindowStatsService
 
     /// <summary>
     /// Loads window aggregates. Never throws for “not configured”; returns status envelope.
+    /// Not cached: tables must stay aligned with fresh Prom samples (charts use query_range separately).
     /// </summary>
     public async Task<WindowStatsDto> GetAsync(
         string? range,
@@ -62,9 +63,9 @@ public sealed class MetricsWindowStatsService
             string rw = window.PromRangeDuration;
             IReadOnlyList<string> domainFilter = ParseCsv(domainsCsv);
 
-            // Window counts via increase() over the selected range.
-            // Do NOT use instant (now − offset): OTEL often stops exporting idle label sets, so
-            // domains/endpoints vanish from tables while range charts still show their curves.
+            // Window counts: last_over_time − offset (see WindowCountBy). Do not use bare increase():
+            // it under-counts the first sample and can yield 0 that blocks PromQL `or`, so a brand-new
+            // series appears on the first refresh then vanishes on the second.
             Task<IReadOnlyList<PrometheusInstantSample>> ocTask = QueryAsync(
                 WindowCountBy("domain,result", MetricsPanelCatalog.OcRequests, rw, domainFilter),
                 window.End, cancellationToken);
@@ -188,8 +189,7 @@ public sealed class MetricsWindowStatsService
                 if (string.IsNullOrEmpty(name) || name is "_" || name.Contains('/', StringComparison.Ordinal))
                     continue;
 
-                // increase() can still surface idle series (0 delta) or factory-only residual samples.
-                // Traffic tables only list domains with real window activity.
+                // Zero-delta / factory-only residual samples stay out of traffic tables.
                 if (b.Requests <= 0 && b.Invalidations <= 0)
                     continue;
 
@@ -383,29 +383,17 @@ public sealed class MetricsWindowStatsService
 
     /// <summary>
     /// Count of events in the selected window for a counter (or histogram sum/count).
-    /// Uses <c>increase(m[window])</c> so series that went idle / stopped exporting mid-window
-    /// still contribute (same samples charts use via <c>rate</c>/<c>increase</c>).
-    /// Instant <c>now − offset</c> only sees currently live series and drops idle domains.
-    /// New series with a single scrape may under-count until a second sample (scrape interval).
+    /// Delegates to <see cref="MetricsPanelCatalog.BuildWindowCountPromQl"/>.
     /// </summary>
     private static string WindowCountBy(
         string byLabels,
         string metric,
         string rangeDuration,
-        IReadOnlyList<string> domainFilter)
-    {
-        string sel = BuildDomainSelector(domainFilter);
-        string m = metric + sel;
-        // Primary: full-window increase (handles counter resets + stale/idle series).
-        // Fallback: live series that did not exist at window start (brand-new label set) —
-        // increase() can be 0 with only one sample; use current cumulative value instead.
-        return
-            $"(" +
-            $"sum by ({byLabels}) (clamp_min(increase({m}[{rangeDuration}]), 0))" +
-            $") or (" +
-            $"sum by ({byLabels}) ({m} unless on ({byLabels}) {m} offset {rangeDuration})" +
-            $")";
-    }
+        IReadOnlyList<string> domainFilter) =>
+        MetricsPanelCatalog.BuildWindowCountPromQl(
+            byLabels,
+            metric + BuildDomainSelector(domainFilter),
+            rangeDuration);
 
     private static string BuildDomainSelector(IReadOnlyList<string> domains)
     {

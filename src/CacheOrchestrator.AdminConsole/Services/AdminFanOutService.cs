@@ -108,30 +108,6 @@ public sealed class AdminFanOutService
     }
 
     /// <summary>
-    /// Obsolete: process-lifetime counter fan-out removed.
-    /// Use <c>GET /api/stats/window</c> (Prometheus) for traffic stats.
-    /// </summary>
-    [Obsolete("Use /api/stats/window (Prometheus). Instance /stats counters are not used by Admin Console.")]
-    public Task<ClusterStatsDto> GetStatsAsync(
-        string? scope,
-        CancellationToken cancellationToken,
-        bool groupByInstance = false,
-        string? instances = null)
-    {
-        string scopeLabel = string.IsNullOrWhiteSpace(scope) ? "all" : scope.Trim();
-        return Task.FromResult(new ClusterStatsDto
-        {
-            Scope = scopeLabel,
-            GroupByInstance = groupByInstance,
-            CollectedAtUtc = _time.GetUtcNow(),
-            Instances = [],
-            Domains = [],
-            Endpoints = [],
-            UnassignedEndpoints = []
-        });
-    }
-
-    /// <summary>
     /// Instance health / connectivity overview only.
     /// Traffic counters and hints come from Prometheus (<c>/api/stats/window</c>) in the SPA.
     /// </summary>
@@ -172,26 +148,6 @@ public sealed class AdminFanOutService
             ImpactRecent = null,
             RecentWindowLabel = null
         };
-    }
-
-    /// <summary>
-    /// Obsolete empty list. SPA endpoint traffic comes from <c>GET /api/stats/window</c>.
-    /// </summary>
-    [Obsolete("Use /api/stats/window (Prometheus).")]
-    public Task<IReadOnlyList<AdminEndpointStatsDto>> GetTopEndpointsAsync(
-        string? sort,
-        int take,
-        CancellationToken cancellationToken,
-        bool groupByInstance = false,
-        string? search = null,
-        string? domain = null,
-        string? domains = null,
-        string? instances = null,
-        long minRequests = 0,
-        int skip = 0)
-    {
-        _ = (sort, take, cancellationToken, groupByInstance, search, domain, domains, instances, minRequests, skip);
-        return Task.FromResult<IReadOnlyList<AdminEndpointStatsDto>>([]);
     }
 
     public async Task<FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>>> GetDomainsAsync(

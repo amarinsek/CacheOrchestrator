@@ -15,20 +15,6 @@ public interface ILocalAdminClient
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Obsolete: instance process-lifetime stats. Prefer Prometheus via Console <c>/api/stats/window</c>.
-    /// Unused by Console stats UI (Local Admin <c>/stats</c> remains on instances for diagnostics).
-    /// </summary>
-    [Obsolete("Prefer Prometheus window stats. Instance /stats counters are not used by Admin Console.")]
-    Task<InstanceCallOutcome<AdminLiveStatsRawSnapshot>> GetStatsAsync(
-        AdminInstanceOptions instance,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>GET discovered endpoints.</summary>
-    Task<InstanceCallOutcome<IReadOnlyList<AdminEndpointInfoDto>>> GetEndpointsAsync(
-        AdminInstanceOptions instance,
-        CancellationToken cancellationToken = default);
-
     /// <summary>GET domain config snapshots.</summary>
     Task<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>> GetDomainsAsync(
         AdminInstanceOptions instance,

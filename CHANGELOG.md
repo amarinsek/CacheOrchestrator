@@ -38,11 +38,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Admin Console App
 
 - Traffic UI is **Prometheus-only** (Overview, Domains, Endpoints, Hints, impact, header KPIs) via `/api/stats/window`; Local Admin is used for health, config, and operations
-- Console `GET /api/stats` and `/api/endpoints` are obsolete empty compatibility shells (SPA traffic uses `/api/stats/window`)
+- Metrics BFF: parallel panel/summary Prom queries; short TTL cache only for successful Prometheus status probes (window table stats stay uncached so they stay aligned with charts)
+- Window table PromQL: `last_over_time − offset` instead of bare `increase()` (fixes first-sample vanish/undercount: 1 req shows then disappears; 7 counted as 6)
+- Admin Console unit coverage: `MetricsWindowStatsService`, `LiveStatsService`, `LocalAdminClient`, WebApplicationFactory host smoke, fan-out domains/Version/TTL
+- Admin Console SPA: shared `beginPageLoad` / `paintPage` / `kpiRowHtml`; soft-refresh keeps filter focus on Endpoints/Domains/Instances/Live/Hints; Live uses `bindEntityTableClicks`
 
 ### Removed
 
 - Console process-lifetime counter fan-out for stats UI (no longer aggregates Local Admin `GET …/stats` for Overview / Domains / Endpoints / Hints)
+- Admin Console obsolete empty shells **`GET /api/stats`** and **`GET /api/endpoints`** (SPA uses `/api/stats/window`); removed unused `StatsAggregator` / `StatsDeltaCache` / hardcoded `RecommendationHints` rule bodies (hints via `HintEngine` + `core-hints.json` only)
 
 ### Documentation
 

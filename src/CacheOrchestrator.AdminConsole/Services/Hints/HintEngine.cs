@@ -131,13 +131,67 @@ public sealed class HintEngine
         return Run(ctx, preferScope: "endpoint");
     }
 
-    public static AdminHintSummaryDto Summarize(IEnumerable<AdminHintDto> hints) =>
-        RecommendationHints.Summarize(hints);
+    public static AdminHintSummaryDto Summarize(IEnumerable<AdminHintDto> hints)
+    {
+        int info = 0, warning = 0, critical = 0;
+        foreach (AdminHintDto h in hints)
+        {
+            switch (h.Severity)
+            {
+                case "Critical":
+                    critical++;
+                    break;
+                case "Warning":
+                    warning++;
+                    break;
+                default:
+                    info++;
+                    break;
+            }
+        }
+
+        return new AdminHintSummaryDto
+        {
+            Info = info,
+            Warning = warning,
+            Critical = critical
+        };
+    }
 
     public static IReadOnlyList<AdminHintDto> CollectFromStats(
         IReadOnlyList<AdminDomainStatsDto> domains,
-        IReadOnlyList<AdminEndpointStatsDto>? endpoints = null) =>
-        RecommendationHints.CollectFromStats(domains, endpoints);
+        IReadOnlyList<AdminEndpointStatsDto>? endpoints = null)
+    {
+        List<AdminHintDto> list = [];
+        HashSet<string> seen = new(StringComparer.Ordinal);
+
+        void addRange(IEnumerable<AdminHintDto>? hints)
+        {
+            if (hints is null)
+                return;
+            foreach (AdminHintDto h in hints)
+            {
+                string key = h.Severity + "|" + h.Code + "|" + h.Message;
+                if (seen.Add(key))
+                    list.Add(h);
+            }
+        }
+
+        foreach (AdminDomainStatsDto d in domains)
+        {
+            addRange(d.Hints);
+            foreach (AdminEndpointStatsDto e in d.Endpoints)
+                addRange(e.Hints);
+        }
+
+        if (endpoints is not null)
+        {
+            foreach (AdminEndpointStatsDto e in endpoints)
+                addRange(e.Hints);
+        }
+
+        return list;
+    }
 
     private IReadOnlyList<AdminHintDto> Run(HintEvaluationContext ctx, string preferScope)
     {
