@@ -79,6 +79,31 @@ public class AdminFanOutServiceTests
     }
 
     [Fact]
+    public async Task GetInstancesAsync_ReprobesDownInstance_AfterDownReprobeSeconds()
+    {
+        FakeLocalAdminClient client = new();
+        client.FailHealth.Add("b");
+        TestMutableTimeProvider time = new(DateTimeOffset.Parse("2026-01-01T00:00:00Z"));
+
+        AdminFanOutService sut = CreateSut(
+            client,
+            time,
+            downReprobeSeconds: 15,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        await sut.GetInstancesAsync(TestContext.Current.CancellationToken);
+        client.HealthCallCountById.GetValueOrDefault("b").Should().Be(1);
+
+        await sut.GetInstancesAsync(TestContext.Current.CancellationToken);
+        client.HealthCallCountById.GetValueOrDefault("b").Should().Be(1);
+
+        time.Advance(TimeSpan.FromSeconds(16));
+        await sut.GetInstancesAsync(TestContext.Current.CancellationToken);
+        client.HealthCallCountById.GetValueOrDefault("b").Should().Be(2, "re-probe after DownReprobeSeconds");
+    }
+
+    [Fact]
     public async Task InvalidateAsync_WhenNoBus_FansOutWithDistributeFalse()
     {
         FakeLocalAdminClient client = new();
@@ -277,18 +302,25 @@ public class AdminFanOutServiceTests
     private static AdminFanOutService CreateSut(params AdminInstanceOptions[] instances) =>
         CreateSut(new FakeLocalAdminClient(), instances);
 
-    private static AdminFanOutService CreateSut(ILocalAdminClient client, params AdminInstanceOptions[] instances)
+    private static AdminFanOutService CreateSut(ILocalAdminClient client, params AdminInstanceOptions[] instances) =>
+        CreateSut(client, TimeProvider.System, downReprobeSeconds: 15, instances);
+
+    private static AdminFanOutService CreateSut(
+        ILocalAdminClient client,
+        TimeProvider time,
+        int downReprobeSeconds,
+        params AdminInstanceOptions[] instances)
     {
         AdminConsoleOptions opts = new()
         {
             Instances = instances.ToList(),
             Parallelism = 4,
             RequestTimeoutMs = 1000,
-            DownReprobeSeconds = 15
+            DownReprobeSeconds = downReprobeSeconds
         };
         Microsoft.Extensions.Options.IOptions<AdminConsoleOptions> options = Options.Create(opts);
-        InstanceReachabilityCache reachability = new(options, TimeProvider.System);
-        return new AdminFanOutService(client, options, reachability);
+        InstanceReachabilityCache reachability = new(options, time);
+        return new AdminFanOutService(client, options, reachability, time);
     }
 
     private sealed class FakeLocalAdminClient : ILocalAdminClient

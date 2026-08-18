@@ -66,6 +66,8 @@
     <Compile Remove="Admin\AdminConsoleHostTests.cs" />
     <Compile Remove="Admin\HintRuleCompilerTests.cs" />
     <Compile Remove="Admin\HintEngineCoreHintsTests.cs" />
+    <Compile Remove="Admin\HintRuleRegistryAndDisableStoreTests.cs" />
+    <Compile Remove="Admin\InstanceReachabilityCacheTests.cs" />
     <Compile Remove="Admin\LiveStatsServiceTests.cs" />
     <Compile Remove="Admin\LocalAdminClientTests.cs" />
     <Compile Remove="Admin\MetricsPanelCatalogTests.cs" />
@@ -73,6 +75,7 @@
     <Compile Remove="Admin\MetricsWindowStatsServiceTests.cs" />
     <Compile Remove="Admin\ImpactMathTests.cs" />
     <Compile Remove="Admin\TestHintEngine.cs" />
+    <Compile Remove="Admin\TestMutableTimeProvider.cs" />
   </ItemGroup>
 
 </Project>

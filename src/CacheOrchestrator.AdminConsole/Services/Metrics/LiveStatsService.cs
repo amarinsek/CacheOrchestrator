@@ -18,21 +18,25 @@ public sealed class LiveStatsService
     private readonly IMetricsQueryClient _client;
     private readonly MetricsQueryService _metrics;
     private readonly AdminFanOutService _fanOut;
+    private readonly HintEngine _hints;
     private readonly TimeProvider _time;
 
     public LiveStatsService(
         IMetricsQueryClient client,
         MetricsQueryService metrics,
         AdminFanOutService fanOut,
+        HintEngine hints,
         TimeProvider time)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(metrics);
         ArgumentNullException.ThrowIfNull(fanOut);
+        ArgumentNullException.ThrowIfNull(hints);
         ArgumentNullException.ThrowIfNull(time);
         _client = client;
         _metrics = metrics;
         _fanOut = fanOut;
+        _hints = hints;
         _time = time;
     }
 
@@ -48,9 +52,7 @@ public sealed class LiveStatsService
         Task<FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>>> cfgTask =
             _fanOut.GetDomainsAsync(cancellationToken);
 
-        // Do not nest MetricsWindowStatsService here: that ~18 Prom query set belongs to
-        // /api/stats/window (tables). Caching it for Live caused stale/missing table rows.
-        // Live hint chips stay empty until a dedicated lightweight hint path exists.
+        // Hints: evaluate HintEngine on synthetic stats from live rates (no WindowStats nest).
 
         IReadOnlyList<InstanceStatusDto> instances = await instancesTask.ConfigureAwait(false);
         MetricsStatusDto metricsStatus = await metricsTask.ConfigureAwait(false);
@@ -185,11 +187,11 @@ public sealed class LiveStatsService
             Dictionary<string, string> epDomain = new(StringComparer.Ordinal);
             foreach (PrometheusInstantSample s in await epOc.ConfigureAwait(false))
             {
-                string route = Label(s.Metric, "route");
+                string route = PrometheusSampleHelpers.Label(s.Metric, "route");
                 if (route.Length == 0 || s.Value is not double v || v <= 0)
                     continue;
                 Get(endpoints, route).Rps += v;
-                string dom = Label(s.Metric, "domain");
+                string dom = PrometheusSampleHelpers.Label(s.Metric, "domain");
                 if (dom.Length > 0)
                     epDomain.TryAdd(route, dom);
             }
@@ -218,6 +220,13 @@ public sealed class LiveStatsService
 
             quiet.Sort(StringComparer.OrdinalIgnoreCase);
 
+            Dictionary<string, AdminDomainConfigDto> configByName = new(StringComparer.OrdinalIgnoreCase);
+            foreach (AdminDomainConfigDto c in cfg.Data ?? [])
+                configByName.TryAdd(c.Name, c);
+
+            AdminHintSummaryDto hintSummary = LiveHintProjector.Evaluate(
+                _hints, domainRows, endpointRows, quiet, configByName);
+
             return new LiveSnapshotDto
             {
                 Status = MetricsStoreStatusCodes.Connected,
@@ -229,7 +238,7 @@ public sealed class LiveStatsService
                 Domains = domainRows,
                 Endpoints = endpointRows,
                 QuietDomains = quiet,
-                HintSummary = new AdminHintSummaryDto(),
+                HintSummary = hintSummary,
             };
         }
         catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or System.Text.Json.JsonException)
@@ -318,9 +327,7 @@ public sealed class LiveStatsService
         total is > 1e-12 && part is double p ? Math.Clamp(p / total.Value, 0, 1) : null;
 
     private static double? FirstValue(IReadOnlyList<PrometheusInstantSample> samples) =>
-        samples.FirstOrDefault()?.Value is double v && !double.IsNaN(v) && !double.IsInfinity(v)
-            ? Math.Max(0, v)
-            : null;
+        PrometheusSampleHelpers.FirstValue(samples);
 
     private static Dictionary<string, double> ToMap(
         IReadOnlyList<PrometheusInstantSample> samples,
@@ -329,7 +336,7 @@ public sealed class LiveStatsService
         Dictionary<string, double> map = new(StringComparer.OrdinalIgnoreCase);
         foreach (PrometheusInstantSample s in samples)
         {
-            string key = Label(s.Metric, label);
+            string key = PrometheusSampleHelpers.Label(s.Metric, label);
             if (key.Length == 0 || s.Value is not double v || v <= 0 || double.IsNaN(v))
                 continue;
             map[key] = map.GetValueOrDefault(key) + v;
@@ -346,7 +353,7 @@ public sealed class LiveStatsService
     {
         foreach (PrometheusInstantSample s in samples)
         {
-            string key = Label(s.Metric, keyLabel);
+            string key = PrometheusSampleHelpers.Label(s.Metric, keyLabel);
             if (key.Length == 0 || s.Value is not double v || v <= 0 || double.IsNaN(v))
                 continue;
             apply(Get(map, key), v);
@@ -363,9 +370,6 @@ public sealed class LiveStatsService
 
         return b;
     }
-
-    private static string Label(IReadOnlyDictionary<string, string> metric, string name) =>
-        metric.TryGetValue(name, out string? v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : "";
 
     private sealed class RateBucket
     {

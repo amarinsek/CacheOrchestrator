@@ -2,6 +2,7 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Models;
 using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.AdminConsole.Services;
+using CacheOrchestrator.AdminConsole.Services.Hints;
 using CacheOrchestrator.AdminConsole.Services.Metrics;
 using Microsoft.Extensions.Options;
 
@@ -95,10 +96,61 @@ public class LiveStatsServiceTests
         snap.Domains.Should().ContainSingle(d => d.Name == "catalog" && d.RequestRate == 12.5);
         snap.Endpoints.Should().ContainSingle(e => e.Name == "GET /api/catalog");
         snap.QuietDomains.Should().Contain("quiet");
-        // Live must not depend on MetricsWindowStatsService for hints.
-        snap.HintSummary.Info.Should().Be(0);
-        snap.HintSummary.Warning.Should().Be(0);
-        snap.HintSummary.Critical.Should().Be(0);
+        // Lightweight hints from live rates (may be empty when shares are healthy).
+        snap.HintSummary.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task GetAsync_HighFactoryShare_EmitsHintWarningOrCritical()
+    {
+        ScriptedMetricsClient client = new()
+        {
+            Probe = new MetricsProbeResult { Succeeded = true, LatencyMs = 1 },
+            InstantHandler = promQl =>
+            {
+                if (promQl.Contains($"sum(rate({MetricsPanelCatalog.OcRequests}[1m]))", StringComparison.Ordinal)
+                    && !promQl.Contains("by (", StringComparison.Ordinal)
+                    && !promQl.Contains("result=", StringComparison.Ordinal))
+                {
+                    return [Sample(10)];
+                }
+
+                if (promQl.Contains("sum by (domain)", StringComparison.Ordinal)
+                    && promQl.Contains(MetricsPanelCatalog.OcRequests, StringComparison.Ordinal)
+                    && !promQl.Contains("result=", StringComparison.Ordinal))
+                {
+                    return [Sample(10, ("domain", "hot"))];
+                }
+
+                if (promQl.Contains("sum by (domain)", StringComparison.Ordinal)
+                    && promQl.Contains(MetricsPanelCatalog.FcRequests, StringComparison.Ordinal)
+                    && promQl.Contains("result=\"miss\"", StringComparison.Ordinal))
+                {
+                    // Factory rate ≈ OC rate → factory share ~1.0
+                    return [Sample(10, ("domain", "hot"))];
+                }
+
+                return [];
+            },
+        };
+
+        LiveStatsService sut = CreateSut(
+            new MetricsStoreOptions { Enabled = true, BaseUrl = "http://localhost:9090" },
+            client,
+            domains:
+            [
+                new AdminDomainConfigDto
+                {
+                    Name = "hot",
+                    Version = "1",
+                    FusionCacheInstanceName = "default",
+                },
+            ]);
+
+        LiveSnapshotDto snap = await sut.GetAsync(TestContext.Current.CancellationToken);
+        snap.Status.Should().Be(MetricsStoreStatusCodes.Connected);
+        snap.Domains.Should().ContainSingle(d => d.Name == "hot");
+        (snap.HintSummary.Warning + snap.HintSummary.Critical).Should().BeGreaterThan(0);
     }
 
     private static LiveStatsService CreateSut(
@@ -116,7 +168,8 @@ public class LiveStatsServiceTests
         FakeLocal local = new(domains ?? []);
         InstanceReachabilityCache reachability = new(options, TimeProvider.System);
         AdminFanOutService fanOut = new(local, options, reachability, TimeProvider.System);
-        return new LiveStatsService(client, metricsSvc, fanOut, TimeProvider.System);
+        HintEngine hints = TestHintEngine.Create(opts);
+        return new LiveStatsService(client, metricsSvc, fanOut, hints, TimeProvider.System);
     }
 
     private static PrometheusInstantSample Sample(double value, params (string Key, string Value)[] labels) =>

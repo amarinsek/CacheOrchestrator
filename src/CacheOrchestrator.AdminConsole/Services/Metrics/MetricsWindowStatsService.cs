@@ -61,20 +61,13 @@ public sealed class MetricsWindowStatsService
         try
         {
             string rw = window.PromRangeDuration;
-            IReadOnlyList<string> domainFilter = ParseCsv(domainsCsv);
+            IReadOnlyList<string> domainFilter = PrometheusSampleHelpers.ParseCsv(domainsCsv);
 
             // Window counts: last_over_time − offset (see WindowCountBy). Do not use bare increase():
             // it under-counts the first sample and can yield 0 that blocks PromQL `or`, so a brand-new
             // series appears on the first refresh then vanishes on the second.
-            Task<IReadOnlyList<PrometheusInstantSample>> ocTask = QueryAsync(
-                WindowCountBy("domain,result", MetricsPanelCatalog.OcRequests, rw, domainFilter),
-                window.End, cancellationToken);
-            Task<IReadOnlyList<PrometheusInstantSample>> fcTask = QueryAsync(
-                WindowCountBy("domain,result", MetricsPanelCatalog.FcRequests, rw, domainFilter),
-                window.End, cancellationToken);
-            Task<IReadOnlyList<PrometheusInstantSample>> invTask = QueryAsync(
-                WindowCountBy("domain", MetricsPanelCatalog.Invalidations, rw, domainFilter),
-                window.End, cancellationToken);
+            //
+            // Domain OC/FC/inv are rolled up from per-instance series (saves 3 Prom round-trips).
             Task<IReadOnlyList<PrometheusInstantSample>> facSumTask = QueryAsync(
                 WindowCountBy("domain", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),
                 window.End, cancellationToken);
@@ -129,7 +122,7 @@ public sealed class MetricsWindowStatsService
                 _fanOut.GetDomainsAsync(cancellationToken);
 
             await Task.WhenAll(
-                    ocTask, fcTask, invTask, facSumTask, facCntTask,
+                    facSumTask, facCntTask,
                     ocRouteTask, fcRouteTask, facSumRouteTask, facCntRouteTask,
                     ocInstTask, fcInstTask, invInstTask,
                     ocRouteInstTask, fcRouteInstTask, facSumRouteInstTask, facCntRouteInstTask,
@@ -137,17 +130,14 @@ public sealed class MetricsWindowStatsService
                     cfgTask)
                 .ConfigureAwait(false);
 
-            Dictionary<string, LayerBucket> domains = new(StringComparer.OrdinalIgnoreCase);
-            AccumulateLayer(domains, await ocTask.ConfigureAwait(false), isOc: true, keyLabel: "domain");
-            AccumulateLayer(domains, await fcTask.ConfigureAwait(false), isOc: false, keyLabel: "domain");
-            AccumulateInv(domains, await invTask.ConfigureAwait(false));
-            AccumulateFactoryDuration(domains, await facSumTask.ConfigureAwait(false), await facCntTask.ConfigureAwait(false), keyLabel: "domain");
-
             // domain → instanceId → bucket
             Dictionary<string, Dictionary<string, LayerBucket>> domainInst = new(StringComparer.OrdinalIgnoreCase);
             AccumulateLayerByInstance(domainInst, await ocInstTask.ConfigureAwait(false), isOc: true);
             AccumulateLayerByInstance(domainInst, await fcInstTask.ConfigureAwait(false), isOc: false);
             AccumulateInvByInstance(domainInst, await invInstTask.ConfigureAwait(false));
+
+            Dictionary<string, LayerBucket> domains = RollupByPrimaryKey(domainInst);
+            AccumulateFactoryDuration(domains, await facSumTask.ConfigureAwait(false), await facCntTask.ConfigureAwait(false), keyLabel: "domain");
 
             IReadOnlyList<PrometheusInstantSample> ocRoute = await ocRouteTask.ConfigureAwait(false);
             IReadOnlyList<PrometheusInstantSample> fcRoute = await fcRouteTask.ConfigureAwait(false);
@@ -607,6 +597,22 @@ public sealed class MetricsWindowStatsService
         }
     }
 
+    /// <summary>Sum nested instance buckets into one bucket per primary key (domain or route).</summary>
+    private static Dictionary<string, LayerBucket> RollupByPrimaryKey(
+        Dictionary<string, Dictionary<string, LayerBucket>> nested)
+    {
+        Dictionary<string, LayerBucket> map = new(StringComparer.OrdinalIgnoreCase);
+        foreach ((string key, Dictionary<string, LayerBucket> instMap) in nested)
+        {
+            LayerBucket rolled = new();
+            foreach (LayerBucket b in instMap.Values)
+                rolled.Add(b);
+            map[key] = rolled;
+        }
+
+        return map;
+    }
+
     private static LayerBucket GetOrAdd(Dictionary<string, LayerBucket> map, string key)
     {
         if (!map.TryGetValue(key, out LayerBucket? b))
@@ -673,12 +679,8 @@ public sealed class MetricsWindowStatsService
         };
     }
 
-    private static string Label(IReadOnlyDictionary<string, string> metric, string name)
-    {
-        if (metric.TryGetValue(name, out string? v) && !string.IsNullOrWhiteSpace(v))
-            return v.Trim();
-        return "";
-    }
+    private static string Label(IReadOnlyDictionary<string, string> metric, string name) =>
+        PrometheusSampleHelpers.Label(metric, name);
 
     private static Dictionary<string, double> PeakMap(
         IReadOnlyList<PrometheusInstantSample> samples,
@@ -709,20 +711,14 @@ public sealed class MetricsWindowStatsService
         return MetricsWindow.UndefinedInstanceId;
     }
 
-    private static long ToCount(double? v)
-    {
-        if (v is not double d || double.IsNaN(d) || double.IsInfinity(d) || d <= 0)
-            return 0;
-        return (long)Math.Round(d);
-    }
+    private static long ToCount(double? v) => PrometheusSampleHelpers.ToCount(v);
 
     private static IReadOnlyList<string> ParseCsv(string? csv)
     {
-        if (string.IsNullOrWhiteSpace(csv) || csv == "__none__")
+        // SPA may send domains=__none__ for "explicitly empty" multi-select.
+        if (string.Equals(csv, "__none__", StringComparison.Ordinal))
             return [];
-        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(s => s.Length > 0)
-            .ToList();
+        return PrometheusSampleHelpers.ParseCsv(csv);
     }
 
     private static WindowStatsDto Empty(

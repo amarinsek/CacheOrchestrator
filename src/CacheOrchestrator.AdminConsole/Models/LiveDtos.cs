@@ -38,7 +38,10 @@ public sealed class LiveSnapshotDto
     /// <summary>Quiet configured domains (RPS ≈ 0) when config fan-out succeeded.</summary>
     public IReadOnlyList<string> QuietDomains { get; init; } = [];
 
-    /// <summary>Hint summary from a short window (when available).</summary>
+    /// <summary>
+    /// Hint summary from HintEngine on synthetic stats projected from live rates + domain config
+    /// (no nested <c>/api/stats/window</c> Prom query set).
+    /// </summary>
     public AdminHintSummaryDto HintSummary { get; init; } = new();
 }
 

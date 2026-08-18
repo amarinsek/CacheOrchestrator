@@ -152,11 +152,11 @@ public static class AdminConsoleApiExtensions
         });
 
         api.MapGet("/hints/rules", (HintEngine engine, HintRuleRegistry registry) =>
-            Results.Ok(new
+            Results.Ok(new HintRulesResponseDto
             {
-                load = registry.GetLoadStatus(),
-                rules = engine.GetCatalog(),
-                knownPaths = HintPathCatalog.All.OrderBy(p => p).ToArray(),
+                Load = registry.GetLoadStatus(),
+                Rules = engine.GetCatalog(),
+                KnownPaths = HintPathCatalog.All.OrderBy(p => p, StringComparer.Ordinal).ToArray(),
             }));
 
         api.MapPost("/hints/reload", (HintRuleRegistry registry) =>

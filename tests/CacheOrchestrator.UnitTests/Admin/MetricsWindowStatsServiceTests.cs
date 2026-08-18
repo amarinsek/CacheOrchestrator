@@ -37,27 +37,24 @@ public class MetricsWindowStatsServiceTests
                 if (promQl.Contains("max_over_time", StringComparison.Ordinal))
                     return [];
 
+                // Domain tables roll up from per-instance series.
                 if (promQl.Contains(MetricsPanelCatalog.OcRequests, StringComparison.Ordinal)
-                    && promQl.Contains("sum by (domain,result)", StringComparison.Ordinal)
-                    && !promQl.Contains("route", StringComparison.Ordinal)
-                    && !promQl.Contains("instance_id", StringComparison.Ordinal))
+                    && promQl.Contains("sum by (domain,result,instance_id)", StringComparison.Ordinal))
                 {
                     return
                     [
-                        Sample(40, ("domain", "catalog"), ("result", "hit")),
-                        Sample(10, ("domain", "catalog"), ("result", "miss")),
+                        Sample(40, ("domain", "catalog"), ("result", "hit"), ("instance_id", "app-1")),
+                        Sample(10, ("domain", "catalog"), ("result", "miss"), ("instance_id", "app-1")),
                     ];
                 }
 
                 if (promQl.Contains(MetricsPanelCatalog.FcRequests, StringComparison.Ordinal)
-                    && promQl.Contains("sum by (domain,result)", StringComparison.Ordinal)
-                    && !promQl.Contains("route", StringComparison.Ordinal)
-                    && !promQl.Contains("instance_id", StringComparison.Ordinal))
+                    && promQl.Contains("sum by (domain,result,instance_id)", StringComparison.Ordinal))
                 {
                     return
                     [
-                        Sample(8, ("domain", "catalog"), ("result", "hit")),
-                        Sample(2, ("domain", "catalog"), ("result", "miss")),
+                        Sample(8, ("domain", "catalog"), ("result", "hit"), ("instance_id", "app-1")),
+                        Sample(2, ("domain", "catalog"), ("result", "miss"), ("instance_id", "app-1")),
                     ];
                 }
 
@@ -125,11 +122,10 @@ public class MetricsWindowStatsServiceTests
             InstantHandler = promQl =>
             {
                 if (promQl.Contains(MetricsPanelCatalog.OcRequests, StringComparison.Ordinal)
-                    && promQl.Contains("sum by (domain,result)", StringComparison.Ordinal)
-                    && !promQl.Contains("route", StringComparison.Ordinal))
+                    && promQl.Contains("sum by (domain,result,instance_id)", StringComparison.Ordinal))
                 {
                     // Value 0 must not create a table row.
-                    return [Sample(0, ("domain", "idle"), ("result", "hit"))];
+                    return [Sample(0, ("domain", "idle"), ("result", "hit"), ("instance_id", "app-1"))];
                 }
 
                 return [];

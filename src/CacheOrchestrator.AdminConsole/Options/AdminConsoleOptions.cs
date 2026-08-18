@@ -3,12 +3,21 @@ namespace CacheOrchestrator.AdminConsole.Options;
 /// <summary>
 /// Configuration for the Admin Console App (instance list and fan-out). Bound from <c>AdminConsole</c>.
 /// </summary>
+/// <remarks>
+/// Fan-out and Metrics HTTP clients resolve this via <c>IOptions&lt;AdminConsoleOptions&gt;</c>
+/// (snapshot at construction). Changing <see cref="Instances"/>, timeouts, <see cref="ApiKey"/>,
+/// or <see cref="Metrics"/> at runtime requires a process restart. Hint packs use
+/// <c>IOptionsMonitor</c> and support reload without restart.
+/// </remarks>
 public sealed class AdminConsoleOptions
 {
     /// <summary>Configuration section name.</summary>
     public const string SectionName = "AdminConsole";
 
-    /// <summary>Known application instances exposing Local Admin API.</summary>
+    /// <summary>
+    /// Known application instances exposing Local Admin API.
+    /// Changes require process restart (see type remarks).
+    /// </summary>
     public List<AdminInstanceOptions> Instances { get; set; } = [];
 
     /// <summary>
