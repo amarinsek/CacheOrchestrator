@@ -2,7 +2,7 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Services.Hints;
 using CacheOrchestrator.AdminConsole.Services.Hints.Declarative;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 public class HintRuleCompilerTests
 {

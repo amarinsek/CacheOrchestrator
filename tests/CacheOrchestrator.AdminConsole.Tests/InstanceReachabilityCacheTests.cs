@@ -3,7 +3,7 @@ using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.AdminConsole.Services;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 public class InstanceReachabilityCacheTests
 {
@@ -59,6 +59,6 @@ public class InstanceReachabilityCacheTests
     {
         time = new TestMutableTimeProvider(DateTimeOffset.Parse("2026-01-01T00:00:00Z"));
         AdminConsoleOptions opts = new() { DownReprobeSeconds = downReprobeSeconds };
-        return new InstanceReachabilityCache(Options.Create(opts), time);
+        return new InstanceReachabilityCache(Microsoft.Extensions.Options.Options.Create(opts), time);
     }
 }

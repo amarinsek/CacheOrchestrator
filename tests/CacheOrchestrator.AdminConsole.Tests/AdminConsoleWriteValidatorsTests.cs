@@ -1,6 +1,6 @@
 using CacheOrchestrator.AdminConsole.Models;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 public class AdminConsoleWriteValidatorsTests
 {

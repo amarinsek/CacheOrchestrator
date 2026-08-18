@@ -1,7 +1,7 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Services;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 public class ImpactMathTests
 {

@@ -3,7 +3,7 @@ using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.AdminConsole.Services.Metrics;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 public class MetricsQueryServiceTests
 {
@@ -210,7 +210,7 @@ public class MetricsQueryServiceTests
         AdminConsoleOptions opts = new() { Metrics = metrics };
         return new MetricsQueryService(
             client ?? new FakeMetricsClient(),
-            Options.Create(opts),
+            Microsoft.Extensions.Options.Options.Create(opts),
             TimeProvider.System);
     }
 

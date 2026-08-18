@@ -19,5 +19,6 @@
     <Project Path="tests/CacheOrchestrator.Benchmarks/CacheOrchestrator.Benchmarks.csproj" />
     <Project Path="tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj" />
     <Project Path="tests/CacheOrchestrator.UnitTests/CacheOrchestrator.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.AdminConsole.Tests/CacheOrchestrator.AdminConsole.Tests.csproj" />
   </Folder>
 </Solution>

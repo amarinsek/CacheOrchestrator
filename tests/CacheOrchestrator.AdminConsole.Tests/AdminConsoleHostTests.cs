@@ -4,7 +4,7 @@ using CacheOrchestrator.AdminConsole.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 /// <summary>
 /// Smoke tests for the Admin Console host Minimal APIs (net10 only).

@@ -6,7 +6,7 @@ using CacheOrchestrator.AdminConsole.Services.Hints;
 using CacheOrchestrator.AdminConsole.Services.Metrics;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 public class MetricsWindowStatsServiceTests
 {
@@ -161,7 +161,7 @@ public class MetricsWindowStatsServiceTests
                 new AdminInstanceOptions { Id = "app-1", Url = "http://app-1" },
             ],
         };
-        IOptions<AdminConsoleOptions> options = Options.Create(opts);
+        IOptions<AdminConsoleOptions> options = Microsoft.Extensions.Options.Options.Create(opts);
         MetricsQueryService status = new(client, options, TimeProvider.System);
         HintEngine hints = TestHintEngine.Create(opts);
         FakeFanOutLocalClient local = new(domains ?? []);

@@ -6,7 +6,7 @@ using CacheOrchestrator.AdminConsole.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 public class LocalAdminClientTests
 {
@@ -89,7 +89,7 @@ public class LocalAdminClientTests
 
         return new LocalAdminClient(
             sp.GetRequiredService<IHttpClientFactory>(),
-            Options.Create(opts));
+            Microsoft.Extensions.Options.Options.Create(opts));
     }
 
     private static HttpResponseMessage JsonResponse(string json) =>

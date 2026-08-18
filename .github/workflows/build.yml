@@ -47,6 +47,13 @@ jobs:
         --no-build --configuration Release --framework net10.0
         --verbosity normal
 
+    # Admin Console App is net10.0-only (separate test project).
+    - name: Admin Console tests (net10.0)
+      run: >
+        dotnet test tests/CacheOrchestrator.AdminConsole.Tests/CacheOrchestrator.AdminConsole.Tests.csproj
+        --no-build --configuration Release --framework net10.0
+        --verbosity normal
+
     # GitHub-hosted runners include Docker — required for Testcontainers.Redis.
     - name: Verify Docker (Testcontainers)
       run: |

@@ -1,7 +1,7 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Services.Hints;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 /// <summary>
 /// Evaluates product <c>core-hints.json</c> through <see cref="HintEngine"/> (production path).

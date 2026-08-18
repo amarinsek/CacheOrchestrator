@@ -6,7 +6,7 @@ using CacheOrchestrator.AdminConsole.Services.Hints;
 using CacheOrchestrator.AdminConsole.Services.Metrics;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 public class LiveStatsServiceTests
 {
@@ -163,7 +163,7 @@ public class LiveStatsServiceTests
             Metrics = metrics,
             Instances = [new AdminInstanceOptions { Id = "app-1", Url = "http://app-1" }],
         };
-        IOptions<AdminConsoleOptions> options = Options.Create(opts);
+        IOptions<AdminConsoleOptions> options = Microsoft.Extensions.Options.Options.Create(opts);
         MetricsQueryService metricsSvc = new(client, options, TimeProvider.System);
         FakeLocal local = new(domains ?? []);
         InstanceReachabilityCache reachability = new(options, TimeProvider.System);

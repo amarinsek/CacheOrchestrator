@@ -5,7 +5,7 @@ using CacheOrchestrator.AdminConsole.Services;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.Tests;
 
 public class AdminFanOutServiceTests
 {
@@ -319,7 +319,7 @@ public class AdminFanOutServiceTests
             RequestTimeoutMs = 1000,
             DownReprobeSeconds = downReprobeSeconds
         };
-        Microsoft.Extensions.Options.IOptions<AdminConsoleOptions> options = Options.Create(opts);
+        Microsoft.Extensions.Options.IOptions<AdminConsoleOptions> options = Microsoft.Extensions.Options.Options.Create(opts);
         InstanceReachabilityCache reachability = new(options, time);
         return new AdminFanOutService(client, options, reachability, time);
     }
