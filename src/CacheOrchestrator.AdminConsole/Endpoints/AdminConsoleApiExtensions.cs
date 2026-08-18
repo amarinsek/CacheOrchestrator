@@ -76,6 +76,8 @@ public static class AdminConsoleApiExtensions
                     () => fanOut.SetVersionAsync(domain, body, cancellationToken))
                 .ConfigureAwait(false));
 
+#pragma warning disable CS0618 // TTL route + DTO kept as compatible wrappers
+        // Prefer PATCH /api/domains/{domain}/settings. This route remains for compatibility.
         api.MapMethods("/domains/{domain}/ttl", ["PATCH"], async (
             string domain,
             AdminConsoleTtlPatchRequest body,
@@ -83,6 +85,29 @@ public static class AdminConsoleApiExtensions
             CancellationToken cancellationToken) =>
             await ExecuteWriteAsync(
                     () => fanOut.PatchTtlAsync(domain, body, cancellationToken))
+                .ConfigureAwait(false))
+            .WithSummary("Patch domain TTL (obsolete — use /domains/{domain}/settings)")
+            .WithDescription(
+                "Obsolete. Prefer PATCH /api/domains/{domain}/settings with a sparse settings map. " +
+                "This endpoint remains for compatibility and maps onto the same runtime overlay.");
+#pragma warning restore CS0618
+
+        api.MapGet("/domain-settings/catalog", async (
+            AdminFanOutService fanOut,
+            CancellationToken cancellationToken) =>
+        {
+            AdminDomainSettingsCatalogDto catalog =
+                await fanOut.GetDomainSettingsCatalogAsync(cancellationToken).ConfigureAwait(false);
+            return Results.Ok(catalog);
+        });
+
+        api.MapMethods("/domains/{domain}/settings", ["PATCH"], async (
+            string domain,
+            AdminConsoleSettingsPatchRequest body,
+            AdminFanOutService fanOut,
+            CancellationToken cancellationToken) =>
+            await ExecuteWriteAsync(
+                    () => fanOut.PatchSettingsAsync(domain, body, cancellationToken))
                 .ConfigureAwait(false));
 
         api.MapGet("/metrics/status", async (MetricsQueryService metrics, CancellationToken cancellationToken) =>
@@ -186,7 +211,10 @@ public static class AdminConsoleApiExtensions
         try
         {
             FanOutResultDto<object?> result = await action().ConfigureAwait(false);
-            return Results.Ok(result);
+            if (string.Equals(result.Outcome, WriteOutcomes.Success, StringComparison.Ordinal))
+                return Results.Ok(result);
+
+            return Results.Json(result, statusCode: StatusCodes.Status409Conflict);
         }
         catch (KeyNotFoundException ex)
         {

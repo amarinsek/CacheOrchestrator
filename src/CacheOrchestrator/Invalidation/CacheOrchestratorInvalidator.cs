@@ -354,10 +354,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             RecordAdminInvalidation(kind, scopeLabel);
         }
 
-        CacheInvalidationResult result = new(scopeLabel, tags, fusionOk, outputOk, errors);
-        await NotifyAfterAsync(observerContext, result, cancellationToken).ConfigureAwait(false);
-
-        await TryPublishClusterAsync(
+        ClusterPublishResult? clusterPublish = await TryPublishClusterAsync(
                 kind,
                 scopeLabel,
                 tags,
@@ -368,10 +365,20 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
                 cancellationToken)
             .ConfigureAwait(false);
 
+        if (clusterPublish is { AllSucceeded: false })
+        {
+            foreach (ClusterPeerPublishOutcome failure in clusterPublish.Failures)
+            {
+                errors.Add($"Cluster peer '{failure.PeerId}': {failure.Error ?? "publish failed"}");
+            }
+        }
+
+        CacheInvalidationResult result = new(scopeLabel, tags, fusionOk, outputOk, errors, clusterPublish);
+        await NotifyAfterAsync(observerContext, result, cancellationToken).ConfigureAwait(false);
         return result;
     }
 
-    private async ValueTask TryPublishClusterAsync(
+    private async ValueTask<ClusterPublishResult?> TryPublishClusterAsync(
         CacheInvalidationKind kind,
         string scopeLabel,
         IReadOnlyList<string> tags,
@@ -382,10 +389,10 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         CancellationToken cancellationToken)
     {
         if (!_clusterBus.IsEnabled || ClusterCommandScope.SuppressPublish || tags.Count == 0)
-            return;
+            return null;
 
         if (_clusterCommands is null)
-            return;
+            return null;
 
         if (kind == CacheInvalidationKind.Domain && string.IsNullOrEmpty(domain))
             domain = scopeLabel;
@@ -401,12 +408,13 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
 
         try
         {
-            await _clusterBus.PublishAsync(command, cancellationToken).ConfigureAwait(false);
+            ClusterPublishResult published = await _clusterBus.PublishAsync(command, cancellationToken)
+                .ConfigureAwait(false);
             CacheOrchestratorMetrics.RecordClusterPublished(nameof(InvalidateCommand));
+            return published;
         }
         catch (Exception ex)
         {
-            // Local invalidation already finished; peer delivery is best-effort.
             CacheOrchestratorMetrics.RecordClusterPublishFailure("exception");
             _logger.LogWarning(
                 ex,
@@ -414,6 +422,15 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
                 scopeLabel,
                 kind,
                 command.CommandId);
+            return new ClusterPublishResult(
+            [
+                new ClusterPeerPublishOutcome
+                {
+                    PeerId = "(bus)",
+                    Succeeded = false,
+                    Error = ex.Message,
+                },
+            ]);
         }
     }
 

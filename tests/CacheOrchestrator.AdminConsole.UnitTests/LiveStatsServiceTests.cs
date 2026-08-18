@@ -93,9 +93,11 @@ public class LiveStatsServiceTests
         snap.Status.Should().Be(MetricsStoreStatusCodes.Connected);
         snap.Lookback.Should().Be(LiveStatsService.DefaultLookback);
         snap.Cluster.RequestRate.Should().BeApproximately(12.5, 0.001);
-        snap.Domains.Should().ContainSingle(d => d.Name == "catalog" && d.RequestRate == 12.5);
-        snap.Endpoints.Should().ContainSingle(e => e.Name == "GET /api/catalog");
-        snap.QuietDomains.Should().Contain("quiet");
+        snap.Pipeline.Should().NotBeNull();
+        snap.Domains.Should().ContainSingle(d => d.Name == "catalog");
+        snap.Domains.Single(d => d.Name == "catalog").PeakRequestRate.Should().BeApproximately(12.5, 0.001);
+        snap.Endpoints.Should().ContainSingle(e => e.Route == "GET /api/catalog");
+        snap.QuietDomains.Should().ContainSingle(d => d.Name == "quiet" && d.Requests == 0);
         // Lightweight hints from live rates (may be empty when shares are healthy).
         snap.HintSummary.Should().NotBeNull();
     }
@@ -251,6 +253,18 @@ public class LiveStatsServiceTests
             AdminInstanceOptions instance,
             string domain,
             AdminTtlPatchRequest body,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchSettingsAsync(
+            AdminInstanceOptions instance,
+            string domain,
+            AdminSettingsPatchRequest body,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<InstanceCallOutcome<AdminDomainSettingsCatalogDto>> GetDomainSettingsCatalogAsync(
+            AdminInstanceOptions instance,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 

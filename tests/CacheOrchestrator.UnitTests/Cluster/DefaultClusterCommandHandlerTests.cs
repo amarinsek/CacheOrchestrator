@@ -117,9 +117,9 @@ public class DefaultClusterCommandHandlerTests
 
         await _sut.ApplyLocalAsync(cmd, TestContext.Current.CancellationToken);
 
-        _overrides.Received(1).PatchTtl(
+        _overrides.Received(1).PatchSettings(
             "catalog",
-            Arg.Is<DomainTtlPatch>(p => p.OutputCacheTtlSeconds == 42));
+            Arg.Is<DomainSettingsPatch>(p => p.OutputCacheTtlSeconds == 42));
     }
 
     [Fact]

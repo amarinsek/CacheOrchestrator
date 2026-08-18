@@ -12,7 +12,20 @@ export const main = () => $("#appMain");
 
 /** Subtle chrome indicator while a soft refresh runs (no full-page loading flash). */
 export function setRefreshing(on) {
-  document.documentElement.classList.toggle("is-refreshing", !!on);
+  const busy = !!on;
+  document.documentElement.classList.toggle("is-refreshing", busy);
+  const btn = document.getElementById("btnHeaderRefresh");
+  if (btn) {
+    btn.setAttribute("aria-busy", busy ? "true" : "false");
+    btn.classList.toggle("is-loading", busy);
+  }
+  const label = document.querySelector("[data-refresh-label]");
+  if (label) label.textContent = busy ? "Loading" : "Reload";
+}
+
+/** Page scroll host under the chrome (`#appScroll`), or window as fallback. */
+export function scrollRoot() {
+  return document.getElementById("appScroll") || document.scrollingElement || document.documentElement;
 }
 
 /**
@@ -22,12 +35,17 @@ export function setRefreshing(on) {
 export function paintMain(html) {
   const el = main();
   if (!el) return;
-  const y = window.scrollY;
+  const root = scrollRoot();
+  const y = root.scrollTop ?? window.scrollY ?? 0;
   el.innerHTML = html;
   // Restore after layout; double-rAF covers late table layout.
+  const restore = () => {
+    if ("scrollTop" in root) root.scrollTop = y;
+    else window.scrollTo(0, y);
+  };
   requestAnimationFrame(() => {
-    window.scrollTo(0, y);
-    requestAnimationFrame(() => window.scrollTo(0, y));
+    restore();
+    requestAnimationFrame(restore);
   });
 }
 

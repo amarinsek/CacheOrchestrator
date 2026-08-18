@@ -6,12 +6,9 @@ import { api } from "./api.js";
 import { $, beginPageLoad, main, mainHasContent, paintPage } from "./dom.js";
 import {
   esc,
-  fmtDurationMs,
-  METRIC_TITLES,
   noDataHtml,
   num,
-  pct,
-  pipelineBar,
+  pipelinePanelHtml,
   tipAttr,
 } from "./format.js";
 import {
@@ -23,7 +20,6 @@ import {
   sortEndpoints,
   sortInstances,
 } from "./filters.js";
-import { severityStack } from "./hints.js";
 import { navigate, setBreadcrumb } from "./router.js";
 import * as shell from "./shell.js";
 import {
@@ -34,12 +30,12 @@ import {
   domainTableHtml,
   emptyStateHtml,
   endpointTableHtml,
+  impactKpiRowHtml,
   instanceTableHtml,
   noInstancesConfigured,
 } from "./tables.js";
 import { metricsOverviewSectionHtml } from "./views-metrics.js";
 import {
-  bindGotoHints,
   fetchWindowStatsIfNeeded,
   instancesUpClass,
   withWindowInstanceTraffic,
@@ -118,7 +114,9 @@ export async function paintOverviewBody(o, params, soft) {
     const kpis = $("#ovKpis");
     if (kpis) kpis.innerHTML = overviewKpiHtml(o, windowStats);
     const pipe = $("#ovPipeline");
-    if (pipe) pipe.innerHTML = pipelineBar(windowed ? windowStats.pipeline : o.pipeline, true);
+    if (pipe) {
+      pipe.innerHTML = pipelinePanelHtml(windowed ? windowStats.pipeline : o.pipeline);
+    }
     const alerts = $("#ovAlerts");
     if (alerts) {
       alerts.innerHTML = o.alerts?.length
@@ -145,7 +143,6 @@ export async function paintOverviewBody(o, params, soft) {
     }
     bindEntityTableClicks(main());
     bindEmptyStateActions(main());
-    bindGotoHints(main());
     const mount = $("#ovMetricsMount");
     metricsOverviewSectionHtml({ soft: true, mountEl: mount }).then((html) => {
       const m = $("#ovMetricsMount");
@@ -166,11 +163,7 @@ export async function paintOverviewBody(o, params, soft) {
     <div id="ovRoot">
     <div id="ovBannerHost">${connectivityBanner(o.instances)}</div>
     <div class="kpi-row" id="ovKpis">${overviewKpiHtml(o, windowStats)}</div>
-    <div class="card">
-      <h2>Cluster pipeline</h2>
-      <div id="ovPipeline">${pipelineBar(windowed ? windowStats.pipeline : o.pipeline, true)}</div>
-      <p class="muted" style="margin:0.5rem 0 0;font-size:0.85rem" title="${esc(METRIC_TITLES.pipeline)}">OC hit share · FC hit share · Factory share · Bypass — shares of total requests</p>
-    </div>
+    <div class="card" id="ovPipeline">${pipelinePanelHtml(windowed ? windowStats.pipeline : o.pipeline)}</div>
     <div id="ovAlerts">${o.alerts?.length ? `<div class="card"><h2>Alerts</h2><ul class="alert-list">${o.alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}</div>
     <div class="card">
       <div class="card-head">
@@ -214,7 +207,6 @@ export async function paintOverviewBody(o, params, soft) {
 
   bindEntityTableClicks(main());
   bindEmptyStateActions(main());
-  bindGotoHints(main());
 
   const ovSortParams = (patch) => ({
     instSort,
@@ -253,26 +245,22 @@ export async function paintOverviewBody(o, params, soft) {
 export function overviewKpiHtml(o, windowStats = null) {
   const promOk = windowStats && windowStats.status === "Connected";
   const noData = promOk && windowStats.noData;
-  const scopeTip = promOk ? "Selected time range" : "Connect metrics to see traffic KPIs";
-
-  const imp = promOk ? (windowStats.impact || {}) : {};
-  const oc = !promOk || noData || windowStats.ocHitShare == null
-    ? noDataHtml(promOk ? "No samples in this time range" : "Metrics offline")
-    : pct(windowStats.ocHitShare);
-  const fc = !promOk || noData || windowStats.fcHitShare == null
-    ? noDataHtml(promOk ? "No samples in this time range" : "Metrics offline")
-    : pct(windowStats.fcHitShare);
-  const fac = !promOk || noData || windowStats.factoryShare == null
-    ? noDataHtml(promOk ? "No samples in this time range" : "Metrics offline")
-    : pct(windowStats.factoryShare);
+  const hasTraffic = promOk && !noData;
+  const imp = hasTraffic ? (windowStats.impact || null) : null;
+  const clusterFc = hasTraffic
+    ? {
+        factoryFailures: (windowStats.domains || []).reduce(
+          (sum, d) => sum + (d.fc?.factoryFailures || 0), 0),
+      }
+    : null;
 
   return `
       <div class="kpi"><div class="label">Instances up</div><div class="value ${instancesUpClass(o)}">${o.healthyCount} / ${(o.instances || []).length}</div></div>
-      <div class="kpi" title="${esc(scopeTip)}"><div class="label">Requests</div><div class="value">${promOk && !noData ? num(windowStats.totalRequests) : noDataHtml()}</div></div>
-      <div class="kpi" title="${esc(scopeTip)}"><div class="label">Invalidations</div><div class="value">${promOk && !noData ? num(windowStats.totalInvalidations) : noDataHtml()}</div></div>
-      <div class="kpi"${tipAttr("ocHitShare")} title="${esc(scopeTip)}"><div class="label">OC hit %</div><div class="value">${oc}</div></div>
-      <div class="kpi"${tipAttr("fcHitShare")} title="${esc(scopeTip)}"><div class="label">FC hit %</div><div class="value">${fc}</div></div>
-      <div class="kpi"${tipAttr("factoryShare")} title="${esc(scopeTip)}"><div class="label">Factory %</div><div class="value">${fac}</div></div>
-      <div class="kpi"${tipAttr("estTimeSaved")}><div class="label">Time saved</div><div class="value" style="font-size:1rem">${promOk ? fmtDurationMs(imp.estFactoryTimeSavedMs) : noDataHtml()}</div></div>
-      <div class="kpi kpi-hints" role="link" tabindex="0" data-goto-hints="1" title="Open Hints"><div class="label">Cluster hints</div><div class="value">${severityStack(promOk ? windowStats.hintSummary : o.hintSummary)}</div></div>`;
+      <div class="kpi"${tipAttr("req")}><div class="label">Req</div><div class="value">${hasTraffic ? num(windowStats.totalRequests) : noDataHtml()}</div></div>
+      <div class="kpi"${tipAttr("inv")}><div class="label">Inv</div><div class="value">${hasTraffic ? num(windowStats.totalInvalidations) : noDataHtml()}</div></div>
+      ${hasTraffic
+        ? impactKpiRowHtml(imp, clusterFc, { includeBands: false })
+        : `<div class="kpi"${tipAttr("factoryFailures")}><div class="label">FAFC</div><div class="value">${noDataHtml()}</div></div>
+      <div class="kpi"${tipAttr("avgFactoryDuration")}><div class="label">FAD</div><div class="value">${noDataHtml()}</div></div>
+      <div class="kpi"${tipAttr("estTimeSaved")}><div class="label">EFTS</div><div class="value">${noDataHtml()}</div></div>`}`;
 }

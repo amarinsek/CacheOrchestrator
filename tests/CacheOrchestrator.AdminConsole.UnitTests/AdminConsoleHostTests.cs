@@ -63,23 +63,6 @@ public class AdminConsoleHostTests : IClassFixture<AdminConsoleHostTests.Factory
 
 
     [Fact]
-    public async Task Invalidate_UnknownInstance_ReturnsNotFound()
-    {
-        HttpClient client = _factory.CreateClient();
-        HttpResponseMessage response = await client.PostAsJsonAsync(
-            "/api/invalidate",
-            new AdminConsoleInvalidateRequest
-            {
-                Target = "instance:missing",
-                Scope = "domain",
-                Domain = "catalog",
-            },
-            TestContext.Current.CancellationToken);
-
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
     public async Task Invalidate_MissingDomain_ReturnsBadRequest()
     {
         HttpClient client = _factory.CreateClient();
@@ -87,7 +70,6 @@ public class AdminConsoleHostTests : IClassFixture<AdminConsoleHostTests.Factory
             "/api/invalidate",
             new AdminConsoleInvalidateRequest
             {
-                Target = "all",
                 Scope = "domain",
                 Domain = "",
             },

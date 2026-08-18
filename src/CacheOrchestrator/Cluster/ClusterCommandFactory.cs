@@ -71,4 +71,15 @@ internal sealed class ClusterCommandFactory
             ClientTtlSeconds = patch.ClientTtlSeconds,
             ClientTtlMinSeconds = patch.ClientTtlMinSeconds
         };
+
+    public SettingsPatchCommand CreateSettingsPatch(string domain, Dictionary<string, System.Text.Json.JsonElement> settings) =>
+        new()
+        {
+            CommandId = Guid.NewGuid(),
+            OriginInstanceId = _instanceId.InstanceId,
+            Namespace = _options.CurrentValue.Namespace ?? string.Empty,
+            TimestampUtc = DateTimeOffset.UtcNow,
+            Domain = domain,
+            Settings = settings
+        };
 }

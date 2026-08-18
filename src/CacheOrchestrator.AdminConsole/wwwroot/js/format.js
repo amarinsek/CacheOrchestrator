@@ -62,67 +62,129 @@ export function num(n) {
 
 /**
  * Tooltips for Admin metric / product terms (tables, KPIs, chrome, charts).
+ * Convention: always <c>Label - description</c> (em dash not used as separator).
  * Factory is also known as origin (CDN miss path).
  */
 export const METRIC_TITLES = {
-  req: "Number of cache-accounted requests in the selected time range.",
+  req: "Req - Number of cache-accounted requests in the selected time range.",
   pipeline:
-    "How requests were served in the selected time range: Output Cache hit, Fusion hit, factory (origin), bypass, or other.",
-  oc: "Output Cache — full HTTP response cache.",
-  fc: "FusionCache — application data cache (in-process memory, optional distributed L2).",
+    "Pipeline - How requests were served in the selected time range: OC hit, FC hit, FC stale, FA run, bypass, or other.",
+  oc: "OC - Output Cache (full HTTP response cache).",
+  fc: "FC - FusionCache (application data cache; in-process memory, optional distributed L2).",
   ocHitShare:
-    "Share of requests served from Output Cache (full HTTP response) in the selected time range.",
+    "OC hit % - Share of requests served from Output Cache (full HTTP response) in the selected time range.",
   fcHitShare:
-    "Share of requests served from FusionCache without running the factory in the selected time range.",
+    "FC hit % - Share of requests served from FusionCache without running the factory in the selected time range.",
   factoryShare:
-    "Share of requests where the value factory ran (origin / miss path) in the selected time range.",
+    "FA run % - Share of requests where the value factory ran (origin / miss path) in the selected time range.",
   factoryAvoidance:
-    "Share of requests that did not run the factory in the selected time range.",
+    "Factory avoidance - Share of requests that did not run the factory in the selected time range.",
   estTimeSaved:
-    "Estimated factory time saved in the selected time range (avoided factory calls × average factory duration). Cluster total sums domains.",
-  reqRate: "Highest 1-minute request rate in the selected time range.",
-  peakRequestRate: "Highest 1-minute request rate in the selected time range.",
-  liveRps: "Current request rate over the last minute.",
+    "EFTS - Estimated factory time saved in the selected time range (avoided factory calls × average factory duration). Cluster total sums domains.",
+  reqRate: "PRPS - Peak requests per second: highest 1-minute request rate in the selected time range.",
+  peakRequestRate: "PRPS - Peak requests per second: highest 1-minute request rate in the selected time range.",
+  liveRps: "RPS - Current request rate over the last minute.",
+  rpsWindow: "RPS - Requests per second in the selected time range.",
   cacheBenefit:
-    "How beneficial caching looks for this traffic (avoidance × factory cost) in the selected time range.",
+    "Benefit - How beneficial caching looks for this traffic (avoidance × factory cost) in the selected time range.",
   cacheCandidate:
-    "Whether this traffic looks like a strong caching candidate in the selected time range.",
-  factory: "Times the value factory ran in the selected time range.",
-  factoryFailures: "Factory failures (hard error or fail-safe stale) in the selected time range.",
-  factoryFailureRate: "Factory failures divided by factory runs in the selected time range.",
-  fcMissRate: "Miss rate among requests that reached FusionCache (layer rate).",
-  fcMissShare: "FusionCache misses as a share of all requests in the selected time range.",
-  fcHitRate: "Hit rate among requests that reached FusionCache (layer rate).",
-  stale: "Fail-safe stale serves — an older value was returned after factory or timeout issues.",
-  staleShare: "Stale serves as a share of all requests in the selected time range.",
-  staleRate: "Stale rate among traffic that reached FusionCache.",
-  inv: "Successful invalidations in the selected time range.",
-  invShare: "Invalidations relative to request volume in the selected time range.",
-  version: "Domain version stamp used in cache keys. Change it to cut over to new keys.",
-  uptime: "How long this app process has been running.",
-  latency: "Round-trip time of the last health check to this instance.",
-  status: "Instance health: Healthy, Degraded, or Down.",
-  hints: "Recommendations for this row.",
-  route: "Endpoint key: HTTP method + route template.",
-  domain: "Cache domain — shared TTLs, providers, client headers, and version.",
-  instance: "Instance id (Cache:InstanceId).",
-  url: "Base URL used to reach this instance.",
-  error: "Last health-check or connection error.",
-  ocHitWindow: "Output Cache hit share in the selected time range.",
-  fcHitRateWindow: "Fusion hit rate in the selected time range.",
-  invRate: "Invalidation rate in the selected time range.",
-  schedule: "Client Cache Schedule — adjusts browser/CDN max-age toward a planned cutover.",
-  softTtl: "Fusion soft TTL — preferred freshness window.",
-  hardTtl: "Fusion hard TTL — absolute maximum age.",
-  failSafe: "Fail-safe window — may serve stale data if the factory fails.",
-  clientTtl: "Client Cache-Control max-age (browser/CDN), separate from server TTLs.",
-  bus: "Cluster bus — instances apply commands to peers over HTTP.",
-  fanout: "Admin calls each instance directly to apply the operation.",
-  overlay: "Runtime Version/TTL override on this process (not from config file).",
-  metricsStore: "Metrics backend used for Live, tables, and charts.",
-  l1: "Fusion L1 — in-process memory cache.",
-  l2: "Fusion L2 — optional distributed cache (for example Redis).",
+    "Candidate - Whether this traffic looks like a strong caching candidate in the selected time range.",
+  factory: "Factory runs - Times the value factory ran in the selected time range.",
+  factoryFailures:
+    "FAFC - Factory failure count in the selected time range (hard factory throw and/or fail-safe after factory issues).",
+  factoryFailureRate: "FA failure rate - Factory failures divided by factory runs in the selected time range.",
+  fcMissRate: "FC miss rate - Miss rate among requests that reached FusionCache (layer rate).",
+  fcMissShare: "FC miss % - FusionCache misses as a share of all requests in the selected time range.",
+  fcHitRate: "FC hit rate - Hit rate among requests that reached FusionCache (layer rate).",
+  stale: "Stale - Fail-safe stale serves (an older value was returned after factory or timeout issues).",
+  staleShare: "FC stale % - Fail-safe stale serves as a share of all requests in the selected time range.",
+  staleRate: "Stale rate - Stale rate among traffic that reached FusionCache (layer rate).",
+  inv: "Inv - Successful invalidations in the selected time range.",
+  invShare: "Inv share - Invalidations relative to request volume in the selected time range.",
+  version: "Version - Domain version stamp used in cache keys. Change it to cut over to new keys.",
+  uptime: "Uptime - How long this app process has been running.",
+  latency: "Latency - Round-trip time of the last health check to this instance.",
+  status: "Status - Instance health: Healthy, Degraded, or Down.",
+  hints: "Hints - Recommendations for this row.",
+  route: "Route - Endpoint key: HTTP method + route template.",
+  domain: "Domain - Cache domain (shared TTLs, providers, client headers, and version).",
+  instance: "Instance - Instance id (Cache:InstanceId).",
+  url: "URL - Base URL used to reach this instance.",
+  error: "Error - Last health-check or connection error.",
+  ocHitWindow: "OC hit % - Output Cache hit share in the selected time range.",
+  fcHitRateWindow: "FC hit rate - Fusion hit rate in the selected time range.",
+  invRate: "Inv / s - Invalidation rate in the selected time range.",
+  schedule: "Schedule - Client Cache Schedule (adjusts browser/CDN max-age toward a planned cutover).",
+  outputTtl: "Output TTL - Output Cache TTL for this domain.",
+  softTtl: "Fusion soft - Fusion soft TTL (preferred freshness window).",
+  hardTtl: "Fusion hard - Fusion hard TTL (absolute maximum age).",
+  failSafe: "Fail-safe - Fail-safe window (may serve stale data if the factory fails).",
+  clientTtl: "Client TTL / min - Client Cache-Control max-age (browser/CDN), separate from server TTLs.",
+  schedulePhase: "Schedule phase - Client Cache Schedule phase currently applied for this domain.",
+  fcInstance: "FC instance - FusionCache named instance used by this domain.",
+  bus: "Bus - Cluster bus (instances apply commands to peers over HTTP).",
+  fanout: "Fan-out - Admin calls each instance directly to apply the operation.",
+  overlay: "Overlay - Runtime Version/TTL override on this process (not from config file).",
+  metricsStore: "Metrics - Metrics backend used for Live, tables, and charts.",
+  l1: "L1 - Fusion L1 (in-process memory cache).",
+  l2: "L2 - Fusion L2 (optional distributed cache, for example Redis).",
+  entities: "Traffic entities - Domains and endpoints with traffic in the selected time range.",
+  avgFactoryDuration: "FAD - Average factory duration (ms) in the selected time range.",
+  timeSavedRatio: "Time-saved ratio - EFTS / (EFTS + factory duration paid).",
+  avgResultSize: "Avg result size - Average measured factory result size.",
+  payloadOffload: "Est. payload offload - Avoided factory calls × avg result size.",
+  durationSamples: "Duration samples - Factory duration samples (0 if TrackLatency is off).",
+  sizeSamples: "Size samples - Factory result size samples (0 if TrackResultSize is off).",
+  ocHits: "Hits - Output Cache hits in the selected time range.",
+  ocMisses: "Misses - Output Cache misses in the selected time range.",
+  ocBypass: "Bypass - Output Cache bypass (not eligible / skipped).",
+  ocLayerN: "Layer n - Samples that reached the Output Cache layer.",
+  ocMissShare: "OC miss % - Output Cache miss share of all requests.",
+  ocBypassShare: "OC bypass % - Output Cache bypass share of all requests.",
+  ocHitRate: "OC hit rate - Hit rate of traffic that reached Output Cache (layer rate).",
+  ocMissRate: "OC miss rate - Miss rate of traffic that reached Output Cache (layer rate).",
+  fcHits: "Hits - FusionCache hits in the selected time range.",
+  fcMisses: "Misses - FusionCache misses in the selected time range.",
+  fcBypass: "Bypass - FusionCache bypass in the selected time range.",
+  fcLayerN: "Layer n - Samples that reached the Fusion layer.",
+  factoryRate: "Factory / s - Factory (FC miss) run rate over the lookback window.",
+  factoryFailShare: "Fail % - FC fail + stale share of requests over the lookback window.",
+  bypassShare: "Bypass % - Share of requests that bypassed Output Cache or FusionCache in the selected time range.",
 };
+
+/**
+ * FAFC cell: factory failure count. Orange when &gt; 0; red when failures are
+ * a large share of factory runs (≥ 10%). No title — table tooltips live on headers only.
+ * @param {{ factoryFailures?: number|null, factoryRuns?: number|null }|null|undefined} fc
+ * @param {{ tag?: "td"|"span" }} [opts]
+ */
+export function fafcHtml(fc, opts = {}) {
+  const tag = opts.tag || "td";
+  const n = Number(fc?.factoryFailures ?? 0);
+  const runs = Number(fc?.factoryRuns ?? 0);
+  const rate = runs > 0 ? n / runs : null;
+  let cls = "col-num col-fafc";
+  if (n > 0) {
+    cls += rate != null && rate >= 0.1 ? " metric-bad" : " metric-warn";
+  }
+  return `<${tag} class="${cls}">${num(n)}</${tag}>`;
+}
+
+/**
+ * FC stale % cell (request share of fail-safe stale serves).
+ * No title — table tooltips live on headers only.
+ * @param {{ staleShare?: number|null, lowRequestSample?: boolean }|null|undefined} fc
+ * @param {{ tag?: "td"|"span" }} [opts]
+ */
+export function staleShareHtml(fc, opts = {}) {
+  const tag = opts.tag || "td";
+  const share = fc?.staleShare;
+  const body = pct(share, fc?.lowRequestSample, "request");
+  let cls = "col-metric col-stale";
+  if (share != null && share >= 0.1) cls += " metric-bad";
+  else if (share != null && share > 0) cls += " metric-warn";
+  return `<${tag} class="${cls}">${body}</${tag}>`;
+}
 
 /**
  * Prefer factoryShare; fall back to obsolete originShare for older payloads.
@@ -191,32 +253,88 @@ export function tipAttr(keyOrText) {
  * @param {{ className?: string, fromKey?: boolean }} [opts]
  */
 export function thMetric(label, title, opts = {}) {
-  const tip = opts.fromKey ? (METRIC_TITLES[title] || title) : title;
+  let tip = opts.fromKey ? (METRIC_TITLES[title] || title) : title;
+  // Ensure "Label - description" even if a raw description slipped through.
+  if (tip && label && !String(tip).includes(" - ")) {
+    tip = `${label} - ${tip}`;
+  }
   const cls = opts.className ? ` class="${esc(opts.className)}"` : "";
   return `<th${cls} title="${esc(tip)}">${esc(label)}</th>`;
 }
 
 /**
- * Horizontal request-pipeline share bar (OC hit share · FC hit share · Factory share · Bypass · Other).
+ * Horizontal request-pipeline share bar
+ * (OC hit · FC hit · FC stale · FA run · Bypass · Other).
  * @param {object|null} p Pipeline DTO with *Share fields
  * @param {boolean} [large] Wider/taller bar for detail pages
+ * @param {{ title?: boolean, segmentTips?: boolean }} [opts]
+ *   title: wrap tooltip (default true). segmentTips: per-segment value tips (default true).
+ *   In entity tables pass <c>{ title: false, segmentTips: false }</c> — column header carries the tip.
  */
-export function pipelineBar(p, large) {
+export function pipelineBar(p, large, opts = {}) {
   if (!p) return `<div class="pipe empty"></div>`;
+  const showTitle = opts.title !== false;
+  const showSegTips = opts.segmentTips !== false;
   const factoryShare = factoryShareOf(p);
   const parts = [
-    ["oc", p.ocHitShare, "OC hit share"],
-    ["fc", p.fcHitShare, "FC hit share"],
-    ["origin", factoryShare, "Factory share"],
+    ["oc", p.ocHitShare, "OC hit"],
+    ["fc", p.fcHitShare, "FC hit"],
+    ["stale", p.staleShare, "FC stale"],
+    ["origin", factoryShare, "FA run"],
     ["bypass", p.bypassShare, "Bypass"],
     ["other", p.otherShare, "Other"],
   ].filter(([, v]) => v != null && v > 0.0005);
   if (!parts.length) return `<div class="pipe empty${large ? " lg" : ""}"></div>`;
-  return `<div class="pipe${large ? " lg" : ""}" title="${esc(METRIC_TITLES.pipeline)}">${
-    parts.map(([cls, v, label]) =>
-      `<span class="seg ${cls}" style="flex:${Math.max(v, 0.01)}" title="${label}: ${(v * 100).toFixed(1)}%"></span>`
-    ).join("")
+  const wrapTip = showTitle ? ` title="${esc(METRIC_TITLES.pipeline)}"` : "";
+  return `<div class="pipe${large ? " lg" : ""}"${wrapTip}>${
+    parts.map(([cls, v, label]) => {
+      const segTip = showSegTips
+        ? ` title="${esc(`${label} - ${(v * 100).toFixed(1)}%`)}"`
+        : "";
+      return `<span class="seg ${cls}" style="flex:${Math.max(v, 0.01)}"${segTip}></span>`;
+    }).join("")
   }</div>`;
+}
+
+/**
+ * Unified Pipeline panel for Overview / domain detail / endpoint detail:
+ * one-row table (Pipeline bar | OC hit % | FC hit % | FC stale % | FA run % | Bypass %).
+ * No separate heading — "Pipeline" is the first column header.
+ * Pipeline bar keeps wrap + segment tooltips (same as detail bars today).
+ * @param {object|null|undefined} p Pipeline DTO
+ */
+export function pipelinePanelHtml(p) {
+  const bar = pipelineBar(p, true, { title: true, segmentTips: true });
+  const oc = pct(p?.ocHitShare);
+  const fc = pct(p?.fcHitShare);
+  const stale = pct(p?.staleShare);
+  const fa = pct(factoryShareOf(p));
+  const bypass = pct(p?.bypassShare);
+  return `
+    <div class="pipeline-panel">
+      <table class="pipeline-share-table">
+        <thead>
+          <tr>
+            ${thMetric("Pipeline", "pipeline", { fromKey: true, className: "col-pipe" })}
+            ${thMetric("OC hit %", "ocHitShare", { fromKey: true, className: "col-num" })}
+            ${thMetric("FC hit %", "fcHitShare", { fromKey: true, className: "col-num" })}
+            ${thMetric("FC stale %", "staleShare", { fromKey: true, className: "col-num" })}
+            ${thMetric("FA run %", "factoryShare", { fromKey: true, className: "col-num" })}
+            ${thMetric("Bypass %", "bypassShare", { fromKey: true, className: "col-num" })}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-pipe">${bar}</td>
+            <td class="col-num">${oc}</td>
+            <td class="col-num">${fc}</td>
+            <td class="col-num">${stale}</td>
+            <td class="col-num">${fa}</td>
+            <td class="col-num">${bypass}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
 }
 
 /** Min–max–mean share cell when an entity is split across instances. */

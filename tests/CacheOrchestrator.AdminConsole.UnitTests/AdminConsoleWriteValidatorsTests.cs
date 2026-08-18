@@ -11,7 +11,6 @@ public class AdminConsoleWriteValidatorsTests
         {
             Scope = "domain",
             Domain = " ",
-            Target = "all",
         });
         act.Should().Throw<ArgumentException>().WithMessage("*Domain*");
     }
@@ -24,21 +23,8 @@ public class AdminConsoleWriteValidatorsTests
             Scope = "entity",
             Domain = "catalog",
             EntityKind = "Product",
-            Target = "all",
         });
         act.Should().Throw<ArgumentException>().WithMessage("*EntityId*");
-    }
-
-    [Fact]
-    public void Invalidate_BadTarget_Throws()
-    {
-        Action act = () => AdminConsoleWriteValidators.Validate(new AdminConsoleInvalidateRequest
-        {
-            Scope = "domain",
-            Domain = "catalog",
-            Target = "peer:x",
-        });
-        act.Should().Throw<ArgumentException>().WithMessage("*Target*");
     }
 
     [Fact]
@@ -48,7 +34,6 @@ public class AdminConsoleWriteValidatorsTests
         {
             Scope = "domain",
             Domain = "catalog",
-            Target = "instance:app-1",
         });
         act.Should().NotThrow();
     }
@@ -56,10 +41,7 @@ public class AdminConsoleWriteValidatorsTests
     [Fact]
     public void Ttl_RequiresAtLeastOneField()
     {
-        Action act = () => AdminConsoleWriteValidators.Validate(new AdminConsoleTtlPatchRequest
-        {
-            Target = "all",
-        });
+        Action act = () => AdminConsoleWriteValidators.Validate(new AdminConsoleTtlPatchRequest());
         act.Should().Throw<ArgumentException>().WithMessage("*TTL*");
     }
 
@@ -68,19 +50,17 @@ public class AdminConsoleWriteValidatorsTests
     {
         Action act = () => AdminConsoleWriteValidators.Validate(new AdminConsoleTtlPatchRequest
         {
-            Target = "all",
             OutputCacheTtlSeconds = -1,
         });
         act.Should().Throw<ArgumentException>().WithMessage("*OutputCacheTtlSeconds*");
     }
 
     [Fact]
-    public void Version_ValidTarget_DoesNotThrow()
+    public void Version_DoesNotThrow()
     {
         Action act = () => AdminConsoleWriteValidators.Validate(new AdminConsoleVersionRequest
         {
             Version = "bump",
-            Target = "all",
         });
         act.Should().NotThrow();
     }

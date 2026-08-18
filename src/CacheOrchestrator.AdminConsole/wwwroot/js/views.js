@@ -34,6 +34,8 @@ export async function route(opts = {}) {
   const { path, params } = parseHash();
   const root = path.split("/")[0] || "overview";
   setNavActive(root);
+  // Live uses a fixed 1m lookback + 5s refresh — lock Range / interval pickers.
+  shell.setLiveChromeMode(root === "live");
 
   // Soft refresh: keep Operations form intact (mutations in progress).
   if (soft && root === "operations") {

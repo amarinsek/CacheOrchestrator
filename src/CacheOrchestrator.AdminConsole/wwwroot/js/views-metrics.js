@@ -19,7 +19,7 @@ import {
   parseCsvParam,
   readMultiSelect,
 } from "./filters.js";
-import { esc, num, pct } from "./format.js";
+import { esc, METRIC_TITLES, num, pct } from "./format.js";
 import { navigate, setBreadcrumb, setNavActive } from "./router.js";
 import { bindEmptyStateActions, emptyStateHtml } from "./tables.js";
 import {
@@ -39,9 +39,10 @@ const NO_SAMPLES_TIP =
  * Chart opts that force X-axis to the selected range window (relative or absolute).
  * Prefer series fromUtc/toUtc when the API returns them.
  * @param {string} range
- * @param {{ height?: number, width?: number, unit?: string, queriedAtUtc?: string|null, fromUtc?: string|null, toUtc?: string|null }} [extra]
+ * @param {{ height?: number, width?: number, unit?: string, queriedAtUtc?: string|null, fromUtc?: string|null, toUtc?: string|null, step?: string|null }} [extra]
  */
 function chartOptsForRange(range, extra = {}) {
+  const step = extra.step || null;
   if (extra.fromUtc && extra.toUtc) {
     const tMin = Math.floor(new Date(extra.fromUtc).getTime() / 1000);
     const tMax = Math.floor(new Date(extra.toUtc).getTime() / 1000);
@@ -53,6 +54,7 @@ function chartOptsForRange(range, extra = {}) {
         range: range || "custom",
         tMin,
         tMax,
+        step,
       };
     }
   }
@@ -67,6 +69,7 @@ function chartOptsForRange(range, extra = {}) {
     range: win.range,
     tMin: win.tMin,
     tMax: win.tMax,
+    step,
   };
 }
 
@@ -235,6 +238,7 @@ function ensureChartExpandBound() {
         queriedAtUtc: data.queriedAtUtc,
         fromUtc: data.fromUtc,
         toUtc: data.toUtc,
+        step: data.step,
       });
       map.set(id, { ...data, ...win, panelId: id });
     }
@@ -293,6 +297,7 @@ function softUpdateMetricsGrid(series) {
     queriedAtUtc: series.queriedAtUtc,
     fromUtc: series.fromUtc,
     toUtc: series.toUtc,
+    step: series.step,
   });
 
   softUpdateChartCards(grid, panels, baseOpts, { syncWarnings: true });
@@ -361,10 +366,10 @@ function cssEscape(id) {
 
 function metricsKpiHtml(summary, series) {
   return `
-      <div class="kpi" title="Request rate in the selected time range"><div class="label">Req / s</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
-      <div class="kpi" title="Output Cache hit share in the selected time range"><div class="label">OC hit share</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
-      <div class="kpi" title="Fusion hit rate among Fusion operations in the selected time range"><div class="label">FC hit rate</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
-      <div class="kpi" title="Invalidation rate in the selected time range"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
+      <div class="kpi" title="${esc(METRIC_TITLES.rpsWindow)}"><div class="label">RPS</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
+      <div class="kpi" title="${esc(METRIC_TITLES.ocHitShare)}"><div class="label">OC hit %</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
+      <div class="kpi" title="${esc(METRIC_TITLES.fcHitRate)}"><div class="label">FC hit rate</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
+      <div class="kpi" title="${esc(METRIC_TITLES.invRate)}"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
       <div class="kpi"><div class="label">Step</div><div class="value" data-kpi="step" style="font-size:1rem">${esc(series?.step || "—")}</div></div>`;
 }
 
@@ -376,6 +381,7 @@ function metricsPanelsHtml(series) {
       queriedAtUtc: series.queriedAtUtc,
       fromUtc: series.fromUtc,
       toUtc: series.toUtc,
+      step: series.step,
     })).join("");
   return panelCards || `<div class="card">${emptyStateHtml("metrics-empty")}</div>`;
 }
@@ -390,6 +396,7 @@ function panelCardHtml(p, range, chartOpts = {}) {
     queriedAtUtc: chartOpts.queriedAtUtc,
     fromUtc: chartOpts.fromUtc,
     toUtc: chartOpts.toUtc,
+    step: chartOpts.step,
   });
   const hasSamples = seriesHasSamples(p.series);
   // Query warnings that only mean “empty matrix” are replaced by the no-samples badge.
@@ -431,6 +438,7 @@ function buildPanelMap(series) {
       queriedAtUtc: series?.queriedAtUtc,
       fromUtc: series?.fromUtc,
       toUtc: series?.toUtc,
+      step: series?.step,
     });
   }
   return map;
@@ -564,6 +572,7 @@ export async function mountDetailMetrics(mountId, opts) {
         queriedAtUtc: series.queriedAtUtc,
         fromUtc: series.fromUtc,
         toUtc: series.toUtc,
+        step: series.step,
       });
       softUpdateChartCards(grid, list, baseOpts);
       ensureChartExpandBound();
@@ -578,6 +587,7 @@ export async function mountDetailMetrics(mountId, opts) {
     queriedAtUtc: series.queriedAtUtc,
     fromUtc: series.fromUtc,
     toUtc: series.toUtc,
+    step: series.step,
   })).join("");
 
   el.dataset.metricsReady = "1";
@@ -637,6 +647,7 @@ export async function metricsOverviewSectionHtml(opts = {}) {
           queriedAtUtc: series.queriedAtUtc,
           fromUtc: series.fromUtc,
           toUtc: series.toUtc,
+          step: series.step,
         });
         softUpdateChartCards(grid, list, baseOpts);
         ensureChartExpandBound();
@@ -651,6 +662,7 @@ export async function metricsOverviewSectionHtml(opts = {}) {
       queriedAtUtc: series.queriedAtUtc,
       fromUtc: series.fromUtc,
       toUtc: series.toUtc,
+      step: series.step,
     })).join("");
 
     // Defer expand bind to caller after mount is in DOM (overview paints then).

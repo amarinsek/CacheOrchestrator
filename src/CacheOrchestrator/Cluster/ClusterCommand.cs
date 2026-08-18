@@ -9,6 +9,7 @@ namespace CacheOrchestrator.Cluster;
 [JsonDerivedType(typeof(InvalidateCommand), "invalidate")]
 [JsonDerivedType(typeof(VersionBumpCommand), "versionBump")]
 [JsonDerivedType(typeof(TtlPatchCommand), "ttlPatch")]
+[JsonDerivedType(typeof(SettingsPatchCommand), "settingsPatch")]
 public abstract record ClusterCommand
 {
     /// <summary>Unique id for this command instance (idempotency / diagnostics).</summary>

@@ -40,6 +40,18 @@ public interface ILocalAdminClient
         AdminTtlPatchRequest body,
         CancellationToken cancellationToken = default);
 
+    /// <summary>PATCH domain settings override on one instance.</summary>
+    Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchSettingsAsync(
+        AdminInstanceOptions instance,
+        string domain,
+        AdminSettingsPatchRequest body,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>GET domain settings catalog.</summary>
+    Task<InstanceCallOutcome<AdminDomainSettingsCatalogDto>> GetDomainSettingsCatalogAsync(
+        AdminInstanceOptions instance,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// GET cluster bus info (<c>…/cluster/info</c>). Fails when bus receive endpoints are not mapped.
     /// </summary>
@@ -68,6 +80,14 @@ public sealed class InstanceCallOutcome<T>
 
     /// <summary>Elapsed milliseconds.</summary>
     public double LatencyMs { get; init; }
+
+    /// <summary>
+    /// When Local Admin returned 409 cluster-publish incomplete: origin already applied locally.
+    /// </summary>
+    public bool LocalApplied { get; init; }
+
+    /// <summary>Peer failures from a 409 cluster-publish incomplete response.</summary>
+    public IReadOnlyList<LocalAdminPeerFailureDto> PeerFailures { get; init; } = [];
 
     /// <summary>Maps to the fan-out result DTO (without payload).</summary>
     public InstanceCallResultDto ToResultDto() =>

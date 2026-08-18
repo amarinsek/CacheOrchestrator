@@ -1,6 +1,7 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Models;
 using CacheOrchestrator.AdminConsole.Options;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
@@ -37,27 +38,6 @@ public sealed class AdminFanOutService
             .Where(i => !string.IsNullOrWhiteSpace(i.Id) && !string.IsNullOrWhiteSpace(i.Url))
             .Select(i => new AdminInstanceOptions { Id = i.Id.Trim(), Url = i.Url.TrimEnd('/') })
             .ToArray();
-
-    /// <summary>Resolves <c>all</c> or <c>instance:{id}</c> to concrete instances.</summary>
-    public IReadOnlyList<AdminInstanceOptions> ResolveTarget(string? target)
-    {
-        IReadOnlyList<AdminInstanceOptions> all = GetConfiguredInstances();
-        if (string.IsNullOrWhiteSpace(target) || string.Equals(target, "all", StringComparison.OrdinalIgnoreCase))
-            return all;
-
-        const string prefix = "instance:";
-        if (!target.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("Target must be 'all' or 'instance:{id}'.", nameof(target));
-
-        string id = target[prefix.Length..].Trim();
-        AdminInstanceOptions? match = all.FirstOrDefault(i =>
-            string.Equals(i.Id, id, StringComparison.OrdinalIgnoreCase));
-
-        if (match is null)
-            throw new KeyNotFoundException($"Unknown instance id '{id}'.");
-
-        return [match];
-    }
 
     public async Task<IReadOnlyList<InstanceStatusDto>> GetInstancesAsync(CancellationToken cancellationToken)
     {
@@ -247,7 +227,7 @@ public sealed class AdminFanOutService
         CancellationToken cancellationToken)
     {
         AdminConsoleWriteValidators.Validate(request);
-        WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
+        WriteDistributionPlan plan = await PlanWriteDistributionAsync(cancellationToken)
             .ConfigureAwait(false);
 
         AdminInvalidateRequest body = new()
@@ -272,12 +252,12 @@ public sealed class AdminFanOutService
         return new FanOutResultDto<object?>
         {
             Data = null,
-            Results = outcomes.Select(o => o.ToResultDto()).ToArray(),
+            Results = ExpandWriteResults(outcomes),
             DistributionMode = plan.Mode,
             DistributionSummary = plan.Summary,
             BusOriginInstanceId = plan.BusOriginInstanceId,
             Distribute = plan.Distribute
-        };
+        }.WithWriteOutcome();
     }
 
     public async Task<FanOutResultDto<object?>> SetVersionAsync(
@@ -287,7 +267,7 @@ public sealed class AdminFanOutService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
         AdminConsoleWriteValidators.Validate(request);
-        WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
+        WriteDistributionPlan plan = await PlanWriteDistributionAsync(cancellationToken)
             .ConfigureAwait(false);
 
         AdminVersionRequest body = new()
@@ -308,14 +288,17 @@ public sealed class AdminFanOutService
         return new FanOutResultDto<object?>
         {
             Data = outcomes.FirstOrDefault(o => o.Succeeded)?.Value,
-            Results = outcomes.Select(o => o.ToResultDto()).ToArray(),
+            Results = ExpandWriteResults(outcomes),
             DistributionMode = plan.Mode,
             DistributionSummary = plan.Summary,
             BusOriginInstanceId = plan.BusOriginInstanceId,
             Distribute = plan.Distribute
-        };
+        }.WithWriteOutcome();
     }
 
+/// <summary>Obsolete TTL fan-out. Prefer <see cref="PatchSettingsAsync"/>.</summary>
+[Obsolete("Use PatchSettingsAsync / PATCH /api/domains/{domain}/settings.")]
+#pragma warning disable CS0618 // AdminTtlPatchRequest / AdminTtlPatchRequest retained for compatibility
     public async Task<FanOutResultDto<object?>> PatchTtlAsync(
         string domain,
         AdminConsoleTtlPatchRequest request,
@@ -323,7 +306,7 @@ public sealed class AdminFanOutService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
         AdminConsoleWriteValidators.Validate(request);
-        WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
+        WriteDistributionPlan plan = await PlanWriteDistributionAsync(cancellationToken)
             .ConfigureAwait(false);
 
         AdminTtlPatchRequest body = new()
@@ -349,34 +332,130 @@ public sealed class AdminFanOutService
         return new FanOutResultDto<object?>
         {
             Data = outcomes.FirstOrDefault(o => o.Succeeded)?.Value,
-            Results = outcomes.Select(o => o.ToResultDto()).ToArray(),
+            Results = ExpandWriteResults(outcomes),
             DistributionMode = plan.Mode,
             DistributionSummary = plan.Summary,
             BusOriginInstanceId = plan.BusOriginInstanceId,
             Distribute = plan.Distribute
+        }.WithWriteOutcome();
+    }
+#pragma warning restore CS0618
+
+    /// <summary>GET domain-settings catalog from the first healthy instance.</summary>
+    public async Task<AdminDomainSettingsCatalogDto> GetDomainSettingsCatalogAsync(
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AdminInstanceOptions> targets = GetConfiguredInstances();
+        foreach (AdminInstanceOptions inst in targets)
+        {
+            InstanceCallOutcome<AdminDomainSettingsCatalogDto> outcome =
+                await _client.GetDomainSettingsCatalogAsync(inst, cancellationToken).ConfigureAwait(false);
+            if (outcome.Succeeded && outcome.Value is not null)
+                return outcome.Value;
+        }
+
+        // Fallback: catalog is assembly-local and identical across instances.
+        return new AdminDomainSettingsCatalogDto
+        {
+            Settings = DomainSettingCatalog.GetEntries(),
         };
     }
 
-    /// <summary>
-    /// When target is <c>all</c> and a bus-enabled instance exists → single origin + distribute.
-    /// Explicit <c>instance:x</c> keeps that target; distribute only if that instance reports bus.
-    /// Otherwise classic fan-out with distribute:false.
-    /// </summary>
-    private async Task<WriteDistributionPlan> PlanWriteDistributionAsync(
-        string? target,
+    public async Task<FanOutResultDto<object?>> PatchSettingsAsync(
+        string domain,
+        AdminConsoleSettingsPatchRequest request,
         CancellationToken cancellationToken)
     {
-        bool targetAll = string.IsNullOrWhiteSpace(target)
-            || string.Equals(target, "all", StringComparison.OrdinalIgnoreCase);
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        AdminConsoleWriteValidators.Validate(request);
+        WriteDistributionPlan plan = await PlanWriteDistributionAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-        IReadOnlyList<AdminInstanceOptions> explicitTargets = ResolveTarget(target);
+        AdminSettingsPatchRequest body = new()
+        {
+            Settings = request.Settings,
+            Distribute = plan.Distribute,
+        };
+
+        List<InstanceCallOutcome<AdminDomainMutationResultDto>> outcomes =
+            await FanOutAsync(
+                    plan.Targets,
+                    (inst, ct) => _client.PatchSettingsAsync(inst, domain, body, ct),
+                    cancellationToken,
+                    skipKnownDown: true)
+                .ConfigureAwait(false);
+        RecordDataOutcomes(outcomes);
+
+        return new FanOutResultDto<object?>
+        {
+            Data = outcomes.FirstOrDefault(o => o.Succeeded)?.Value,
+            Results = ExpandWriteResults(outcomes),
+            DistributionMode = plan.Mode,
+            DistributionSummary = plan.Summary,
+            BusOriginInstanceId = plan.BusOriginInstanceId,
+            Distribute = plan.Distribute
+        }.WithWriteOutcome();
+    }
+
+    /// <summary>
+    /// Maps Local Admin outcomes to Console results. A 409 cluster-publish incomplete response
+    /// (origin applied, peers failed) expands into origin success + per-peer failure rows.
+    /// </summary>
+    /// <summary>Expands Local Admin outcomes (including bus peer failures) into Console result rows.</summary>
+    public static IReadOnlyList<InstanceCallResultDto> ExpandWriteResults<T>(
+        IEnumerable<InstanceCallOutcome<T>> outcomes)
+    {
+        List<InstanceCallResultDto> results = [];
+        foreach (InstanceCallOutcome<T> o in outcomes)
+        {
+            if (o.LocalApplied && o.PeerFailures.Count > 0)
+            {
+                results.Add(new InstanceCallResultDto
+                {
+                    InstanceId = o.InstanceId,
+                    Succeeded = true,
+                    StatusCode = o.StatusCode,
+                    Error = "Applied locally; peer publish incomplete.",
+                    LatencyMs = o.LatencyMs,
+                });
+
+                foreach (LocalAdminPeerFailureDto peer in o.PeerFailures)
+                {
+                    string peerId = peer.PeerId!.Trim();
+                    results.Add(new InstanceCallResultDto
+                    {
+                        InstanceId = peerId,
+                        Succeeded = false,
+                        StatusCode = null,
+                        Error = string.IsNullOrWhiteSpace(peer.Error)
+                            ? $"Peer publish failed (via bus from '{o.InstanceId}')."
+                            : peer.Error.Trim(),
+                        LatencyMs = o.LatencyMs,
+                    });
+                }
+
+                continue;
+            }
+
+            results.Add(o.ToResultDto());
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Cluster-wide write plan: bus-enabled preferred origin + distribute, else fan-out to all with distribute:false.
+    /// </summary>
+    private async Task<WriteDistributionPlan> PlanWriteDistributionAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AdminInstanceOptions> all = GetConfiguredInstances();
         ClusterDistributionCapabilityDto capability =
             await GetDistributionCapabilityAsync(cancellationToken).ConfigureAwait(false);
 
-        if (targetAll && capability.BusAvailable
+        if (capability.BusAvailable
             && !string.IsNullOrWhiteSpace(capability.PreferredBusOriginId))
         {
-            AdminInstanceOptions origin = explicitTargets.First(t =>
+            AdminInstanceOptions origin = all.First(t =>
                 string.Equals(t.Id, capability.PreferredBusOriginId, StringComparison.OrdinalIgnoreCase));
 
             return new WriteDistributionPlan(
@@ -388,31 +467,14 @@ public sealed class AdminFanOutService
                     $"bus-distribute via origin '{origin.Id}' (Admin Console App → 1 HTTP call with distribute:true; peers apply via cluster bus).");
         }
 
-        // Explicit single instance: enable distribute only when that instance has a live bus.
-        if (!targetAll && explicitTargets.Count == 1)
-        {
-            InstanceClusterProbeDto? probe = capability.Instances
-                .FirstOrDefault(p => string.Equals(p.Id, explicitTargets[0].Id, StringComparison.OrdinalIgnoreCase));
-            if (probe is { BusEnabled: true })
-            {
-                return new WriteDistributionPlan(
-                    Targets: explicitTargets,
-                    Distribute: true,
-                    Mode: DistributionModes.BusDistribute,
-                    BusOriginInstanceId: explicitTargets[0].Id,
-                    Summary:
-                        $"bus-distribute via origin '{explicitTargets[0].Id}' (distribute:true; peers via cluster bus).");
-            }
-        }
-
-        string ids = string.Join(", ", explicitTargets.Select(t => t.Id));
+        string ids = string.Join(", ", all.Select(t => t.Id));
         return new WriteDistributionPlan(
-            Targets: explicitTargets,
+            Targets: all,
             Distribute: false,
             Mode: DistributionModes.FanOut,
             BusOriginInstanceId: null,
             Summary:
-                $"fan-out to {explicitTargets.Count} instance(s) [{ids}] with distribute:false (each process applies locally).");
+                $"fan-out to {all.Count} instance(s) [{ids}] with distribute:false (each process applies locally).");
     }
 
     private sealed record WriteDistributionPlan(
@@ -486,6 +548,13 @@ public sealed class AdminFanOutService
         {
             if (IsSkippedDownError(o.Error))
                 continue;
+            // Origin applied locally but peer bus publish failed — origin is still healthy.
+            if (o.LocalApplied)
+            {
+                _reachability.RecordSuccess(o.InstanceId, latencyMs: o.LatencyMs);
+                continue;
+            }
+
             if (o.Succeeded)
                 _reachability.RecordSuccess(o.InstanceId, latencyMs: o.LatencyMs);
             else

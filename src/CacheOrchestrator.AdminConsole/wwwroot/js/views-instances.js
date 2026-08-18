@@ -8,8 +8,10 @@ import {
   esc,
   formatLatencyMs,
   formatUptime,
+  METRIC_TITLES,
   noDataHtml,
   num,
+  tipAttr,
 } from "./format.js";
 import {
   applyButtonHtml,
@@ -85,8 +87,7 @@ export async function renderInstancesList(params = new URLSearchParams(), opts =
       metricsCard = `
         <div class="card" id="instMetricsStoreCard">
           <div class="card-head">
-            <h2 title="Metrics backend for Live, tables, and charts">Metrics</h2>
-            <a href="#/metrics">Open Metrics →</a>
+            <h2 title="Metrics - Metrics backend used for Live, tables, and charts">Metrics</h2>
           </div>
           <p style="margin:0">${st}
             ${esc(target)}${lat}${err}
@@ -115,6 +116,7 @@ export async function renderInstancesList(params = new URLSearchParams(), opts =
   paintPage(`
     <div id="instRoot">
     <div id="instBanner">${bannerHtml}</div>
+    <div id="instMetricsHost">${metricsCard}</div>
     <div class="card">
       <h2 id="instHead">Instances ${severityStack(hintSum)}</h2>
       <form class="toolbar" id="instFilters">
@@ -124,7 +126,6 @@ export async function renderInstancesList(params = new URLSearchParams(), opts =
       </form>
       <div id="instTable">${tableHtml}</div>
     </div>
-    <div id="instMetricsHost">${metricsCard}</div>
     </div>`, soft);
 
   bindEntityTableClicks($("#instTable") || main());
@@ -210,7 +211,7 @@ export async function renderInstanceDetail(id, params = new URLSearchParams(), o
     </div>
     <div id="instMetricsMount"></div>
     <p><a href="#/instances">← Instances</a>
-      · <a href="#/operations?target=instance:${encodeURIComponent(id)}">Operations on this instance</a></p>`, soft);
+      · <a href="#/operations">Operations</a></p>`, soft);
 
   bindEntityTableClicks(main());
   $("#instDomSort")?.addEventListener("change", (ev) => {
@@ -237,14 +238,14 @@ export function instanceDetailHeadHtml(id, inst, stats, st, startedTitle, promOk
       </h2>
       ${errLine}
       <div class="kpi-row">
-        <div class="kpi" title="Instance health">
+        <div class="kpi"${tipAttr("status")}>
           <div class="label">Status</div>
           <div class="value status-${esc(st)}" style="font-size:1.05rem">${esc(st)}</div>
         </div>
-        <div class="kpi" title="${esc(startedTitle)}"><div class="label">Uptime</div><div class="value col-uptime" style="font-size:1.05rem">${esc(formatUptime(inst?.uptimeSeconds))}</div></div>
-        <div class="kpi"><div class="label">Started (UTC)</div><div class="value" style="font-size:0.85rem">${esc(startedDisp)}</div></div>
-        <div class="kpi" title="Admin probe latency"><div class="label">Latency</div><div class="value" style="font-size:1.05rem">${formatLatencyMs(inst?.latencyMs)}</div></div>
-        <div class="kpi"><div class="label">Req</div><div class="value">${promOk ? num(reqFromDomains) : noDataHtml()}</div></div>
+        <div class="kpi" title="${esc(METRIC_TITLES.uptime)}${startedTitle ? ` (${startedTitle})` : ""}"><div class="label">Uptime</div><div class="value col-uptime" style="font-size:1.05rem">${esc(formatUptime(inst?.uptimeSeconds))}</div></div>
+        <div class="kpi" title="Started (UTC) - Process start time"><div class="label">Started (UTC)</div><div class="value" style="font-size:0.85rem">${esc(startedDisp)}</div></div>
+        <div class="kpi"${tipAttr("latency")}><div class="label">Latency</div><div class="value" style="font-size:1.05rem">${formatLatencyMs(inst?.latencyMs)}</div></div>
+        <div class="kpi"${tipAttr("req")}><div class="label">Req</div><div class="value">${promOk ? num(reqFromDomains) : noDataHtml()}</div></div>
       </div>
     </div>`;
 }

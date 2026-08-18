@@ -29,6 +29,8 @@ public class InvalidatorClusterPublishTests
         _options.CurrentValue.Returns(new CacheOrchestratorOptions { Namespace = "app1" });
         _instanceId.InstanceId.Returns("origin-1");
         _factory = new ClusterCommandFactory(_instanceId, _options);
+        _bus.PublishAsync(Arg.Any<ClusterCommand>(), Arg.Any<CancellationToken>())
+            .Returns(ClusterPublishResult.Empty);
     }
 
     [Fact]
@@ -92,17 +94,44 @@ public class InvalidatorClusterPublishTests
     }
 
     [Fact]
-    public async Task InvalidateDomainAsync_WhenPublishThrows_StillReturnsLocalSuccess()
+    public async Task InvalidateDomainAsync_WhenPublishThrows_StillReturnsLocalSuccessWithClusterFailure()
     {
         _bus.IsEnabled.Returns(true);
         _bus.PublishAsync(Arg.Any<ClusterCommand>(), Arg.Any<CancellationToken>())
-            .Returns<Task>(_ => throw new InvalidOperationException("peer down"));
+            .Returns<Task<ClusterPublishResult>>(_ => throw new InvalidOperationException("peer down"));
+
+        CacheOrchestratorInvalidator sut = CreateSut();
+        CacheInvalidationResult result =
+            await sut.InvalidateDomainAsync("products", TestContext.Current.CancellationToken);
+
+        result.Succeeded.Should().BeTrue("local Fusion/Output already applied");
+        result.ClusterPublish.Should().NotBeNull();
+        result.ClusterPublish!.AllSucceeded.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("peer down", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task InvalidateDomainAsync_WhenPeerFails_AttachesClusterPublish()
+    {
+        _bus.IsEnabled.Returns(true);
+        _bus.PublishAsync(Arg.Any<ClusterCommand>(), Arg.Any<CancellationToken>())
+            .Returns(new ClusterPublishResult(
+            [
+                new ClusterPeerPublishOutcome
+                {
+                    PeerId = "b",
+                    Succeeded = false,
+                    Error = "HTTP 503",
+                },
+            ]));
 
         CacheOrchestratorInvalidator sut = CreateSut();
         CacheInvalidationResult result =
             await sut.InvalidateDomainAsync("products", TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeTrue();
+        result.ClusterPublish!.AllSucceeded.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("Cluster peer 'b'", StringComparison.Ordinal));
     }
 
     private CacheOrchestratorInvalidator CreateSut() =>

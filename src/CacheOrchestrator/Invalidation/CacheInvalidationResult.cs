@@ -1,3 +1,5 @@
+using CacheOrchestrator.Cluster;
+
 namespace CacheOrchestrator.Invalidation;
 
 /// <summary>
@@ -13,13 +15,15 @@ public sealed class CacheInvalidationResult
         IReadOnlyList<string> tags,
         bool fusionSucceeded,
         bool outputSucceeded,
-        IReadOnlyList<string>? errors = null)
+        IReadOnlyList<string>? errors = null,
+        ClusterPublishResult? clusterPublish = null)
     {
         Scope = scope ?? string.Empty;
         Tags = tags ?? [];
         FusionSucceeded = fusionSucceeded;
         OutputSucceeded = outputSucceeded;
         Errors = errors ?? [];
+        ClusterPublish = clusterPublish;
     }
 
     /// <summary>Human-readable scope label (domain, domain/id, or joined tags).</summary>
@@ -39,6 +43,11 @@ public sealed class CacheInvalidationResult
 
     /// <summary>Non-fatal error messages collected during best-effort invalidation.</summary>
     public IReadOnlyList<string> Errors { get; }
+
+    /// <summary>
+    /// Cluster bus publish summary when peers were contacted; <see langword="null"/> when publish was skipped.
+    /// </summary>
+    public ClusterPublishResult? ClusterPublish { get; }
 
     /// <summary>
     /// Result used when the call was a no-op (empty domain/tags, nothing to do).

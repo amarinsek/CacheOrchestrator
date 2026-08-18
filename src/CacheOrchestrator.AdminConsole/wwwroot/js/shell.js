@@ -17,16 +17,24 @@ import { severityStack } from "./hints.js";
 import {
   appendMetricsRangeParams,
   setMetricsCapability,
+  setTimeRangeControlsEnabled,
 } from "./time-range.js";
 import { instancesUpClass } from "./views-shared.js";
 
 const REFRESH_KEY = "adminAutoRefreshSec";
+
+/** Live page forces 5s auto-refresh and locks Range / interval pickers. */
+const LIVE_REFRESH_SEC = 5;
 
 let headerTimer = null;
 let pageTimer = null;
 /** Coalesce overlapping soft refreshes (auto-refresh + manual). */
 let softRefreshBusy = false;
 let softRefreshAgain = false;
+/** When true, Range + interval pickers are disabled and interval is fixed at 5s. */
+let liveChromeLock = false;
+/** User interval (localStorage) restored when leaving Live. */
+let savedRefreshBeforeLive = null;
 /**
  * Last successful overview payload.
  * Note: ES module live bindings are read-only to importers — use setLastOverview().
@@ -48,14 +56,59 @@ export function setRouteHandler(fn) {
   routeHandler = fn;
 }
 
+/** Allowed auto-refresh intervals (seconds), Grafana-style plus Off. */
+const AUTO_REFRESH_SEC = [0, 5, 10, 30, 60, 300, 900, 1800, 3600];
+
 export function getAutoRefreshSec() {
   const v = Number(localStorage.getItem(REFRESH_KEY) || "0");
-  return [0, 5, 10, 30, 60, 300].includes(v) ? v : 0;
+  return AUTO_REFRESH_SEC.includes(v) ? v : 0;
 }
 
 export function setAutoRefreshSec(sec) {
   localStorage.setItem(REFRESH_KEY, String(sec));
   scheduleRefresh();
+}
+
+/**
+ * Live page: disable Range + auto-refresh interval pickers; force soft refresh every 5s.
+ * Leaving Live re-enables pickers and restores the previous interval (localStorage).
+ * Manual Reload stays available.
+ * @param {boolean} on
+ */
+export function setLiveChromeMode(on) {
+  const sel = $("#selAutoRefresh");
+  const refreshHost = document.querySelector(".nav-refresh");
+
+  if (on) {
+    if (!liveChromeLock) {
+      savedRefreshBeforeLive = getAutoRefreshSec();
+      liveChromeLock = true;
+    }
+    if (sel) {
+      sel.value = String(LIVE_REFRESH_SEC);
+      sel.disabled = true;
+      sel.title = "Fixed at 5s on Live (lookback is always 1m)";
+    }
+    refreshHost?.classList.add("is-live-locked");
+    setTimeRangeControlsEnabled(false, {
+      reason: "Time range is fixed on Live (1m lookback)",
+    });
+    scheduleRefresh();
+    return;
+  }
+
+  if (!liveChromeLock) return;
+  liveChromeLock = false;
+  const restore = savedRefreshBeforeLive ?? 0;
+  savedRefreshBeforeLive = null;
+  if (sel) {
+    sel.disabled = false;
+    sel.removeAttribute("title");
+    sel.value = String(restore);
+  }
+  refreshHost?.classList.remove("is-live-locked");
+  setTimeRangeControlsEnabled(true);
+  setAutoRefreshSec(restore);
 }
 
 /**
@@ -211,12 +264,12 @@ export function renderHeader(o, windowStats = null) {
     </span>
     <span class="hm" title="${esc(METRIC_TITLES.req)}">Req <strong>${req}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.inv)}">Inv <strong>${inv}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(pipe)}</span>
+    <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(pipe, false, { title: false })}</span>
     <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit % <strong>${oc}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${fc}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">Factory % <strong>${fac}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">Time saved <strong>${timeSaved}</strong></span>
-    <span class="hm muted" title="Domains and endpoints with traffic in the selected time range">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
+    <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">FA run % <strong>${fac}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">EFTS <strong>${timeSaved}</strong></span>
+    <span class="hm muted" title="${esc(METRIC_TITLES.entities)}">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
     ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
   `;
   refreshMetricsStatusPill();
@@ -231,7 +284,7 @@ export function scheduleRefresh() {
     clearInterval(pageTimer);
     pageTimer = null;
   }
-  const sec = getAutoRefreshSec();
+  const sec = liveChromeLock ? LIVE_REFRESH_SEC : getAutoRefreshSec();
   // When auto is on: soft background refresh (no full-page loading flash).
   // When off: still refresh header slowly so N/M up does not go stale forever.
   if (sec > 0) {
@@ -250,6 +303,7 @@ export function initRefreshControls() {
   if (sel) {
     sel.value = String(getAutoRefreshSec());
     sel.addEventListener("change", () => {
+      if (liveChromeLock) return;
       setAutoRefreshSec(Number(sel.value) || 0);
     });
   }

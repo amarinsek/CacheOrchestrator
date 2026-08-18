@@ -23,7 +23,16 @@ export const WINDOW_SHORTCUTS = [
   { id: "7d", label: "Last 7 days" },
 ];
 
+/** Calendar-day quick ranges (local timezone). Applied as absolute from/to. */
+export const CALENDAR_SHORTCUTS = [
+  { id: "today", label: "Today" },
+  { id: "yesterday", label: "Yesterday" },
+  { id: "day-before-yesterday", label: "Day before yesterday" },
+];
+
 export const CUSTOM_RANGE_ID = "custom";
+
+const CLOCK_ICON_SVG = `<svg class="tr-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
 
 /** @type {TimeRangeState} */
 let state = load();
@@ -151,6 +160,8 @@ export function appendMetricsRangeParams(q) {
 
 export function getDisplayLabel() {
   if (state.range === CUSTOM_RANGE_ID && state.fromUtc && state.toUtc) {
+    const cal = matchCalendarShortcut(state.fromUtc, state.toUtc);
+    if (cal) return cal.label;
     return formatAbsoluteLabel(state.fromUtc, state.toUtc);
   }
   const id = normalizeRange(state.range || "1h");
@@ -271,6 +282,7 @@ function pickerButtonHtml() {
     <div class="tr-picker" title="${escHtml(title)}">
       <button type="button" class="tr-btn" id="trPickerBtn" aria-haspopup="dialog" aria-expanded="false"
         ${connected ? "" : "disabled"}>
+        ${CLOCK_ICON_SVG}
         <span class="tr-btn-label">${escHtml(connected ? label : "Metrics offline")}</span>
         <span class="tr-btn-caret" aria-hidden="true">▾</span>
       </button>
@@ -280,6 +292,16 @@ function pickerButtonHtml() {
 function pickerPanelHtml() {
   const connected = isMetricsConnected() || metricsCapability === "unknown";
   const cur = getSelectValue();
+  const activeCal = (state.range === CUSTOM_RANGE_ID && state.fromUtc && state.toUtc)
+    ? matchCalendarShortcut(state.fromUtc, state.toUtc)?.id
+    : null;
+
+  const calBtns = CALENDAR_SHORTCUTS.map((s) => {
+    const active = activeCal === s.id ? " active" : "";
+    const dis = connected ? "" : " disabled";
+    return `<button type="button" class="tr-rel-btn${active}" data-tr-cal="${s.id}"${dis}>${escHtml(s.label)}</button>`;
+  }).join("");
+
   const relBtns = WINDOW_SHORTCUTS.map((s) => {
     const active = cur === s.id ? " active" : "";
     const dis = connected ? "" : " disabled";
@@ -296,10 +318,6 @@ function pickerPanelHtml() {
 
   return `
     <div class="tr-panel" id="trPanel" role="dialog" aria-label="Time range">
-      <div class="tr-col tr-rel">
-        <div class="tr-col-title">Quick ranges</div>
-        ${relBtns}
-      </div>
       <div class="tr-col tr-abs">
         <div class="tr-col-title">Absolute time range</div>
         <label class="tr-field">From
@@ -308,8 +326,15 @@ function pickerPanelHtml() {
         <label class="tr-field">To
           <input type="datetime-local" id="trTo" value="${escHtml(toLocal)}" ${connected ? "" : "disabled"} step="60" />
         </label>
+        <p class="tr-abs-error" id="trAbsError" hidden>To must be after From.</p>
         <button type="button" class="tr-apply" id="trApplyAbs" ${connected ? "" : "disabled"}>Apply time range</button>
         <p class="tr-hint">Statistics and charts use this time range. Live uses a separate short lookback.</p>
+      </div>
+      <div class="tr-col tr-rel">
+        <div class="tr-col-title">Quick ranges</div>
+        ${calBtns}
+        <div class="tr-rel-sep" aria-hidden="true"></div>
+        ${relBtns}
       </div>
     </div>`;
 }
@@ -353,11 +378,34 @@ function openTimeRangePanel(btn, onChange) {
     });
   });
 
+  panel.querySelectorAll("[data-tr-cal]").forEach((b) => {
+    b.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (b.disabled) return;
+      const id = b.getAttribute("data-tr-cal");
+      const win = calendarRangeLocal(id);
+      if (!win) return;
+      if (!setAbsoluteRange(win.from.toISOString(), win.to.toISOString())) return;
+      closeTimeRangePanel();
+      paintPickerLabel();
+      onChange?.();
+    });
+  });
+
+  const fromEl = panel.querySelector("#trFrom");
+  const toEl = panel.querySelector("#trTo");
+  const syncAbs = () => updateAbsoluteValidity(panel);
+  fromEl?.addEventListener("input", syncAbs);
+  toEl?.addEventListener("input", syncAbs);
+  fromEl?.addEventListener("change", syncAbs);
+  toEl?.addEventListener("change", syncAbs);
+  updateAbsoluteValidity(panel);
+
   panel.querySelector("#trApplyAbs")?.addEventListener("click", (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    const fromEl = panel.querySelector("#trFrom");
-    const toEl = panel.querySelector("#trTo");
+    if (!updateAbsoluteValidity(panel)) return;
     if (!fromEl?.value || !toEl?.value) return;
     if (!setAbsoluteRange(new Date(fromEl.value).toISOString(), new Date(toEl.value).toISOString())) return;
     closeTimeRangePanel();
@@ -433,11 +481,160 @@ export function refreshTimeRangePicker(host) {
   const onChange = host._trOnChange;
   mountTimeRangePicker(host, { onChange });
   host._trOnChange = onChange;
+  if (host.classList.contains("is-disabled")) {
+    applyTimeRangeDisabledState(host, host._trDisabledReason || "");
+  }
+}
+
+/**
+ * Enable/disable the nav Range picker (Live page locks it — lookback is always 1m).
+ * @param {boolean} enabled
+ * @param {{ reason?: string }} [opts]
+ */
+export function setTimeRangeControlsEnabled(enabled, opts = {}) {
+  const host = document.getElementById("navTimeRangeHost");
+  if (!host) return;
+  if (!enabled) {
+    closeTimeRangePanel();
+    host._trDisabledReason = opts.reason || "Time range is fixed on Live (1m lookback)";
+    host.classList.add("is-disabled");
+    applyTimeRangeDisabledState(host, host._trDisabledReason);
+    return;
+  }
+  host.classList.remove("is-disabled");
+  host._trDisabledReason = "";
+  host.removeAttribute("title");
+  refreshTimeRangePicker(host);
+}
+
+function applyTimeRangeDisabledState(host, reason) {
+  host.title = reason || "Time range unavailable";
+  const btn = host.querySelector("#trPickerBtn");
+  if (!btn) return;
+  btn.disabled = true;
+  btn.setAttribute("aria-expanded", "false");
+  btn.title = reason || host.title;
 }
 
 function toDatetimeLocalValue(d) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Local calendar midnight for the given date. */
+function startOfLocalDay(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
+/**
+ * Absolute window for a calendar quick range (local timezone).
+ * Today = midnight → now; Yesterday / day-before = full calendar day [00:00, next midnight).
+ * @param {string|null} id
+ * @returns {{ from: Date, to: Date }|null}
+ */
+export function calendarRangeLocal(id) {
+  const now = new Date();
+  const todayStart = startOfLocalDay(now);
+  if (id === "today") {
+    return { from: todayStart, to: now };
+  }
+  if (id === "yesterday") {
+    const from = new Date(todayStart);
+    from.setDate(from.getDate() - 1);
+    return { from, to: todayStart };
+  }
+  if (id === "day-before-yesterday") {
+    const to = new Date(todayStart);
+    to.setDate(to.getDate() - 1);
+    const from = new Date(todayStart);
+    from.setDate(from.getDate() - 2);
+    return { from, to };
+  }
+  return null;
+}
+
+/**
+ * If the absolute window matches a calendar shortcut, return it.
+ * Today: from ≈ local midnight today and to still on today's calendar day.
+ * Yesterday / day-before: full local day bounds (with small slack).
+ * @param {string} fromUtc
+ * @param {string} toUtc
+ */
+function matchCalendarShortcut(fromUtc, toUtc) {
+  const fromMs = new Date(fromUtc).getTime();
+  const toMs = new Date(toUtc).getTime();
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) return null;
+  const slackMs = 90_000;
+  const now = new Date();
+  const todayStart = startOfLocalDay(now);
+
+  if (Math.abs(todayStart.getTime() - fromMs) <= slackMs
+    && startOfLocalDay(new Date(toMs)).getTime() === todayStart.getTime()) {
+    return CALENDAR_SHORTCUTS.find((s) => s.id === "today") || null;
+  }
+
+  for (const s of CALENDAR_SHORTCUTS) {
+    if (s.id === "today") continue;
+    const win = calendarRangeLocal(s.id);
+    if (!win) continue;
+    if (Math.abs(win.from.getTime() - fromMs) <= slackMs
+      && Math.abs(win.to.getTime() - toMs) <= slackMs) {
+      return s;
+    }
+  }
+  return null;
+}
+
+/**
+ * Validates absolute From/To in the open panel. Shows error + invalid styling when To ≤ From.
+ * @param {HTMLElement} panel
+ * @returns {boolean} true when range is valid (or incomplete / offline)
+ */
+function updateAbsoluteValidity(panel) {
+  const fromEl = panel.querySelector("#trFrom");
+  const toEl = panel.querySelector("#trTo");
+  const errEl = panel.querySelector("#trAbsError");
+  const applyBtn = panel.querySelector("#trApplyAbs");
+  const connected = isMetricsConnected() || metricsCapability === "unknown";
+
+  const clearInvalid = () => {
+    fromEl?.classList.remove("invalid");
+    toEl?.classList.remove("invalid");
+    if (errEl) errEl.hidden = true;
+  };
+
+  if (!connected || !fromEl || !toEl) {
+    clearInvalid();
+    if (applyBtn) applyBtn.disabled = !connected;
+    return false;
+  }
+
+  if (!fromEl.value || !toEl.value) {
+    clearInvalid();
+    if (applyBtn) applyBtn.disabled = true;
+    return false;
+  }
+
+  const from = new Date(fromEl.value);
+  const to = new Date(toEl.value);
+  const invalid = Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from;
+
+  if (invalid) {
+    fromEl.classList.add("invalid");
+    toEl.classList.add("invalid");
+    if (errEl) {
+      errEl.hidden = false;
+      errEl.textContent = to <= from && !Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())
+        ? "To must be after From."
+        : "Enter a valid From and To.";
+    }
+    if (applyBtn) applyBtn.disabled = true;
+    return false;
+  }
+
+  clearInvalid();
+  if (applyBtn) applyBtn.disabled = false;
+  return true;
 }
 
 function escHtml(s) {

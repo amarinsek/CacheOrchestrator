@@ -7,13 +7,15 @@ import { $, beginPageLoad, main, mainHasContent, paintPage } from "./dom.js";
 import {
   currentValueHtml,
   esc,
+  fafcHtml,
   factoryShareOf,
   fmtDurationMs,
   impactBandLabel,
   METRIC_TITLES,
   num,
   pct,
-  pipelineBar,
+  pipelinePanelHtml,
+  staleShareHtml,
   thMetric,
   tipAttr,
 } from "./format.js";
@@ -37,6 +39,7 @@ import {
   emptyStateHtml,
   endpointTableHtml,
   impactDetailHtml,
+  fadCell,
   impactKpiRowHtml,
   layerDetailFc,
   layerDetailOc,
@@ -245,15 +248,11 @@ export function endpointDetailHeadHtml(ep) {
       </h2>
       ${recommendationsSectionHtml(ep.hints)}
       <div class="kpi-row">
-        <div class="kpi" title="Current value (not part of the selected time range)"><div class="label">Domain</div><div class="value" style="font-size:1rem">${ep.configuredDomain ? currentValueHtml(esc(ep.configuredDomain)) : "—"}</div></div>
-        <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(ep.requests)}</div></div>
-        <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit %</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowRequestSample, "request")}</div></div>
-        <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit %</div><div class="value">${pct(ep.fc?.hitShare, ep.fc?.lowRequestSample, "request")}</div></div>
-        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${pct(factoryShareOf(ep.fc), ep.fc?.lowRequestSample, "request")}</div></div>
-        ${impactKpiRowHtml(ep.impact)}
+        <div class="kpi" title="${esc(METRIC_TITLES.domain)}"><div class="label">Domain</div><div class="value" style="font-size:1rem">${ep.configuredDomain ? currentValueHtml(esc(ep.configuredDomain)) : "—"}</div></div>
+        <div class="kpi"${tipAttr("req")}><div class="label">Req</div><div class="value">${num(ep.requests)}</div></div>
+        ${impactKpiRowHtml(ep.impact, ep.fc)}
       </div>
-      <p class="muted">Pipeline</p>
-      ${pipelineBar(ep.pipeline, true)}
+      ${pipelinePanelHtml(ep.pipeline)}
     </div>
     <div class="detail-grid">
       ${layerDetailOc(ep.oc)}
@@ -269,8 +268,11 @@ export function endpointDetailHeadHtml(ep) {
           ${thMetric("Req", "req", { fromKey: true })}
           ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
           ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
-          ${thMetric("Factory %", "factoryShare", { fromKey: true })}
-          ${thMetric("Time saved", "estTimeSaved", { fromKey: true })}
+          ${thMetric("FC stale %", "staleShare", { fromKey: true })}
+          ${thMetric("FA run %", "factoryShare", { fromKey: true })}
+          ${thMetric("FAFC", "factoryFailures", { fromKey: true, className: "col-num" })}
+          ${thMetric("FAD", "avgFactoryDuration", { fromKey: true })}
+          ${thMetric("EFTS", "estTimeSaved", { fromKey: true })}
           ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
           ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
         </tr></thead>
@@ -281,7 +283,10 @@ export function endpointDetailHeadHtml(ep) {
               <td>${num(bi.requests)}</td>
               <td>${pct(bi.oc?.hitShare, bi.oc?.lowRequestSample, "request")}</td>
               <td>${pct(bi.fc?.hitShare, bi.fc?.lowRequestSample, "request")}</td>
+              ${staleShareHtml(bi.fc)}
               <td>${pct(factoryShareOf(bi.fc), bi.fc?.lowRequestSample, "request")}</td>
+              ${fafcHtml(bi.fc)}
+              <td>${fadCell(bi.impact)}</td>
               <td>${fmtDurationMs(bi.impact?.estFactoryTimeSavedMs)}</td>
               <td>${impactBandLabel(bi.impact?.benefit, { html: true })}</td>
               <td>${impactBandLabel(bi.impact?.candidate, { html: true })}</td>

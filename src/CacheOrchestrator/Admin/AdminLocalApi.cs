@@ -166,6 +166,15 @@ public static class AdminLocalApi
                     return Results.BadRequest(new { error = "scope must be domain, entity, entityKind, or tags." });
             }
 
+            if (body.Distribute
+                && result.ClusterPublish is { AllSucceeded: false } publish)
+            {
+                return ClusterPublishIncomplete(
+                    domain: body.Domain,
+                    publish,
+                    payload: result);
+            }
+
             return Results.Ok(result);
         });
 
@@ -189,30 +198,30 @@ public static class AdminLocalApi
 
             overrides.SetVersion(domain, version);
 
+            IResult? publishConflict = null;
             if (body?.Distribute == true && bus.IsEnabled)
             {
                 VersionBumpCommand cmd = commands.CreateVersionBump(domain, version);
-                try
-                {
-                    await bus.PublishAsync(cmd, cancellationToken).ConfigureAwait(false);
-                    CacheOrchestratorMetrics.RecordClusterPublished(nameof(VersionBumpCommand));
-                }
-                catch (Exception ex)
-                {
-                    CacheOrchestratorMetrics.RecordClusterPublishFailure("exception");
-                    loggerFactory.CreateLogger("CacheOrchestrator.Admin")
-                        .LogWarning(ex, "Cluster publish failed for VersionBump on domain {Domain}", domain);
-                }
+                publishConflict = await PublishMutationOrConflictAsync(
+                        bus,
+                        cmd,
+                        nameof(VersionBumpCommand),
+                        domain,
+                        loggerFactory,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             AdminDomainConfigDto effective = query.GetDomainConfig(DomainName.Normalize(domain));
-            return Results.Ok(new AdminDomainMutationResultDto
+            AdminDomainMutationResultDto ok = new()
             {
                 Domain = effective.Name,
                 Effective = effective
-            });
+            };
+            return publishConflict ?? Results.Ok(ok);
         });
 
+#pragma warning disable CS0618 // AdminTtlPatchRequest / DomainTtlPatch kept for compatibility
         group.MapMethods("/domains/{domain}/ttl", ["PATCH"], async (
             string domain,
             AdminTtlPatchRequest body,
@@ -228,53 +237,200 @@ public static class AdminLocalApi
             if (body is null)
                 return Results.BadRequest(new { error = "Request body is required." });
 
-            DomainTtlPatch patch = new()
-            {
-                OutputCacheTtlSeconds = body.OutputCacheTtlSeconds,
-                FusionCacheSoftTtlSeconds = body.FusionCacheSoftTtlSeconds,
-                FusionCacheHardTtlSeconds = body.FusionCacheHardTtlSeconds,
-                FusionCacheFailSafeSeconds = body.FusionCacheFailSafeSeconds,
-                ClientTtlSeconds = body.ClientTtlSeconds,
-                ClientTtlMinSeconds = body.ClientTtlMinSeconds
-            };
-
+            DomainSettingsPatch patch = DomainSettingsPatchMapper.FromTtlRequest(body);
             if (!patch.HasAny)
                 return Results.BadRequest(new { error = "At least one TTL field is required." });
 
-            string? validationError = ValidateTtlPatch(patch);
+            string? validationError = ValidateSettingsPatch(patch);
             if (validationError is not null)
                 return Results.BadRequest(new { error = validationError });
 
-            overrides.PatchTtl(domain, patch);
+            overrides.PatchSettings(domain, patch);
 
+            IResult? publishConflict = null;
             if (body.Distribute && bus.IsEnabled)
             {
-                TtlPatchCommand cmd = commands.CreateTtlPatch(domain, patch);
-                try
+                // Prefer legacy ttlPatch when TTL-only so older peers still apply.
+                DomainTtlPatch ttl = new()
                 {
-                    await bus.PublishAsync(cmd, cancellationToken).ConfigureAwait(false);
-                    CacheOrchestratorMetrics.RecordClusterPublished(nameof(TtlPatchCommand));
-                }
-                catch (Exception ex)
-                {
-                    CacheOrchestratorMetrics.RecordClusterPublishFailure("exception");
-                    loggerFactory.CreateLogger("CacheOrchestrator.Admin")
-                        .LogWarning(ex, "Cluster publish failed for TtlPatch on domain {Domain}", domain);
-                }
+                    OutputCacheTtlSeconds = patch.OutputCacheTtlSeconds,
+                    FusionCacheSoftTtlSeconds = patch.FusionCacheSoftTtlSeconds,
+                    FusionCacheHardTtlSeconds = patch.FusionCacheHardTtlSeconds,
+                    FusionCacheFailSafeSeconds = patch.FusionCacheFailSafeSeconds,
+                    ClientTtlSeconds = patch.ClientTtlSeconds,
+                    ClientTtlMinSeconds = patch.ClientTtlMinSeconds,
+                };
+                TtlPatchCommand cmd = commands.CreateTtlPatch(domain, ttl);
+                publishConflict = await PublishMutationOrConflictAsync(
+                        bus,
+                        cmd,
+                        nameof(TtlPatchCommand),
+                        domain,
+                        loggerFactory,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             AdminDomainConfigDto effective = query.GetDomainConfig(DomainName.Normalize(domain));
-            return Results.Ok(new AdminDomainMutationResultDto
+            AdminDomainMutationResultDto ok = new()
             {
                 Domain = effective.Name,
                 Effective = effective
-            });
+            };
+            return publishConflict ?? Results.Ok(ok);
+        });
+#pragma warning restore CS0618
+
+        group.MapGet("/domain-settings/catalog", () =>
+            Results.Ok(new AdminDomainSettingsCatalogDto
+            {
+                Settings = DomainSettingCatalog.GetEntries(),
+            }));
+
+        group.MapMethods("/domains/{domain}/settings", ["PATCH"], async (
+            string domain,
+            AdminSettingsPatchRequest body,
+            IDomainRuntimeOverrideStore overrides,
+            AdminQueryService query,
+            IClusterCommandBus bus,
+            ClusterCommandFactory commands,
+            ILoggerFactory loggerFactory,
+            CancellationToken cancellationToken) =>
+        {
+            if (string.IsNullOrWhiteSpace(domain))
+                return Results.BadRequest(new { error = "domain is required." });
+            if (body?.Settings is null || body.Settings.Count == 0)
+                return Results.BadRequest(new { error = "settings must contain at least one entry." });
+
+            DomainSettingsPatch patch;
+            try
+            {
+                patch = DomainSettingsPatchMapper.FromDictionary(body.Settings);
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+
+            string? validationError = ValidateSettingsPatch(patch);
+            if (validationError is not null)
+                return Results.BadRequest(new { error = validationError });
+
+            overrides.PatchSettings(domain, patch);
+
+            IResult? publishConflict = null;
+            if (body.Distribute && bus.IsEnabled)
+            {
+                ClusterCommand cmd;
+                string metricName;
+                if (patch.IsTtlOnly)
+                {
+#pragma warning disable CS0618
+                    DomainTtlPatch ttl = new()
+                    {
+                        OutputCacheTtlSeconds = patch.OutputCacheTtlSeconds,
+                        FusionCacheSoftTtlSeconds = patch.FusionCacheSoftTtlSeconds,
+                        FusionCacheHardTtlSeconds = patch.FusionCacheHardTtlSeconds,
+                        FusionCacheFailSafeSeconds = patch.FusionCacheFailSafeSeconds,
+                        ClientTtlSeconds = patch.ClientTtlSeconds,
+                        ClientTtlMinSeconds = patch.ClientTtlMinSeconds,
+                    };
+                    cmd = commands.CreateTtlPatch(domain, ttl);
+#pragma warning restore CS0618
+                    metricName = nameof(TtlPatchCommand);
+                }
+                else
+                {
+                    cmd = commands.CreateSettingsPatch(domain, body.Settings);
+                    metricName = nameof(SettingsPatchCommand);
+                }
+
+                publishConflict = await PublishMutationOrConflictAsync(
+                        bus,
+                        cmd,
+                        metricName,
+                        domain,
+                        loggerFactory,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            AdminDomainConfigDto effective = query.GetDomainConfig(DomainName.Normalize(domain));
+            AdminDomainMutationResultDto ok = new()
+            {
+                Domain = effective.Name,
+                Effective = effective
+            };
+            return publishConflict ?? Results.Ok(ok);
         });
 
         return endpoints;
     }
 
-    private static string? ValidateTtlPatch(DomainTtlPatch patch)
+    /// <summary>
+    /// Publishes a mutation command. Returns HTTP 409 when any peer failed (local already applied);
+    /// otherwise <see langword="null"/> so the caller can return 200 with the success payload.
+    /// </summary>
+    private static async Task<IResult?> PublishMutationOrConflictAsync(
+        IClusterCommandBus bus,
+        ClusterCommand command,
+        string metricName,
+        string domain,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            ClusterPublishResult published = await bus.PublishAsync(command, cancellationToken)
+                .ConfigureAwait(false);
+            CacheOrchestratorMetrics.RecordClusterPublished(metricName);
+            if (published.AllSucceeded)
+                return null;
+
+            return ClusterPublishIncomplete(domain, published, payload: null);
+        }
+        catch (Exception ex)
+        {
+            CacheOrchestratorMetrics.RecordClusterPublishFailure("exception");
+            loggerFactory.CreateLogger("CacheOrchestrator.Admin")
+                .LogWarning(ex, "Cluster publish failed for {Command} on domain {Domain}", metricName, domain);
+            return ClusterPublishIncomplete(
+                domain,
+                new ClusterPublishResult(
+                [
+                    new ClusterPeerPublishOutcome
+                    {
+                        PeerId = "(bus)",
+                        Succeeded = false,
+                        Error = ex.Message,
+                    },
+                ]),
+                payload: null);
+        }
+    }
+
+    private static IResult ClusterPublishIncomplete(
+        string? domain,
+        ClusterPublishResult publish,
+        object? payload)
+    {
+        var peerFailures = publish.Failures
+            .Select(f => new { peerId = f.PeerId, error = f.Error })
+            .ToArray();
+
+        return Results.Json(
+            new
+            {
+                error = "Cluster publish incomplete.",
+                domain,
+                localApplied = true,
+                peerFailures,
+                result = payload,
+            },
+            statusCode: StatusCodes.Status409Conflict);
+    }
+
+    private static string? ValidateSettingsPatch(DomainSettingsPatch patch)
     {
         static bool Negative(int? v) => v is < 0;
 
@@ -283,9 +439,13 @@ public static class AdminLocalApi
             || Negative(patch.FusionCacheHardTtlSeconds)
             || Negative(patch.FusionCacheFailSafeSeconds)
             || Negative(patch.ClientTtlSeconds)
-            || Negative(patch.ClientTtlMinSeconds))
+            || Negative(patch.ClientTtlMinSeconds)
+            || Negative(patch.FusionCacheJitterSeconds)
+            || Negative(patch.FusionCacheFactorySoftTimeoutSeconds)
+            || Negative(patch.FusionCacheFactoryHardTimeoutSeconds)
+            || Negative(patch.FusionCacheMaxItemBytes))
         {
-            return "TTL values must be non-negative.";
+            return "Numeric settings must be non-negative.";
         }
 
         if (patch.ClientTtlSeconds is int max
@@ -294,6 +454,9 @@ public static class AdminLocalApi
         {
             return "clientTtlMinSeconds must be <= clientTtlSeconds when both are set.";
         }
+
+        if (patch.FusionCacheEagerRefreshRatio is double r && (r < 0 || r >= 1))
+            return "fusionCacheEagerRefreshRatio must be in [0, 1).";
 
         return null;
     }

@@ -317,7 +317,7 @@ public sealed class MetricsWindowStatsService
                 cluster.FactoryRuns,
                 cluster.FactoryDurationSumMs,
                 cluster.FactoryDurationCount);
-            // Sum per-domain estimates so cluster Time saved matches the domains table
+            // Sum per-domain estimates so cluster EFTS matches the domains table
             // (blended cluster avg distorts when domains have different factory costs).
             double domainTimeSavedSum = domainRows
                 .Sum(d => d.Impact?.EstFactoryTimeSavedMs ?? 0);

@@ -238,6 +238,18 @@ public class MetricsWindowStatsServiceTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
+        public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchSettingsAsync(
+            AdminInstanceOptions instance,
+            string domain,
+            AdminSettingsPatchRequest body,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<InstanceCallOutcome<AdminDomainSettingsCatalogDto>> GetDomainSettingsCatalogAsync(
+            AdminInstanceOptions instance,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
             AdminInstanceOptions instance,
             CancellationToken cancellationToken = default) =>
