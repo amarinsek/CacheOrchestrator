@@ -59,6 +59,7 @@ public class AdminFanOutServiceTests
         overview.StatsWindow.Should().Be("metrics-store");
     }
 
+
     [Fact]
     public async Task GetInstancesAsync_SkipsKnownDownInstance_OnSecondCall()
     {

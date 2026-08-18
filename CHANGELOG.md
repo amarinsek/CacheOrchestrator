@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Window table PromQL: `last_over_time − offset` instead of bare `increase()` (fixes first-sample vanish/undercount: 1 req shows then disappears; 7 counted as 6)
 - Admin Console unit coverage: `MetricsWindowStatsService`, `LiveStatsService`, `LocalAdminClient`, WebApplicationFactory host smoke, fan-out domains/Version/TTL
 - Admin Console unit coverage (follow-up): `HintRuleRegistry`/`HintRuleDisableStore`, `InstanceReachabilityCache`, MetricsQuery summary/absolute range/errors, fan-out DownReprobe, Live high-factory hints
+- Admin Console hygiene: split Console DTOs under `Models/`; `AdminConsoleWriteValidators` for invalidate/version/TTL
 - Admin Console SPA: shared `beginPageLoad` / `paintPage` / `kpiRowHtml`; soft-refresh keeps filter focus on Endpoints/Domains/Instances/Live/Hints; Live uses `bindEntityTableClicks`
 - Admin Console SPA: split `views.js` into `views-*.js` modules + thin `route()`; shared `views-shared.js`; Metrics soft chart updates via one helper; header/`instancesUpClass` shared
 - Admin Console: typed `HintRulesResponseDto`; document restart-required for `AdminConsoleOptions` snapshot; window stats rolls up domain OC/FC/inv from per-instance series (−3 Prom queries); Live hints via `LiveHintProjector` + shared `PrometheusSampleHelpers`
@@ -50,7 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Console process-lifetime counter fan-out for stats UI (no longer aggregates Local Admin `GET …/stats` for Overview / Domains / Endpoints / Hints)
-- Admin Console obsolete empty shells **`GET /api/stats`** and **`GET /api/endpoints`** (SPA uses `/api/stats/window`); removed unused `StatsAggregator` / `StatsDeltaCache` / hardcoded `RecommendationHints` rule bodies (hints via `HintEngine` + `core-hints.json` only)
+- Unused `StatsAggregator` / `StatsDeltaCache` / hardcoded `RecommendationHints` rule bodies (hints via `HintEngine` + `core-hints.json` only)
+- Admin Console BFF **`GET /api/stats`** and **`GET /api/endpoints`** (empty Prom-era shells); SPA traffic uses **`GET /api/stats/window`**. Core library Local Admin `GET …/stats` / `…/endpoints` unchanged for 2.1.0 compatibility
 
 ### Documentation
 

@@ -246,7 +246,7 @@ public sealed class AdminFanOutService
         AdminConsoleInvalidateRequest request,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        AdminConsoleWriteValidators.Validate(request);
         WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
             .ConfigureAwait(false);
 
@@ -286,7 +286,7 @@ public sealed class AdminFanOutService
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        ArgumentNullException.ThrowIfNull(request);
+        AdminConsoleWriteValidators.Validate(request);
         WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
             .ConfigureAwait(false);
 
@@ -322,7 +322,7 @@ public sealed class AdminFanOutService
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        ArgumentNullException.ThrowIfNull(request);
+        AdminConsoleWriteValidators.Validate(request);
         WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
             .ConfigureAwait(false);
 

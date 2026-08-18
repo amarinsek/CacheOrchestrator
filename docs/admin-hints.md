@@ -125,7 +125,7 @@ Exact thresholds and messages: open **`core-hints.json`** or Settings → click 
 | Declarative compiler / conditions | `Services/Hints/Declarative/` |
 | Disable store | `Services/Hints/HintRuleDisableStore.cs` |
 | Product + operator packs | `hints/` |
-| Console DTOs (SPA / fan-out) | `Models/AdminConsoleModels.cs` |
+| Console DTOs (SPA / fan-out) | `Models/` (`OverviewDtos`, `FanOutDtos`, `WriteRequestDtos`, …) |
 | Settings UI | `wwwroot/js/views.js` (`renderSettingsPage`) |
 | Attachment on window stats | `Services/Metrics/MetricsWindowStatsService.cs` (`HintEngine`) |
 
