@@ -36,13 +36,20 @@ export function setNavActive(path) {
   });
 }
 
-/** Breadcrumb under chrome: [{ label, href? }, ...]. */
+/**
+ * Breadcrumb under chrome: [{ label, href? }, ...].
+ * Top-level pages omit breadcrumb (active nav is enough). Detail pages keep parent › leaf.
+ */
 export function setBreadcrumb(parts) {
   const el = $("#breadcrumb");
-  if (!parts || !parts.length) {
+  if (!el) return;
+  // Hide single-segment crumbs (page name only) — menu already shows the active page.
+  if (!parts || !parts.length || parts.length === 1) {
     el.innerHTML = "";
+    el.hidden = true;
     return;
   }
+  el.hidden = false;
   el.innerHTML = parts.map((p, i) => {
     if (p.href && i < parts.length - 1)
       return `<a href="${esc(p.href)}">${esc(p.label)}</a>`;

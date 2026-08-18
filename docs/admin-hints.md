@@ -24,10 +24,12 @@ Hints never change cache behaviour, TTLs, or invalidation.
 ## Architecture (repository)
 
 ```
-Local Admin /stats  →  Admin Console App fan-out (StatsAggregator)
-                    →  HintEngine (JSON rules)
-                    →  entity.Hints[] + HintSummary
-                    →  SPA (badges, Hints page, Settings)
+Prometheus (OTEL meter)  →  Admin Console /api/stats/window
+                         →  HintEngine (JSON rules)
+                         →  entity.Hints[] + HintSummary
+                         →  SPA (badges, Hints page, Settings)
+
+Domain config (optional) →  Admin fan-out /api/domains  →  config-only rules
 ```
 
 | Piece | Role |
@@ -42,7 +44,7 @@ Local Admin /stats  →  Admin Console App fan-out (StatsAggregator)
 
 Rules run **only in the Admin Console App**, not on each instance’s caching hot path.
 
-**Runtime evaluation is declarative JSON.** `RecommendationHints.cs` remains as a reference/unit-test helper for some legacy formulas; new product rules belong in `core-hints.json` or operator packs.
+**Runtime evaluation is declarative JSON** via `HintEngine` + `hints/core-hints.json` (and optional operator packs). Product rules belong in JSON packs, not C# helpers.
 
 ---
 
@@ -123,9 +125,9 @@ Exact thresholds and messages: open **`core-hints.json`** or Settings → click 
 | Declarative compiler / conditions | `Services/Hints/Declarative/` |
 | Disable store | `Services/Hints/HintRuleDisableStore.cs` |
 | Product + operator packs | `hints/` |
-| Console DTOs (SPA / fan-out) | `Models/AdminConsoleModels.cs` |
+| Console DTOs (SPA / fan-out) | `Models/` (`OverviewDtos`, `FanOutDtos`, `WriteRequestDtos`, …) |
 | Settings UI | `wwwroot/js/views.js` (`renderSettingsPage`) |
-| Attachment after fan-out | `Services/AdminFanOutService.cs`
+| Attachment on window stats | `Services/Metrics/MetricsWindowStatsService.cs` (`HintEngine`) |
 
 ---
 

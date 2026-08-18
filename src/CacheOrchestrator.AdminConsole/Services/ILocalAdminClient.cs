@@ -15,16 +15,6 @@ public interface ILocalAdminClient
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default);
 
-    /// <summary>GET live stats for one instance.</summary>
-    Task<InstanceCallOutcome<AdminLiveStatsSnapshot>> GetStatsAsync(
-        AdminInstanceOptions instance,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>GET discovered endpoints.</summary>
-    Task<InstanceCallOutcome<IReadOnlyList<AdminEndpointInfoDto>>> GetEndpointsAsync(
-        AdminInstanceOptions instance,
-        CancellationToken cancellationToken = default);
-
     /// <summary>GET domain config snapshots.</summary>
     Task<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>> GetDomainsAsync(
         AdminInstanceOptions instance,

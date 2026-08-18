@@ -6,6 +6,10 @@ Admin Console App for multi-instance CacheOrchestrator: live stats, domain setti
 
 It calls the **Admin API** on each instance you list (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).
 
+**Stats (Prom-only):** Console **2.2+** traffic KPIs, domain/endpoint tables, impact, and hints come from **Prometheus** (`AdminConsole:Metrics` + `GET /api/stats/window`). Local Admin API is used for health, domain config, and operations (invalidate / Version / TTL) only. Instance process-lifetime `GET …/stats` remains for diagnostics but is **not** used by the stats UI.
+
+**Impact / charts:** Need Prometheus scrape of the `CacheOrchestrator` meter (e.g. `cache_orchestrator.fc.requests`, `cache_orchestrator.factory.duration`). Without Metrics store, statistics and charts are unavailable.
+
 This host is **not** a NuGet package. It targets **.NET 10** only.  
 Monitored app instances may still run on **.NET 8** or **.NET 10** — Admin talks **HTTP only**, so Admin TFM does not need to match instance TFMs.
 
@@ -66,6 +70,7 @@ app.MapCacheOrchestratorAdmin();
 - **ApiKey** is sent as `X-Cache-Admin-Key` (must match each instance).  
 - **Instances[].url** is the application base URL only.  
 - **LocalPathPrefix** must match `Cache:Admin:RoutePrefix`.  
+- **Restart required** after changing `Instances`, `ApiKey`, timeouts, or `Metrics` (bound via `IOptions` snapshot). Hint packs (`Hints`) reload without restart.  
 - Production keys belong in a secret store; put VPN/SSO in front of this host.  
 - Invalidate / Version / TTL change live cache state — see [docs/admin.md — Security](../../docs/admin.md#security).
 
@@ -93,7 +98,7 @@ Requires a **.NET 10** runtime/SDK for this host.
 
 - http://localhost:5188/ — UI  
 - http://localhost:5188/health — process health  
-- http://localhost:5188/scalar/v1 — OpenAPI UI (Development; `MapOpenApi` + Scalar)
+- http://localhost:5188/scalar — OpenAPI UI (`MapOpenApi` + Scalar; `/scalar/v1` redirects here)
 
 In Development, `Instances` point at the **Playground** sample (`:5289`), which also exposes `/metrics` for Prometheus.
 

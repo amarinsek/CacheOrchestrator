@@ -1,7 +1,6 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Models;
 using CacheOrchestrator.AdminConsole.Options;
-using CacheOrchestrator.AdminConsole.Services.Hints;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
@@ -16,23 +15,19 @@ public sealed class AdminFanOutService
     private readonly AdminConsoleOptions _options;
     private readonly TimeProvider _time;
     private readonly InstanceReachabilityCache _reachability;
-    private readonly HintEngine _hints;
 
     public AdminFanOutService(
         ILocalAdminClient client,
         IOptions<AdminConsoleOptions> options,
         InstanceReachabilityCache reachability,
-        HintEngine hints,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(reachability);
-        ArgumentNullException.ThrowIfNull(hints);
         _client = client;
         _options = options.Value;
         _reachability = reachability;
-        _hints = hints;
         _time = timeProvider ?? TimeProvider.System;
     }
 
@@ -106,273 +101,53 @@ public sealed class AdminFanOutService
                 LatencyMs = o.LatencyMs,
                 StartedAtUtc = o.Value?.StartedAtUtc,
                 UptimeSeconds = o.Succeeded ? o.Value?.UptimeSeconds : null,
-                Requests = o.Succeeded ? o.Value?.Requests : null
+                // Process-lifetime health counters are not used for Console traffic (Prometheus window only).
+                Requests = null
             };
         }).ToArray();
     }
 
-    public async Task<ClusterStatsDto> GetStatsAsync(
-        string? scope,
-        CancellationToken cancellationToken,
-        bool groupByInstance = false,
-        string? instances = null)
-    {
-        IReadOnlyList<AdminInstanceOptions> targets = ResolveInstanceFilter(scope, instances);
-
-        // Stats + domains in parallel; both skip known-down instances (no stacked timeouts).
-        Task<List<InstanceCallOutcome<AdminLiveStatsSnapshot>>> statsTask = FanOutAsync(
-            targets,
-            (inst, ct) => _client.GetStatsAsync(inst, ct),
-            cancellationToken,
-            skipKnownDown: true);
-        Task<List<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>>> domainsTask = FanOutAsync(
-            targets,
-            (inst, ct) => _client.GetDomainsAsync(inst, ct),
-            cancellationToken,
-            skipKnownDown: true);
-        await Task.WhenAll(statsTask, domainsTask).ConfigureAwait(false);
-
-        List<InstanceCallOutcome<AdminLiveStatsSnapshot>> outcomes = await statsTask.ConfigureAwait(false);
-        RecordDataOutcomes(outcomes);
-
-        List<InstanceStatsContributionDto> contributions = outcomes.Select(o => new InstanceStatsContributionDto
-        {
-            InstanceId = o.InstanceId,
-            Succeeded = o.Succeeded,
-            Error = o.Error,
-            Snapshot = o.Value
-        }).ToList();
-
-        List<AdminLiveStatsSnapshot> ok = outcomes
-            .Where(o => o.Succeeded && o.Value is not null)
-            .Select(o => o.Value!)
-            .ToList();
-
-        // Config for TTL/schedule hints (best-effort from healthy instances).
-        Dictionary<string, AdminDomainConfigDto> configByName = new(StringComparer.Ordinal);
-        List<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>> domainOutcomes =
-            await domainsTask.ConfigureAwait(false);
-        RecordDataOutcomes(domainOutcomes);
-        foreach (AdminDomainConfigDto c in domainOutcomes
-                     .Where(o => o.Succeeded && o.Value is not null)
-                     .SelectMany(o => o.Value!))
-        {
-            configByName.TryAdd(c.Name, c);
-        }
-
-        IReadOnlyList<AdminDomainStatsDto> domains = StatsAggregator.MergeDomains(ok, groupByInstance)
-            .Select(d =>
-            {
-                configByName.TryGetValue(d.Name, out AdminDomainConfigDto? c);
-                return _hints.WithHints(d, c);
-            })
-            .ToArray();
-
-        IReadOnlyList<AdminEndpointStatsDto> endpoints = StatsAggregator.MergeEndpoints(ok, groupByInstance)
-            .Select(_hints.WithHints)
-            .ToArray();
-
-        IReadOnlyList<AdminEndpointStatsDto> unassigned = StatsAggregator.MergeUnassignedEndpoints(ok, groupByInstance)
-            .Select(_hints.WithHints)
-            .ToArray();
-
-        string scopeLabel = string.IsNullOrWhiteSpace(scope) ? "all" : scope.Trim();
-        if (!string.IsNullOrWhiteSpace(instances))
-            scopeLabel = "instances:" + string.Join(',', ParseCsv(instances));
-
-        return new ClusterStatsDto
-        {
-            Scope = scopeLabel,
-            GroupByInstance = groupByInstance,
-            CollectedAtUtc = _time.GetUtcNow(),
-            Instances = contributions,
-            Domains = domains,
-            Endpoints = endpoints,
-            UnassignedEndpoints = unassigned
-        };
-    }
-
+    /// <summary>
+    /// Instance health / connectivity overview only.
+    /// Traffic counters and hints come from Prometheus (<c>/api/stats/window</c>) in the SPA.
+    /// </summary>
     public async Task<OverviewDto> GetOverviewAsync(CancellationToken cancellationToken)
     {
-        // One health pass + one stats pass (with ByInstance). Do not re-fetch stats for hints.
-        Task<IReadOnlyList<InstanceStatusDto>> instancesTask = GetInstancesAsync(cancellationToken);
-        Task<ClusterStatsDto> statsTask = GetStatsAsync("all", cancellationToken, groupByInstance: true);
-        await Task.WhenAll(instancesTask, statsTask).ConfigureAwait(false);
+        IReadOnlyList<InstanceStatusDto> instances = await GetInstancesAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-        IReadOnlyList<InstanceStatusDto> instances = await instancesTask.ConfigureAwait(false);
-        ClusterStatsDto stats = await statsTask.ConfigureAwait(false);
-
-        long totalRequests = stats.Domains.Sum(d => d.Requests);
-        long totalInvalidations = stats.Domains.Sum(d => d.Invalidations);
-
-        // Weighted pipeline from domain sums (rebuild from totals).
-        long ocH = stats.Domains.Sum(d => d.Oc.Hits);
-        long ocM = stats.Domains.Sum(d => d.Oc.Misses);
-        long ocB = stats.Domains.Sum(d => d.Oc.Bypass);
-        long fcH = stats.Domains.Sum(d => d.Fc.Hits);
-        long fcM = stats.Domains.Sum(d => d.Fc.Misses);
-        long fcS = stats.Domains.Sum(d => d.Fc.Stale);
-        long fcB = stats.Domains.Sum(d => d.Fc.Bypass);
-        long runs = stats.Domains.Sum(d => d.Fc.FactoryRuns);
-        long fails = stats.Domains.Sum(d => d.Fc.FactoryFailures);
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
-            AdminStatsMath.BuildAll(ocH, ocM, ocB, fcH, fcM, fcS, fcB, runs, fails);
-
-        // Alerts = problems only (down / degraded). Multi-instance itself is normal when
-        // the console is configured with more than one target — do not alert on count alone.
-        List<string> alerts = [];
         int down = instances.Count(i => i.Status == InstanceHealthStatus.Down);
         int degraded = instances.Count(i => i.Status == InstanceHealthStatus.Degraded);
+        List<string> alerts = [];
         if (down > 0)
             alerts.Add($"{down} instance(s) down.");
         if (degraded > 0)
             alerts.Add($"{degraded} instance(s) degraded.");
 
-        // Full lists for Overview: UI sorts by the user's key, then takes top 5.
-        // Do not pre-filter here — otherwise re-sort only reshuffles a partial pool.
-        IReadOnlyList<AdminDomainStatsDto> topDomains = stats.Domains;
-        IReadOnlyList<AdminEndpointStatsDto> topEndpoints = stats.Endpoints;
-
-        IReadOnlyList<AdminHintDto> allHints = HintEngine.CollectFromStats(stats.Domains, stats.Endpoints);
-        AdminHintSummaryDto clusterHints = HintEngine.Summarize(allHints);
-
-        // Per-instance hint rollup from ByInstance rows (same stats fetch).
-        Dictionary<string, List<AdminHintDto>> instHintLists = new(StringComparer.OrdinalIgnoreCase);
-        foreach (AdminDomainStatsDto d in stats.Domains)
-        {
-            if (d.ByInstance is null)
-                continue;
-            foreach (AdminDomainStatsDto row in d.ByInstance)
-            {
-                if (string.IsNullOrEmpty(row.InstanceId))
-                    continue;
-                if (!instHintLists.TryGetValue(row.InstanceId, out List<AdminHintDto>? list))
-                {
-                    list = [];
-                    instHintLists[row.InstanceId] = list;
-                }
-
-                list.AddRange(HintEngine.CollectFromStats([row], row.Endpoints));
-            }
-        }
-
-        IReadOnlyList<InstanceStatusDto> instancesWithHints = instances.Select(i =>
-        {
-            instHintLists.TryGetValue(i.Id, out List<AdminHintDto>? hl);
-            return new InstanceStatusDto
-            {
-                Id = i.Id,
-                Url = i.Url,
-                Status = i.Status,
-                ReportedInstanceId = i.ReportedInstanceId,
-                Error = i.Error,
-                LatencyMs = i.LatencyMs,
-                StartedAtUtc = i.StartedAtUtc,
-                UptimeSeconds = i.UptimeSeconds,
-                Requests = i.Requests,
-                HintSummary = hl is null ? new AdminHintSummaryDto() : HintEngine.Summarize(hl)
-            };
-        }).ToArray();
-
-        IReadOnlyList<AdminHintDto> topHints = allHints
-            .OrderByDescending(h => h.Severity switch
-            {
-                "Critical" => 3,
-                "Warning" => 2,
-                _ => 1
-            })
-            .Take(8)
-            .ToArray();
-
         return new OverviewDto
         {
             CollectedAtUtc = _time.GetUtcNow(),
-            Instances = instancesWithHints,
+            Instances = instances,
             HealthyCount = instances.Count(i => i.Status == InstanceHealthStatus.Healthy),
             DegradedCount = degraded,
             DownCount = down,
-            TotalRequests = totalRequests > 0 ? totalRequests : stats.Endpoints.Sum(e => e.Requests),
-            TotalInvalidations = totalInvalidations,
-            Pipeline = pipeline,
-            OcHitShare = oc.HitShare,
-            FactoryShare = fc.FactoryShare,
+            TotalRequests = 0,
+            TotalInvalidations = 0,
+            Pipeline = new AdminPipelineDto(),
+            OcHitShare = null,
+            FactoryShare = null,
             Alerts = alerts,
-            TopDomains = topDomains,
-            TopEndpoints = topEndpoints,
-            DomainCount = stats.Domains.Count,
-            EndpointCount = stats.Endpoints.Count,
-            HintSummary = clusterHints,
-            TopHints = topHints
+            TopDomains = [],
+            TopEndpoints = [],
+            DomainCount = 0,
+            EndpointCount = 0,
+            HintSummary = new AdminHintSummaryDto(),
+            TopHints = [],
+            Impact = null,
+            StatsWindow = "metrics-store",
+            ImpactRecent = null,
+            RecentWindowLabel = null
         };
-    }
-
-    public async Task<IReadOnlyList<AdminEndpointStatsDto>> GetTopEndpointsAsync(
-        string? sort,
-        int take,
-        CancellationToken cancellationToken,
-        bool groupByInstance = false,
-        string? search = null,
-        string? domain = null,
-        string? domains = null,
-        string? instances = null,
-        long minRequests = 0,
-        int skip = 0)
-    {
-        ClusterStatsDto stats = await GetStatsAsync("all", cancellationToken, groupByInstance, instances)
-            .ConfigureAwait(false);
-        IEnumerable<AdminEndpointStatsDto> all = stats.Endpoints;
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            string s = search.Trim();
-            all = all.Where(e =>
-                e.Route.Contains(s, StringComparison.OrdinalIgnoreCase)
-                || (e.ConfiguredDomain?.Contains(s, StringComparison.OrdinalIgnoreCase) ?? false));
-        }
-
-        // "__none__" from UI = show empty set
-        if (string.Equals(domains, "__none__", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(instances, "__none__", StringComparison.OrdinalIgnoreCase))
-        {
-            return [];
-        }
-
-        HashSet<string>? domainFilter = null;
-        if (!string.IsNullOrWhiteSpace(domains))
-            domainFilter = new HashSet<string>(ParseCsv(domains), StringComparer.OrdinalIgnoreCase);
-        else if (!string.IsNullOrWhiteSpace(domain))
-            domainFilter = new HashSet<string>([domain.Trim()], StringComparer.OrdinalIgnoreCase);
-
-        if (domainFilter is { Count: > 0 })
-        {
-            all = all.Where(e =>
-                e.ConfiguredDomain is not null
-                && domainFilter.Contains(e.ConfiguredDomain));
-        }
-
-        if (minRequests > 0)
-            all = all.Where(e => e.Requests >= minRequests);
-
-        take = Math.Clamp(take, 1, 500);
-        skip = Math.Max(0, skip);
-        string sortKey = (sort ?? "factoryShare").Trim().ToLowerInvariant();
-
-        IOrderedEnumerable<AdminEndpointStatsDto> ordered = sortKey switch
-        {
-            "hits" or "traffic" or "requests" => all.OrderByDescending(e => e.Requests),
-            "route" => all.OrderBy(e => e.Route, StringComparer.OrdinalIgnoreCase),
-            "ochitshare" => all.OrderByDescending(e => e.Oc.HitShare ?? -1),
-            "fchitshare" => all.OrderByDescending(e => e.Fc.HitShare ?? -1),
-            "factoryshare" or "originshare" => all.OrderByDescending(e => e.Fc.FactoryShare ?? -1),
-            "ocmissrate" => all.OrderByDescending(e => e.Oc.MissRate ?? -1),
-            "fcmissshare" => all.OrderByDescending(e => e.Fc.MissShare ?? -1),
-            "fcmissrate" or "missrate" => all.OrderByDescending(e => e.Fc.MissRate ?? -1),
-            "fchits" => all.OrderByDescending(e => e.Fc.Hits),
-            "stale" => all.OrderByDescending(e => e.Fc.Stale),
-            _ => all.OrderByDescending(e => e.Fc.FactoryShare ?? e.Fc.MissShare ?? -1)
-        };
-
-        return ordered.Skip(skip).Take(take).ToArray();
     }
 
     public async Task<FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>>> GetDomainsAsync(
@@ -471,7 +246,7 @@ public sealed class AdminFanOutService
         AdminConsoleInvalidateRequest request,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        AdminConsoleWriteValidators.Validate(request);
         WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
             .ConfigureAwait(false);
 
@@ -511,7 +286,7 @@ public sealed class AdminFanOutService
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        ArgumentNullException.ThrowIfNull(request);
+        AdminConsoleWriteValidators.Validate(request);
         WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
             .ConfigureAwait(false);
 
@@ -547,7 +322,7 @@ public sealed class AdminFanOutService
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        ArgumentNullException.ThrowIfNull(request);
+        AdminConsoleWriteValidators.Validate(request);
         WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
             .ConfigureAwait(false);
 
@@ -720,45 +495,4 @@ public sealed class AdminFanOutService
 
     private static bool IsSkippedDownError(string? error) =>
         error is not null && error.StartsWith("Skipped (instance down", StringComparison.Ordinal);
-
-    private static string NormalizeScopeToTarget(string? scope)
-    {
-        if (string.IsNullOrWhiteSpace(scope) || string.Equals(scope, "all", StringComparison.OrdinalIgnoreCase))
-            return "all";
-        if (scope.StartsWith("instance:", StringComparison.OrdinalIgnoreCase))
-            return scope;
-        // Allow bare instance id
-        return "instance:" + scope.Trim();
-    }
-
-    /// <summary>
-    /// Combines legacy <paramref name="scope"/> with optional multi-instance CSV filter.
-    /// Empty/null <paramref name="instances"/> means all instances from scope.
-    /// </summary>
-    private IReadOnlyList<AdminInstanceOptions> ResolveInstanceFilter(string? scope, string? instances)
-    {
-        IReadOnlyList<AdminInstanceOptions> fromScope = ResolveTarget(NormalizeScopeToTarget(scope));
-        if (string.IsNullOrWhiteSpace(instances))
-            return fromScope;
-
-        if (string.Equals(instances.Trim(), "__none__", StringComparison.OrdinalIgnoreCase))
-            return [];
-
-        HashSet<string> wanted = new(ParseCsv(instances), StringComparer.OrdinalIgnoreCase);
-        if (wanted.Count == 0)
-            return fromScope;
-
-        List<AdminInstanceOptions> filtered = fromScope
-            .Where(i => wanted.Contains(i.Id))
-            .ToList();
-
-        if (filtered.Count == 0)
-            throw new KeyNotFoundException($"No configured instances match: {instances}");
-
-        return filtered;
-    }
-
-    private static IEnumerable<string> ParseCsv(string csv) =>
-        csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(s => s.Length > 0);
 }

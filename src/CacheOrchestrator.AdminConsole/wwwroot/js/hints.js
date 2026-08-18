@@ -1,7 +1,7 @@
 /**
  * Recommendation-hint presentation and flattening.
  *
- * Live hints come from RecommendationHints on the Admin Console App.
+ * Live hints come from HintEngine (declarative core/operator packs) on the Admin Console App.
  * This module only renders them — it does not evaluate rules.
  */
 
@@ -64,10 +64,9 @@ export function shortHint(h) {
   return map[h.code] || (h.severity || "Hint").slice(0, 4);
 }
 
-/** Full severity + code + message blocks for detail pages. */
+/** Full severity + code + message blocks (assumes non-empty). */
 export function hintListHtml(hints) {
-  if (!hints || !hints.length) return `<p class="muted">No recommendations.</p>`;
-  return `<div class="hint-list">${hints.map((h) => `
+  return `<div class="hint-list">${(hints || []).map((h) => `
     <div class="hint-row ${esc(h.severity || "Info")}">
       <span class="hint-sev">${esc(h.severity || "Info")}</span>
       <div>
@@ -75,6 +74,14 @@ export function hintListHtml(hints) {
         <div class="hint-msg">${esc(h.message)}</div>
       </div>
     </div>`).join("")}</div>`;
+}
+
+/**
+ * Detail recommendations block — omitted when empty; no heading (chips already on title).
+ */
+export function recommendationsSectionHtml(hints) {
+  if (!hints || !hints.length) return "";
+  return `<div class="recommendations-block">${hintListHtml(hints)}</div>`;
 }
 
 /**
@@ -119,29 +126,23 @@ export function collectHintRows(stats) {
     });
   };
 
+  // Prefer byInstance when present (avoids double count: aggregate row + each instance).
   for (const d of stats.domains || []) {
-    for (const h of d.hints || []) {
-      push(h, { domain: d.name, instanceId: d.instanceId || "", entityType: "domain" });
-    }
-    if (d.byInstance) {
+    if (d.byInstance?.length) {
       for (const bi of d.byInstance) {
         for (const h of bi.hints || []) {
           push(h, { domain: d.name, instanceId: bi.instanceId || "", entityType: "domain" });
         }
       }
+    } else {
+      for (const h of d.hints || []) {
+        push(h, { domain: d.name, instanceId: d.instanceId || "", entityType: "domain" });
+      }
     }
   }
 
   for (const e of stats.endpoints || []) {
-    for (const h of e.hints || []) {
-      push(h, {
-        domain: e.configuredDomain || "",
-        route: e.route,
-        instanceId: e.instanceId || "",
-        entityType: "endpoint",
-      });
-    }
-    if (e.byInstance) {
+    if (e.byInstance?.length) {
       for (const bi of e.byInstance) {
         for (const h of bi.hints || []) {
           push(h, {
@@ -151,6 +152,15 @@ export function collectHintRows(stats) {
             entityType: "endpoint",
           });
         }
+      }
+    } else {
+      for (const h of e.hints || []) {
+        push(h, {
+          domain: e.configuredDomain || "",
+          route: e.route,
+          instanceId: e.instanceId || "",
+          entityType: "endpoint",
+        });
       }
     }
   }

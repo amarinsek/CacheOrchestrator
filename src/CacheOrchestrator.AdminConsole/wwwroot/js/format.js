@@ -15,6 +15,30 @@ export function esc(s) {
 }
 
 /**
+ * Mark config/identity as not time-scoped (white text + green dashed underline, like low-sample).
+ * Empty / em dash values are plain (no underline).
+ * @param {string} htmlInner Already-escaped or safe HTML fragment for the value
+ * @param {string} [tip]
+ */
+export function currentValueHtml(htmlInner, tip) {
+  const plain = String(htmlInner ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&mdash;|&#8212;|—|–|-/g, "—")
+    .trim();
+  if (!plain || plain === "—" || plain === "n/a" || plain === "N/A") {
+    return htmlInner || "—";
+  }
+  const t = tip || "Current value (not part of the selected time range)";
+  return `<span class="current-value" title="${esc(t)}">${htmlInner}</span>`;
+}
+
+/** Em dash for missing window samples — plain text, no underline. */
+export function noDataHtml(tip) {
+  const t = tip || "No samples in the selected time range";
+  return `<span class="no-data-value" title="${esc(t)}">—</span>`;
+}
+
+/**
  * Format a 0–1 ratio as a percentage string.
  * @param {number|null|undefined} rate
  * @param {boolean} [lowSample] when true, dashed underline + tooltip
@@ -41,54 +65,63 @@ export function num(n) {
  * Factory is also known as origin (CDN miss path).
  */
 export const METRIC_TITLES = {
-  req: "Lifetime request count (sum across selected instances)",
+  req: "Number of cache-accounted requests in the selected time range.",
   pipeline:
-    "Request pipeline (shares of all requests): OC hit share · FC hit share · Factory share · Bypass · Other. The three main shares are mutually exclusive for a typical OC-then-FC path; Bypass/Other cover the rest.",
-  oc: "Output Cache — full HTTP response cache in ASP.NET Core",
-  fc: "FusionCache — application object cache (L1 memory, optional L2)",
-  // Keep wording aligned with UI labels: "OC hit share", "FC hit share", "Factory share".
+    "How requests were served in the selected time range: Output Cache hit, Fusion hit, factory (origin), bypass, or other.",
+  oc: "Output Cache — full HTTP response cache.",
+  fc: "FusionCache — application data cache (in-process memory, optional distributed L2).",
   ocHitShare:
-    "OC hit share — fraction of all requests served from Output Cache (full HTTP response). Not a layer-only rate.",
+    "Share of requests served from Output Cache (full HTTP response) in the selected time range.",
   fcHitShare:
-    "FC hit share — fraction of all requests served from FusionCache without running the factory.",
+    "Share of requests served from FusionCache without running the factory in the selected time range.",
   factoryShare:
-    "Factory share — fraction of all requests where the Fusion factory ran (factoryRuns ÷ requests). Also known as origin share.",
-  factory: "Fusion factory runs (GetOrSet miss path that produced a value)",
-  factoryFailures: "Fusion factory runs that threw or failed",
-  factoryFailureRate: "Factory failures ÷ factory runs",
-  fcMissRate: "FusionCache miss rate of traffic that reached the Fusion layer (not of all requests)",
-  fcMissShare: "FusionCache miss share of all requests",
-  fcHitRate: "FusionCache hit rate of traffic that reached the Fusion layer",
-  stale: "Fusion fail-safe stale serves (count) — old value returned after factory/timeout issues",
-  staleShare: "Stale serves as a share of all requests",
-  staleRate: "Stale rate of traffic that reached the Fusion layer",
-  inv: "Lifetime domain invalidations (sum)",
-  invShare: "Invalidations relative to request volume",
-  version: "Domain cache version stamp (key segment). Bump Version to cut over keys without purging by tag.",
-  uptime: "Process uptime from last successful health probe",
-  latency: "Health probe round-trip latency (Admin → instance)",
-  status: "Instance health: Healthy / Degraded / Down",
-  hints: "Recommendation hints for this row (severity-colored)",
-  route: "Stable endpoint key: HTTP method + route template",
-  domain: "Cache domain — named policy group (TTL, providers, client headers, version)",
-  instance: "Target app instance id (Cache:InstanceId)",
-  url: "Base URL used by Admin fan-out for this instance",
-  error: "Last probe or fan-out error message",
-  reqRate: "Request rate from external metrics store (windowed)",
-  ocHitWindow: "Output Cache hit share over the selected metrics window",
-  fcHitRateWindow: "Fusion layer hit rate over the selected metrics window",
-  invRate: "Invalidation rate from external metrics store (windowed)",
-  schedule: "Client Cache Schedule — ramps client max-age toward a cutover (Calm / Approaching / Hold)",
-  softTtl: "Fusion soft TTL — preferred freshness; after this, factory may refresh in background",
-  hardTtl: "Fusion hard TTL — absolute max age before entry is not used without factory",
-  failSafe: "Fusion fail-safe window — may serve stale if factory fails",
-  clientTtl: "Client Cache-Control max-age (browser/CDN), separate from server OC/Fusion TTL",
-  bus: "Cluster bus — HTTP fan-out of invalidation / runtime commands between instances",
-  fanout: "Admin HTTP fan-out — Admin calls each instance Local Admin API directly",
-  overlay: "Runtime Version/TTL overlay — process-local override (not config file)",
-  metricsStore: "Optional Prometheus-compatible store for windowed charts (not lifetime counters)",
-  l1: "Fusion L1 — in-process memory cache",
-  l2: "Fusion L2 — optional distributed cache (e.g. Redis)",
+    "Share of requests where the value factory ran (origin / miss path) in the selected time range.",
+  factoryAvoidance:
+    "Share of requests that did not run the factory in the selected time range.",
+  estTimeSaved:
+    "Estimated factory time saved in the selected time range (avoided factory calls × average factory duration). Cluster total sums domains.",
+  reqRate: "Highest 1-minute request rate in the selected time range.",
+  peakRequestRate: "Highest 1-minute request rate in the selected time range.",
+  liveRps: "Current request rate over the last minute.",
+  cacheBenefit:
+    "How beneficial caching looks for this traffic (avoidance × factory cost) in the selected time range.",
+  cacheCandidate:
+    "Whether this traffic looks like a strong caching candidate in the selected time range.",
+  factory: "Times the value factory ran in the selected time range.",
+  factoryFailures: "Factory failures (hard error or fail-safe stale) in the selected time range.",
+  factoryFailureRate: "Factory failures divided by factory runs in the selected time range.",
+  fcMissRate: "Miss rate among requests that reached FusionCache (layer rate).",
+  fcMissShare: "FusionCache misses as a share of all requests in the selected time range.",
+  fcHitRate: "Hit rate among requests that reached FusionCache (layer rate).",
+  stale: "Fail-safe stale serves — an older value was returned after factory or timeout issues.",
+  staleShare: "Stale serves as a share of all requests in the selected time range.",
+  staleRate: "Stale rate among traffic that reached FusionCache.",
+  inv: "Successful invalidations in the selected time range.",
+  invShare: "Invalidations relative to request volume in the selected time range.",
+  version: "Domain version stamp used in cache keys. Change it to cut over to new keys.",
+  uptime: "How long this app process has been running.",
+  latency: "Round-trip time of the last health check to this instance.",
+  status: "Instance health: Healthy, Degraded, or Down.",
+  hints: "Recommendations for this row.",
+  route: "Endpoint key: HTTP method + route template.",
+  domain: "Cache domain — shared TTLs, providers, client headers, and version.",
+  instance: "Instance id (Cache:InstanceId).",
+  url: "Base URL used to reach this instance.",
+  error: "Last health-check or connection error.",
+  ocHitWindow: "Output Cache hit share in the selected time range.",
+  fcHitRateWindow: "Fusion hit rate in the selected time range.",
+  invRate: "Invalidation rate in the selected time range.",
+  schedule: "Client Cache Schedule — adjusts browser/CDN max-age toward a planned cutover.",
+  softTtl: "Fusion soft TTL — preferred freshness window.",
+  hardTtl: "Fusion hard TTL — absolute maximum age.",
+  failSafe: "Fail-safe window — may serve stale data if the factory fails.",
+  clientTtl: "Client Cache-Control max-age (browser/CDN), separate from server TTLs.",
+  bus: "Cluster bus — instances apply commands to peers over HTTP.",
+  fanout: "Admin calls each instance directly to apply the operation.",
+  overlay: "Runtime Version/TTL override on this process (not from config file).",
+  metricsStore: "Metrics backend used for Live, tables, and charts.",
+  l1: "Fusion L1 — in-process memory cache.",
+  l2: "Fusion L2 — optional distributed cache (for example Redis).",
 };
 
 /**
@@ -100,6 +133,49 @@ export function factoryShareOf(o) {
   if (o.factoryShare != null) return o.factoryShare;
   if (o.originShare != null) return o.originShare;
   return null;
+}
+
+/** @param {{ impact?: { factoryAvoidance?: number|null }|null }|null|undefined} row */
+export function factoryAvoidanceOf(row) {
+  const v = row?.impact?.factoryAvoidance;
+  return v == null ? null : v;
+}
+
+/**
+ * Human label for benefit/candidate bands.
+ * INSUFFICIENT_DATA → "low sample"; UNKNOWN (benefit) uses the same muted/dashed style.
+ * @param {string|null|undefined} band
+ * @param {{ html?: boolean }} [opts] when html, wrap low-confidence labels for CSS
+ */
+export function impactBandLabel(band, opts = {}) {
+  if (!band) return "—";
+  const raw = String(band).toUpperCase();
+  if (raw === "INSUFFICIENT_DATA") {
+    if (opts.html) {
+      return `<span class="low-sample-label" title="Low sample (total requests &lt; 20) — impact bands are not reliable yet">low sample</span>`;
+    }
+    return "low sample";
+  }
+  if (raw === "UNKNOWN") {
+    if (opts.html) {
+      return `<span class="low-sample-label" title="Unknown — not enough traffic sample, or factory cost (duration/size) not measured yet">unknown</span>`;
+    }
+    return "unknown";
+  }
+  return String(band).replaceAll("_", " ");
+}
+
+/**
+ * Human duration for estimated time saved (ms → s/min when large).
+ * @param {number|null|undefined} ms
+ */
+export function fmtDurationMs(ms) {
+  if (ms == null || Number.isNaN(ms)) return "—";
+  const n = Number(ms);
+  if (n < 1000) return `${Math.round(n)} ms`;
+  if (n < 60_000) return `${(n / 1000).toFixed(1)} s`;
+  if (n < 3_600_000) return `${(n / 60_000).toFixed(1)} min`;
+  return `${(n / 3_600_000).toFixed(2)} h`;
 }
 
 /** HTML title attribute from METRIC_TITLES key or raw text. */
@@ -165,7 +241,11 @@ export function fmtUnit(value, unit) {
   return `${s}\u2009${unit}`;
 }
 
-/** Human uptime from whole seconds: "3 h 12 m", "45 s", etc. */
+/**
+ * Human uptime from whole seconds.
+ * Always two units (except bare seconds) with zero-padded secondary so table cells
+ * keep a stable width across soft refresh.
+ */
 export function formatUptime(seconds) {
   if (seconds == null || seconds < 0 || Number.isNaN(Number(seconds))) return "—";
   const s = Math.floor(Number(seconds));
@@ -173,10 +253,24 @@ export function formatUptime(seconds) {
   const h = Math.floor((s % 86400) / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
-  if (d > 0) return `${fmtUnit(d, "d")} ${fmtUnit(h, "h")}`;
-  if (h > 0) return `${fmtUnit(h, "h")} ${fmtUnit(m, "m")}`;
-  if (m > 0) return `${fmtUnit(m, "m")} ${fmtUnit(sec, "s")}`;
-  return fmtUnit(sec, "s");
+  const p2 = (n) => String(n).padStart(2, "0");
+  if (d > 0) return `${d}\u2009d ${p2(h)}\u2009h`;
+  if (h > 0) return `${h}\u2009h ${p2(m)}\u2009m`;
+  if (m > 0) return `${m}\u2009m ${p2(sec)}\u2009s`;
+  return `${sec}\u2009s`;
+}
+
+/**
+ * Format a request rate (req/s) from Prometheus rate() / max_over_time(rate()).
+ * @param {number|null|undefined} rate
+ */
+export function fmtRequestRate(rate) {
+  const r = Number(rate);
+  if (!Number.isFinite(r) || r < 0) return "—";
+  if (r < 0.01) return r.toFixed(3);
+  if (r < 10) return r.toFixed(2);
+  if (r < 100) return r.toFixed(1);
+  return num(Math.round(r));
 }
 
 /** Round-trip latency for health probes. */

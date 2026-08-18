@@ -5,6 +5,7 @@ namespace CacheOrchestrator.Admin;
 
 /// <summary>
 /// Process-local live counters for Local Admin API.
+/// Stores raw counters only; fat v1 DTOs are projected on read.
 /// </summary>
 internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
 {
@@ -29,6 +30,7 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
         TrackEndpoints = adminOptions.TrackEndpoints;
         TrackLatency = adminOptions.TrackLatency;
+        TrackResultSize = adminOptions.TrackResultSize;
         _instanceId = instanceId.Trim();
         _time = timeProvider ?? TimeProvider.System;
     }
@@ -41,6 +43,9 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
 
     /// <inheritdoc />
     public bool TrackLatency { get; }
+
+    /// <inheritdoc />
+    public bool TrackResultSize { get; }
 
     /// <inheritdoc />
     public void RecordOutput(string? endpointKey, string? domain, string result)
@@ -57,15 +62,20 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
     }
 
     /// <inheritdoc />
-    public void RecordFusion(string? endpointKey, string? domain, string result, long? elapsedTicks = null)
+    public void RecordFusion(
+        string? endpointKey,
+        string? domain,
+        string result,
+        long? elapsedTicks = null,
+        long? resultSizeBytes = null)
     {
         if (!string.IsNullOrEmpty(domain))
-            ApplyFusion(GetDomain(domain), result, elapsedTicks);
+            ApplyFusion(GetDomain(domain), result, elapsedTicks, resultSizeBytes);
 
         if (TrackEndpoints && !string.IsNullOrEmpty(endpointKey))
         {
             AdminCounterSet ep = GetEndpoint(endpointKey);
-            ApplyFusion(ep, result, elapsedTicks);
+            ApplyFusion(ep, result, elapsedTicks, resultSizeBytes);
             RememberEndpointDomain(endpointKey, domain);
         }
     }
@@ -82,51 +92,24 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
     }
 
     /// <inheritdoc />
-    public AdminLiveStatsSnapshot GetSnapshot()
+    public AdminLiveStatsRawSnapshot GetRawSnapshot()
     {
-        // Raw counter snapshot only; domain enrichment happens in AdminQueryService.
-        List<AdminDomainStatsDto> domains = [];
+        List<AdminDomainCountersDto> domains = [];
         foreach ((string name, AdminCounterSet counters) in _domains)
         {
-            long invTicks = Interlocked.Read(ref counters.LastInvalidationUtcTicks);
-            (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
-                counters.ToStats();
-            domains.Add(new AdminDomainStatsDto
-            {
-                Name = name,
-                InstanceId = _instanceId,
-                Version = string.Empty,
-                Requests = requests,
-                Oc = oc,
-                Fc = fc,
-                Pipeline = pipeline,
-                Invalidations = Interlocked.Read(ref counters.Invalidations),
-                LastInvalidationUtc = invTicks > 0
-                    ? new DateTimeOffset(invTicks, TimeSpan.Zero)
-                    : null,
-                Endpoints = []
-            });
+            AdminCounterSnapshot c = counters.Read();
+            domains.Add(ToDomainCounters(name, _instanceId, c));
         }
 
-        List<AdminEndpointStatsDto> endpoints = [];
+        List<AdminEndpointCountersDto> endpoints = [];
         foreach ((string route, AdminCounterSet counters) in _endpoints)
         {
             _endpointConfiguredDomain.TryGetValue(route, out string? configured);
-            (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
-                counters.ToStats();
-            endpoints.Add(new AdminEndpointStatsDto
-            {
-                Route = route,
-                InstanceId = _instanceId,
-                ConfiguredDomain = configured,
-                Requests = requests,
-                Oc = oc,
-                Fc = fc,
-                Pipeline = pipeline
-            });
+            AdminCounterSnapshot c = counters.Read();
+            endpoints.Add(ToEndpointCounters(route, _instanceId, configured, c));
         }
 
-        return new AdminLiveStatsSnapshot
+        return new AdminLiveStatsRawSnapshot
         {
             InstanceId = _instanceId,
             CollectedAtUtc = _time.GetUtcNow(),
@@ -135,6 +118,10 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
             Endpoints = endpoints
         };
     }
+
+    /// <inheritdoc />
+    public AdminLiveStatsSnapshot GetSnapshot() =>
+        AdminStatsV1Mapper.ToLiveSnapshot(GetRawSnapshot());
 
     /// <summary>Exposes endpoint→domain hints recorded at runtime (for snapshot assembly).</summary>
     internal IReadOnlyDictionary<string, string?> EndpointDomainHints => _endpointConfiguredDomain;
@@ -157,7 +144,7 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
             (_, existing) => existing ?? normalized);
     }
 
-    private void ApplyOutput(AdminCounterSet set, string result)
+    private static void ApplyOutput(AdminCounterSet set, string result)
     {
         switch (result)
         {
@@ -175,7 +162,11 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
         }
     }
 
-    private void ApplyFusion(AdminCounterSet set, string result, long? elapsedTicks)
+    private void ApplyFusion(
+        AdminCounterSet set,
+        string result,
+        long? elapsedTicks,
+        long? resultSizeBytes)
     {
         switch (result)
         {
@@ -190,6 +181,10 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
                 Interlocked.Increment(ref set.FcStale);
                 Interlocked.Increment(ref set.FcFactoryFailures);
                 break;
+            case "fail":
+                // Hard factory throw (no fail-safe value returned).
+                Interlocked.Increment(ref set.FcFactoryFailures);
+                break;
             case "bypass":
                 Interlocked.Increment(ref set.FcBypass);
                 break;
@@ -198,10 +193,85 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
                 break;
         }
 
-        if (TrackLatency && elapsedTicks is long ticks)
+        // Factory-path duration only (miss / stale / hard fail). Hits must not dilute avg factory cost.
+        if (TrackLatency
+            && elapsedTicks is long ticks
+            && IsFactoryPathResult(result))
         {
             Interlocked.Add(ref set.FactorySumTicks, ticks);
             Interlocked.Increment(ref set.FactoryCount);
         }
+
+        // Successful factory materialization size only (miss with known size).
+        if (TrackResultSize
+            && resultSizeBytes is long size
+            && size >= 0
+            && result is "miss")
+        {
+            Interlocked.Add(ref set.FactoryResultSizeSumBytes, size);
+            Interlocked.Increment(ref set.FactoryResultSizeCount);
+        }
     }
+
+    /// <summary>Results where the value factory ran (success, fail-safe stale, or hard fail).</summary>
+    internal static bool IsFactoryPathResult(string result) =>
+        result is "miss" or "stale" or "fail";
+
+    private static AdminDomainCountersDto ToDomainCounters(
+        string name,
+        string instanceId,
+        in AdminCounterSnapshot c)
+    {
+        DateTimeOffset? lastInv = c.LastInvalidationUtcTicks > 0
+            ? new DateTimeOffset(c.LastInvalidationUtcTicks, TimeSpan.Zero)
+            : null;
+
+        return new AdminDomainCountersDto
+        {
+            Name = name,
+            InstanceId = instanceId,
+            Version = string.Empty,
+            LastInvalidationUtc = lastInv,
+            Invalidations = c.Invalidations,
+            OcHits = c.OcHits,
+            OcMisses = c.OcMisses,
+            OcBypass = c.OcBypass,
+            FcHits = c.FcHits,
+            FcMisses = c.FcMisses,
+            FcStale = c.FcStale,
+            FcBypass = c.FcBypass,
+            FactoryRuns = c.FactoryRuns,
+            FactoryFailures = c.FactoryFailures,
+            FactoryDurationSumMs = c.FactoryDurationSumMs,
+            FactoryDurationCount = c.FactoryDurationCount,
+            FactoryResultSizeSumBytes = c.FactoryResultSizeSumBytes,
+            FactoryResultSizeCount = c.FactoryResultSizeCount,
+            Endpoints = []
+        };
+    }
+
+    private static AdminEndpointCountersDto ToEndpointCounters(
+        string route,
+        string instanceId,
+        string? configuredDomain,
+        in AdminCounterSnapshot c) =>
+        new()
+        {
+            Route = route,
+            InstanceId = instanceId,
+            ConfiguredDomain = configuredDomain,
+            OcHits = c.OcHits,
+            OcMisses = c.OcMisses,
+            OcBypass = c.OcBypass,
+            FcHits = c.FcHits,
+            FcMisses = c.FcMisses,
+            FcStale = c.FcStale,
+            FcBypass = c.FcBypass,
+            FactoryRuns = c.FactoryRuns,
+            FactoryFailures = c.FactoryFailures,
+            FactoryDurationSumMs = c.FactoryDurationSumMs,
+            FactoryDurationCount = c.FactoryDurationCount,
+            FactoryResultSizeSumBytes = c.FactoryResultSizeSumBytes,
+            FactoryResultSizeCount = c.FactoryResultSizeCount
+        };
 }

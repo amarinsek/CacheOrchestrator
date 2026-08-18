@@ -346,7 +346,7 @@ async function saveSettings() {
             isBrowserCache: false,
         });
         logEl.firstChild.querySelector('.meta').innerHTML =
-            `<span class="tag phase-calm">SAVED</span> appsettings.json — config reloaded &amp; domains invalidated`;
+            `<span class="tag phase-calm">SAVED</span> appsettings.json — config reloaded (no invalidation)`;
     } else {
         let msg = 'Save failed.';
         try {

@@ -3,13 +3,72 @@
  */
 
 import { api } from "./api.js";
-import { bindChartExpand, lineChartHtml, updateChartInPlace } from "./charts.js";
-import { $, main, mainHasContent, paintMain } from "./dom.js";
+import {
+  bindChartExpand,
+  lineChartHtml,
+  refreshOpenChartModal,
+  seriesHasSamples,
+  updateChartInPlace,
+} from "./charts.js";
+import { $, beginPageLoad, main, mainHasContent, paintPage } from "./dom.js";
+import {
+  applyButtonHtml,
+  bindMultiSelects,
+  csvParamFromSelection,
+  multiSelectHtml,
+  parseCsvParam,
+  readMultiSelect,
+} from "./filters.js";
 import { esc, num, pct } from "./format.js";
 import { navigate, setBreadcrumb, setNavActive } from "./router.js";
 import { bindEmptyStateActions, emptyStateHtml } from "./tables.js";
+import {
+  appendMetricsRangeParams,
+  chartWindow,
+  getMetricsQueryArgs,
+  getPromRange,
+  setFromSelectValue,
+  setMetricsCapability,
+} from "./time-range.js";
 
-const RANGE_OPTS = ["15m", "1h", "6h", "24h", "7d"];
+/** Tooltip when a panel has no Prometheus samples in the window. */
+const NO_SAMPLES_TIP =
+  "No data in this time range. Often the event rate was simply zero.";
+
+/**
+ * Chart opts that force X-axis to the selected range window (relative or absolute).
+ * Prefer series fromUtc/toUtc when the API returns them.
+ * @param {string} range
+ * @param {{ height?: number, width?: number, unit?: string, queriedAtUtc?: string|null, fromUtc?: string|null, toUtc?: string|null }} [extra]
+ */
+function chartOptsForRange(range, extra = {}) {
+  if (extra.fromUtc && extra.toUtc) {
+    const tMin = Math.floor(new Date(extra.fromUtc).getTime() / 1000);
+    const tMax = Math.floor(new Date(extra.toUtc).getTime() / 1000);
+    if (Number.isFinite(tMin) && Number.isFinite(tMax) && tMax > tMin) {
+      return {
+        unit: extra.unit,
+        height: extra.height,
+        width: extra.width,
+        range: range || "custom",
+        tMin,
+        tMax,
+      };
+    }
+  }
+  const toSec = extra.queriedAtUtc
+    ? Math.floor(new Date(extra.queriedAtUtc).getTime() / 1000)
+    : Math.floor(Date.now() / 1000);
+  const win = chartWindow(range || "1h", Number.isFinite(toSec) ? toSec : undefined);
+  return {
+    unit: extra.unit,
+    height: extra.height,
+    width: extra.width,
+    range: win.range,
+    tMin: win.tMin,
+    tMax: win.tMax,
+  };
+}
 
 /** @type {Map<string, { title: string, series: Array, unit?: string }>} */
 let lastPanelMap = new Map();
@@ -21,17 +80,15 @@ let lastPanelMap = new Map();
 export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
   const soft = !!opts.soft;
   setNavActive("metrics");
-  setBreadcrumb([{ label: "Metrics" }]);
-  if (!soft || !mainHasContent()) {
-    main().innerHTML = `<div class="card"><p class="muted">Loading metrics…</p></div>`;
-  }
+  setBreadcrumb([]);
+  beginPageLoad(soft, `<div class="card"><p class="muted">Loading metrics…</p></div>`);
 
   let status;
   try {
     status = await api("/api/metrics/status");
   } catch (err) {
     if (soft && mainHasContent()) return;
-    paint(`<div class="card">${emptyStateHtml("error", {
+    paintPage(`<div class="card">${emptyStateHtml("error", {
       title: "Cannot load metrics status",
       detail: err.message,
     })}</div>`, soft);
@@ -40,15 +97,16 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
   }
 
   if (status.status === "NotConfigured") {
-    paint(`
-      ${metricsStatusBanner(status)}
+    setMetricsCapability("not_configured");
+    paintPage(`
       <div class="card">${emptyStateHtml("metrics-config", {
-        title: "Metrics storage not configured",
+        title: "Metrics not configured",
         detail: status.error
-          || "Set AdminConsole:Metrics:Enabled, Provider, and BaseUrl to show time series from Prometheus.",
+          || "Set AdminConsole:Metrics (Enabled, Provider, BaseUrl) to enable charts.",
         actions: [
           { label: "Refresh", onclick: "window.__adminRefresh && window.__adminRefresh()" },
           { label: "Overview", href: "#/overview" },
+          { label: "Instances", href: "#/instances" },
         ],
       })}</div>`, soft);
     bindEmptyStateActions(main());
@@ -56,113 +114,135 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
   }
 
   if (status.status === "Disconnected") {
+    setMetricsCapability("disconnected");
     const target = formatMetricsProvider(status);
-    paint(`
-      ${metricsStatusBanner(status)}
+    paintPage(`
       <div class="card">${emptyStateHtml("metrics-offline", {
         title: `${target} · not connected`,
-        detail: status.error || "Probe failed. Check BaseUrl, network, and credentials.",
+        detail: status.error || "Could not reach the metrics backend. Check URL, network, and credentials.",
         actions: [
           { label: "Refresh", onclick: "window.__adminRefresh && window.__adminRefresh()" },
+          { label: "Instances", href: "#/instances" },
         ],
       })}</div>`, soft);
     bindEmptyStateActions(main());
     return;
   }
 
-  const range = params.get("range") || status.defaultRange || "1h";
-  const domains = params.get("domains") || "";
+  setMetricsCapability("connected");
+  // Prefer global Range picker; URL ?range= still works for relative shortcuts.
+  if (params.get("range") && params.get("range") !== "custom") {
+    setFromSelectValue(params.get("range"));
+  }
+
+  const selDomains = parseCsvParam(params, "domains");
+  // Domain filter options from window stats (or config fan-out as fallback names).
+  let domainOpts = [];
+  try {
+    const cfg = await api("/api/domains");
+    domainOpts = (cfg.data || []).map((d) => ({ id: d.name, label: d.name }));
+  } catch { /* empty multi-select */ }
 
   let summary = null;
   let series = null;
   try {
-    const q = new URLSearchParams({ range });
-    if (domains) q.set("domains", domains);
-    [summary, series] = await Promise.all([
-      api("/api/metrics/summary?" + q.toString()),
-      api("/api/metrics/series?" + q.toString()),
-    ]);
+    // Explicit "None": empty charts without Prom call.
+    if (selDomains !== null && selDomains.length === 0) {
+      summary = { status: "Connected", range: getMetricsQueryArgs().range, noData: true };
+      series = { status: "Connected", range: getMetricsQueryArgs().range, panels: [], step: "—" };
+    } else {
+      const seriesQ = appendMetricsRangeParams(new URLSearchParams());
+      if (selDomains?.length) seriesQ.set("domains", selDomains.join(","));
+      const summaryQ = appendMetricsRangeParams(new URLSearchParams());
+      [summary, series] = await Promise.all([
+        api("/api/metrics/summary?" + summaryQ.toString()),
+        api("/api/metrics/series?" + seriesQ.toString()),
+      ]);
+    }
   } catch (err) {
     if (soft && mainHasContent()) return;
-    paint(`
-      ${metricsStatusBanner(status)}
-      <div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`, soft);
+    paintPage(`<div class="card">${emptyStateHtml("error", { detail: err.message })}</div>`, soft);
     bindEmptyStateActions(main());
     return;
   }
 
   if (series.status === "Disconnected") {
-    const offline = { ...status, status: "Disconnected", error: series.error };
-    paint(`
-      ${metricsStatusBanner(offline)}
+    paintPage(`
       <div class="card">${emptyStateHtml("metrics-offline", {
-        title: `${formatMetricsProvider(offline)} · not connected`,
+        title: `${formatMetricsProvider(status)} · not connected`,
         detail: series.error || "Query failed.",
+        actions: [
+          { label: "Refresh", onclick: "window.__adminRefresh && window.__adminRefresh()" },
+          { label: "Instances", href: "#/instances" },
+        ],
       })}</div>`, soft);
     bindEmptyStateActions(main());
     return;
   }
 
   lastPanelMap = buildPanelMap(series);
+  const resolvedRange = series.range || getMetricsQueryArgs().range || "1h";
+  const windowKey = metricsWindowKey(series);
 
-  // Soft path: patch live regions only — avoid remounting the whole chart grid.
-  if (soft && $("#metricsLiveRoot") && $("#metricsRange")?.value === range) {
-    const banner = $("#metricsBannerHost");
-    if (banner) banner.innerHTML = metricsStatusBanner(status);
+  // Soft path only when the same time window is already shown — range change must full-repaint charts.
+  const liveRoot = $("#metricsLiveRoot");
+  const shownKey = liveRoot?.dataset?.metricsWindow;
+  if (soft && liveRoot && shownKey === windowKey) {
     softUpdateKpis(summary, series);
     softUpdateMetricsGrid(series);
     bindEmptyStateActions(main());
     ensureChartExpandBound();
+    refreshOpenChartModal();
     return;
   }
 
-  const rangeSelect = RANGE_OPTS.map((r) =>
-    `<option value="${r}"${r === range ? " selected" : ""}>${r}</option>`).join("");
-
-  paint(`
-    <div id="metricsBannerHost">${metricsStatusBanner(status)}</div>
+  paintPage(`
     <form class="toolbar" id="metricsToolbar">
-      <label>Range
-        <select name="range" id="metricsRange">${rangeSelect}</select>
-      </label>
-      <label>Domains
-        <input type="text" name="domains" id="metricsDomains" placeholder="all (comma-separated)"
-          value="${esc(domains)}" />
-      </label>
-      <div class="toolbar-apply">
-        <button type="submit">Apply</button>
-      </div>
+      ${multiSelectHtml("metDom", "Domains", domainOpts, selDomains)}
+      ${applyButtonHtml()}
     </form>
-    <div id="metricsLiveRoot">
+    <div id="metricsLiveRoot" data-metrics-range="${esc(resolvedRange)}" data-metrics-window="${esc(windowKey)}">
       <div class="kpi-row" id="metricsKpis">${metricsKpiHtml(summary, series)}</div>
-      <p class="muted small metrics-note">
-        Window metrics from external storage (not lifetime Admin counters).
-        Scraped meter: <code>CacheOrchestrator</code>.
-      </p>
       <div class="grid-2 metrics-grid" id="metricsGrid">
         ${metricsPanelsHtml(series)}
       </div>
     </div>`, soft);
 
   bindEmptyStateActions(main());
+  bindMultiSelects(main());
   ensureChartExpandBound();
+  refreshOpenChartModal();
   $("#metricsToolbar")?.addEventListener("submit", (ev) => {
     ev.preventDefault();
+    const form = ev.target;
     navigate("metrics", {
-      range: $("#metricsRange")?.value || "1h",
-      domains: ($("#metricsDomains")?.value || "").trim(),
+      domains: csvParamFromSelection(readMultiSelect(form, "metDom")),
     });
   });
 }
 
-function ensureChartExpandBound() {
-  bindChartExpand(main(), () => lastPanelMap);
+function metricsWindowKey(series) {
+  if (series?.fromUtc && series?.toUtc) return `abs:${series.fromUtc}|${series.toUtc}`;
+  return `rel:${series?.range || getMetricsQueryArgs().range || "1h"}`;
 }
 
-function paint(html, soft) {
-  if (soft) paintMain(html);
-  else main().innerHTML = html;
+function ensureChartExpandBound() {
+  bindChartExpand(main(), () => {
+    const map = new Map();
+    for (const [id, data] of lastPanelMap) {
+      const win = chartOptsForRange(data.range || getPromRange() || "1h", {
+        unit: data.unit,
+        queriedAtUtc: data.queriedAtUtc,
+        fromUtc: data.fromUtc,
+        toUtc: data.toUtc,
+      });
+      map.set(id, { ...data, ...win, panelId: id });
+    }
+    return map;
+  });
 }
+
+
 
 function softUpdateKpis(summary, series) {
   const root = $("#metricsKpis");
@@ -207,17 +287,38 @@ function softUpdateMetricsGrid(series) {
     return;
   }
 
+  const baseOpts = chartOptsForRange(series.range || "1h", {
+    height: 200,
+    width: 640,
+    queriedAtUtc: series.queriedAtUtc,
+    fromUtc: series.fromUtc,
+    toUtc: series.toUtc,
+  });
+
+  softUpdateChartCards(grid, panels, baseOpts, { syncWarnings: true });
+}
+
+/**
+ * Soft in-place chart patch shared by Metrics page, detail mounts, and Overview embed.
+ * @param {HTMLElement} grid
+ * @param {Array} panels
+ * @param {object} baseOpts from chartOptsForRange (unit applied per panel)
+ * @param {{ syncWarnings?: boolean }} [opts]
+ */
+function softUpdateChartCards(grid, panels, baseOpts, opts = {}) {
   for (const p of panels) {
     const card = grid.querySelector(`.chart-card[data-panel="${cssEscape(p.id)}"]`);
     if (!card) continue;
-    const badge = card.querySelector("[data-chart-range]");
-    if (badge) badge.textContent = series.range || "";
+    syncNoSamplesBadge(card, p.series);
     const host = card.querySelector("[data-chart-host]");
     if (host) {
-      updateChartInPlace(host, p.series || [], { unit: p.unit, height: 200, width: 640 });
+      updateChartInPlace(host, p.series || [], { ...baseOpts, unit: p.unit });
     }
+    if (!opts.syncWarnings) continue;
     let warn = card.querySelector(".chart-warn");
-    if (p.warning) {
+    // Suppress series-empty warnings — empty axes + badge cover that case.
+    const showWarn = p.warning && seriesHasSamples(p.series);
+    if (showWarn) {
       if (!warn) {
         warn = document.createElement("p");
         warn.className = "muted chart-warn";
@@ -230,6 +331,29 @@ function softUpdateMetricsGrid(series) {
   }
 }
 
+/**
+ * @param {HTMLElement} card
+ * @param {Array|null|undefined} seriesList
+ */
+function syncNoSamplesBadge(card, seriesList) {
+  const titleRow = card.querySelector(".chart-card-title");
+  if (!titleRow) return;
+  let badge = titleRow.querySelector("[data-no-samples]");
+  const empty = !seriesHasSamples(seriesList);
+  if (empty) {
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "badge muted chart-no-samples";
+      badge.setAttribute("data-no-samples", "1");
+      badge.title = NO_SAMPLES_TIP;
+      badge.textContent = "no samples";
+      titleRow.appendChild(badge);
+    }
+  } else if (badge) {
+    badge.remove();
+  }
+}
+
 function cssEscape(id) {
   // data-panel values are allowlisted ids (snake_case); avoid CSS.escape dependency.
   return String(id).replace(/"/g, "");
@@ -237,41 +361,65 @@ function cssEscape(id) {
 
 function metricsKpiHtml(summary, series) {
   return `
-      <div class="kpi" title="Request rate over the selected metrics window"><div class="label">Req / s</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
-      <div class="kpi" title="OC hit share over the selected metrics window (from external metrics store)"><div class="label">OC hit share (window)</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
-      <div class="kpi" title="FC hit rate (layer) over the selected metrics window — among Fusion operations, not request share"><div class="label">FC hit rate (layer, window)</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
-      <div class="kpi" title="Invalidation rate over the selected metrics window"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
+      <div class="kpi" title="Request rate in the selected time range"><div class="label">Req / s</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
+      <div class="kpi" title="Output Cache hit share in the selected time range"><div class="label">OC hit share</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
+      <div class="kpi" title="Fusion hit rate among Fusion operations in the selected time range"><div class="label">FC hit rate</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
+      <div class="kpi" title="Invalidation rate in the selected time range"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
       <div class="kpi"><div class="label">Step</div><div class="value" data-kpi="step" style="font-size:1rem">${esc(series?.step || "—")}</div></div>`;
 }
 
 function metricsPanelsHtml(series) {
-  const panelCards = (series.panels || []).map((p) => panelCardHtml(p, series.range)).join("");
+  const panelCards = (series.panels || []).map((p) =>
+    panelCardHtml(p, series.range, {
+      height: 200,
+      width: 640,
+      queriedAtUtc: series.queriedAtUtc,
+      fromUtc: series.fromUtc,
+      toUtc: series.toUtc,
+    })).join("");
   return panelCards || `<div class="card">${emptyStateHtml("metrics-empty")}</div>`;
 }
 
 function panelCardHtml(p, range, chartOpts = {}) {
   const height = chartOpts.height || 200;
   const width = chartOpts.width || 640;
-  const warn = p.warning
+  const opts = chartOptsForRange(range || "1h", {
+    unit: p.unit,
+    height,
+    width,
+    queriedAtUtc: chartOpts.queriedAtUtc,
+    fromUtc: chartOpts.fromUtc,
+    toUtc: chartOpts.toUtc,
+  });
+  const hasSamples = seriesHasSamples(p.series);
+  // Query warnings that only mean “empty matrix” are replaced by the no-samples badge.
+  const warn = p.warning && hasSamples
     ? `<p class="muted chart-warn">${esc(p.warning)}</p>`
     : "";
   const tip = (p.description && String(p.description).trim()) || "";
+  const titleTip = tip || p.title || "";
+  const noSamples = !hasSamples
+    ? `<span class="badge muted chart-no-samples" data-no-samples title="${esc(NO_SAMPLES_TIP)}">no samples</span>`
+    : "";
   return `
       <div class="card chart-card" data-panel="${esc(p.id)}">
         <div class="card-head">
-          <h2${tip ? ` title="${esc(tip)}"` : ""}>${esc(p.title)} <span class="badge" data-chart-range>${esc(range || "")}</span></h2>
+          <div class="chart-card-title">
+            <h2 title="${esc(titleTip)}">${esc(p.title)}</h2>
+            ${noSamples}
+          </div>
           <div class="chart-card-actions">
-            <span class="muted small" title="Y-axis unit for this series">${esc(unitLabel(p.unit))}</span>
+            <span class="muted small chart-unit" title="Y-axis unit for this series">${esc(unitLabel(p.unit))}</span>
             <button type="button" class="secondary chart-expand-btn" data-chart-expand="${esc(p.id)}" title="Enlarge chart">⛶</button>
           </div>
         </div>
-        <div data-chart-host>${lineChartHtml(p.series || [], { unit: p.unit, height, width })}</div>
+        <div data-chart-host>${lineChartHtml(p.series || [], opts)}</div>
         ${warn}
       </div>`;
 }
 
 function buildPanelMap(series) {
-  /** @type {Map<string, { title: string, description?: string, series: Array, unit?: string }>} */
+  /** @type {Map<string, object>} */
   const map = new Map();
   for (const p of series?.panels || []) {
     map.set(p.id, {
@@ -279,6 +427,10 @@ function buildPanelMap(series) {
       description: p.description,
       series: p.series || [],
       unit: p.unit,
+      range: series?.range,
+      queriedAtUtc: series?.queriedAtUtc,
+      fromUtc: series?.fromUtc,
+      toUtc: series?.toUtc,
     });
   }
   return map;
@@ -337,8 +489,14 @@ export async function mountDetailMetrics(mountId, opts) {
   const el = document.getElementById(mountId);
   if (!el) return;
 
-  const range = opts.range || "1h";
-  const soft = el.dataset.metricsReady === "1" && el.querySelector(".metrics-grid");
+  const mq = getMetricsQueryArgs();
+  const range = opts.range || mq.range || "1h";
+  const windowKey = mq.from && mq.to ? `abs:${mq.from}|${mq.to}` : `rel:${range}`;
+  let soft = el.dataset.metricsReady === "1" && el.querySelector(".metrics-grid");
+  // Range change on detail pages must rebuild charts (X-axis window).
+  if (soft && el.dataset.metricsWindow && el.dataset.metricsWindow !== windowKey) {
+    soft = false;
+  }
 
   let status;
   try {
@@ -366,7 +524,8 @@ export async function mountDetailMetrics(mountId, opts) {
       ? "request_rate,oc_hit_share,fc_hit_rate,invalidation_rate,fc_p95_ms,cluster_publish_failures"
       : "request_rate,oc_hit_share,fc_hit_rate,fc_p95_ms";
 
-  const q = new URLSearchParams({ range, panels });
+  const q = appendMetricsRangeParams(new URLSearchParams({ panels }));
+  if (opts.range && !mq.from) q.set("range", opts.range);
   if (opts.domain) q.set("domains", opts.domain);
   if (opts.instanceId) q.set("instances", opts.instanceId);
   if (opts.route) q.set("routes", opts.route);
@@ -386,56 +545,53 @@ export async function mountDetailMetrics(mountId, opts) {
     return;
   }
 
+  const resolvedRange = series.range || range;
   const list = series.panels || [];
-  const anyPoints = list.some((p) => (p.series || []).some((s) => (s.points || []).length > 0));
   const title =
     opts.scope === "domain" ? `Domain metrics`
       : opts.scope === "instance" ? `Instance metrics`
         : `Endpoint metrics`;
 
-  if (!anyPoints) {
-    if (soft) return;
-    const note = opts.scope === "endpoint"
-      ? "No samples for this route in the selected range. Possible causes: no traffic, " +
-        "<code>Cache:Metrics:IncludeEndpointLabel</code> off on some/all instances during this window, " +
-        "or scrape labels do not match. Lifetime counters above are from Local Admin, not Prometheus."
-      : "No samples in this range for the current filter. Check scrape config and traffic.";
-    el.innerHTML = `<div class="card">
-      <div class="card-head"><h2>${esc(title)} <span class="badge">last ${esc(range)}</span></h2>
-        <a href="#/metrics">Open Metrics →</a></div>
-      <p class="muted">${note}</p>
-    </div>`;
-    return;
-  }
-
   const panelMap = buildPanelMap(series);
   lastPanelMap = new Map([...lastPanelMap, ...panelMap]);
 
-  if (soft) {
+  if (soft && el.dataset.metricsWindow === windowKey) {
     const grid = el.querySelector(".metrics-grid");
     if (grid) {
-      for (const p of list) {
-        const card = grid.querySelector(`.chart-card[data-panel="${cssEscape(p.id)}"]`);
-        const host = card?.querySelector("[data-chart-host]");
-        if (host) updateChartInPlace(host, p.series || [], { unit: p.unit, height: 180, width: 560 });
-      }
+      const baseOpts = chartOptsForRange(resolvedRange, {
+        height: 200,
+        width: 640,
+        queriedAtUtc: series.queriedAtUtc,
+        fromUtc: series.fromUtc,
+        toUtc: series.toUtc,
+      });
+      softUpdateChartCards(grid, list, baseOpts);
       ensureChartExpandBound();
+      refreshOpenChartModal();
       return;
     }
   }
 
-  const cards = list.map((p) => panelCardHtml(p, series.range, { height: 180, width: 560 })).join("");
+  const cards = list.map((p) => panelCardHtml(p, resolvedRange, {
+    height: 200,
+    width: 640,
+    queriedAtUtc: series.queriedAtUtc,
+    fromUtc: series.fromUtc,
+    toUtc: series.toUtc,
+  })).join("");
 
   el.dataset.metricsReady = "1";
+  el.dataset.metricsRange = resolvedRange;
+  el.dataset.metricsWindow = windowKey;
   el.innerHTML = `<div class="card">
     <div class="card-head">
-      <h2>${esc(title)} <span class="badge">last ${esc(range)}</span></h2>
+      <h2>${esc(title)}</h2>
       <a href="#/metrics">Open Metrics →</a>
     </div>
-    <p class="muted small metrics-note">Window series from external metrics storage (not lifetime Admin counters).</p>
-    <div class="grid-2 metrics-grid">${cards}</div>
+    <div class="grid-2 metrics-grid">${cards || emptyStateHtml("metrics-empty")}</div>
   </div>`;
   ensureChartExpandBound();
+  refreshOpenChartModal();
 }
 
 /**
@@ -457,79 +613,62 @@ export async function metricsOverviewSectionHtml(opts = {}) {
       </div>`;
     }
 
-    const series = await api(
-      "/api/metrics/series?range=1h&panels=request_rate,oc_hit_share,invalidation_rate");
-    const byId = Object.fromEntries((series.panels || []).map((p) => [p.id, p]));
-    const spark = (panel) => {
-      if (!panel?.series?.length) return `<span class="muted">—</span>`;
-      const merged = mergeSeriesPoints(panel.series);
-      return `<div data-chart-host class="metrics-ov-chart">${lineChartHtml([{ name: "cluster", points: merged }], { unit: panel.unit, height: 120, width: 480 })}</div>`;
-    };
+    const q = appendMetricsRangeParams(new URLSearchParams({
+      panels: "request_rate,oc_hit_share,invalidation_rate",
+    }));
+    const series = await api(`/api/metrics/series?${q.toString()}`);
+    const resolvedRange = series.range || getMetricsQueryArgs().range || "1h";
+    const windowKey = metricsWindowKey(series);
+    const list = series.panels || [];
 
-    // Soft path caller may patch hosts instead of replacing the whole card.
+    // Same chart cards as Metrics / detail (expand, axes, no-samples badge).
+    const panelMap = buildPanelMap(series);
+    lastPanelMap = new Map([...lastPanelMap, ...panelMap]);
+
+    // Soft path only when the same range is already shown.
     if (opts.soft && opts.mountEl) {
       const mount = opts.mountEl;
-      if (mount.querySelector(".metrics-overview-grid")) {
-        softPatchOverviewSparks(mount, byId);
+      const root = mount.querySelector("[data-ov-metrics-card]");
+      const grid = mount.querySelector("#ovMetricsGrid");
+      if (root && root.dataset.metricsWindow === windowKey && grid?.querySelector(".chart-card")) {
+        const baseOpts = chartOptsForRange(resolvedRange, {
+          height: 200,
+          width: 640,
+          queriedAtUtc: series.queriedAtUtc,
+          fromUtc: series.fromUtc,
+          toUtc: series.toUtc,
+        });
+        softUpdateChartCards(grid, list, baseOpts);
+        ensureChartExpandBound();
+        refreshOpenChartModal();
         return null; // signal: already patched
       }
     }
 
-    const ovLabel = (panel, fallback) => {
-      const tip = panel?.description && String(panel.description).trim();
-      return `<div class="label muted"${tip ? ` title="${esc(tip)}"` : ""}>${esc(panel?.title || fallback)}</div>`;
-    };
-    return `<div class="card" data-ov-metrics-card>
-      <div class="card-head">
-        <h2 title="Windowed series from external metrics storage (not lifetime Admin counters)">Metrics <span class="badge">last 1h</span></h2>
+    const cards = list.map((p) => panelCardHtml(p, resolvedRange, {
+      height: 200,
+      width: 640,
+      queriedAtUtc: series.queriedAtUtc,
+      fromUtc: series.fromUtc,
+      toUtc: series.toUtc,
+    })).join("");
+
+    // Defer expand bind to caller after mount is in DOM (overview paints then).
+    queueMicrotask(() => {
+      ensureChartExpandBound();
+      refreshOpenChartModal();
+    });
+
+    return `<div data-ov-metrics-card data-metrics-range="${esc(resolvedRange)}" data-metrics-window="${esc(windowKey)}">
+      <div class="card-head" style="margin-bottom:0.5rem">
+        <h2>Metrics</h2>
         <a href="#/metrics">Open Metrics →</a>
       </div>
-      <div class="metrics-overview-grid">
-        <div class="metrics-ov-block" data-ov-spark="request_rate">
-          ${ovLabel(byId.request_rate, "Request rate")}
-          ${spark(byId.request_rate)}
-        </div>
-        <div class="metrics-ov-block" data-ov-spark="oc_hit_share">
-          ${ovLabel(byId.oc_hit_share, "OC hit share")}
-          ${spark(byId.oc_hit_share)}
-        </div>
-        <div class="metrics-ov-block" data-ov-spark="invalidation_rate">
-          ${ovLabel(byId.invalidation_rate, "Invalidations")}
-          ${spark(byId.invalidation_rate)}
-        </div>
-      </div>
+      <div class="grid-2 metrics-grid" id="ovMetricsGrid">${cards || emptyStateHtml("metrics-empty")}</div>
     </div>`;
   } catch {
     return "";
   }
-}
-
-function softPatchOverviewSparks(mount, byId) {
-  for (const id of ["request_rate", "oc_hit_share", "invalidation_rate"]) {
-    const block = mount.querySelector(`[data-ov-spark="${id}"]`);
-    const host = block?.querySelector("[data-chart-host]");
-    const panel = byId[id];
-    if (!host || !panel?.series?.length) continue;
-    const merged = mergeSeriesPoints(panel.series);
-    updateChartInPlace(host, [{ name: "cluster", points: merged }], {
-      unit: panel.unit,
-      height: 120,
-      width: 480,
-    });
-  }
-}
-
-function mergeSeriesPoints(seriesList) {
-  /** @type {Map<number, number>} */
-  const map = new Map();
-  for (const s of seriesList || []) {
-    for (const p of s.points || []) {
-      map.set(p.t, (map.get(p.t) || 0) + p.v);
-    }
-  }
-  return [...map.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([t, v]) => ({ t, v }));
 }
 
 function unitLabel(unit) {

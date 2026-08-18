@@ -22,7 +22,7 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 - Target frameworks: libraries `net8.0` + `net10.0`; Admin Console App `net10.0` only; samples typically net10  
 - Version: **MinVer** from Git tags `v*` (do not hardcode `<Version>` in Directory.Build.props)  
 - Samples: `samples/CacheOrchestrator.Minimal` (1-minute InMemory), `samples/CacheOrchestrator.Sample` (playground; Redis package)  
-- Tests: `tests/CacheOrchestrator.UnitTests` (net8+net10 for libraries; Admin tests net10 only), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
+- Tests: `tests/CacheOrchestrator.UnitTests` (net8+net10 for libraries), `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only; Admin Console App), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
 
 ## Non-goals
 

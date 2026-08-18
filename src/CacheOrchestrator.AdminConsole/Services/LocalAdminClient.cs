@@ -37,32 +37,6 @@ public sealed class LocalAdminClient : ILocalAdminClient
         GetAsync<AdminHealthDto>(instance, "/health", cancellationToken);
 
     /// <inheritdoc />
-    public Task<InstanceCallOutcome<AdminLiveStatsSnapshot>> GetStatsAsync(
-        AdminInstanceOptions instance,
-        CancellationToken cancellationToken = default) =>
-        GetAsync<AdminLiveStatsSnapshot>(instance, "/stats", cancellationToken);
-
-    /// <inheritdoc />
-    public async Task<InstanceCallOutcome<IReadOnlyList<AdminEndpointInfoDto>>> GetEndpointsAsync(
-        AdminInstanceOptions instance,
-        CancellationToken cancellationToken = default)
-    {
-        InstanceCallOutcome<List<AdminEndpointInfoDto>> raw =
-            await GetAsync<List<AdminEndpointInfoDto>>(instance, "/endpoints", cancellationToken)
-                .ConfigureAwait(false);
-
-        return new InstanceCallOutcome<IReadOnlyList<AdminEndpointInfoDto>>
-        {
-            InstanceId = raw.InstanceId,
-            Succeeded = raw.Succeeded,
-            Value = raw.Value,
-            StatusCode = raw.StatusCode,
-            Error = raw.Error,
-            LatencyMs = raw.LatencyMs
-        };
-    }
-
-    /// <inheritdoc />
     public async Task<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>> GetDomainsAsync(
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default)

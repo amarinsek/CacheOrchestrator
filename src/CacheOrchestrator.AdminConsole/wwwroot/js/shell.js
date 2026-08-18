@@ -12,8 +12,13 @@
 
 import { api } from "./api.js";
 import { $, setRefreshing } from "./dom.js";
-import { esc, fmtUnit, METRIC_TITLES, num, pct, pipelineBar } from "./format.js";
+import { esc, fmtUnit, fmtDurationMs, METRIC_TITLES, noDataHtml, num, pct, pipelineBar } from "./format.js";
 import { severityStack } from "./hints.js";
+import {
+  appendMetricsRangeParams,
+  setMetricsCapability,
+} from "./time-range.js";
+import { instancesUpClass } from "./views-shared.js";
 
 const REFRESH_KEY = "adminAutoRefreshSec";
 
@@ -62,8 +67,12 @@ export async function refreshHeader(opts = {}) {
   try {
     const o = await api("/api/overview");
     setLastOverview(o);
-    renderHeader(o);
-    updateNavHintsBadge(o.hintSummary);
+    const windowStats = await fetchHeaderWindowStats();
+    renderHeader(o, windowStats);
+    updateNavHintsBadge(
+      windowStats?.status === "Connected" && windowStats.hintSummary
+        ? windowStats.hintSummary
+        : o.hintSummary);
   } catch (err) {
     if (silent && lastOverview) {
       return;
@@ -73,6 +82,21 @@ export async function refreshHeader(opts = {}) {
       <span class="hm status-Down" title="${esc(err.message)}">Admin API error</span>
       <span class="hm muted">${esc(err.message)}</span>`;
     updateNavHintsBadge({ total: 0 });
+  }
+}
+
+/** Traffic KPIs for the chrome strip (Prometheus only). */
+async function fetchHeaderWindowStats() {
+  try {
+    const q = appendMetricsRangeParams(new URLSearchParams());
+    const w = await api("/api/stats/window?" + q.toString());
+    if (w?.status === "Connected") setMetricsCapability("connected");
+    else if (w?.status === "Disconnected") setMetricsCapability("disconnected");
+    else if (w?.status === "NotConfigured") setMetricsCapability("not_configured");
+    return w;
+  } catch {
+    setMetricsCapability("disconnected");
+    return null;
   }
 }
 
@@ -135,32 +159,49 @@ export function updateNavHintsBadge(summary) {
 
 /**
  * Render cluster metrics into `#headerMetrics`.
- * Always shows N/M up (healthy / configured).
+ * Health from Admin overview; traffic KPIs from Prometheus window stats.
+ * @param {object} o overview DTO (instances / health)
+ * @param {object|null} [windowStats] /api/stats/window payload
  */
-export function renderHeader(o) {
+export function renderHeader(o, windowStats = null) {
   const total = (o.instances || []).length
     || ((o.healthyCount || 0) + (o.degradedCount || 0) + (o.downCount || 0));
   const up = o.healthyCount ?? 0;
   const down = o.downCount ?? 0;
   const deg = o.degradedCount ?? 0;
-  // Green only when all configured instances are healthy.
-  const upClass = total === 0 || down > 0 || up < total
-    ? "status-Down"
-    : deg > 0
-      ? "status-Degraded"
-      : "status-Healthy";
+  const upClass = instancesUpClass(o);
   const healthDots = [
     ...Array(o.healthyCount || 0).fill("ok"),
     ...Array(o.degradedCount || 0).fill("warn"),
     ...Array(o.downCount || 0).fill("bad"),
   ].map((c) => `<span class="dot ${c}"></span>`).join("") || `<span class="muted">—</span>`;
 
-  const hs = o.hintSummary || { total: 0 };
+  const promOk = windowStats && windowStats.status === "Connected";
+  const noData = promOk && windowStats.noData;
   const healthTitle = [
     `${up}/${total} healthy`,
     o.degradedCount ? `${o.degradedCount} degraded` : null,
     o.downCount ? `${o.downCount} down` : null,
   ].filter(Boolean).join(" · ");
+
+  const pipe = promOk && !noData ? windowStats.pipeline : null;
+  const oc = promOk && !noData && windowStats.ocHitShare != null
+    ? pct(windowStats.ocHitShare)
+    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
+  const fc = promOk && !noData && windowStats.fcHitShare != null
+    ? pct(windowStats.fcHitShare)
+    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
+  const fac = promOk && !noData && windowStats.factoryShare != null
+    ? pct(windowStats.factoryShare)
+    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
+  const imp = promOk ? (windowStats.impact || {}) : {};
+  const req = promOk && !noData ? num(windowStats.totalRequests) : noDataHtml();
+  const inv = promOk && !noData ? num(windowStats.totalInvalidations) : noDataHtml();
+  const timeSaved = promOk
+    ? fmtDurationMs(imp.estFactoryTimeSavedMs)
+    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
+  const domN = promOk ? (windowStats.domains || []).length : 0;
+  const epN = promOk ? (windowStats.endpoints || []).length : 0;
 
   $("#headerMetrics").innerHTML = `
     <span class="hm" title="${esc(healthTitle)}">${healthDots}
@@ -168,14 +209,14 @@ export function renderHeader(o) {
       ${down > 0 ? `<span class="status-Down">${fmtUnit(down, "down")}</span>` : ""}
       ${deg > 0 ? `<span class="status-Degraded">${fmtUnit(deg, "deg")}</span>` : ""}
     </span>
-    <span class="hm" title="Cluster recommendation urgency">${severityStack(hs)}</span>
-    <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(o.pipeline)}</span>
-    <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit share <strong>${pct(o.ocHitShare)}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit share <strong>${pct(o.pipeline?.fcHitShare)}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">Factory share <strong>${pct(o.factoryShare ?? o.originShare)}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.req)}">Req <strong>${num(o.totalRequests)}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.inv)}">Inv <strong>${num(o.totalInvalidations)}</strong></span>
-    <span class="hm muted" title="Domains and endpoints observed with traffic or config">${fmtUnit(o.domainCount, "dom")} · ${fmtUnit(o.endpointCount, "ep")}</span>
+    <span class="hm" title="${esc(METRIC_TITLES.req)}">Req <strong>${req}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.inv)}">Inv <strong>${inv}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(pipe)}</span>
+    <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit % <strong>${oc}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${fc}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">Factory % <strong>${fac}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">Time saved <strong>${timeSaved}</strong></span>
+    <span class="hm muted" title="Domains and endpoints with traffic in the selected time range">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
     ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
   `;
   refreshMetricsStatusPill();

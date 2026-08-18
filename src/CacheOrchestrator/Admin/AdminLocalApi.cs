@@ -81,7 +81,11 @@ public static class AdminLocalApi
             });
         });
 
+        // Obsolete: process-lifetime counters. Prefer OTEL/Prometheus for analytics.
+        // Kept for external tools; Admin Console stats UI uses Prometheus only.
+#pragma warning disable CS0618
         group.MapGet("/stats", (AdminQueryService query) => Results.Ok(query.GetStats()));
+#pragma warning restore CS0618
 
         group.MapGet("/endpoints", (AdminQueryService query) => Results.Ok(query.GetEndpoints()));
 

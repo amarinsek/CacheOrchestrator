@@ -22,6 +22,18 @@ public static class MetricsPanelCatalog
     /// <summary>Histogram buckets for Fusion duration (unit ms → milliseconds in OTel export).</summary>
     public const string FcDurationBucket = "cache_orchestrator_fc_duration_milliseconds_bucket";
 
+    /// <summary>Canonical factory-path duration histogram (miss/stale only).</summary>
+    public const string FactoryDurationBucket = "cache_orchestrator_factory_duration_milliseconds_bucket";
+
+    /// <summary>OTel histogram sum companion for factory duration (ms).</summary>
+    public const string FactoryDurationSum = "cache_orchestrator_factory_duration_milliseconds_sum";
+
+    /// <summary>OTel histogram count companion for factory duration.</summary>
+    public const string FactoryDurationCount = "cache_orchestrator_factory_duration_milliseconds_count";
+
+    /// <summary>Factory result size histogram (bytes).</summary>
+    public const string FactoryResultSizeBucket = "cache_orchestrator_factory_result_size_bytes_bucket";
+
     /// <summary>Scrape label for Admin Console App instance id (see samples/…/labs topology labs).</summary>
     public const string InstanceIdLabel = "instance_id";
 
@@ -83,8 +95,40 @@ public static class MetricsPanelCatalog
             Id = "fc_p95_ms",
             Title = "FC duration p95",
             Description =
-                "95th percentile time spent in Fusion GetOrSet (milliseconds) in this window — how slow the slow factory/cache path feels. Needs histogram scrape of Fusion duration.",
+                "95th percentile time spent in Fusion GetOrSet (milliseconds) in this window — how slow the slow factory/cache path feels. Needs histogram scrape of Fusion duration. Prefer factory_p95_ms for pure factory cost.",
             Unit = "ms",
+        },
+        new()
+        {
+            Id = "factory_p95_ms",
+            Title = "Factory duration p95",
+            Description =
+                "95th percentile value-factory wall time (milliseconds) in this window (miss/stale path only). Requires scrape of cache_orchestrator.factory.duration.",
+            Unit = "ms",
+        },
+        new()
+        {
+            Id = "factory_run_rate",
+            Title = "Factory run rate",
+            Description =
+                "How often the Fusion factory runs per second (FC result=miss). Rising values mean more origin/DB work.",
+            Unit = "rate",
+        },
+        new()
+        {
+            Id = "factory_share",
+            Title = "Factory share (window)",
+            Description =
+                "Approximate factory share over the metrics window: FC miss rate / OC request rate (same window).",
+            Unit = "percent",
+        },
+        new()
+        {
+            Id = "factory_size_p95",
+            Title = "Factory result size p95",
+            Description =
+                "95th percentile measured factory result size (bytes) when the app returns string/byte buffers. Enable Cache:Admin:TrackResultSize for Admin sums; OTel records when measurable.",
+            Unit = "bytes",
         },
     ];
 
@@ -94,6 +138,10 @@ public static class MetricsPanelCatalog
         "request_rate",
         "oc_hit_share",
         "fc_hit_rate",
+        "factory_share",
+        "factory_run_rate",
+        "factory_p95_ms",
+        "factory_size_p95",
         "invalidation_rate",
         "schedule_phase",
         "cluster_publish_failures",
@@ -106,6 +154,9 @@ public static class MetricsPanelCatalog
         "request_rate",
         "oc_hit_share",
         "fc_hit_rate",
+        "factory_share",
+        "factory_run_rate",
+        "factory_p95_ms",
         "invalidation_rate",
         "schedule_phase",
         "fc_p95_ms",
@@ -117,6 +168,9 @@ public static class MetricsPanelCatalog
         "request_rate",
         "oc_hit_share",
         "fc_hit_rate",
+        "factory_share",
+        "factory_run_rate",
+        "factory_p95_ms",
         "invalidation_rate",
         "fc_p95_ms",
         "cluster_publish_failures",
@@ -128,6 +182,9 @@ public static class MetricsPanelCatalog
         "request_rate",
         "oc_hit_share",
         "fc_hit_rate",
+        "factory_share",
+        "factory_run_rate",
+        "factory_p95_ms",
         "fc_p95_ms",
     ];
 
@@ -158,8 +215,14 @@ public static class MetricsPanelCatalog
 
         string selector = BuildLabelSelector(domains, instanceIds, routes);
         string selectorHit = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"hit\"");
+        string selectorMiss = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"miss\"");
         string rw = SanitizeDuration(rateWindow);
         string by = ChooseByClause(panel.Id, domains, routes);
+        string leBy = routes is { Count: > 0 }
+            ? "le, route"
+            : domains is { Count: > 0 }
+                ? "le, domain"
+                : "le";
 
         return panel.Id switch
         {
@@ -186,8 +249,25 @@ public static class MetricsPanelCatalog
 
             "fc_p95_ms" =>
                 "histogram_quantile(0.95, " +
-                $"sum by (le{(routes is { Count: > 0 } ? ", route" : domains is { Count: > 0 } ? ", domain" : "")}) " +
+                $"sum by ({leBy}) " +
                 $"(rate({FcDurationBucket}{selector}[{rw}])))",
+
+            "factory_p95_ms" =>
+                "histogram_quantile(0.95, " +
+                $"sum by ({leBy}) " +
+                $"(rate({FactoryDurationBucket}{selector}[{rw}])))",
+
+            "factory_run_rate" =>
+                $"{by} (rate({FcRequests}{selectorMiss}[{rw}]))",
+
+            "factory_share" =>
+                $"{by} (rate({FcRequests}{selectorMiss}[{rw}]))" +
+                $" / clamp_min({by} (rate({OcRequests}{selector}[{rw}])), 1e-9)",
+
+            "factory_size_p95" =>
+                "histogram_quantile(0.95, " +
+                $"sum by ({leBy}) " +
+                $"(rate({FactoryResultSizeBucket}{selector}[{rw}])))",
 
             _ => throw new ArgumentException($"Unknown metrics panel '{panelId}'.", nameof(panelId)),
         };
@@ -207,6 +287,10 @@ public static class MetricsPanelCatalog
                 $"sum(rate({FcRequests}{{result=\"hit\"}}[{rw}]))" +
                 $" / clamp_min(sum(rate({FcRequests}[{rw}])), 1e-9)",
             "invalidation_rate" => $"sum(rate({Invalidations}[{rw}]))",
+            "factory_run_rate" => $"sum(rate({FcRequests}{{result=\"miss\"}}[{rw}]))",
+            "factory_share" =>
+                $"sum(rate({FcRequests}{{result=\"miss\"}}[{rw}]))" +
+                $" / clamp_min(sum(rate({OcRequests}[{rw}])), 1e-9)",
             _ => throw new ArgumentException($"No summary query for panel '{panelId}'.", nameof(panelId)),
         };
     }
@@ -275,6 +359,30 @@ public static class MetricsPanelCatalog
             return "";
         sb.Append('"');
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Window event count for Console tables: <c>last_over_time − offset</c>, with new-series fallback.
+    /// Do not use bare <c>increase()</c> here — see <c>MetricsWindowStatsService</c>.
+    /// </summary>
+    /// <param name="byLabels">Prometheus <c>sum by (...)</c> label list.</param>
+    /// <param name="metricSelector">Metric name plus optional <c>{…}</c> selector (no trailing space).</param>
+    /// <param name="rangeDuration">Window duration token (e.g. <c>900s</c>).</param>
+    public static string BuildWindowCountPromQl(string byLabels, string metricSelector, string rangeDuration)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(byLabels);
+        ArgumentException.ThrowIfNullOrWhiteSpace(metricSelector);
+        ArgumentException.ThrowIfNullOrWhiteSpace(rangeDuration);
+        string m = metricSelector.Trim();
+        string by = byLabels.Trim();
+        string rw = rangeDuration.Trim();
+        return
+            "clamp_min((" +
+            $"sum by ({by}) (last_over_time({m}[{rw}]))" +
+            $" - sum by ({by}) ({m} offset {rw})" +
+            $") or sum by ({by}) (" +
+            $"last_over_time({m}[{rw}]) unless on ({by}) {m} offset {rw}" +
+            "), 0)";
     }
 
     /// <summary>Only allow safe label fragments (alnum, underscore, hyphen, dot).</summary>

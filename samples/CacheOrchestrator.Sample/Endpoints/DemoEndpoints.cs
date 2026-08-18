@@ -114,7 +114,6 @@ public static class DemoEndpoints
         NoOutputCache(app.MapPut("/api/demo/appsettings", async (
             HttpRequest request,
             IWebHostEnvironment env,
-            ICacheOrchestratorInvalidator inv,
             IConfiguration config) =>
         {
             using var reader = new StreamReader(request.Body);
@@ -150,16 +149,10 @@ public static class DemoEndpoints
             }
 
             // Multi-instance labs: bind mounts may not raise FileSystemWatcher — apply this write now.
+            // Reload only: new Version/TTL/client headers apply on the next request via options snapshot.
+            // Do not invalidate here — purge is a separate playground action (Invalidate domain / entity).
             if (config is IConfigurationRoot root)
                 root.Reload();
-
-            // Invalidate all known domains so server cache picks up new TTLs immediately.
-            var entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
-            var domains = entries.Select(e => e.Domain).Distinct(StringComparer.OrdinalIgnoreCase);
-            foreach (var domain in domains)
-            {
-                try { await inv.InvalidateDomainAsync(domain); } catch { /* best effort */ }
-            }
 
             return Results.Ok(new { saved = true, at = DateTimeOffset.UtcNow });
         }));

@@ -188,6 +188,34 @@ public class CacheOrchestratorMetricsTests
     }
 
     [Fact]
+    public void RecordInvalidate_RefusesPathLikeDomain()
+    {
+        long? value = null;
+
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (instrument.Meter.Name == CacheOrchestratorMetrics.MeterName &&
+                instrument.Name == "cache_orchestrator.invalidate")
+            {
+                meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+
+        listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
+        {
+            value = measurement;
+        });
+
+        listener.Start();
+
+        // Legacy bug: entity scope was passed as domain label — must not emit a series.
+        CacheOrchestratorMetrics.RecordInvalidate("product-crud/products/42");
+
+        value.Should().BeNull();
+    }
+
+    [Fact]
     public void RecordClientSchedule_IncrementsCounter_WithDomainAndPhase()
     {
         long? value = null;

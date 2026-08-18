@@ -1,7 +1,7 @@
 using CacheOrchestrator.AdminConsole.Models;
 using CacheOrchestrator.AdminConsole.Services.Metrics;
 
-namespace CacheOrchestrator.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.UnitTests;
 
 public class MetricsPanelCatalogTests
 {
@@ -39,6 +39,37 @@ public class MetricsPanelCatalogTests
     public void BuildPromQl_unknown_panel_throws()
     {
         Assert.Throws<ArgumentException>(() => MetricsPanelCatalog.BuildPromQl("nope", null));
+    }
+
+    [Fact]
+    public void BuildWindowCountPromQl_UsesLastOverTimeDelta_NotBareIncrease()
+    {
+        // Bare increase() under-counts the first sample and can return 0 that blocks PromQL `or`,
+        // so a new series appears once then vanishes on the next scrape (Console table bug).
+        string q = MetricsPanelCatalog.BuildWindowCountPromQl(
+            "domain,result",
+            MetricsPanelCatalog.OcRequests,
+            "900s");
+
+        Assert.Contains("last_over_time(", q, StringComparison.Ordinal);
+        Assert.Contains("offset 900s", q, StringComparison.Ordinal);
+        Assert.Contains("unless on (domain,result)", q, StringComparison.Ordinal);
+        Assert.DoesNotContain("increase(", q, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildPromQl_factory_panels()
+    {
+        string p95 = MetricsPanelCatalog.BuildPromQl("factory_p95_ms", ["catalog"]);
+        Assert.Contains(MetricsPanelCatalog.FactoryDurationBucket, p95, StringComparison.Ordinal);
+        Assert.Contains("histogram_quantile(0.95", p95, StringComparison.Ordinal);
+
+        string rate = MetricsPanelCatalog.BuildPromQl("factory_run_rate", null);
+        Assert.Contains("result=\"miss\"", rate, StringComparison.Ordinal);
+
+        string share = MetricsPanelCatalog.BuildPromQl("factory_share", null);
+        Assert.Contains(MetricsPanelCatalog.OcRequests, share, StringComparison.Ordinal);
+        Assert.Contains("result=\"miss\"", share, StringComparison.Ordinal);
     }
 
     [Fact]

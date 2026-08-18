@@ -115,6 +115,12 @@ public sealed class CacheOrchestratorOptions
 
         /// <summary>When true, track factory duration sum/count (more expensive). Default false.</summary>
         public bool TrackLatency { get; set; }
+
+        /// <summary>
+        /// When true, track factory result size sum/count for cheap-to-measure types
+        /// (string, byte buffers, seekable streams). Default false.
+        /// </summary>
+        public bool TrackResultSize { get; set; }
     }
 
     /// <summary>

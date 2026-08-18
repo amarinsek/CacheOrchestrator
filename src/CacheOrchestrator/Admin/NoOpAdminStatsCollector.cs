@@ -15,11 +15,18 @@ internal sealed class NoOpAdminStatsCollector : IAdminStatsCollector
 
     public bool TrackLatency => false;
 
+    public bool TrackResultSize => false;
+
     public void RecordOutput(string? endpointKey, string? domain, string result)
     {
     }
 
-    public void RecordFusion(string? endpointKey, string? domain, string result, long? elapsedTicks = null)
+    public void RecordFusion(
+        string? endpointKey,
+        string? domain,
+        string result,
+        long? elapsedTicks = null,
+        long? resultSizeBytes = null)
     {
     }
 
@@ -27,12 +34,23 @@ internal sealed class NoOpAdminStatsCollector : IAdminStatsCollector
     {
     }
 
+    public AdminLiveStatsRawSnapshot GetRawSnapshot() =>
+        new()
+        {
+            InstanceId = string.Empty,
+            CollectedAtUtc = DateTimeOffset.UtcNow,
+            Domains = [],
+            UnassignedEndpoints = [],
+            Endpoints = []
+        };
+
     public AdminLiveStatsSnapshot GetSnapshot() =>
         new()
         {
             InstanceId = string.Empty,
             CollectedAtUtc = DateTimeOffset.UtcNow,
             Domains = [],
-            UnassignedEndpoints = []
+            UnassignedEndpoints = [],
+            Endpoints = []
         };
 }

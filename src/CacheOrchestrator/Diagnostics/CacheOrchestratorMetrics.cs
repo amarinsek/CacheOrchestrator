@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -45,7 +46,19 @@ public static class CacheOrchestratorMetrics
         Meter.CreateHistogram<double>(
             "cache_orchestrator.fc.duration",
             unit: "ms",
-            description: "Fusion GetOrSet duration in milliseconds");
+            description: "Fusion GetOrSet duration in milliseconds (legacy; all results with a duration). Prefer factory.duration for factory cost.");
+
+    private static readonly Histogram<double> FactoryDurationMs =
+        Meter.CreateHistogram<double>(
+            "cache_orchestrator.factory.duration",
+            unit: "ms",
+            description: "Value factory wall time in milliseconds (miss/stale path only)");
+
+    private static readonly Histogram<double> FactoryResultSizeBytes =
+        Meter.CreateHistogram<double>(
+            "cache_orchestrator.factory.result_size",
+            unit: "By",
+            description: "Value factory result size in bytes when cheaply measurable (miss path)");
 
     private static readonly Counter<long> ClientSchedule =
         Meter.CreateCounter<long>(
@@ -134,20 +147,32 @@ public static class CacheOrchestratorMetrics
     /// Records a FusionCache operation outcome (and optional duration).
     /// </summary>
     /// <param name="domain">Domain name.</param>
-    /// <param name="result">Result code: hit, miss, stale, bypass, off.</param>
+    /// <param name="result">Result code: hit, miss, stale, fail, bypass, off.</param>
     /// <param name="durationMs">Optional duration in milliseconds.</param>
     /// <param name="route">Optional stable endpoint key when IncludeEndpointLabel is enabled.</param>
+    /// <param name="resultSizeBytes">Optional measured factory result size (bytes) on miss.</param>
     internal static void RecordFusion(
         string domain,
         string result,
         double? durationMs = null,
-        string? route = null)
+        string? route = null,
+        long? resultSizeBytes = null)
     {
         TagList tags = BuildDomainResultTags(domain, result, route);
         FcRequests.Add(1, tags);
 
         if (durationMs is double ms)
+        {
+            // Legacy: all timed GetOrSet outcomes (dashboards may still use this).
             FcDurationMs.Record(ms, tags);
+
+            // Canonical factory cost: factory ran (miss, fail-safe stale, or hard fail).
+            if (result is "miss" or "stale" or "fail")
+                FactoryDurationMs.Record(ms, tags);
+        }
+
+        if (resultSizeBytes is long size && size >= 0 && result is "miss")
+            FactoryResultSizeBytes.Record(size, tags);
     }
 
     /// <summary>
@@ -160,11 +185,27 @@ public static class CacheOrchestratorMetrics
         OcRequests.Add(1, BuildDomainResultTags(domain, result, route));
 
     /// <summary>
-    /// Records a successful domain invalidation.
+    /// Records a successful invalidation attributed to a <strong>domain</strong> only.
+    /// Do not pass entity paths (e.g. <c>product-crud/products/42</c>) — that explodes series cardinality.
     /// </summary>
-    /// <param name="domain">Domain name.</param>
-    internal static void RecordInvalidate(string domain) =>
-        Invalidations.Add(1, new KeyValuePair<string, object?>("domain", domain));
+    /// <param name="domain">Normalized domain name (not entity id).</param>
+    /// <param name="kind">Optional invalidation kind for low-cardinality breakdown (Domain, Entity, EntityKind).</param>
+    internal static void RecordInvalidate(string domain, CacheInvalidationKind? kind = null)
+    {
+        if (string.IsNullOrWhiteSpace(domain) || domain.Contains('/', StringComparison.Ordinal))
+            return; // refuse high-cardinality / path-like labels
+
+        if (kind is null)
+        {
+            Invalidations.Add(1, new KeyValuePair<string, object?>("domain", domain));
+            return;
+        }
+
+        Invalidations.Add(
+            1,
+            new KeyValuePair<string, object?>("domain", domain),
+            new KeyValuePair<string, object?>("kind", kind.Value.ToString()));
+    }
 
     /// <summary>
     /// Records the Client Cache Schedule phase applied when writing <c>Cache-Control</c>.

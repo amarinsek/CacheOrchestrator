@@ -1,11 +1,9 @@
 using CacheOrchestrator.Bus;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
-using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.Redis;
 using CacheOrchestrator.Sample.Endpoints;
 using CacheOrchestrator.Sample.Services;
-using Microsoft.Extensions.Primitives;
 using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,43 +41,8 @@ app.MapPrometheusScrapingEndpoint() // GET /metrics
 app.MapDemoDataEndpoints(builder.Configuration);
 app.MapDemoStudioEndpoints();
 
-// Multi-instance labs share appsettings.json on a RW volume. When either node saves,
-// the peer reloads config; drop domain caches so new TTLs apply without a manual purge.
-RegisterDomainInvalidateOnConfigReload(app);
+// Config reload only (no purge). Invalidation is a separate user action.
+// DomainCacheOptionsProvider already refreshes options on IOptions change.
 
 app.MapFallbackToFile("index.html");
 app.Run();
-
-static void RegisterDomainInvalidateOnConfigReload(WebApplication app)
-{
-    IConfiguration config = app.Configuration;
-    ICacheOrchestratorInvalidator inv = app.Services.GetRequiredService<ICacheOrchestratorInvalidator>();
-    ILogger logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("CacheOrchestrator.Sample");
-
-    ChangeToken.OnChange(
-        config.GetReloadToken,
-        () =>
-        {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    List<DemoEndpointConfig> entries =
-                        config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
-                    foreach (string domain in entries
-                                 .Select(e => e.Domain)
-                                 .Where(d => !string.IsNullOrWhiteSpace(d))
-                                 .Distinct(StringComparer.OrdinalIgnoreCase))
-                    {
-                        await inv.InvalidateDomainAsync(domain).ConfigureAwait(false);
-                    }
-
-                    logger.LogInformation("Configuration reloaded; demo domains invalidated.");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Configuration reload invalidation failed (sample best-effort).");
-                }
-            });
-        });
-}

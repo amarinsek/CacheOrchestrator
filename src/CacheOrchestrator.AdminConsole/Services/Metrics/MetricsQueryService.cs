@@ -11,9 +11,14 @@ namespace CacheOrchestrator.AdminConsole.Services.Metrics;
 /// </summary>
 public sealed class MetricsQueryService
 {
+    private static readonly TimeSpan ProbeCacheTtl = TimeSpan.FromSeconds(15);
+
     private readonly IMetricsQueryClient _client;
     private readonly AdminConsoleOptions _options;
     private readonly TimeProvider _time;
+    private readonly object _probeGate = new();
+    private MetricsStatusDto? _probeCache;
+    private DateTimeOffset _probeExpiresUtc;
 
     public MetricsQueryService(
         IMetricsQueryClient client,
@@ -28,7 +33,7 @@ public sealed class MetricsQueryService
         _time = time;
     }
 
-    /// <summary>Configuration + optional live probe.</summary>
+    /// <summary>Configuration + optional live probe (probes are cached briefly).</summary>
     public async Task<MetricsStatusDto> GetStatusAsync(
         bool probe = true,
         CancellationToken cancellationToken = default)
@@ -73,8 +78,14 @@ public sealed class MetricsQueryService
             };
         }
 
+        lock (_probeGate)
+        {
+            if (_probeCache is not null && _probeExpiresUtc > now)
+                return _probeCache;
+        }
+
         MetricsProbeResult result = await _client.ProbeAsync(cancellationToken).ConfigureAwait(false);
-        return new MetricsStatusDto
+        MetricsStatusDto dto = new()
         {
             Status = result.Succeeded
                 ? MetricsStoreStatusCodes.Connected
@@ -86,6 +97,18 @@ public sealed class MetricsQueryService
             Error = result.Succeeded ? null : result.Error,
             DefaultRange = MetricsRange.Normalize(metrics.DefaultRange),
         };
+
+        // Cache successes; allow a quick retry after a failed probe (Prom starting up, blip).
+        if (result.Succeeded)
+        {
+            lock (_probeGate)
+            {
+                _probeCache = dto;
+                _probeExpiresUtc = _time.GetUtcNow() + ProbeCacheTtl;
+            }
+        }
+
+        return dto;
     }
 
     /// <summary>Allowlisted panel list (empty when not configured).</summary>
@@ -120,11 +143,12 @@ public sealed class MetricsQueryService
         string? domains,
         string? instances = null,
         string? routes = null,
+        string? from = null,
+        string? to = null,
         CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = _time.GetUtcNow();
-        string resolvedRange = MetricsRange.Normalize(range, _options.Metrics.DefaultRange);
-        string step = MetricsRange.StepFor(resolvedRange);
+        MetricsWindow window = MetricsWindow.Resolve(range, from, to, now);
 
         MetricsStatusDto status = await GetStatusAsync(probe: true, cancellationToken).ConfigureAwait(false);
         if (status.Status != MetricsStoreStatusCodes.Connected)
@@ -132,8 +156,10 @@ public sealed class MetricsQueryService
             return new MetricsSeriesResponseDto
             {
                 Status = status.Status,
-                Range = resolvedRange,
-                Step = step,
+                Range = window.RangeLabel,
+                Step = window.Step,
+                FromUtc = window.Start,
+                ToUtc = window.End,
                 QueriedAtUtc = now,
                 Error = status.Error,
                 Panels = [],
@@ -144,78 +170,95 @@ public sealed class MetricsQueryService
         IReadOnlyList<string> domainList = ParseCsv(domains);
         IReadOnlyList<string> instanceList = ParseCsv(instances);
         IReadOnlyList<string> routeList = ParseRouteCsv(routes);
-        DateTimeOffset start = now - MetricsRange.ToTimeSpan(resolvedRange);
+        DateTimeOffset start = window.Start;
+        DateTimeOffset end = window.End;
+        string step = window.Step;
         bool routeScoped = routeList.Count > 0;
 
-        List<MetricsPanelDto> results = [];
-        foreach (string panelId in panelIds)
-        {
-            MetricsPanelInfoDto? info = MetricsPanelCatalog.Find(panelId);
-            if (info is null)
-            {
-                results.Add(new MetricsPanelDto
-                {
-                    Id = panelId,
-                    Title = panelId,
-                    Description = null,
-                    Unit = "rate",
-                    Series = [],
-                    Warning = $"Unknown panel '{panelId}'.",
-                });
-                continue;
-            }
-
-            try
-            {
-                string promQl = MetricsPanelCatalog.BuildPromQl(info.Id, domainList, instanceList, routeList);
-                IReadOnlyList<PrometheusMatrixSeries> matrix = await _client
-                    .QueryRangeAsync(promQl, start, now, step, cancellationToken)
-                    .ConfigureAwait(false);
-
-                List<MetricsSeriesDto> series = matrix
-                    .Select(m => new MetricsSeriesDto
-                    {
-                        Name = SeriesName(info.Id, m.Metric),
-                        Labels = m.Metric,
-                        Points = m.Points,
-                    })
-                    .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                results.Add(new MetricsPanelDto
-                {
-                    Id = info.Id,
-                    Title = info.Title,
-                    Description = info.Description,
-                    Unit = info.Unit,
-                    Series = series,
-                    Warning = series.Count == 0
-                        ? EmptySeriesWarning(routeScoped)
-                        : null,
-                });
-            }
-            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or JsonException)
-            {
-                results.Add(new MetricsPanelDto
-                {
-                    Id = info.Id,
-                    Title = info.Title,
-                    Description = info.Description,
-                    Unit = info.Unit,
-                    Series = [],
-                    Warning = ex.Message,
-                });
-            }
-        }
+        Task<MetricsPanelDto>[] panelTasks = panelIds
+            .Select(panelId => LoadPanelAsync(
+                panelId, domainList, instanceList, routeList, start, end, step, routeScoped, cancellationToken))
+            .ToArray();
+        MetricsPanelDto[] results = await Task.WhenAll(panelTasks).ConfigureAwait(false);
 
         return new MetricsSeriesResponseDto
         {
             Status = MetricsStoreStatusCodes.Connected,
-            Range = resolvedRange,
+            Range = window.RangeLabel,
             Step = step,
+            FromUtc = window.Start,
+            ToUtc = window.End,
             QueriedAtUtc = now,
             Panels = results,
         };
+    }
+
+    private async Task<MetricsPanelDto> LoadPanelAsync(
+        string panelId,
+        IReadOnlyList<string> domainList,
+        IReadOnlyList<string> instanceList,
+        IReadOnlyList<string> routeList,
+        DateTimeOffset start,
+        DateTimeOffset end,
+        string step,
+        bool routeScoped,
+        CancellationToken cancellationToken)
+    {
+        MetricsPanelInfoDto? info = MetricsPanelCatalog.Find(panelId);
+        if (info is null)
+        {
+            return new MetricsPanelDto
+            {
+                Id = panelId,
+                Title = panelId,
+                Description = null,
+                Unit = "rate",
+                Series = [],
+                Warning = $"Unknown panel '{panelId}'.",
+            };
+        }
+
+        try
+        {
+            string promQl = MetricsPanelCatalog.BuildPromQl(info.Id, domainList, instanceList, routeList);
+            IReadOnlyList<PrometheusMatrixSeries> matrix = await _client
+                .QueryRangeAsync(promQl, start, end, step, cancellationToken)
+                .ConfigureAwait(false);
+
+            List<MetricsSeriesDto> series = matrix
+                .Select(m => new MetricsSeriesDto
+                {
+                    Name = SeriesName(info.Id, m.Metric),
+                    Labels = m.Metric,
+                    Points = m.Points,
+                })
+                .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return new MetricsPanelDto
+            {
+                Id = info.Id,
+                Title = info.Title,
+                Description = info.Description,
+                Unit = info.Unit,
+                Series = series,
+                Warning = series.Count == 0
+                    ? EmptySeriesWarning(routeScoped)
+                    : null,
+            };
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or JsonException)
+        {
+            return new MetricsPanelDto
+            {
+                Id = info.Id,
+                Title = info.Title,
+                Description = info.Description,
+                Unit = info.Unit,
+                Series = [],
+                Warning = ex.Message,
+            };
+        }
     }
 
     private static string EmptySeriesWarning(bool routeScoped) =>
@@ -228,10 +271,16 @@ public sealed class MetricsQueryService
     /// <summary>Instant KPI snapshot for the Metrics toolbar.</summary>
     public async Task<MetricsSummaryDto> GetSummaryAsync(
         string? range,
+        string? from = null,
+        string? to = null,
         CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = _time.GetUtcNow();
-        string resolvedRange = MetricsRange.Normalize(range, _options.Metrics.DefaultRange);
+        MetricsWindow window = MetricsWindow.Resolve(range, from, to, now);
+        // Summary rate() windows use a relative token nearest the absolute duration.
+        string rateWindow = window.IsAbsolute
+            ? MetricsRange.NearestToken(window.End - window.Start)
+            : window.RangeLabel;
 
         MetricsStatusDto status = await GetStatusAsync(probe: true, cancellationToken).ConfigureAwait(false);
         if (status.Status != MetricsStoreStatusCodes.Connected)
@@ -239,7 +288,9 @@ public sealed class MetricsQueryService
             return new MetricsSummaryDto
             {
                 Status = status.Status,
-                Range = resolvedRange,
+                Range = window.RangeLabel,
+                FromUtc = window.Start,
+                ToUtc = window.End,
                 QueriedAtUtc = now,
                 Error = status.Error,
             };
@@ -247,20 +298,36 @@ public sealed class MetricsQueryService
 
         try
         {
-            double? requestRate = await InstantValueAsync("request_rate", cancellationToken).ConfigureAwait(false);
-            double? ocHit = await InstantValueAsync("oc_hit_share", cancellationToken).ConfigureAwait(false);
-            double? fcHit = await InstantValueAsync("fc_hit_rate", cancellationToken).ConfigureAwait(false);
-            double? inv = await InstantValueAsync("invalidation_rate", cancellationToken).ConfigureAwait(false);
+            Task<double?> requestRateTask = InstantValueAsync("request_rate", rateWindow, cancellationToken);
+            Task<double?> ocHitTask = InstantValueAsync("oc_hit_share", rateWindow, cancellationToken);
+            Task<double?> fcHitTask = InstantValueAsync("fc_hit_rate", rateWindow, cancellationToken);
+            Task<double?> invTask = InstantValueAsync("invalidation_rate", rateWindow, cancellationToken);
+            Task<double?> factoryShareTask = InstantValueAsync("factory_share", rateWindow, cancellationToken);
+
+            await Task.WhenAll(requestRateTask, ocHitTask, fcHitTask, invTask, factoryShareTask)
+                .ConfigureAwait(false);
+
+            double? requestRate = await requestRateTask.ConfigureAwait(false);
+            double? ocHit = await ocHitTask.ConfigureAwait(false);
+            double? fcHit = await fcHitTask.ConfigureAwait(false);
+            double? inv = await invTask.ConfigureAwait(false);
+            double? factoryShare = await factoryShareTask.ConfigureAwait(false);
+
+            bool noData = requestRate is null && ocHit is null && fcHit is null && inv is null && factoryShare is null;
 
             return new MetricsSummaryDto
             {
                 Status = MetricsStoreStatusCodes.Connected,
-                Range = resolvedRange,
+                Range = window.RangeLabel,
+                FromUtc = window.Start,
+                ToUtc = window.End,
                 QueriedAtUtc = now,
                 RequestRate = requestRate,
                 OcHitShare = ocHit,
                 FcHitRate = fcHit,
                 InvalidationRate = inv,
+                FactoryShare = factoryShare,
+                NoData = noData,
             };
         }
         catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
@@ -268,16 +335,21 @@ public sealed class MetricsQueryService
             return new MetricsSummaryDto
             {
                 Status = MetricsStoreStatusCodes.Disconnected,
-                Range = resolvedRange,
+                Range = window.RangeLabel,
+                FromUtc = window.Start,
+                ToUtc = window.End,
                 QueriedAtUtc = now,
                 Error = ex.Message,
             };
         }
     }
 
-    private async Task<double?> InstantValueAsync(string panelId, CancellationToken cancellationToken)
+    private async Task<double?> InstantValueAsync(
+        string panelId,
+        string rangeWindow,
+        CancellationToken cancellationToken)
     {
-        string promQl = MetricsPanelCatalog.BuildSummaryPromQl(panelId);
+        string promQl = MetricsPanelCatalog.BuildSummaryPromQl(panelId, rangeWindow);
         IReadOnlyList<PrometheusInstantSample> samples = await _client
             .QueryInstantAsync(promQl, timeUtc: null, cancellationToken)
             .ConfigureAwait(false);

@@ -9,23 +9,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Playground topology labs** — `samples/CacheOrchestrator.Sample/labs` (Compose **01–05**)
-- Sample **Bus** registration for multi-instance labs
-- **`OutputCacheVaryByHost`** (default `true`; multi-instance labs can set `false`)
+#### Libraries (NuGet)
+
+- OTel histogram **`cache_orchestrator.factory.duration`** (ms; miss / stale / **fail**)
+- OTel Fusion **`result=fail`** on hard factory throw (no fail-safe value returned)
+- OTel **`cache_orchestrator.factory.result_size`** + Admin **`Cache:Admin:TrackResultSize`** / raw `factoryResultSize*`
+- Local Admin raw counter model (`AdminLiveStatsRawSnapshot`, `IAdminStatsCollector.GetRawSnapshot()`); fat **`GET …/stats`** still projected via `AdminStatsV1Mapper`
+- Optional low-cardinality `kind` tag on **`cache_orchestrator.invalidate`** (Domain / Entity / EntityKind)
+
+#### Admin Console App
+
+- **`GET /api/stats/window`** — domain/endpoint traffic, Peak RPS, impact, by-instance (`instance_id`, missing → `undefined`), and HintEngine results from Prometheus for the selected Range (`increase()` over the window)
+- **Live** page (`#/live`, `GET /api/live`) — near-real-time health/performance with fixed **1m** Prometheus rates (independent of Range)
+- **ImpactMath** + `CacheImpactKpiDto` (factory avoidance, est. time saved, benefit/candidate); cluster Time saved sums per-domain estimates
+- Hint paths `domain.impact.*` / `endpoint.impact.*` and core impact rules
+- Global **Range** picker (Last 15m–7d / absolute from–to); Metrics `from`/`to`; Metrics panels `factory_p95_ms`, `factory_run_rate`, `factory_share`, `factory_size_p95`
+- Metrics UI: multi-select domains, empty-window charts, shared Overview chart cards, current-value styling, Metrics status on Instances
 
 ### Changed
 
-- Sample Prometheus `deploy/prometheus` helper replaced by **labs** stacks
+#### Libraries (NuGet)
 
-### Fixed
+- Local Admin **`GET …/stats`** is **obsolete for analytics** (process-lifetime diagnostics / external tools only); prefer OTEL meter `CacheOrchestrator` + Prometheus
+- **`cache_orchestrator.invalidate`** `domain` label is domain-only (entity paths refused — cardinality-safe)
+- Admin factory latency samples only on factory path (miss / stale / fail), not on Fusion hits
+- `cache_orchestrator.fc.duration` remains as legacy dual-write (all timed Fusion results)
 
-- Admin Console: Overview no longer always alerts when multiple instances are configured
-- **Bus:** load `Microsoft.Extensions.ServiceDiscovery` only when `Membership=ServiceDiscovery`
-- **Bus:** ServiceDiscovery package **9.0** on net8 / **10.0** on net10
+#### Admin Console App
+
+- Traffic UI is **Prometheus-only** (Overview, Domains, Endpoints, Hints, impact, header KPIs) via `/api/stats/window`; Local Admin is used for health, config, and operations
+- Metrics BFF: parallel panel/summary Prom queries; short TTL cache only for successful Prometheus status probes (window table stats stay uncached so they stay aligned with charts)
+- Window table PromQL: `last_over_time − offset` instead of bare `increase()` (fixes first-sample vanish/undercount: 1 req shows then disappears; 7 counted as 6)
+- Admin Console unit coverage: `MetricsWindowStatsService`, `LiveStatsService`, `LocalAdminClient`, WebApplicationFactory host smoke, fan-out domains/Version/TTL
+- Admin Console unit coverage (follow-up): `HintRuleRegistry`/`HintRuleDisableStore`, `InstanceReachabilityCache`, MetricsQuery summary/absolute range/errors, fan-out DownReprobe, Live high-factory hints
+- Admin Console hygiene: split Console DTOs under `Models/`; `AdminConsoleWriteValidators` for invalidate/version/TTL
+- Separate test project `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only); core Admin API tests remain in UnitTests
+- Admin Console SPA: shared `beginPageLoad` / `paintPage` / `kpiRowHtml`; soft-refresh keeps filter focus on Endpoints/Domains/Instances/Live/Hints; Live uses `bindEntityTableClicks`
+- Admin Console SPA: split `views.js` into `views-*.js` modules + thin `route()`; shared `views-shared.js`; Metrics soft chart updates via one helper; header/`instancesUpClass` shared
+- Admin Console: typed `HintRulesResponseDto`; document restart-required for `AdminConsoleOptions` snapshot; window stats rolls up domain OC/FC/inv from per-instance series (−3 Prom queries); Live hints via `LiveHintProjector` + shared `PrometheusSampleHelpers`
+- Admin Console SPA: split `views.js` into focused modules (`views-shared`, `views-overview`, `views-endpoints`, `views-domains`, `views-instances`, `views-hints`, `views-operations`, `views-settings`); shared `bindGotoHints` / soft chart update helper
+
+### Removed
+
+- Console process-lifetime counter fan-out for stats UI (no longer aggregates Local Admin `GET …/stats` for Overview / Domains / Endpoints / Hints)
+- Unused `StatsAggregator` / `StatsDeltaCache` / hardcoded `RecommendationHints` rule bodies (hints via `HintEngine` + `core-hints.json` only)
+- Admin Console BFF **`GET /api/stats`** and **`GET /api/endpoints`** (empty Prom-era shells); SPA traffic uses **`GET /api/stats/window`**. Core library Local Admin `GET …/stats` / `…/endpoints` unchanged for 2.1.0 compatibility
 
 ### Documentation
 
-- Labs / sample READMEs; Output Cache base policy + FAQ
+- `docs/admin.md`, Console README, labs, `docs/observability.md` — Prom-only Console stats, Live, Peak RPS, Local Admin `/stats` obsolete for analytics, `result=fail`, `factory.duration`
 
 ## [2.1.0] - 2026-08-15
 

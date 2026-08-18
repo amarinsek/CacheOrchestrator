@@ -1,6 +1,6 @@
 # Observability
 
-Dashboards, health, and live counters across instances: [admin.md](admin.md). The Admin API (`Cache:Admin:Enabled`) reports lifetime totals. Time series belong on the `CacheOrchestrator` meter (OpenTelemetry / Prometheus). The Admin Console App can plot scraped series via optional `AdminConsole:Metrics` (Prometheus HTTP API) — see [admin.md — Metrics store](admin.md#metrics-store-time-series). Playground topology labs including Prometheus (sample-only Docker Compose, not a NuGet dependency): [samples/CacheOrchestrator.Sample/labs/README.md](../samples/CacheOrchestrator.Sample/labs/README.md).
+Dashboards and multi-instance ops: [admin.md](admin.md). **Admin Console traffic stats are Prometheus-only** (`AdminConsole:Metrics` → `GET /api/stats/window`). Local Admin (`Cache:Admin:Enabled`) still exposes health, config, invalidate, Version/TTL, and an obsolete process-lifetime `GET …/stats` for diagnostics. Time series belong on the `CacheOrchestrator` meter (OpenTelemetry / Prometheus). Playground topology labs including Prometheus (sample-only Docker Compose, not a NuGet dependency): [samples/CacheOrchestrator.Sample/labs/README.md](../samples/CacheOrchestrator.Sample/labs/README.md).
 
 ## X-Cache response header
 
@@ -47,8 +47,10 @@ Meter name: **`CacheOrchestrator`**
 
 | Instrument | Description |
 |------------|-------------|
-| `cache_orchestrator.fc.requests` | Fusion ops by `domain`, `result` (`hit`/`miss`/`stale`/`bypass`/`off`/`unresolved`; domain `_` when unresolved); optional `route` |
-| `cache_orchestrator.fc.duration` | Fusion duration (ms); optional `route` |
+| `cache_orchestrator.fc.requests` | Fusion ops by `domain`, `result` (`hit`/`miss`/`stale`/`fail`/`bypass`/`off`/`unresolved`; domain `_` when unresolved); optional `route` |
+| `cache_orchestrator.factory.duration` | **Canonical** factory wall time (ms) on miss/stale/**fail**; optional `route` |
+| `cache_orchestrator.factory.result_size` | Factory result size (bytes) when cheaply measurable on miss; optional `route` |
+| `cache_orchestrator.fc.duration` | Legacy Fusion GetOrSet duration (ms) for any timed result; prefer `factory.duration` for factory cost |
 | `cache_orchestrator.oc.requests` | Output outcomes by `domain`, `result`; optional `route` |
 | `cache_orchestrator.client.schedule` | Client Cache Schedule by `domain`, `phase` |
 | `cache_orchestrator.invalidate` | Successful full invalidations by `domain` |

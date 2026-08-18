@@ -30,7 +30,7 @@ This playground can write `appsettings.json` from the browser. That is for this 
 
 - **Domain endpoints** panel: `Demo:Endpoints` from config (catalog, product, search, …). Add a line under `Demo:Endpoints` and restart (or save config) to expose another route.
 - **Entity invalidation (CRUD)** panel: fixed `GET /api/crud/products/42` + **Update price (PUT)** — separate from the domain dropdown.
-- **appsettings.json** (top right) opens an editor. Change a TTL, save, and the process reloads configuration. Cached domains for the edited entries are invalidated so the new values show on the next request.
+- **appsettings.json** (top right) opens an editor. Change a Version or TTL, save, and the process reloads configuration so the **next request** uses the new settings. That does **not** purge cache — use **Invalidate domain** (or entity) when you want a separate invalidation.
 - **Client Cache Schedule.** Set `ScheduledUpdateUtc` on a domain and watch the phase on each fetch:
   - **calm** — far from the cutover; client `max-age` is at its maximum
   - **approaching** — `max-age` falls toward the floor

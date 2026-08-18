@@ -48,6 +48,12 @@ jobs:
         --no-build --configuration Release --framework net10.0
         --verbosity normal
 
+    - name: Admin Console tests (net10.0)
+      run: >
+        dotnet test tests/CacheOrchestrator.AdminConsole.UnitTests/CacheOrchestrator.AdminConsole.UnitTests.csproj
+        --no-build --configuration Release --framework net10.0
+        --verbosity normal
+
     - name: Verify Docker (Testcontainers)
       run: |
         docker version

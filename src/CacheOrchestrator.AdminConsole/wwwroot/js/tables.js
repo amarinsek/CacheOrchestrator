@@ -2,19 +2,24 @@
  * Shared entity list tables and empty / connectivity chrome.
  *
  * Column contracts (list surfaces — keep stable across pages):
- * - Endpoints: Route | Domain | Hints | Req | Pipeline | OC hit share | FC hit share | Factory share
- * - Domains:   Domain | Hints | Version | Req | Pipeline | OC hit share | FC hit share | Factory share | Inv | Ops
- * - Instances: Id | Hints | Status | URL | Req | Uptime | Latency | Error
+ * - Endpoints: Route | Domain | Req | Peak RPS | Pipeline | … | Benefit | Candidate | Hints
+ * - Domains:   Domain | Req | Peak RPS | Inv | Pipeline | … | Benefit | Candidate | Hints | Ops
+ * - Instances: Id | Status | URL | Req | Uptime | Latency | Error | Hints
  * Layer rates (e.g. FC miss rate) stay on detail views only.
  */
 
 import { instanceStatus } from "./api.js";
 import {
+  currentValueHtml,
   esc,
   formatLatencyMs,
   formatUptime,
   factoryShareOf,
+  fmtDurationMs,
+  fmtRequestRate,
+  impactBandLabel,
   METRIC_TITLES,
+  noDataHtml,
   num,
   pct,
   pipelineBar,
@@ -27,17 +32,24 @@ import { navigate } from "./router.js";
 
 export function endpointRowHtml(e) {
   const domainCell = e.configuredDomain
-    ? `<a href="#/domains?name=${encodeURIComponent(e.configuredDomain)}">${esc(e.configuredDomain)}</a>`
+    ? currentValueHtml(`<a href="#/domains?name=${encodeURIComponent(e.configuredDomain)}">${esc(e.configuredDomain)}</a>`)
+    : "—";
+  const rate = e.peakRequestRate != null
+    ? fmtRequestRate(e.peakRequestRate)
     : "—";
   return `<tr class="clickable entity-row" data-entity="endpoint" data-route="${esc(e.route)}">
     <td class="col-name"><code>${esc(e.route)}</code></td>
     <td class="col-domain">${domainCell}</td>
-    <td class="col-hints">${hintBadges(e.hints)}</td>
     <td class="col-num">${num(e.requests)}</td>
+    <td class="col-num col-rate" title="${esc(METRIC_TITLES.peakRequestRate)}">${rate}</td>
     <td class="col-pipe">${pipelineBar(e.pipeline)}</td>
     <td class="col-metric">${pct(e.oc?.hitShare, e.oc?.lowRequestSample, "request")}</td>
     <td class="col-metric">${pct(e.fc?.hitShare, e.fc?.lowRequestSample, "request")}</td>
     <td class="col-metric">${pct(factoryShareOf(e.fc), e.fc?.lowRequestSample, "request")}</td>
+    <td class="col-metric" title="${esc(METRIC_TITLES.estTimeSaved)}">${fmtDurationMs(e.impact?.estFactoryTimeSavedMs)}</td>
+    <td class="col-metric" title="${esc(METRIC_TITLES.cacheBenefit)}">${impactBandLabel(e.impact?.benefit, { html: true })}</td>
+    <td class="col-metric" title="${esc(METRIC_TITLES.cacheCandidate)}">${impactBandLabel(e.impact?.candidate, { html: true })}</td>
+    <td class="col-hints">${hintBadges(e.hints)}</td>
   </tr>`;
 }
 
@@ -51,12 +63,16 @@ export function endpointTableHtml(list, emptyCtx = {}) {
         <tr>
           ${thMetric("Route", "route", { fromKey: true })}
           ${thMetric("Domain", "domain", { fromKey: true })}
-          ${thMetric("Hints", "hints", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
+          ${thMetric("Peak RPS", "peakRequestRate", { fromKey: true, className: "col-rate" })}
           ${thMetric("Pipeline", "pipeline", { fromKey: true })}
-          ${thMetric("OC hit share", "ocHitShare", { fromKey: true })}
-          ${thMetric("FC hit share", "fcHitShare", { fromKey: true })}
-          ${thMetric("Factory share", "factoryShare", { fromKey: true })}
+          ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
+          ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
+          ${thMetric("Factory %", "factoryShare", { fromKey: true })}
+          ${thMetric("Time saved", "estTimeSaved", { fromKey: true })}
+          ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
+          ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
+          ${thMetric("Hints", "hints", { fromKey: true })}
         </tr>
       </thead>
       <tbody>${list.map(endpointRowHtml).join("")}</tbody>
@@ -66,16 +82,22 @@ export function endpointTableHtml(list, emptyCtx = {}) {
 // —— Domain table ——
 
 export function domainRowHtml(d) {
+  const rate = d.peakRequestRate != null
+    ? fmtRequestRate(d.peakRequestRate)
+    : "—";
   return `<tr class="clickable entity-row" data-entity="domain" data-name="${esc(d.name)}">
     <td class="col-name"><code>${esc(d.name)}</code>${d.versionIsRuntimeOverride ? ' <span class="badge">rt</span>' : ""}</td>
-    <td class="col-hints">${hintBadges(d.hints)}</td>
-    <td class="col-metric">${esc(d.version)}</td>
     <td class="col-num">${num(d.requests)}</td>
+    <td class="col-num col-rate" title="${esc(METRIC_TITLES.peakRequestRate)}">${rate}</td>
+    <td class="col-num" title="${esc(METRIC_TITLES.inv)}">${num(d.invalidations)}</td>
     <td class="col-pipe">${pipelineBar(d.pipeline)}</td>
     <td class="col-metric">${pct(d.oc?.hitShare, d.oc?.lowRequestSample, "request")}</td>
     <td class="col-metric">${pct(d.fc?.hitShare, d.fc?.lowRequestSample, "request")}</td>
     <td class="col-metric">${pct(factoryShareOf(d.fc), d.fc?.lowRequestSample, "request")}</td>
-    <td class="col-num">${num(d.invalidations)}</td>
+    <td class="col-metric" title="${esc(METRIC_TITLES.estTimeSaved)}">${fmtDurationMs(d.impact?.estFactoryTimeSavedMs)}</td>
+    <td class="col-metric" title="${esc(METRIC_TITLES.cacheBenefit)}">${impactBandLabel(d.impact?.benefit, { html: true })}</td>
+    <td class="col-metric" title="${esc(METRIC_TITLES.cacheCandidate)}">${impactBandLabel(d.impact?.candidate, { html: true })}</td>
+    <td class="col-hints">${hintBadges(d.hints)}</td>
     <td class="col-ops"><a href="#/operations?domain=${encodeURIComponent(d.name)}" onclick="event.stopPropagation()">Ops</a></td>
   </tr>`;
 }
@@ -89,14 +111,17 @@ export function domainTableHtml(list, emptyCtx = {}) {
       <thead>
         <tr>
           ${thMetric("Domain", "domain", { fromKey: true })}
-          ${thMetric("Hints", "hints", { fromKey: true })}
-          ${thMetric("Version", "version", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
-          ${thMetric("Pipeline", "pipeline", { fromKey: true })}
-          ${thMetric("OC hit share", "ocHitShare", { fromKey: true })}
-          ${thMetric("FC hit share", "fcHitShare", { fromKey: true })}
-          ${thMetric("Factory share", "factoryShare", { fromKey: true })}
+          ${thMetric("Peak RPS", "peakRequestRate", { fromKey: true, className: "col-rate" })}
           ${thMetric("Inv", "inv", { fromKey: true })}
+          ${thMetric("Pipeline", "pipeline", { fromKey: true })}
+          ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
+          ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
+          ${thMetric("Factory %", "factoryShare", { fromKey: true })}
+          ${thMetric("Time saved", "estTimeSaved", { fromKey: true })}
+          ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
+          ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
+          ${thMetric("Hints", "hints", { fromKey: true })}
           <th></th>
         </tr>
       </thead>
@@ -112,15 +137,18 @@ export function instanceRowHtml(i) {
     : "";
   const up = formatUptime(i.uptimeSeconds);
   const st = instanceStatus(i.status);
+  const reqCell = i.requests == null
+    ? noDataHtml("Connect metrics to see request counts")
+    : num(i.requests);
   return `<tr class="clickable entity-row" data-entity="instance" data-id="${esc(i.id)}">
     <td class="col-name"><code>${esc(i.id)}</code></td>
-    <td class="col-hints">${severityStack(i.hintSummary)}</td>
     <td class="status-${esc(st)}">${esc(st)}</td>
-    <td><code>${esc(i.url)}</code></td>
-    <td class="col-num">${num(i.requests)}</td>
-    <td title="${esc(started || "start time unknown")}">${esc(up)}</td>
+    <td><code class="cell-ellipsis" title="${esc(i.url)}">${esc(i.url)}</code></td>
+    <td class="col-num" title="${esc(METRIC_TITLES.req)}">${reqCell}</td>
+    <td class="col-uptime" title="${esc(started || "start time unknown")}">${esc(up)}</td>
     <td>${formatLatencyMs(i.latencyMs)}</td>
-    <td class="muted">${esc(i.error || "—")}</td>
+    <td class="muted"><span class="cell-ellipsis" title="${esc(i.error || "")}">${esc(i.error || "—")}</span></td>
+    <td class="col-hints">${severityStack(i.hintSummary)}</td>
   </tr>`;
 }
 
@@ -128,7 +156,7 @@ export function instanceTableHtml(list, emptyCtx = {}) {
   if (!list || !list.length) {
     return emptyStateHtml(emptyCtx.kind || "config", {
       title: "No instances configured",
-      detail: "Add targets under AdminConsole:Instances in Admin Console App appsettings, then refresh.",
+      detail: "Add targets under AdminConsole:Instances, then refresh.",
       ...emptyCtx,
     });
   }
@@ -137,13 +165,13 @@ export function instanceTableHtml(list, emptyCtx = {}) {
       <thead>
         <tr>
           ${thMetric("Id", "instance", { fromKey: true })}
-          ${thMetric("Hints", "hints", { fromKey: true })}
           ${thMetric("Status", "status", { fromKey: true })}
           ${thMetric("URL", "url", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
-          ${thMetric("Uptime", "uptime", { fromKey: true })}
+          ${thMetric("Uptime", "uptime", { fromKey: true, className: "col-uptime" })}
           ${thMetric("Latency", "latency", { fromKey: true })}
           ${thMetric("Error", "error", { fromKey: true })}
+          ${thMetric("Hints", "hints", { fromKey: true })}
         </tr>
       </thead>
       <tbody>${list.map(instanceRowHtml).join("")}</tbody>
@@ -159,28 +187,28 @@ export function emptyStateHtml(kind, ctx = {}) {
       cls: "config",
       icon: "◎",
       title: ctx.title || "Nothing configured",
-      detail: ctx.detail || "Configure AdminConsole:Instances and enable Local Admin on target apps.",
+      detail: ctx.detail || "Add targets under AdminConsole:Instances and enable Admin on each app.",
     },
     offline: {
       cls: "offline",
       icon: "⏻",
       title: ctx.title || "Target apps unreachable",
       detail: ctx.detail
-        || "All configured instances are down or timed out. Entity lists need at least one healthy Local Admin API.",
+        || "All configured instances are down or timed out. At least one healthy instance is required.",
     },
     endpoints: {
       cls: "filter",
       icon: "◫",
       title: ctx.title || "No endpoints",
       detail: ctx.detail
-        || "No endpoint counters match the current filters, or apps have not served traffic yet.",
+        || "No endpoints match the current filters, or there is no traffic yet.",
     },
     domains: {
       cls: "filter",
       icon: "◫",
       title: ctx.title || "No domains",
       detail: ctx.detail
-        || "No domains to show for the current instance filter / connectivity state.",
+        || "No domains to show for the current filters or connectivity state.",
     },
     filter: {
       cls: "filter",
@@ -192,27 +220,27 @@ export function emptyStateHtml(kind, ctx = {}) {
       cls: "offline",
       icon: "!",
       title: ctx.title || "Failed to load",
-      detail: ctx.detail || "Request failed. Check Admin Console App logs and instance URLs.",
+      detail: ctx.detail || "Request failed. Check connectivity and instance URLs.",
     },
     "metrics-config": {
       cls: "config",
       icon: "◎",
-      title: ctx.title || "Metrics storage not configured",
+      title: ctx.title || "Metrics not configured",
       detail: ctx.detail
-        || "Set AdminConsole:Metrics:Enabled, Provider (Prometheus), and BaseUrl.",
+        || "Set AdminConsole:Metrics (Enabled, Provider, BaseUrl) to enable statistics.",
     },
     "metrics-offline": {
       cls: "offline",
       icon: "⏻",
-      title: ctx.title || "Metrics storage not connected",
-      detail: ctx.detail || "Prometheus probe failed. Check URL, network, and auth.",
+      title: ctx.title || "Metrics not connected",
+      detail: ctx.detail || "Could not reach the metrics backend. Check URL, network, and credentials.",
     },
     "metrics-empty": {
       cls: "filter",
       icon: "◫",
-      title: ctx.title || "No metric samples",
+      title: ctx.title || "No samples",
       detail: ctx.detail
-        || "Connected, but no series in this range. Confirm the CacheOrchestrator meter is scraped.",
+        || "Connected, but no data in this time range yet.",
     },
   };
   const m = map[kind] || map.filter;
@@ -248,7 +276,7 @@ export function connectivityBanner(instances) {
   const deg = list.filter((i) => instanceStatus(i.status) === "Degraded").length;
   if (down === list.length) {
     return `<div class="banner err">
-      <span><strong>All instances down</strong> — entity data cannot be loaded from Local Admin APIs.
+      <span><strong>All instances down</strong> — data cannot be loaded.
         ${list.map((i) => `<code>${esc(i.id)}</code>`).join(", ")}</span>
       <span class="banner-actions"><button type="button" class="secondary" data-es-refresh>Retry</button></span>
     </div>`;
@@ -342,5 +370,88 @@ export function layerDetailFc(fc) {
         <span title="${esc(METRIC_TITLES.staleRate)}">Stale rate (layer)</span><span>${pct(fc.staleRate, fc.lowSample, "layer")}</span>
       </div>
     </div>`;
+}
+
+const TIP_TRACK_LATENCY =
+  "N/A — no factory duration samples. Enable Cache:Admin:TrackLatency on the app instance (and generate factory runs).";
+const TIP_TRACK_SIZE =
+  "N/A — no result-size samples. Enable Cache:Admin:TrackResultSize (cheap types only: string, bytes, seekable stream).";
+
+/** N/A with tooltip when a tracking channel has no samples. */
+function naTracking(tip) {
+  return `<span class="na-tracking" title="${esc(tip)}">N/A</span>`;
+}
+
+/** Cache impact KPIs (Console-derived from raw v2 + factory duration/size). */
+export function impactDetailHtml(impact, windowLabel) {
+  if (!impact) {
+    return `
+    <div class="detail-block">
+      <h3>Cache impact</h3>
+      <p class="muted">No impact data yet for this time range.</p>
+    </div>`;
+  }
+  const win = windowLabel ? ` · ${esc(windowLabel)}` : "";
+  const hasDuration = (impact.factoryDurationCount || 0) > 0;
+  const hasSize = (impact.factoryResultSizeCount || 0) > 0;
+  const avgDur = hasDuration && impact.avgFactoryDurationMs != null
+    ? `${esc(String(Math.round(impact.avgFactoryDurationMs * 10) / 10))} ms`
+    : naTracking(TIP_TRACK_LATENCY);
+  const timeSaved = hasDuration && impact.estFactoryTimeSavedMs != null
+    ? fmtDurationMs(impact.estFactoryTimeSavedMs)
+    : naTracking(TIP_TRACK_LATENCY);
+  const tsr = hasDuration && impact.timeSavedRatio != null
+    ? pct(impact.timeSavedRatio)
+    : naTracking(TIP_TRACK_LATENCY);
+  const avgSize = hasSize && impact.avgFactoryResultSizeBytes != null
+    ? fmtBytes(impact.avgFactoryResultSizeBytes)
+    : naTracking(TIP_TRACK_SIZE);
+  const offload = hasSize && impact.estPayloadOffloadBytes != null
+    ? fmtBytes(impact.estPayloadOffloadBytes)
+    : naTracking(TIP_TRACK_SIZE);
+
+  return `
+    <div class="detail-block">
+      <h3>Cache impact${win ? `<span class="badge">${win.replace(/^ · /, "")}</span>` : ""}</h3>
+      <div class="kv">
+        <span title="${esc(METRIC_TITLES.factoryAvoidance)}">Factory avoidance</span><span>${pct(impact.factoryAvoidance, impact.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.factoryShare)}">Factory % (same traffic mix)</span><span>${pct(impact.factoryShare, impact.lowRequestSample, "request")}</span>
+        <span title="Average factory-path duration">Avg factory duration</span><span>${avgDur}</span>
+        <span title="${esc(METRIC_TITLES.estTimeSaved)}">Est. factory time saved</span><span>${timeSaved}</span>
+        <span title="timeSaved / (timeSaved + factory duration paid)">Time-saved ratio</span><span>${tsr}</span>
+        <span title="Average measured factory result size">Avg result size</span><span>${avgSize}</span>
+        <span title="Avoided factory calls × avg result size">Est. payload offload</span><span>${offload}</span>
+        <span title="${esc(METRIC_TITLES.cacheBenefit)}">Benefit</span><span>${impactBandLabel(impact.benefit, { html: true })}</span>
+        <span title="${esc(METRIC_TITLES.cacheCandidate)}">Candidate</span><span>${impactBandLabel(impact.candidate, { html: true })}</span>
+        <span title="Factory duration samples (0 if TrackLatency is off)">Duration samples</span><span>${num(impact.factoryDurationCount)}</span>
+        <span title="Factory result size samples (0 if TrackResultSize is off)">Size samples</span><span>${num(impact.factoryResultSizeCount)}</span>
+      </div>
+    </div>`;
+}
+
+function fmtBytes(n) {
+  if (n == null || Number.isNaN(n)) return "—";
+  const v = Number(n);
+  if (v < 1024) return `${Math.round(v)} B`;
+  if (v < 1024 * 1024) return `${(v / 1024).toFixed(1)} KB`;
+  return `${(v / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+/** Detail KPI strip: time saved + bands (N/A when duration tracking has no samples). */
+export function impactKpiRowHtml(impact) {
+  if (!impact) return "";
+  const hasDuration = (impact.factoryDurationCount || 0) > 0;
+  const timeSaved = hasDuration && impact.estFactoryTimeSavedMs != null
+    ? fmtDurationMs(impact.estFactoryTimeSavedMs)
+    : naTracking(TIP_TRACK_LATENCY);
+  return `
+        <div class="kpi"${tipAttrSafe("estTimeSaved")}><div class="label">Time saved</div><div class="value" style="font-size:1rem">${timeSaved}</div></div>
+        <div class="kpi"${tipAttrSafe("cacheBenefit")}><div class="label">Benefit</div><div class="value" style="font-size:1rem">${impactBandLabel(impact.benefit, { html: true })}</div></div>
+        <div class="kpi"${tipAttrSafe("cacheCandidate")}><div class="label">Candidate</div><div class="value" style="font-size:1rem">${impactBandLabel(impact.candidate, { html: true })}</div></div>`;
+}
+
+function tipAttrSafe(key) {
+  const t = METRIC_TITLES[key];
+  return t ? ` title="${esc(t)}"` : "";
 }
 

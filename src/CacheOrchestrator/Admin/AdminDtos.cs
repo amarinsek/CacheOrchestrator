@@ -309,6 +309,12 @@ public sealed class AdminDomainStatsDto
     /// <summary>Request denominator for shares.</summary>
     public long Requests { get; init; }
 
+    /// <summary>
+    /// Peak OC request rate (req/s) in the selected window when filled by Admin Console
+    /// from Prometheus <c>max_over_time(rate(...[1m]))</c>. Null when unknown.
+    /// </summary>
+    public double? PeakRequestRate { get; init; }
+
     /// <summary>Output Cache counters + rates/shares.</summary>
     public required AdminLayerDto Oc { get; init; }
 
@@ -329,6 +335,12 @@ public sealed class AdminDomainStatsDto
 
     /// <summary>Rule-based recommendations for this domain.</summary>
     public IReadOnlyList<AdminHintDto> Hints { get; init; } = [];
+
+    /// <summary>
+    /// Optional impact KPIs (factory avoidance, time saved, benefit/candidate).
+    /// Local Admin leaves this null; Admin Console fills after derive.
+    /// </summary>
+    public CacheImpactKpiDto? Impact { get; init; }
 }
 
 /// <summary>Endpoint-level live stats (fundamental unit).</summary>
@@ -345,6 +357,12 @@ public sealed class AdminEndpointStatsDto
 
     /// <summary>Request denominator for shares.</summary>
     public long Requests { get; init; }
+
+    /// <summary>
+    /// Peak OC request rate (req/s) in the selected window when filled by Admin Console
+    /// from Prometheus. Null when unknown.
+    /// </summary>
+    public double? PeakRequestRate { get; init; }
 
     /// <summary>Output Cache layer.</summary>
     public required AdminLayerDto Oc { get; init; }
@@ -363,6 +381,75 @@ public sealed class AdminEndpointStatsDto
 
     /// <summary>Rule-based recommendations for this endpoint.</summary>
     public IReadOnlyList<AdminHintDto> Hints { get; init; } = [];
+
+    /// <summary>
+    /// Optional impact KPIs. Local Admin leaves null; Admin Console fills after derive.
+    /// </summary>
+    public CacheImpactKpiDto? Impact { get; init; }
+}
+
+/// <summary>
+/// Console-oriented cache impact KPIs derived from raw counters (not produced by Local Admin).
+/// </summary>
+public sealed class CacheImpactKpiDto
+{
+    /// <summary><c>1 - factoryRuns/requests</c> when requests &gt; 0.</summary>
+    public double? FactoryAvoidance { get; init; }
+
+    /// <summary><c>factoryRuns/requests</c> when requests &gt; 0.</summary>
+    public double? FactoryShare { get; init; }
+
+    /// <summary>Average factory-path duration in milliseconds.</summary>
+    public double? AvgFactoryDurationMs { get; init; }
+
+    /// <summary>Estimated factory time saved: avoided calls × avg factory duration (ms).</summary>
+    public double? EstFactoryTimeSavedMs { get; init; }
+
+    /// <summary>
+    /// Approximate time-saved ratio:
+    /// <c>timeSaved / (timeSaved + factoryDurationSum)</c>.
+    /// </summary>
+    public double? TimeSavedRatio { get; init; }
+
+    /// <summary>Sum of factory-path durations (ms).</summary>
+    public double? FactoryDurationSumMs { get; init; }
+
+    /// <summary>Factory-path duration sample count.</summary>
+    public long FactoryDurationCount { get; init; }
+
+    /// <summary>Average measured factory result size in bytes.</summary>
+    public double? AvgFactoryResultSizeBytes { get; init; }
+
+    /// <summary>
+    /// Estimated payload offload: avoided factory calls × avg result size (bytes).
+    /// </summary>
+    public double? EstPayloadOffloadBytes { get; init; }
+
+    /// <summary>Sum of measured factory result sizes (bytes).</summary>
+    public long? FactoryResultSizeSumBytes { get; init; }
+
+    /// <summary>Factory result size sample count.</summary>
+    public long FactoryResultSizeCount { get; init; }
+
+    /// <summary>True when result-size samples are missing or too few.</summary>
+    public bool LowSizeSample { get; init; }
+
+    /// <summary>
+    /// Benefit band: <c>HIGH</c>, <c>MEDIUM</c>, <c>LOW_GAIN</c>, <c>AT_RISK</c>, <c>LOW</c>, <c>UNKNOWN</c>.
+    /// </summary>
+    public required string Benefit { get; init; }
+
+    /// <summary>
+    /// Cache-candidate / worthiness:
+    /// <c>STRONG</c>, <c>VOLUME</c>, <c>LIMITED</c>, <c>POOR</c>, <c>NEEDS_TUNING</c>, <c>INSUFFICIENT_DATA</c>.
+    /// </summary>
+    public required string Candidate { get; init; }
+
+    /// <summary>True when request sample is too small for strong claims.</summary>
+    public bool LowRequestSample { get; init; }
+
+    /// <summary>True when factory duration samples are missing or too few.</summary>
+    public bool LowDurationSample { get; init; }
 }
 
 /// <summary>Discovered endpoint metadata.</summary>

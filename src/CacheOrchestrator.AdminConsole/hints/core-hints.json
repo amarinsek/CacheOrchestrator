@@ -303,6 +303,62 @@
         ]
       },
       "message": "Factory share differs across instances (stdev {endpoint.instanceSpread.factoryShare.stdev:p1})."
+    },
+    {
+      "code": "impact-poor-candidate",
+      "severity": "Info",
+      "category": "Impact",
+      "scope": "domain",
+      "description": "Low traffic and low factory cost — limited value from caching this domain.",
+      "when": {
+        "all": [
+          { "path": "domain.impact.lowRequestSample", "op": "==", "value": false },
+          { "path": "domain.impact.candidate", "op": "==", "value": "POOR" }
+        ]
+      },
+      "message": "Cache impact looks limited (candidate POOR): low request volume and cheap factory. Avoidance {domain.impact.factoryAvoidance:p0}; avg factory {domain.impact.avgFactoryDurationMs} ms."
+    },
+    {
+      "code": "impact-at-risk",
+      "severity": "Warning",
+      "category": "Impact",
+      "scope": "domain",
+      "description": "Expensive factory runs often — cache benefit at risk.",
+      "when": {
+        "all": [
+          { "path": "domain.impact.lowRequestSample", "op": "==", "value": false },
+          { "path": "domain.impact.benefit", "op": "==", "value": "AT_RISK" }
+        ]
+      },
+      "message": "Cache benefit AT_RISK: factory share {domain.fc.factoryShare:p1}, avg factory {domain.impact.avgFactoryDurationMs} ms. Check TTL, keys, and invalidation."
+    },
+    {
+      "code": "impact-strong",
+      "severity": "Info",
+      "category": "Impact",
+      "scope": "domain",
+      "description": "Strong cache impact — high traffic and expensive factory avoided.",
+      "when": {
+        "all": [
+          { "path": "domain.impact.lowRequestSample", "op": "==", "value": false },
+          { "path": "domain.impact.candidate", "op": "==", "value": "STRONG" }
+        ]
+      },
+      "message": "Strong cache impact: avoidance {domain.impact.factoryAvoidance:p0}, est. factory time saved {domain.impact.estFactoryTimeSavedMs} ms (lifetime)."
+    },
+    {
+      "code": "endpoint-impact-poor-candidate",
+      "severity": "Info",
+      "category": "Impact",
+      "scope": "endpoint",
+      "description": "Endpoint is a poor cache candidate (low traffic × low cost).",
+      "when": {
+        "all": [
+          { "path": "endpoint.impact.lowRequestSample", "op": "==", "value": false },
+          { "path": "endpoint.impact.candidate", "op": "==", "value": "POOR" }
+        ]
+      },
+      "message": "Route impact limited (candidate POOR). Avoidance {endpoint.impact.factoryAvoidance:p0}."
     }
   ]
 }
