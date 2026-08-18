@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin Console SPA: shared `beginPageLoad` / `paintPage` / `kpiRowHtml`; soft-refresh keeps filter focus on Endpoints/Domains/Instances/Live/Hints; Live uses `bindEntityTableClicks`
 - Admin Console SPA: split `views.js` into `views-*.js` modules + thin `route()`; shared `views-shared.js`; Metrics soft chart updates via one helper; header/`instancesUpClass` shared
 - Admin Console: typed `HintRulesResponseDto`; document restart-required for `AdminConsoleOptions` snapshot; window stats rolls up domain OC/FC/inv from per-instance series (−3 Prom queries); Live hints via `LiveHintProjector` + shared `PrometheusSampleHelpers`
-- Admin Console SPA Phase 5: split `views.js` into focused modules (`views-shared`, `views-overview`, `views-endpoints`, `views-domains`, `views-instances`, `views-hints`, `views-operations`, `views-settings`); shared `bindGotoHints` / soft chart update helper
+- Admin Console SPA: split `views.js` into focused modules (`views-shared`, `views-overview`, `views-endpoints`, `views-domains`, `views-instances`, `views-hints`, `views-operations`, `views-settings`); shared `bindGotoHints` / soft chart update helper
 
 ### Removed
 

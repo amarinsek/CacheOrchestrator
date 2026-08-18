@@ -173,6 +173,19 @@ The endpoint code is the same shape in every case. The domain is what differs.
 |---------|---------|
 | [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Admin Console App: live stats, domain settings, invalidation, Version and TTL. Docker: `ghcr.io/amarinsek/cacheorchestrator-admin-console` — [deploy/admin](deploy/admin/README.md). |
 
+---
+
+> [!NOTE]
+> ## **Versioning Info**
+> 
+> Currently, **CacheOrchestrator** is undergoing a significant architectural refactoring, which will culminate in the upcoming **v3.0.0** release. 
+> 
+> * **v1.0.0 & v2.1.x (Legacy):** These versions are published on NuGet strictly to ensure continuity for existing environments that are already integrated with them. Please note that these versions contain some known issues and are no longer receiving active feature development. 
+> * **v3.0.0 (Active Development):** This upcoming major release brings a modernized codebase, resolves previous issues, and introduces substantial architectural improvements. 
+> 
+> If you are evaluating **CacheOrchestrator** or planning a new integration, we strongly recommend waiting for the v3.0.0 release rather than adopting the legacy 1.x or 2.x versions. 
+> 
+> If you want an early look at the new architecture, wish to test the latest improvements, or want to contribute to the upcoming v3, you are welcome to clone the `main` branch. Please be aware that `main` is currently under heavy development and may be subject to breaking changes before the final release.
 
 ---
 
@@ -187,3 +200,4 @@ The endpoint code is the same shape in every case. The domain is what differs.
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 - [License](LICENSE.md) (MIT)
+
