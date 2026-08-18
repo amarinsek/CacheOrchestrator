@@ -8,7 +8,7 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <LangVersion>latest</LangVersion>
-    <RootNamespace>CacheOrchestrator.AdminConsole.Tests</RootNamespace>
+    <RootNamespace>CacheOrchestrator.AdminConsole.UnitTests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

@@ -50,7 +50,7 @@ jobs:
     # Admin Console App is net10.0-only (separate test project).
     - name: Admin Console tests (net10.0)
       run: >
-        dotnet test tests/CacheOrchestrator.AdminConsole.Tests/CacheOrchestrator.AdminConsole.Tests.csproj
+        dotnet test tests/CacheOrchestrator.AdminConsole.UnitTests/CacheOrchestrator.AdminConsole.UnitTests.csproj
         --no-build --configuration Release --framework net10.0
         --verbosity normal
 

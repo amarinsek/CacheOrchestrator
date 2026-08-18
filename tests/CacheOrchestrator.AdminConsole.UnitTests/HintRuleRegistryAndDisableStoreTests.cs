@@ -6,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.AdminConsole.Tests;
+namespace CacheOrchestrator.AdminConsole.UnitTests;
 
 public class HintRuleRegistryAndDisableStoreTests
 {

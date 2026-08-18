@@ -3,7 +3,7 @@ using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.AdminConsole.Services;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.AdminConsole.Tests;
+namespace CacheOrchestrator.AdminConsole.UnitTests;
 
 public class InstanceReachabilityCacheTests
 {

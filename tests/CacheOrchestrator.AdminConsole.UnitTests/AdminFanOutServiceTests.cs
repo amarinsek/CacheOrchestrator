@@ -5,7 +5,7 @@ using CacheOrchestrator.AdminConsole.Services;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.AdminConsole.Tests;
+namespace CacheOrchestrator.AdminConsole.UnitTests;
 
 public class AdminFanOutServiceTests
 {

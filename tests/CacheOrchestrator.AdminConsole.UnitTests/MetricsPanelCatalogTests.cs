@@ -1,7 +1,7 @@
 using CacheOrchestrator.AdminConsole.Models;
 using CacheOrchestrator.AdminConsole.Services.Metrics;
 
-namespace CacheOrchestrator.AdminConsole.Tests;
+namespace CacheOrchestrator.AdminConsole.UnitTests;
 
 public class MetricsPanelCatalogTests
 {

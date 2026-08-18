@@ -1,4 +1,4 @@
-namespace CacheOrchestrator.AdminConsole.Tests;
+namespace CacheOrchestrator.AdminConsole.UnitTests;
 
 /// <summary>Test <see cref="TimeProvider"/> whose UTC clock can be advanced without waiting.</summary>
 internal sealed class TestMutableTimeProvider : TimeProvider
