@@ -257,7 +257,7 @@ async function paintOverviewBody(o, params, soft) {
       </div>
       ${!offline && promOk && srcEndpoints.length ? `<p style="margin:0.75rem 0 0"><a href="#/endpoints">All endpoints →</a></p>` : ""}
     </div>
-    <div id="ovMetricsMount"><p class="muted small">Checking metrics store…</p></div>
+    <div id="ovMetricsMount"><p class="muted small">Loading charts…</p></div>
     </div>`, soft);
 
   bindEntityTableClicks(main());
@@ -316,17 +316,17 @@ function bindGotoHints(root) {
 function overviewKpiHtml(o, windowStats = null) {
   const promOk = windowStats && windowStats.status === "Connected";
   const noData = promOk && windowStats.noData;
-  const scopeTip = promOk ? "Selected range" : "Metrics store required for traffic KPIs";
+  const scopeTip = promOk ? "Selected time range" : "Connect metrics to see traffic KPIs";
 
   const imp = promOk ? (windowStats.impact || {}) : {};
   const oc = !promOk || noData || windowStats.ocHitShare == null
-    ? noDataHtml(promOk ? "No OC hit samples in this range" : "Metrics offline")
+    ? noDataHtml(promOk ? "No samples in this time range" : "Metrics offline")
     : pct(windowStats.ocHitShare);
   const fc = !promOk || noData || windowStats.fcHitShare == null
-    ? noDataHtml(promOk ? "No FC hit samples in this range" : "Metrics offline")
+    ? noDataHtml(promOk ? "No samples in this time range" : "Metrics offline")
     : pct(windowStats.fcHitShare);
   const fac = !promOk || noData || windowStats.factoryShare == null
-    ? noDataHtml(promOk ? "No factory-share samples in this range" : "Metrics offline")
+    ? noDataHtml(promOk ? "No samples in this time range" : "Metrics offline")
     : pct(windowStats.factoryShare);
 
   return `
@@ -441,9 +441,9 @@ function sliceWindowStatsForInstance(windowStats, instanceId, reportedId) {
 
 function metricsRequiredEmpty(detail) {
   return emptyStateHtml("metrics-config", {
-    title: "Metrics store required",
+    title: "Metrics not connected",
     detail: detail
-      || "Admin Console statistics come only from Prometheus. Set AdminConsole:Metrics (Enabled, Provider, BaseUrl) and scrape the CacheOrchestrator meter.",
+      || "Set AdminConsole:Metrics (Enabled, Provider, BaseUrl) to enable statistics.",
     actions: [
       { label: "Refresh", onclick: "window.__adminRefresh && window.__adminRefresh()" },
       { label: "Instances", href: "#/instances" },
@@ -501,7 +501,7 @@ export async function renderEndpointsList(params, opts = {}) {
         const takeN = Number(take) || 50;
         list = list.slice(skip, skip + takeN);
       } else {
-        loadError = w?.error || "Metrics store not connected.";
+        loadError = w?.error || "Metrics not connected.";
       }
     } catch (err) {
       loadError = err.message;
@@ -512,12 +512,12 @@ export async function renderEndpointsList(params, opts = {}) {
     ? {
       kind: loadError ? "error" : "endpoints",
       title: loadError ? "Failed to load endpoints" : undefined,
-      detail: loadError || "Endpoints require Prometheus route label (IncludeEndpointLabel).",
+      detail: loadError || "No endpoint traffic in this time range (route labels must be enabled on apps).",
     }
     : {
       kind: "metrics-config",
-      title: "Metrics store required",
-      detail: loadError || "Statistics come only from Prometheus.",
+      title: "Metrics not connected",
+      detail: loadError || "Connect metrics to see endpoints.",
     };
 
   paintPage(`
@@ -640,7 +640,7 @@ function endpointDetailHeadHtml(ep) {
       </h2>
       ${recommendationsSectionHtml(ep.hints)}
       <div class="kpi-row">
-        <div class="kpi" title="Current value (not scoped to the selected time range)"><div class="label">Domain</div><div class="value" style="font-size:1rem">${ep.configuredDomain ? currentValueHtml(esc(ep.configuredDomain)) : "—"}</div></div>
+        <div class="kpi" title="Current value (not part of the selected time range)"><div class="label">Domain</div><div class="value" style="font-size:1rem">${ep.configuredDomain ? currentValueHtml(esc(ep.configuredDomain)) : "—"}</div></div>
         <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(ep.requests)}</div></div>
         <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit %</div><div class="value">${pct(ep.oc?.hitShare, ep.oc?.lowRequestSample, "request")}</div></div>
         <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit %</div><div class="value">${pct(ep.fc?.hitShare, ep.fc?.lowRequestSample, "request")}</div></div>
@@ -728,7 +728,7 @@ export async function renderDomainsList(params, opts = {}) {
         });
       } catch { /* optional version overlay */ }
     } else {
-      loadError = w?.error || "Metrics store not connected.";
+      loadError = w?.error || "Metrics not connected.";
     }
   } catch (err) {
     loadError = err.message;
@@ -868,7 +868,7 @@ function domainDetailHeadHtml(name, domain, cfg) {
       ${impactDetailHtml(domain.impact)}
       ${hasConfig ? `
       <div class="detail-block">
-        <h3>Effective config <span class="badge" title="Current values (not scoped to the selected time range)">current</span></h3>
+        <h3>Effective config <span class="badge" title="Current values (not part of the selected time range)">current</span></h3>
         <div class="kv">
           <span title="Domain version">Version</span>${currentValueHtml(esc(ver))}${verRt ? " *" : ""}
           ${cfg ? `
@@ -962,7 +962,7 @@ export async function renderInstancesList(params = new URLSearchParams(), opts =
       metricsCard = `
         <div class="card" id="instMetricsStoreCard">
           <div class="card-head">
-            <h2 title="Optional Prometheus-compatible store for windowed Metrics charts">Metrics store</h2>
+            <h2 title="Metrics backend for Live, tables, and charts">Metrics</h2>
             <a href="#/metrics">Open Metrics →</a>
           </div>
           <p style="margin:0">${st}
@@ -1167,10 +1167,10 @@ export async function renderHintsPage(params, opts = {}) {
         ${filtersActive ? `<span class="badge muted" title="Visible / all">${shownSummary.total}/${totalSummary.total}</span>` : ""}
       </h2>
       <p class="muted">${promOk
-        ? "Rule-based recommendations for the selected range."
-        : "Metrics store required for hints."}
-        Filters combine (AND). Empty hint mark is <strong>○</strong>.
-        ${filtersActive ? " Severity KPIs show <strong>visible/total</strong> for the current filter." : ""}
+        ? "Recommendations for the selected time range."
+        : "Connect metrics to see recommendations."}
+        Filters combine (AND).
+        ${filtersActive ? " Severity counts show <strong>visible/total</strong> for the current filter." : ""}
       </p>
       ${!promOk ? metricsRequiredEmpty() : `
       <form class="toolbar" id="hintFilters">
@@ -1213,7 +1213,7 @@ export async function renderHintsPage(params, opts = {}) {
         </tbody>
       </table>` : emptyStateHtml("filter", {
         title: "No hints to show",
-        detail: "No recommendations from Prometheus window data for the current filters.",
+        detail: "No recommendations for the current filters.",
       })}`}
     </div>`, soft);
   bindEmptyStateActions(main());
@@ -1249,9 +1249,9 @@ export async function renderOperations(params) {
   const mode = distribution?.recommendedMode || "fan-out";
   const busAvailable = !!distribution?.busAvailable;
   const modeClass = mode === "bus-distribute" ? "mode-bus" : "mode-fanout";
-  const modeLabel = mode === "bus-distribute" ? "Cluster bus (distribute)" : "HTTP fan-out";
+  const modeLabel = mode === "bus-distribute" ? "Cluster bus" : "Direct to each instance";
   const modeDetail = distribution?.summary
-    || "Probe /api/distribution for live capability.";
+    || "How this Console will deliver the operation.";
 
   const probeRows = (distribution?.instances || []).map((p) => {
     const bus = p.busEnabled
@@ -1282,8 +1282,8 @@ export async function renderOperations(params) {
         </div>
         <p class="muted dist-banner-detail">${esc(modeDetail)}</p>
         <p class="muted small">
-          <strong>fan-out</strong> = Admin Console App calls every target with <code>distribute:false</code> (each node applies locally).
-          <strong>bus-distribute</strong> = one origin with <code>distribute:true</code>; peers apply via CacheOrchestrator.Bus (never both).
+          <strong>Direct</strong> — this Console calls each selected instance.
+          <strong>Cluster bus</strong> — one origin receives the command; peers apply it via the bus.
         </p>
       </div>
       <form id="opForm" class="form-grid">
@@ -1328,7 +1328,7 @@ export async function renderOperations(params) {
     </div>
     <div class="card">
       <h2>Cluster bus probe</h2>
-      <p class="muted">From Local Admin <code>GET …/cluster/info</code> on each configured instance.</p>
+      <p class="muted">Bus capability reported by each configured instance.</p>
       <div class="table-wrap">
         <table class="data">
           <thead>
@@ -1367,8 +1367,8 @@ export async function renderOperations(params) {
     }
     const m = result.distributionMode || "fan-out";
     const badge = m === "bus-distribute"
-      ? `<span class="badge ok">bus-distribute</span>`
-      : `<span class="badge warn">fan-out</span>`;
+      ? `<span class="badge ok">cluster bus</span>`
+      : `<span class="badge warn">direct</span>`;
     const origin = result.busOriginInstanceId
       ? ` · origin <code>${esc(result.busOriginInstanceId)}</code>`
       : "";

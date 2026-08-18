@@ -3,8 +3,8 @@
  * Independent of the global Range picker.
  */
 
-import { api } from "./api.js";
-import { $, main, mainHasContent, paintMain } from "./dom.js";
+import { api, instanceStatus } from "./api.js";
+import { main, mainHasContent, paintMain } from "./dom.js";
 import {
   esc,
   formatLatencyMs,
@@ -12,13 +12,12 @@ import {
   fmtRequestRate,
   METRIC_TITLES,
   noDataHtml,
-  num,
   pct,
   tipAttr,
 } from "./format.js";
 import { severityStack } from "./hints.js";
 import { setBreadcrumb, setNavActive } from "./router.js";
-import { bindEmptyStateActions, emptyStateHtml, instanceStatus } from "./tables.js";
+import { bindEmptyStateActions, emptyStateHtml } from "./tables.js";
 import * as shell from "./shell.js";
 
 function beginPageLoad(soft, loadingHtml) {
@@ -33,11 +32,11 @@ function paintPage(html, soft) {
 }
 
 function shareOrDash(v) {
-  return v == null ? noDataHtml("No samples in live lookback") : pct(v);
+  return v == null ? noDataHtml("No samples yet") : pct(v);
 }
 
 function rateOrDash(v) {
-  return v == null ? noDataHtml("No samples in live lookback") : fmtRequestRate(v);
+  return v == null ? noDataHtml("No samples yet") : fmtRequestRate(v);
 }
 
 /**
@@ -78,10 +77,10 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
   paintPage(`
     <div class="card">
       <div class="card-head">
-        <h2>Live <span class="badge ok" title="Fixed Prometheus lookback — not the Range picker">last ${esc(lookback)}</span></h2>
+        <h2>Live <span class="badge ok" title="Current values over the last minute">last ${esc(lookback)}</span></h2>
         <span class="muted small">${snap.queriedAtUtc ? new Date(snap.queriedAtUtc).toISOString().replace("T", " ").replace(/\.\d+Z$/, "Z") : ""}</span>
       </div>
-      <p class="muted" style="margin:0 0 0.75rem">Near-real-time health and performance. Range analytics stay on Overview / Domains / Endpoints / Metrics.</p>
+      <p class="muted" style="margin:0 0 0.75rem">Current health and performance.</p>
       <div class="kpi-row">
         <div class="kpi"><div class="label">Instances up</div><div class="value ${upClass}">${c.healthyCount ?? 0} / ${c.instanceCount ?? 0}</div></div>
         <div class="kpi"${tipAttr("liveRps")}><div class="label">RPS</div><div class="value">${metricsOk ? rateOrDash(c.requestRate) : noDataHtml("Metrics offline")}</div></div>
@@ -91,9 +90,9 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
         <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit %</div><div class="value">${metricsOk ? shareOrDash(c.fcHitShare) : noDataHtml()}</div></div>
         <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${metricsOk ? shareOrDash(c.factoryShare) : noDataHtml()}</div></div>
         <div class="kpi" title="FC fail + stale share of requests"><div class="label">Fail %</div><div class="value">${metricsOk ? shareOrDash(c.factoryFailShare) : noDataHtml()}</div></div>
-        <div class="kpi kpi-hints" role="link" tabindex="0" data-goto-hints="1" title="Open Hints"><div class="label">Hints (15m)</div><div class="value">${severityStack(snap.hintSummary)}</div></div>
+        <div class="kpi kpi-hints" role="link" tabindex="0" data-goto-hints="1" title="Open Hints"><div class="label">Hints</div><div class="value">${severityStack(snap.hintSummary)}</div></div>
       </div>
-      ${!metricsOk ? `<p class="status-Degraded" style="margin:0.75rem 0 0">${esc(snap.error || "Metrics store required for live rates.")}</p>` : ""}
+      ${!metricsOk ? `<p class="status-Degraded" style="margin:0.75rem 0 0">${esc(snap.error || "Connect metrics to see live rates.")}</p>` : ""}
       ${metricsLine ? `<p class="muted small" style="margin:0.5rem 0 0">${metricsLine}</p>` : ""}
     </div>
 
@@ -105,26 +104,26 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
     <div class="card">
       <h2>Hot domains <span class="badge">by RPS</span></h2>
       ${!metricsOk
-        ? emptyStateHtml("metrics-config", { title: "Metrics store required", detail: snap.error })
+        ? emptyStateHtml("metrics-config", { title: "Metrics not connected", detail: snap.error })
         : liveEntityTable(snap.domains || [], { kind: "domain" })}
     </div>
 
     <div class="card">
       <h2>Hot endpoints <span class="badge">top by RPS</span></h2>
       ${!metricsOk
-        ? emptyStateHtml("metrics-config", { title: "Metrics store required", detail: snap.error })
+        ? emptyStateHtml("metrics-config", { title: "Metrics not connected", detail: snap.error })
         : liveEntityTable(snap.endpoints || [], { kind: "endpoint" })}
     </div>
 
     ${(snap.quietDomains || []).length ? `
     <div class="card">
       <h2>Quiet domains <span class="badge muted">RPS ≈ 0</span></h2>
-      <p class="muted" style="margin:0 0 0.5rem">Configured domains with no live OC traffic in the last ${esc(lookback)}.</p>
+      <p class="muted" style="margin:0 0 0.5rem">Configured domains with no traffic in the last ${esc(lookback)}.</p>
       <p style="margin:0">${snap.quietDomains.map((n) =>
         `<a class="badge" href="#/domains?name=${encodeURIComponent(n)}"><code>${esc(n)}</code></a>`).join(" ")}</p>
     </div>` : ""}
 
-    <p class="muted small"><a href="#/metrics">Open Metrics →</a> for history · <a href="#/overview">Overview →</a> for Range analytics</p>
+    <p class="muted small"><a href="#/metrics">Metrics</a> for history · <a href="#/overview">Overview</a> for the selected time range</p>
   `, soft);
 
   bindEmptyStateActions(main());
@@ -179,7 +178,7 @@ function liveEntityTable(list, { kind }) {
   if (!list.length) {
     return emptyStateHtml(kind === "endpoint" ? "endpoints" : "domains", {
       title: kind === "endpoint" ? "No live endpoint traffic" : "No live domain traffic",
-      detail: "No OC samples in the live lookback.",
+      detail: "No traffic in the last minute.",
     });
   }
   const isEp = kind === "endpoint";

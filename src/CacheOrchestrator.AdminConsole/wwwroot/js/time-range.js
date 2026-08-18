@@ -265,8 +265,8 @@ function pickerButtonHtml() {
   const connected = isMetricsConnected() || metricsCapability === "unknown";
   const label = getDisplayLabel();
   const title = connected
-    ? "Time range for Prometheus stats (quick ranges or absolute From/To)"
-    : "Metrics store not connected — statistics unavailable until Prometheus is up";
+    ? "Time range for statistics and charts"
+    : "Connect metrics to use statistics and charts";
   return `
     <div class="tr-picker" title="${escHtml(title)}">
       <button type="button" class="tr-btn" id="trPickerBtn" aria-haspopup="dialog" aria-expanded="false"
@@ -309,7 +309,7 @@ function pickerPanelHtml() {
           <input type="datetime-local" id="trTo" value="${escHtml(toLocal)}" ${connected ? "" : "disabled"} step="60" />
         </label>
         <button type="button" class="tr-apply" id="trApplyAbs" ${connected ? "" : "disabled"}>Apply time range</button>
-        <p class="tr-hint">All statistics come from Prometheus for this window. Local Admin counters are not used.</p>
+        <p class="tr-hint">Statistics and charts use this time range. Live uses a separate short lookback.</p>
       </div>
     </div>`;
 }

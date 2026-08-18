@@ -119,7 +119,7 @@ public static class MetricsPanelCatalog
             Id = "factory_share",
             Title = "Factory share (window)",
             Description =
-                "Approximate factory share over the metrics window: FC miss rate / OC request rate (same window). Prefer lifetime Admin impact KPIs when Prometheus is off.",
+                "Approximate factory share over the metrics window: FC miss rate / OC request rate (same window).",
             Unit = "percent",
         },
         new()

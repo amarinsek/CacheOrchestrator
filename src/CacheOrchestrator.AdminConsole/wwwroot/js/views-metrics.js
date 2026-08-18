@@ -33,7 +33,7 @@ import {
 
 /** Tooltip when a panel has no Prometheus samples in the window. */
 const NO_SAMPLES_TIP =
-  "No samples in this window. Often means the event rate was zero (e.g. no invalidations), not a scrape failure.";
+  "No data in this time range. Often the event rate was simply zero.";
 
 /**
  * Chart opts that force X-axis to the selected range window (relative or absolute).
@@ -102,9 +102,9 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
     setMetricsCapability("not_configured");
     paint(`
       <div class="card">${emptyStateHtml("metrics-config", {
-        title: "Metrics storage not configured",
+        title: "Metrics not configured",
         detail: status.error
-          || "Set AdminConsole:Metrics:Enabled, Provider, and BaseUrl. All Console statistics require Prometheus.",
+          || "Set AdminConsole:Metrics (Enabled, Provider, BaseUrl) to enable charts.",
         actions: [
           { label: "Refresh", onclick: "window.__adminRefresh && window.__adminRefresh()" },
           { label: "Overview", href: "#/overview" },
@@ -121,7 +121,7 @@ export async function renderMetrics(params = new URLSearchParams(), opts = {}) {
     paint(`
       <div class="card">${emptyStateHtml("metrics-offline", {
         title: `${target} · not connected`,
-        detail: status.error || "Probe failed. Check BaseUrl, network, and credentials. Status also appears on Instances.",
+        detail: status.error || "Could not reach the metrics backend. Check URL, network, and credentials.",
         actions: [
           { label: "Refresh", onclick: "window.__adminRefresh && window.__adminRefresh()" },
           { label: "Instances", href: "#/instances" },
@@ -354,10 +354,10 @@ function cssEscape(id) {
 
 function metricsKpiHtml(summary, series) {
   return `
-      <div class="kpi" title="Request rate over the selected metrics window"><div class="label">Req / s</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
-      <div class="kpi" title="OC hit share over the selected metrics window (from external metrics store)"><div class="label">OC hit share (window)</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
-      <div class="kpi" title="FC hit rate (layer) over the selected metrics window — among Fusion operations, not request share"><div class="label">FC hit rate (layer, window)</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
-      <div class="kpi" title="Invalidation rate over the selected metrics window"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
+      <div class="kpi" title="Request rate in the selected time range"><div class="label">Req / s</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
+      <div class="kpi" title="Output Cache hit share in the selected time range"><div class="label">OC hit share</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
+      <div class="kpi" title="Fusion hit rate among Fusion operations in the selected time range"><div class="label">FC hit rate</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
+      <div class="kpi" title="Invalidation rate in the selected time range"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
       <div class="kpi"><div class="label">Step</div><div class="value" data-kpi="step" style="font-size:1rem">${esc(series?.step || "—")}</div></div>`;
 }
 

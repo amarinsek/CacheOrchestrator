@@ -137,15 +137,14 @@ export function instanceRowHtml(i) {
     : "";
   const up = formatUptime(i.uptimeSeconds);
   const st = instanceStatus(i.status);
-  // Req is Prometheus window only (null = metrics offline / not attached).
   const reqCell = i.requests == null
-    ? noDataHtml("Metrics store required for request counts")
+    ? noDataHtml("Connect metrics to see request counts")
     : num(i.requests);
   return `<tr class="clickable entity-row" data-entity="instance" data-id="${esc(i.id)}">
     <td class="col-name"><code>${esc(i.id)}</code></td>
     <td class="status-${esc(st)}">${esc(st)}</td>
     <td><code class="cell-ellipsis" title="${esc(i.url)}">${esc(i.url)}</code></td>
-    <td class="col-num" title="Prometheus window">${reqCell}</td>
+    <td class="col-num" title="${esc(METRIC_TITLES.req)}">${reqCell}</td>
     <td class="col-uptime" title="${esc(started || "start time unknown")}">${esc(up)}</td>
     <td>${formatLatencyMs(i.latencyMs)}</td>
     <td class="muted"><span class="cell-ellipsis" title="${esc(i.error || "")}">${esc(i.error || "—")}</span></td>
@@ -157,7 +156,7 @@ export function instanceTableHtml(list, emptyCtx = {}) {
   if (!list || !list.length) {
     return emptyStateHtml(emptyCtx.kind || "config", {
       title: "No instances configured",
-      detail: "Add targets under AdminConsole:Instances in Admin Console App appsettings, then refresh.",
+      detail: "Add targets under AdminConsole:Instances, then refresh.",
       ...emptyCtx,
     });
   }
@@ -188,28 +187,28 @@ export function emptyStateHtml(kind, ctx = {}) {
       cls: "config",
       icon: "◎",
       title: ctx.title || "Nothing configured",
-      detail: ctx.detail || "Configure AdminConsole:Instances and enable Local Admin on target apps.",
+      detail: ctx.detail || "Add targets under AdminConsole:Instances and enable Admin on each app.",
     },
     offline: {
       cls: "offline",
       icon: "⏻",
       title: ctx.title || "Target apps unreachable",
       detail: ctx.detail
-        || "All configured instances are down or timed out. Entity lists need at least one healthy Local Admin API.",
+        || "All configured instances are down or timed out. At least one healthy instance is required.",
     },
     endpoints: {
       cls: "filter",
       icon: "◫",
       title: ctx.title || "No endpoints",
       detail: ctx.detail
-        || "No endpoint counters match the current filters, or apps have not served traffic yet.",
+        || "No endpoints match the current filters, or there is no traffic yet.",
     },
     domains: {
       cls: "filter",
       icon: "◫",
       title: ctx.title || "No domains",
       detail: ctx.detail
-        || "No domains to show for the current instance filter / connectivity state.",
+        || "No domains to show for the current filters or connectivity state.",
     },
     filter: {
       cls: "filter",
@@ -221,27 +220,27 @@ export function emptyStateHtml(kind, ctx = {}) {
       cls: "offline",
       icon: "!",
       title: ctx.title || "Failed to load",
-      detail: ctx.detail || "Request failed. Check Admin Console App logs and instance URLs.",
+      detail: ctx.detail || "Request failed. Check connectivity and instance URLs.",
     },
     "metrics-config": {
       cls: "config",
       icon: "◎",
-      title: ctx.title || "Metrics storage not configured",
+      title: ctx.title || "Metrics not configured",
       detail: ctx.detail
-        || "Set AdminConsole:Metrics:Enabled, Provider (Prometheus), and BaseUrl.",
+        || "Set AdminConsole:Metrics (Enabled, Provider, BaseUrl) to enable statistics.",
     },
     "metrics-offline": {
       cls: "offline",
       icon: "⏻",
-      title: ctx.title || "Metrics storage not connected",
-      detail: ctx.detail || "Prometheus probe failed. Check URL, network, and auth.",
+      title: ctx.title || "Metrics not connected",
+      detail: ctx.detail || "Could not reach the metrics backend. Check URL, network, and credentials.",
     },
     "metrics-empty": {
       cls: "filter",
       icon: "◫",
-      title: ctx.title || "No metric samples",
+      title: ctx.title || "No samples",
       detail: ctx.detail
-        || "Connected, but no series in this range. Confirm the CacheOrchestrator meter is scraped.",
+        || "Connected, but no data in this time range yet.",
     },
   };
   const m = map[kind] || map.filter;
@@ -277,7 +276,7 @@ export function connectivityBanner(instances) {
   const deg = list.filter((i) => instanceStatus(i.status) === "Degraded").length;
   if (down === list.length) {
     return `<div class="banner err">
-      <span><strong>All instances down</strong> — entity data cannot be loaded from Local Admin APIs.
+      <span><strong>All instances down</strong> — data cannot be loaded.
         ${list.map((i) => `<code>${esc(i.id)}</code>`).join(", ")}</span>
       <span class="banner-actions"><button type="button" class="secondary" data-es-refresh>Retry</button></span>
     </div>`;
@@ -389,7 +388,7 @@ export function impactDetailHtml(impact, windowLabel) {
     return `
     <div class="detail-block">
       <h3>Cache impact</h3>
-      <p class="muted">No impact KPIs (need factory samples / traffic in the selected range).</p>
+      <p class="muted">No impact data yet for this time range.</p>
     </div>`;
   }
   const win = windowLabel ? ` · ${esc(windowLabel)}` : "";

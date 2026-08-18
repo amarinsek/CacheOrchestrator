@@ -191,23 +191,22 @@ export function renderHeader(o, windowStats = null) {
   const pipe = promOk && !noData ? windowStats.pipeline : null;
   const oc = promOk && !noData && windowStats.ocHitShare != null
     ? pct(windowStats.ocHitShare)
-    : noDataHtml(promOk ? "No samples" : "Metrics offline");
+    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
   const fc = promOk && !noData && windowStats.fcHitShare != null
     ? pct(windowStats.fcHitShare)
-    : noDataHtml(promOk ? "No samples" : "Metrics offline");
+    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
   const fac = promOk && !noData && windowStats.factoryShare != null
     ? pct(windowStats.factoryShare)
-    : noDataHtml(promOk ? "No samples" : "Metrics offline");
+    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
   const imp = promOk ? (windowStats.impact || {}) : {};
   const req = promOk && !noData ? num(windowStats.totalRequests) : noDataHtml();
   const inv = promOk && !noData ? num(windowStats.totalInvalidations) : noDataHtml();
   const timeSaved = promOk
     ? fmtDurationMs(imp.estFactoryTimeSavedMs)
-    : noDataHtml(promOk ? "No samples" : "Metrics offline");
+    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
   const domN = promOk ? (windowStats.domains || []).length : 0;
   const epN = promOk ? (windowStats.endpoints || []).length : 0;
 
-  // Hints stay in the menu bar only (not duplicated here).
   $("#headerMetrics").innerHTML = `
     <span class="hm" title="${esc(healthTitle)}">${healthDots}
       <strong class="${upClass}">${up}/${total || 0}</strong><span class="muted">\u2009up</span>
@@ -221,7 +220,7 @@ export function renderHeader(o, windowStats = null) {
     <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${fc}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">Factory % <strong>${fac}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">Time saved <strong>${timeSaved}</strong></span>
-    <span class="hm muted" title="Domains and endpoints with traffic in the selected range">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
+    <span class="hm muted" title="Domains and endpoints with traffic in the selected time range">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
     ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
   `;
   refreshMetricsStatusPill();

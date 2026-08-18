@@ -163,7 +163,7 @@ export function openChartModal(opts, ctx = {}) {
       </div>
       <div class="chart-modal-body">
         <div data-chart-host data-modal-chart="1">${lineChartHtml(series, chartOpts)}</div>
-        <p class="muted small chart-hover-hint">Hover the chart to snap values at a point in time. Refresh reloads all page data (same as menu ↻).</p>
+        <p class="muted small chart-hover-hint">Hover to see values at a point in time.</p>
       </div>
     </div>`;
   document.body.appendChild(backdrop);
