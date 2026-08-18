@@ -16,9 +16,10 @@ import {
   tipAttr,
 } from "./format.js";
 import { severityStack } from "./hints.js";
-import { navigate, setBreadcrumb, setNavActive } from "./router.js";
+import { setBreadcrumb, setNavActive } from "./router.js";
 import { bindEmptyStateActions, bindEntityTableClicks, emptyStateHtml } from "./tables.js";
 import * as shell from "./shell.js";
+import { bindGotoHints } from "./views-shared.js";
 
 function shareOrDash(v) {
   return v == null ? noDataHtml("No samples yet") : pct(v);
@@ -184,21 +185,6 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
   bindEmptyStateActions(main());
   bindEntityTableClicks(main());
   bindGotoHints(main());
-}
-
-function bindGotoHints(root) {
-  root.querySelectorAll("[data-goto-hints]").forEach((el) => {
-    if (el.dataset.boundHints === "1") return;
-    el.dataset.boundHints = "1";
-    const go = (ev) => {
-      ev.preventDefault();
-      navigate("hints");
-    };
-    el.addEventListener("click", go);
-    el.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") go(ev);
-    });
-  });
 }
 
 function liveInstancesTable(list) {

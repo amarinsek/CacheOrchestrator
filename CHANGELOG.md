@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Window table PromQL: `last_over_time − offset` instead of bare `increase()` (fixes first-sample vanish/undercount: 1 req shows then disappears; 7 counted as 6)
 - Admin Console unit coverage: `MetricsWindowStatsService`, `LiveStatsService`, `LocalAdminClient`, WebApplicationFactory host smoke, fan-out domains/Version/TTL
 - Admin Console SPA: shared `beginPageLoad` / `paintPage` / `kpiRowHtml`; soft-refresh keeps filter focus on Endpoints/Domains/Instances/Live/Hints; Live uses `bindEntityTableClicks`
+- Admin Console SPA: split `views.js` into `views-*.js` modules + thin `route()`; shared `views-shared.js`; Metrics soft chart updates via one helper; header/`instancesUpClass` shared
+- Admin Console SPA Phase 5: split `views.js` into focused modules (`views-shared`, `views-overview`, `views-endpoints`, `views-domains`, `views-instances`, `views-hints`, `views-operations`, `views-settings`); shared `bindGotoHints` / soft chart update helper
 
 ### Removed
 

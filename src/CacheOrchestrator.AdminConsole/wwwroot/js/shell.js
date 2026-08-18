@@ -18,6 +18,7 @@ import {
   appendMetricsRangeParams,
   setMetricsCapability,
 } from "./time-range.js";
+import { instancesUpClass } from "./views-shared.js";
 
 const REFRESH_KEY = "adminAutoRefreshSec";
 
@@ -168,12 +169,7 @@ export function renderHeader(o, windowStats = null) {
   const up = o.healthyCount ?? 0;
   const down = o.downCount ?? 0;
   const deg = o.degradedCount ?? 0;
-  // Green only when all configured instances are healthy.
-  const upClass = total === 0 || down > 0 || up < total
-    ? "status-Down"
-    : deg > 0
-      ? "status-Degraded"
-      : "status-Healthy";
+  const upClass = instancesUpClass(o);
   const healthDots = [
     ...Array(o.healthyCount || 0).fill("ok"),
     ...Array(o.degradedCount || 0).fill("warn"),

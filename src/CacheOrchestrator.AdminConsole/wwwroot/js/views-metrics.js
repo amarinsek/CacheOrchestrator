@@ -295,6 +295,17 @@ function softUpdateMetricsGrid(series) {
     toUtc: series.toUtc,
   });
 
+  softUpdateChartCards(grid, panels, baseOpts, { syncWarnings: true });
+}
+
+/**
+ * Soft in-place chart patch shared by Metrics page, detail mounts, and Overview embed.
+ * @param {HTMLElement} grid
+ * @param {Array} panels
+ * @param {object} baseOpts from chartOptsForRange (unit applied per panel)
+ * @param {{ syncWarnings?: boolean }} [opts]
+ */
+function softUpdateChartCards(grid, panels, baseOpts, opts = {}) {
   for (const p of panels) {
     const card = grid.querySelector(`.chart-card[data-panel="${cssEscape(p.id)}"]`);
     if (!card) continue;
@@ -303,6 +314,7 @@ function softUpdateMetricsGrid(series) {
     if (host) {
       updateChartInPlace(host, p.series || [], { ...baseOpts, unit: p.unit });
     }
+    if (!opts.syncWarnings) continue;
     let warn = card.querySelector(".chart-warn");
     // Suppress series-empty warnings — empty axes + badge cover that case.
     const showWarn = p.warning && seriesHasSamples(p.series);
@@ -553,13 +565,7 @@ export async function mountDetailMetrics(mountId, opts) {
         fromUtc: series.fromUtc,
         toUtc: series.toUtc,
       });
-      for (const p of list) {
-        const card = grid.querySelector(`.chart-card[data-panel="${cssEscape(p.id)}"]`);
-        if (!card) continue;
-        const host = card.querySelector("[data-chart-host]");
-        if (host) updateChartInPlace(host, p.series || [], { ...baseOpts, unit: p.unit });
-        syncNoSamplesBadge(card, p.series);
-      }
+      softUpdateChartCards(grid, list, baseOpts);
       ensureChartExpandBound();
       refreshOpenChartModal();
       return;
@@ -632,13 +638,7 @@ export async function metricsOverviewSectionHtml(opts = {}) {
           fromUtc: series.fromUtc,
           toUtc: series.toUtc,
         });
-        for (const p of list) {
-          const card = grid.querySelector(`.chart-card[data-panel="${cssEscape(p.id)}"]`);
-          if (!card) continue;
-          const host = card.querySelector("[data-chart-host]");
-          if (host) updateChartInPlace(host, p.series || [], { ...baseOpts, unit: p.unit });
-          syncNoSamplesBadge(card, p.series);
-        }
+        softUpdateChartCards(grid, list, baseOpts);
         ensureChartExpandBound();
         refreshOpenChartModal();
         return null; // signal: already patched
@@ -653,7 +653,7 @@ export async function metricsOverviewSectionHtml(opts = {}) {
       toUtc: series.toUtc,
     })).join("");
 
-    // Defer expand bind to caller after mount is in DOM (views.js paints then).
+    // Defer expand bind to caller after mount is in DOM (overview paints then).
     queueMicrotask(() => {
       ensureChartExpandBound();
       refreshOpenChartModal();
