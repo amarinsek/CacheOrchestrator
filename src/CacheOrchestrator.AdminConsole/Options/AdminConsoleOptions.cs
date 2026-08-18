@@ -58,7 +58,7 @@ public sealed class AdminConsoleOptions
 /// <summary>One target instance in the Admin Console App instance list.</summary>
 public sealed class AdminInstanceOptions
 {
-    /// <summary>Stable id used in UI and <c>target=instance:{id}</c>.</summary>
+    /// <summary>Stable id used in UI and API responses.</summary>
     public string Id { get; set; } = string.Empty;
 
     /// <summary>Base URL of the app instance (scheme + host + port, no trailing slash).</summary>

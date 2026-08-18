@@ -16,9 +16,9 @@ public sealed class NullClusterCommandBus : IClusterCommandBus
     public bool IsEnabled => false;
 
     /// <inheritdoc />
-    public Task PublishAsync(ClusterCommand command, CancellationToken cancellationToken = default)
+    public Task<ClusterPublishResult> PublishAsync(ClusterCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return Task.CompletedTask;
+        return Task.FromResult(ClusterPublishResult.Empty);
     }
 }

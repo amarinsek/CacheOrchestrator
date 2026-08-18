@@ -56,12 +56,12 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
     public bool IsEnabled => _options.CurrentValue.Cluster.Bus.Enabled;
 
     /// <inheritdoc />
-    public async Task PublishAsync(ClusterCommand command, CancellationToken cancellationToken = default)
+    public async Task<ClusterPublishResult> PublishAsync(ClusterCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
         if (!IsEnabled)
-            return;
+            return ClusterPublishResult.Empty;
 
         CacheOrchestratorOptions.ClusterBusOptions bus = _options.CurrentValue.Cluster.Bus;
         int timeoutMs = Math.Clamp(bus.PeerTimeoutMs, 100, 120_000);
@@ -84,7 +84,7 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
                 "Cluster bus publish {CommandId}: no peers (membership={Kind})",
                 command.CommandId,
                 _membership.Kind);
-            return;
+            return ClusterPublishResult.Empty;
         }
 
         string routePrefix = ResolveRoutePrefix(_options.CurrentValue);
@@ -92,17 +92,18 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
         HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
 
         using SemaphoreSlim gate = new(parallelism, parallelism);
-        Task[] tasks = new Task[targets.Count];
+        Task<ClusterPeerPublishOutcome>[] tasks = new Task<ClusterPeerPublishOutcome>[targets.Count];
         for (int i = 0; i < targets.Count; i++)
         {
             ClusterPeer peer = targets[i];
             tasks[i] = PublishToPeerAsync(client, peer, routePrefix, apiKey, command, timeoutMs, gate, cancellationToken);
         }
 
-        await Task.WhenAll(tasks).ConfigureAwait(false);
+        ClusterPeerPublishOutcome[] outcomes = await Task.WhenAll(tasks).ConfigureAwait(false);
+        return new ClusterPublishResult(outcomes);
     }
 
-    private async Task PublishToPeerAsync(
+    private async Task<ClusterPeerPublishOutcome> PublishToPeerAsync(
         HttpClient client,
         ClusterPeer peer,
         string routePrefix,
@@ -129,24 +130,30 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linked.Token)
                 .ConfigureAwait(false);
 
-            if (!response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode)
             {
-                CacheOrchestratorMetrics.RecordClusterPublishFailure("http_status");
-                _logger.LogWarning(
-                    "Cluster bus peer {PeerId} returned {StatusCode} for command {CommandId}",
-                    peer.Id,
-                    (int)response.StatusCode,
-                    command.CommandId);
+                return new ClusterPeerPublishOutcome { PeerId = peer.Id, Succeeded = true };
             }
+
+            CacheOrchestratorMetrics.RecordClusterPublishFailure("http_status");
+            string error = $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}".Trim();
+            _logger.LogWarning(
+                "Cluster bus peer {PeerId} returned {StatusCode} for command {CommandId}",
+                peer.Id,
+                (int)response.StatusCode,
+                command.CommandId);
+            return new ClusterPeerPublishOutcome { PeerId = peer.Id, Succeeded = false, Error = error };
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             CacheOrchestratorMetrics.RecordClusterPublishFailure("timeout");
+            string error = $"Timed out after {timeoutMs}ms";
             _logger.LogWarning(
                 "Cluster bus peer {PeerId} timed out for command {CommandId} (timeoutMs={TimeoutMs})",
                 peer.Id,
                 command.CommandId,
                 timeoutMs);
+            return new ClusterPeerPublishOutcome { PeerId = peer.Id, Succeeded = false, Error = error };
         }
         catch (Exception ex)
         {
@@ -156,6 +163,7 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
                 "Cluster bus peer {PeerId} failed for command {CommandId}",
                 peer.Id,
                 command.CommandId);
+            return new ClusterPeerPublishOutcome { PeerId = peer.Id, Succeeded = false, Error = ex.Message };
         }
         finally
         {

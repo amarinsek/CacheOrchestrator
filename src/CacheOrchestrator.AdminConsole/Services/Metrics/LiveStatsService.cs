@@ -13,8 +13,6 @@ public sealed class LiveStatsService
     /// <summary>Fixed rate window for live rates (not the Console Range).</summary>
     public const string DefaultLookback = "1m";
 
-    private const int TopEndpoints = 25;
-
     private readonly IMetricsQueryClient _client;
     private readonly MetricsQueryService _metrics;
     private readonly AdminFanOutService _fanOut;
@@ -150,22 +148,24 @@ public sealed class LiveStatsService
             };
 
             Dictionary<string, double> instRps = ToMap(await instOc.ConfigureAwait(false), "instance_id");
-            List<LiveInstanceDto> liveInstances = instances.Select(i =>
+            List<InstanceStatusDto> liveInstances = instances.Select(i =>
             {
                 string key = i.ReportedInstanceId ?? i.Id;
-                double? rate = null;
+                long? requests = null;
                 if (instRps.TryGetValue(key, out double v) || instRps.TryGetValue(i.Id, out v))
-                    rate = v;
-                return new LiveInstanceDto
+                    requests = LiveHintProjector.EstimateRequests(v);
+                return new InstanceStatusDto
                 {
                     Id = i.Id,
                     Url = i.Url,
-                    Status = i.Status.ToString(),
+                    Status = i.Status,
                     ReportedInstanceId = i.ReportedInstanceId,
                     LatencyMs = i.LatencyMs,
+                    StartedAtUtc = i.StartedAtUtc,
                     UptimeSeconds = i.UptimeSeconds,
                     Error = i.Error,
-                    RequestRate = rate,
+                    Requests = requests,
+                    HintSummary = i.HintSummary,
                 };
             }).ToList();
 
@@ -176,7 +176,7 @@ public sealed class LiveStatsService
             MergeRate(domains, await domFac.ConfigureAwait(false), "domain", (b, v) => b.Factory += v);
             MergeRate(domains, await domFail.ConfigureAwait(false), "domain", (b, v) => b.Fail += v);
 
-            List<LiveEntityRateDto> domainRows = domains
+            List<LiveEntityRateDto> domainRates = domains
                 .Where(kv => !string.IsNullOrEmpty(kv.Key) && kv.Key is not "_" && !kv.Key.Contains('/', StringComparison.Ordinal))
                 .Select(kv => ToEntity(kv.Key, domain: null, kv.Value))
                 .Where(e => e.RequestRate > 0)
@@ -201,31 +201,49 @@ public sealed class LiveStatsService
             MergeRate(endpoints, await epFac.ConfigureAwait(false), "route", (b, v) => b.Factory += v);
             MergeRate(endpoints, await epFail.ConfigureAwait(false), "route", (b, v) => b.Fail += v);
 
-            List<LiveEntityRateDto> endpointRows = endpoints
+            // All live endpoints (client applies search/sort); no artificial top-N cut.
+            List<LiveEntityRateDto> endpointRates = endpoints
                 .Select(kv => ToEntity(kv.Key, epDomain.GetValueOrDefault(kv.Key), kv.Value))
                 .Where(e => e.RequestRate > 0)
                 .OrderByDescending(e => e.RequestRate)
-                .Take(TopEndpoints)
                 .ToList();
 
-            HashSet<string> hotDomains = new(domainRows.Select(d => d.Name), StringComparer.OrdinalIgnoreCase);
-            List<string> quiet = [];
+            HashSet<string> hotDomains = new(domainRates.Select(d => d.Name), StringComparer.OrdinalIgnoreCase);
+            List<string> quietNames = [];
             FanOutResultDto<IReadOnlyList<AdminDomainConfigDto>> cfg =
                 await cfgTask.ConfigureAwait(false);
             foreach (AdminDomainConfigDto c in cfg.Data ?? [])
             {
                 if (!hotDomains.Contains(c.Name))
-                    quiet.Add(c.Name);
+                    quietNames.Add(c.Name);
             }
 
-            quiet.Sort(StringComparer.OrdinalIgnoreCase);
+            quietNames.Sort(StringComparer.OrdinalIgnoreCase);
 
             Dictionary<string, AdminDomainConfigDto> configByName = new(StringComparer.OrdinalIgnoreCase);
             foreach (AdminDomainConfigDto c in cfg.Data ?? [])
                 configByName.TryAdd(c.Name, c);
 
             AdminHintSummaryDto hintSummary = LiveHintProjector.Evaluate(
-                _hints, domainRows, endpointRows, quiet, configByName);
+                _hints, domainRates, endpointRates, quietNames, configByName);
+
+            List<AdminDomainStatsDto> domainRows = domainRates.Select(e =>
+            {
+                configByName.TryGetValue(e.Name, out AdminDomainConfigDto? cfgDto);
+                return _hints.WithHints(LiveHintProjector.ToDomainStats(e, cfgDto), cfgDto);
+            }).ToList();
+
+            List<AdminEndpointStatsDto> endpointRows = endpointRates
+                .Select(e => _hints.WithHints(LiveHintProjector.ToEndpointStats(e)))
+                .ToList();
+
+            List<AdminDomainStatsDto> quietRows = [];
+            foreach (string name in quietNames)
+            {
+                if (!configByName.TryGetValue(name, out AdminDomainConfigDto? cfgDto))
+                    continue;
+                quietRows.Add(_hints.WithHints(LiveHintProjector.ToQuietDomainStats(cfgDto), cfgDto));
+            }
 
             return new LiveSnapshotDto
             {
@@ -234,10 +252,11 @@ public sealed class LiveStatsService
                 QueriedAtUtc = now,
                 Metrics = metricsStatus,
                 Cluster = cluster,
+                Pipeline = LiveHintProjector.ToClusterPipeline(cluster),
                 Instances = liveInstances,
                 Domains = domainRows,
                 Endpoints = endpointRows,
-                QuietDomains = quiet,
+                QuietDomains = quietRows,
                 HintSummary = hintSummary,
             };
         }
@@ -295,16 +314,7 @@ public sealed class LiveStatsService
                 DownCount = down,
                 InstanceCount = instances.Count,
             },
-            Instances = instances.Select(i => new LiveInstanceDto
-            {
-                Id = i.Id,
-                Url = i.Url,
-                Status = i.Status.ToString(),
-                ReportedInstanceId = i.ReportedInstanceId,
-                LatencyMs = i.LatencyMs,
-                UptimeSeconds = i.UptimeSeconds,
-                Error = i.Error,
-            }).ToArray(),
+            Instances = instances.ToArray(),
             Domains = [],
             Endpoints = [],
             QuietDomains = [],

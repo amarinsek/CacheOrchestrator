@@ -15,7 +15,6 @@ public static class AdminConsoleWriteValidators
     public static void Validate(AdminConsoleInvalidateRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ValidateTarget(request.Target);
 
         string scope = (request.Scope ?? "").Trim();
         if (scope.Length == 0 || !AllowedInvalidateScopes.Contains(scope))
@@ -55,18 +54,17 @@ public static class AdminConsoleWriteValidators
         }
     }
 
-    /// <summary>Validates version body (target shape).</summary>
+    /// <summary>Validates version body.</summary>
     public static void Validate(AdminConsoleVersionRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ValidateTarget(request.Target);
     }
 
-    /// <summary>Validates TTL patch body (target + at least one field).</summary>
+    /// <summary>Validates TTL patch body (at least one field).</summary>
+    [Obsolete("Use Validate(AdminConsoleSettingsPatchRequest).")]
     public static void Validate(AdminConsoleTtlPatchRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ValidateTarget(request.Target);
 
         bool any =
             request.OutputCacheTtlSeconds is not null
@@ -87,30 +85,12 @@ public static class AdminConsoleWriteValidators
         ValidateNonNegative(request.ClientTtlMinSeconds, nameof(request.ClientTtlMinSeconds));
     }
 
-    /// <summary>Validates settings patch body (target + at least one setting).</summary>
+    /// <summary>Validates settings patch body (at least one setting).</summary>
     public static void Validate(AdminConsoleSettingsPatchRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ValidateTarget(request.Target);
         if (request.Settings is null || request.Settings.Count == 0)
             throw new ArgumentException("At least one setting must be set.", nameof(request));
-    }
-
-    private static void ValidateTarget(string? target)
-    {
-        if (string.IsNullOrWhiteSpace(target)
-            || string.Equals(target, "all", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        const string prefix = "instance:";
-        if (!target.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-            || target.Length <= prefix.Length
-            || string.IsNullOrWhiteSpace(target[prefix.Length..]))
-        {
-            throw new ArgumentException("Target must be 'all' or 'instance:{id}'.", nameof(target));
-        }
     }
 
     private static void ValidateNonNegative(int? seconds, string paramName)

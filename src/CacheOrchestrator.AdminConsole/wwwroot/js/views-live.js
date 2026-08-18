@@ -1,28 +1,53 @@
 /**
  * Live page — near-real-time health & performance (fixed 1m Prometheus lookback).
- * Independent of the global Range picker.
+ * Same visual components as Overview / Domains / Endpoints; independent of global Range.
  */
 
-import { api, instanceStatus } from "./api.js";
-import { beginPageLoad, kpiRowHtml, main, mainHasContent, paintPage } from "./dom.js";
+import { api } from "./api.js";
+import { $, beginPageLoad, kpiRowHtml, main, mainHasContent, paintPage } from "./dom.js";
 import {
   esc,
-  formatLatencyMs,
-  formatUptime,
   fmtRequestRate,
-  METRIC_TITLES,
   noDataHtml,
-  pct,
+  pipelinePanelHtml,
   tipAttr,
 } from "./format.js";
+import {
+  applyButtonHtml,
+  bindMultiSelects,
+  csvParamFromSelection,
+  DOMAIN_SORT_OPTS,
+  EP_SORT_OPTS,
+  filterDomainsBySearch,
+  INST_SORT_OPTS,
+  inlineSortSelectHtml,
+  multiSelectHtml,
+  parseCsvParam,
+  readMultiSelect,
+  sortDomains,
+  sortEndpoints,
+  sortInstances,
+  sortSelectHtml,
+} from "./filters.js";
 import { severityStack } from "./hints.js";
-import { setBreadcrumb, setNavActive } from "./router.js";
-import { bindEmptyStateActions, bindEntityTableClicks, emptyStateHtml } from "./tables.js";
+import { navigate, setBreadcrumb, setNavActive } from "./router.js";
+import {
+  bindEmptyStateActions,
+  bindEntityTableClicks,
+  connectivityBanner,
+  domainTableHtml,
+  emptyStateHtml,
+  endpointTableHtml,
+  instanceTableHtml,
+} from "./tables.js";
 import * as shell from "./shell.js";
-import { bindGotoHints } from "./views-shared.js";
+import { bindGotoHints, instancesUpClass } from "./views-shared.js";
 
 function shareOrDash(v) {
-  return v == null ? noDataHtml("No samples yet") : pct(v);
+  if (v == null) return noDataHtml("No samples yet");
+  const n = Number(v);
+  if (!Number.isFinite(n)) return noDataHtml();
+  return `${(n * 100).toFixed(1)}%`;
 }
 
 function rateOrDash(v) {
@@ -37,6 +62,16 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
   const soft = !!opts.soft;
   setBreadcrumb([]);
   setNavActive("live");
+
+  const instSort = params.get("instSort") || "status";
+  const domSearch = params.get("domSearch") || "";
+  const domSort = params.get("domSort") || "peakRequestRate";
+  const epSearch = params.get("epSearch") || "";
+  const epSort = params.get("epSort") || "peakRequestRate";
+  const selDomains = parseCsvParam(params, "epDomains");
+  const quietSearch = params.get("quietSearch") || "";
+  const quietSort = params.get("quietSort") || "name";
+
   beginPageLoad(soft, `<div class="card"><p class="muted">Loading live snapshot…</p></div>`);
 
   let snap;
@@ -54,20 +89,50 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
   const c = snap.cluster || {};
   const lookback = snap.lookback || "1m";
   const metricsOk = snap.status === "Connected";
-  const metricsLine = snap.metrics
-    ? `${esc(snap.metrics.provider || "Prometheus")}${snap.metrics.host ? ` · ${esc(snap.metrics.host)}` : ""} · ${esc(snap.metrics.status || "")}`
-    : "";
+  const instances = sortInstances(snap.instances || [], instSort);
 
-  const upClass = c.downCount > 0 || c.healthyCount < (c.instanceCount || 0)
-    ? "status-Down"
-    : c.degradedCount > 0
-      ? "status-Degraded"
-      : "status-Healthy";
+  let hotDomains = sortDomains(
+    filterDomainsBySearch(snap.domains || [], domSearch),
+    domSort);
+
+  let hotEndpoints = [...(snap.endpoints || [])];
+  if (selDomains !== null) {
+    if (selDomains.length === 0) hotEndpoints = [];
+    else {
+      hotEndpoints = hotEndpoints.filter((e) =>
+        selDomains.includes(e.configuredDomain || e.domain || ""));
+    }
+  }
+  if (epSearch) {
+    const q = epSearch.toLowerCase();
+    hotEndpoints = hotEndpoints.filter((e) =>
+      (e.route || "").toLowerCase().includes(q)
+      || (e.configuredDomain || "").toLowerCase().includes(q));
+  }
+  hotEndpoints = sortEndpoints(hotEndpoints, epSort);
+
+  let quietDomains = sortDomains(
+    filterDomainsBySearch(snap.quietDomains || [], quietSearch),
+    quietSort);
+
+  const domainOpts = [
+    ...new Set([
+      ...(snap.domains || []).map((d) => d.name).filter(Boolean),
+      ...(snap.endpoints || []).map((e) => e.configuredDomain).filter(Boolean),
+    ]),
+  ].sort((a, b) => a.localeCompare(b)).map((n) => ({ id: n, label: n }));
+
+  const upClass = instancesUpClass({
+    healthyCount: c.healthyCount,
+    degradedCount: c.degradedCount,
+    downCount: c.downCount,
+    instances,
+  });
 
   const kpis = kpiRowHtml([
     {
       label: "Instances up",
-      valueHtml: `${c.healthyCount ?? 0} / ${c.instanceCount ?? 0}`,
+      valueHtml: `${c.healthyCount ?? 0} / ${c.instanceCount ?? (instances.length || 0)}`,
       valueClass: upClass,
     },
     {
@@ -84,73 +149,113 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
       label: "Inv / s",
       valueHtml: metricsOk ? rateOrDash(c.invalidationRate) : noDataHtml(),
       tipAttr: tipAttr("invRate"),
-    },
-    {
-      label: "OC hit %",
-      valueHtml: metricsOk ? shareOrDash(c.ocHitShare) : noDataHtml(),
-      tipAttr: tipAttr("ocHitShare"),
-    },
-    {
-      label: "FC hit %",
-      valueHtml: metricsOk ? shareOrDash(c.fcHitShare) : noDataHtml(),
-      tipAttr: tipAttr("fcHitShare"),
-    },
-    {
-      label: "FA run %",
-      valueHtml: metricsOk ? shareOrDash(c.factoryShare) : noDataHtml(),
-      tipAttr: tipAttr("factoryShare"),
-    },
-    {
-      label: "Fail %",
-      valueHtml: metricsOk ? shareOrDash(c.factoryFailShare) : noDataHtml(),
-      tipAttr: tipAttr("factoryFailShare"),
-    },
-    {
-      label: "Hints",
-      valueHtml: severityStack(snap.hintSummary),
-      className: "kpi-hints",
-      attrs: 'role="link" tabindex="0" data-goto-hints="1"',
-      title: "Open Hints",
-    },
+    }
   ], "liveKpis");
 
-  const bodyHtml = `
+  const headHtml = `
       <div class="card-head">
         <h2>Live <span class="badge ok" title="Current values over the last minute">last ${esc(lookback)}</span></h2>
         <span class="muted small">${snap.queriedAtUtc ? new Date(snap.queriedAtUtc).toISOString().replace("T", " ").replace(/\.\d+Z$/, "Z") : ""}</span>
       </div>
-      <p class="muted" style="margin:0 0 0.75rem">Current health and performance.</p>
+      <p class="muted" style="margin:0 0 0.75rem">Current health and performance (fixed lookback — not the global Range picker).</p>
       ${kpis}
       ${!metricsOk ? `<p class="status-Degraded" style="margin:0.75rem 0 0">${esc(snap.error || "Connect metrics to see live rates.")}</p>` : ""}
-      ${metricsLine ? `<p class="muted small" style="margin:0.5rem 0 0">${metricsLine}</p>` : ""}
   `;
 
-  const instHtml = liveInstancesTable(snap.instances || []);
+  const pipeHtml = pipelinePanelHtml(metricsOk ? snap.pipeline : null);
+  const instHtml = instanceTableHtml(instances, { kind: "config" });
   const domHtml = !metricsOk
     ? emptyStateHtml("metrics-config", { title: "Metrics not connected", detail: snap.error })
-    : liveEntityTable(snap.domains || [], { kind: "domain" });
+    : domainTableHtml(hotDomains, {
+      kind: "domains",
+      title: hotDomains.length ? undefined : "No hot domains",
+      detail: hotDomains.length ? undefined : "No domain traffic in the live lookback.",
+    });
   const epHtml = !metricsOk
     ? emptyStateHtml("metrics-config", { title: "Metrics not connected", detail: snap.error })
-    : liveEntityTable(snap.endpoints || [], { kind: "endpoint" });
-  const quietHtml = (snap.quietDomains || []).length ? `
-    <div class="card" id="liveQuietCard">
-      <h2>Quiet domains <span class="badge muted">RPS ≈ 0</span></h2>
-      <p class="muted" style="margin:0 0 0.5rem">Configured domains with no traffic in the last ${esc(lookback)}.</p>
-      <p style="margin:0">${snap.quietDomains.map((n) =>
-        `<a class="badge" href="#/domains?name=${encodeURIComponent(n)}"><code>${esc(n)}</code></a>`).join(" ")}</p>
-    </div>` : "";
+    : endpointTableHtml(hotEndpoints, {
+      kind: "endpoints",
+      title: hotEndpoints.length ? undefined : "No hot endpoints",
+      detail: hotEndpoints.length ? undefined : "No endpoint traffic in the live lookback.",
+    });
+  const quietHtml = !metricsOk
+    ? ""
+    : domainTableHtml(quietDomains, {
+      kind: "domains",
+      title: quietDomains.length ? undefined : "No quiet domains",
+      detail: quietDomains.length
+        ? undefined
+        : "Every configured domain has traffic in the live lookback.",
+    });
+
+  const liveParams = (patch) => ({
+    instSort,
+    domSearch,
+    domSort,
+    epSearch,
+    epSort,
+    epDomains: csvParamFromSelection(selDomains),
+    quietSearch,
+    quietSort,
+    ...patch,
+  });
+
+  const bindLiveForms = () => {
+    $("#liveInstSort")?.addEventListener("change", (ev) => {
+      navigate("live", liveParams({ instSort: ev.target.value }));
+    });
+    const domForm = $("#liveDomFilters");
+    if (domForm) {
+      domForm.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        const fd = new FormData(domForm);
+        navigate("live", liveParams({
+          domSearch: fd.get("domSearch") || "",
+          domSort: fd.get("domSort") || "peakRequestRate",
+        }));
+      });
+    }
+    const epForm = $("#liveEpFilters");
+    if (epForm) {
+      bindMultiSelects(epForm);
+      epForm.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        const fd = new FormData(epForm);
+        navigate("live", liveParams({
+          epSearch: fd.get("epSearch") || "",
+          epSort: fd.get("epSort") || "peakRequestRate",
+          epDomains: csvParamFromSelection(readMultiSelect(epForm, "epDomains")),
+        }));
+      });
+    }
+    const quietForm = $("#liveQuietFilters");
+    if (quietForm) {
+      quietForm.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        const fd = new FormData(quietForm);
+        navigate("live", liveParams({
+          quietSearch: fd.get("quietSearch") || "",
+          quietSort: fd.get("quietSort") || "name",
+        }));
+      });
+    }
+  };
 
   if (soft && document.getElementById("liveRoot")) {
+    const banner = $("#liveBanner");
+    if (banner) banner.innerHTML = connectivityBanner(instances);
     const head = document.getElementById("liveHeadCard");
-    if (head) head.innerHTML = bodyHtml;
+    if (head) head.innerHTML = headHtml;
+    const pipe = $("#livePipeline");
+    if (pipe) pipe.innerHTML = pipeHtml;
     const inst = document.getElementById("liveInstTable");
     if (inst) inst.innerHTML = instHtml;
     const dom = document.getElementById("liveDomTable");
     if (dom) dom.innerHTML = domHtml;
     const ep = document.getElementById("liveEpTable");
     if (ep) ep.innerHTML = epHtml;
-    const quietHost = document.getElementById("liveQuietHost");
-    if (quietHost) quietHost.innerHTML = quietHtml;
+    const quiet = document.getElementById("liveQuietTable");
+    if (quiet) quiet.innerHTML = quietHtml;
     bindEmptyStateActions(main());
     bindEntityTableClicks(main());
     bindGotoHints(main());
@@ -159,24 +264,58 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
 
   paintPage(`
     <div id="liveRoot">
-    <div class="card" id="liveHeadCard">${bodyHtml}</div>
+    <div id="liveBanner">${connectivityBanner(instances)}</div>
+    <div class="card" id="liveHeadCard">${headHtml}</div>
+    <div class="card" id="livePipeline">${pipeHtml}</div>
 
     <div class="card">
-      <h2>Instances</h2>
+      <div class="card-head">
+        <h2>Instances</h2>
+        ${inlineSortSelectHtml("liveInstSort", instSort, INST_SORT_OPTS)}
+      </div>
       <div id="liveInstTable">${instHtml}</div>
     </div>
 
     <div class="card">
-      <h2>Hot domains <span class="badge">by RPS</span></h2>
+      <div class="card-head">
+        <h2>Hot domains <span class="badge">live RPS &gt; 0</span></h2>
+      </div>
+      ${metricsOk ? `
+      <form class="toolbar" id="liveDomFilters">
+        <label>Search<input name="domSearch" type="search" value="${esc(domSearch)}" placeholder="domain name" /></label>
+        ${sortSelectHtml("domSort", domSort, DOMAIN_SORT_OPTS)}
+        ${applyButtonHtml()}
+      </form>` : ""}
       <div id="liveDomTable">${domHtml}</div>
     </div>
 
     <div class="card">
-      <h2>Hot endpoints <span class="badge">top by RPS</span></h2>
+      <div class="card-head">
+        <h2>Hot endpoints <span class="badge">live RPS &gt; 0</span></h2>
+      </div>
+      ${metricsOk ? `
+      <form class="toolbar" id="liveEpFilters">
+        <label>Search<input name="epSearch" type="search" value="${esc(epSearch)}" placeholder="route or domain" /></label>
+        ${multiSelectHtml("epDomains", "Domains", domainOpts, selDomains)}
+        ${sortSelectHtml("epSort", epSort, EP_SORT_OPTS)}
+        ${applyButtonHtml()}
+      </form>` : ""}
       <div id="liveEpTable">${epHtml}</div>
     </div>
 
-    <div id="liveQuietHost">${quietHtml}</div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Quiet domains <span class="badge muted">RPS ≈ 0</span></h2>
+      </div>
+      <p class="muted" style="margin:0 0 0.5rem">Configured domains with no traffic in the last ${esc(lookback)}.</p>
+      ${metricsOk ? `
+      <form class="toolbar" id="liveQuietFilters">
+        <label>Search<input name="quietSearch" type="search" value="${esc(quietSearch)}" placeholder="domain name" /></label>
+        ${sortSelectHtml("quietSort", quietSort, DOMAIN_SORT_OPTS)}
+        ${applyButtonHtml()}
+      </form>` : ""}
+      <div id="liveQuietTable">${quietHtml || emptyStateHtml("metrics-config", { detail: snap.error })}</div>
+    </div>
 
     <p class="muted small"><a href="#/metrics">Metrics</a> for history · <a href="#/overview">Overview</a> for the selected time range</p>
     </div>
@@ -185,82 +324,5 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
   bindEmptyStateActions(main());
   bindEntityTableClicks(main());
   bindGotoHints(main());
-}
-
-function liveInstancesTable(list) {
-  if (!list.length) {
-    return emptyStateHtml("config", {
-      title: "No instances configured",
-      detail: "Add targets under AdminConsole:Instances.",
-    });
-  }
-  return `
-    <table class="dense entity-table">
-      <thead>
-        <tr>
-          <th>Id</th>
-          <th>Status</th>
-          <th class="col-num" title="${esc(METRIC_TITLES.liveRps)}">RPS</th>
-          <th class="col-num">Latency</th>
-          <th>Uptime</th>
-          <th>Error</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${list.map((i) => {
-          const st = instanceStatus(i.status);
-          return `
-          <tr class="clickable entity-row" data-entity="instance" data-id="${esc(i.id)}">
-            <td class="col-name"><code>${esc(i.id)}</code></td>
-            <td><span class="status-${esc(st)}">${esc(st)}</span></td>
-            <td class="col-num">${i.requestRate != null ? fmtRequestRate(i.requestRate) : "—"}</td>
-            <td class="col-num">${formatLatencyMs(i.latencyMs)}</td>
-            <td>${formatUptime(i.uptimeSeconds)}</td>
-            <td class="muted">${esc(i.error || "")}</td>
-          </tr>`;
-        }).join("")}
-      </tbody>
-    </table>`;
-}
-
-function liveEntityTable(list, { kind }) {
-  if (!list.length) {
-    return emptyStateHtml(kind === "endpoint" ? "endpoints" : "domains", {
-      detail: "No traffic in the live lookback.",
-    });
-  }
-  const nameHeader = kind === "endpoint" ? "Route" : "Domain";
-  return `
-    <table class="dense entity-table">
-      <thead>
-        <tr>
-          <th>${nameHeader}</th>
-          ${kind === "endpoint" ? "<th>Domain</th>" : ""}
-          <th class="col-num">RPS</th>
-          <th class="col-num">OC hit %</th>
-          <th class="col-num">FC hit %</th>
-          <th class="col-num" title="${esc(METRIC_TITLES.factoryShare)}">FA run %</th>
-          <th class="col-num">Fail %</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${list.map((e) => {
-          const name = e.name || "";
-          const entity = kind === "endpoint" ? "endpoint" : "domain";
-          const dataAttr = kind === "endpoint"
-            ? `data-entity="endpoint" data-route="${esc(name)}"`
-            : `data-entity="domain" data-name="${esc(name)}"`;
-          return `
-          <tr class="clickable entity-row" ${dataAttr}>
-            <td class="col-name"><code>${esc(name)}</code></td>
-            ${kind === "endpoint" ? `<td>${esc(e.domain || "—")}</td>` : ""}
-            <td class="col-num">${fmtRequestRate(e.requestRate)}</td>
-            <td class="col-num">${shareOrDash(e.ocHitShare)}</td>
-            <td class="col-num">${shareOrDash(e.fcHitShare)}</td>
-            <td class="col-num">${shareOrDash(e.factoryShare)}</td>
-            <td class="col-num">${shareOrDash(e.factoryFailShare)}</td>
-          </tr>`;
-        }).join("")}
-      </tbody>
-    </table>`;
+  bindLiveForms();
 }

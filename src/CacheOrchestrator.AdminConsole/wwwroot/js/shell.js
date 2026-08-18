@@ -17,16 +17,24 @@ import { severityStack } from "./hints.js";
 import {
   appendMetricsRangeParams,
   setMetricsCapability,
+  setTimeRangeControlsEnabled,
 } from "./time-range.js";
 import { instancesUpClass } from "./views-shared.js";
 
 const REFRESH_KEY = "adminAutoRefreshSec";
+
+/** Live page forces 5s auto-refresh and locks Range / interval pickers. */
+const LIVE_REFRESH_SEC = 5;
 
 let headerTimer = null;
 let pageTimer = null;
 /** Coalesce overlapping soft refreshes (auto-refresh + manual). */
 let softRefreshBusy = false;
 let softRefreshAgain = false;
+/** When true, Range + interval pickers are disabled and interval is fixed at 5s. */
+let liveChromeLock = false;
+/** User interval (localStorage) restored when leaving Live. */
+let savedRefreshBeforeLive = null;
 /**
  * Last successful overview payload.
  * Note: ES module live bindings are read-only to importers — use setLastOverview().
@@ -59,6 +67,48 @@ export function getAutoRefreshSec() {
 export function setAutoRefreshSec(sec) {
   localStorage.setItem(REFRESH_KEY, String(sec));
   scheduleRefresh();
+}
+
+/**
+ * Live page: disable Range + auto-refresh interval pickers; force soft refresh every 5s.
+ * Leaving Live re-enables pickers and restores the previous interval (localStorage).
+ * Manual Reload stays available.
+ * @param {boolean} on
+ */
+export function setLiveChromeMode(on) {
+  const sel = $("#selAutoRefresh");
+  const refreshHost = document.querySelector(".nav-refresh");
+
+  if (on) {
+    if (!liveChromeLock) {
+      savedRefreshBeforeLive = getAutoRefreshSec();
+      liveChromeLock = true;
+    }
+    if (sel) {
+      sel.value = String(LIVE_REFRESH_SEC);
+      sel.disabled = true;
+      sel.title = "Fixed at 5s on Live (lookback is always 1m)";
+    }
+    refreshHost?.classList.add("is-live-locked");
+    setTimeRangeControlsEnabled(false, {
+      reason: "Time range is fixed on Live (1m lookback)",
+    });
+    scheduleRefresh();
+    return;
+  }
+
+  if (!liveChromeLock) return;
+  liveChromeLock = false;
+  const restore = savedRefreshBeforeLive ?? 0;
+  savedRefreshBeforeLive = null;
+  if (sel) {
+    sel.disabled = false;
+    sel.removeAttribute("title");
+    sel.value = String(restore);
+  }
+  refreshHost?.classList.remove("is-live-locked");
+  setTimeRangeControlsEnabled(true);
+  setAutoRefreshSec(restore);
 }
 
 /**
@@ -234,7 +284,7 @@ export function scheduleRefresh() {
     clearInterval(pageTimer);
     pageTimer = null;
   }
-  const sec = getAutoRefreshSec();
+  const sec = liveChromeLock ? LIVE_REFRESH_SEC : getAutoRefreshSec();
   // When auto is on: soft background refresh (no full-page loading flash).
   // When off: still refresh header slowly so N/M up does not go stale forever.
   if (sec > 0) {
@@ -253,6 +303,7 @@ export function initRefreshControls() {
   if (sel) {
     sel.value = String(getAutoRefreshSec());
     sel.addEventListener("change", () => {
+      if (liveChromeLock) return;
       setAutoRefreshSec(Number(sel.value) || 0);
     });
   }

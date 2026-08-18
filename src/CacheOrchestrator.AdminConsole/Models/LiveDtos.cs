@@ -5,6 +5,7 @@ namespace CacheOrchestrator.AdminConsole.Models;
 /// <summary>
 /// Live (near-real-time) operational snapshot for the Live page.
 /// Rates use a fixed short Prometheus lookback (default 1m), not the global Range picker.
+/// Domain/endpoint/instance rows use the same DTOs as Overview window stats tables.
 /// </summary>
 public sealed class LiveSnapshotDto
 {
@@ -26,21 +27,23 @@ public sealed class LiveSnapshotDto
     /// <summary>Cluster-level live rates and shares.</summary>
     public required LiveClusterDto Cluster { get; init; }
 
-    /// <summary>Configured instances with health + live RPS when available.</summary>
-    public required IReadOnlyList<LiveInstanceDto> Instances { get; init; }
+    /// <summary>Cluster pipeline shares projected from the live lookback (same panel as Overview).</summary>
+    public AdminPipelineDto? Pipeline { get; init; }
 
-    /// <summary>Domains with live RPS (hottest first).</summary>
-    public required IReadOnlyList<LiveEntityRateDto> Domains { get; init; }
+    /// <summary>Configured instances with health + live request estimate when available.</summary>
+    public required IReadOnlyList<InstanceStatusDto> Instances { get; init; }
 
-    /// <summary>Top endpoints by live RPS.</summary>
-    public required IReadOnlyList<LiveEntityRateDto> Endpoints { get; init; }
+    /// <summary>Domains with live traffic (hottest first before client sort).</summary>
+    public required IReadOnlyList<AdminDomainStatsDto> Domains { get; init; }
 
-    /// <summary>Quiet configured domains (RPS ≈ 0) when config fan-out succeeded.</summary>
-    public IReadOnlyList<string> QuietDomains { get; init; } = [];
+    /// <summary>Endpoints with live traffic.</summary>
+    public required IReadOnlyList<AdminEndpointStatsDto> Endpoints { get; init; }
+
+    /// <summary>Configured domains with ≈0 RPS in the lookback (table-shaped).</summary>
+    public IReadOnlyList<AdminDomainStatsDto> QuietDomains { get; init; } = [];
 
     /// <summary>
-    /// Hint summary from HintEngine on synthetic stats projected from live rates + domain config
-    /// (no nested <c>/api/stats/window</c> Prom query set).
+    /// Hint summary from HintEngine on synthetic stats projected from live rates + domain config.
     /// </summary>
     public AdminHintSummaryDto HintSummary { get; init; } = new();
 }
@@ -70,33 +73,18 @@ public sealed class LiveClusterDto
     public double? FactoryFailShare { get; init; }
 }
 
-/// <summary>Instance row for Live.</summary>
-public sealed class LiveInstanceDto
-{
-    public required string Id { get; init; }
-    public required string Url { get; init; }
-    public required string Status { get; init; }
-    public string? ReportedInstanceId { get; init; }
-    public double? LatencyMs { get; init; }
-    public long? UptimeSeconds { get; init; }
-    public string? Error { get; init; }
-
-    /// <summary>Live OC RPS attributed to scrape <c>instance_id</c> when present.</summary>
-    public double? RequestRate { get; init; }
-}
-
-/// <summary>Domain or endpoint live rate row.</summary>
+/// <summary>Domain or endpoint live rate row (internal projection before Admin stats DTOs).</summary>
 public sealed class LiveEntityRateDto
 {
     /// <summary>Domain name or endpoint route key.</summary>
-    public required string Name { get; init; }
+    public required string Name { get; set; }
 
     /// <summary>For endpoints: configured domain.</summary>
-    public string? Domain { get; init; }
+    public string? Domain { get; set; }
 
-    public double RequestRate { get; init; }
-    public double? OcHitShare { get; init; }
-    public double? FcHitShare { get; init; }
-    public double? FactoryShare { get; init; }
-    public double? FactoryFailShare { get; init; }
+    public double RequestRate { get; set; }
+    public double? OcHitShare { get; set; }
+    public double? FcHitShare { get; set; }
+    public double? FactoryShare { get; set; }
+    public double? FactoryFailShare { get; set; }
 }

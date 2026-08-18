@@ -12,6 +12,9 @@
   --header-elevated: #151b23;
   --font: "Inter", "Segoe UI", system-ui, sans-serif;
   --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --scrollbar-size: 8px;
+  --scrollbar-thumb: #3a4656;
+  --scrollbar-thumb-hover: #4d5b6e;
   color-scheme: dark;
 }
 
@@ -19,6 +22,8 @@
 
 html {
   color-scheme: dark;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Soft refresh indicator (background fetch — page content stays visible). */
@@ -48,7 +53,10 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.45;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   color-scheme: dark;
 }
 
@@ -95,15 +103,52 @@ a:hover { text-decoration: underline; }
 .small { font-size: 0.85rem; }
 code { font-size: 0.9em; }
 
-/* —— sticky chrome: logo → header strip → menu strip —— */
+/* —— fixed chrome: logo → header strip → menu strip (page scroll is below) —— */
 .app-chrome {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 40;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: var(--header);
   border-bottom: 1px solid var(--border);
+}
+
+/* Scroll only the region under the menu; gutter always reserved (no layout jump). */
+.app-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Always reserve gutter so short/long pages do not shift horizontally. */
+  scrollbar-gutter: stable;
+}
+
+/* Shared thin dark scrollbars for every scrollable region in the SPA. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* 1) App logo / brand — same pattern as Sample Playground header */
@@ -143,28 +188,44 @@ code { font-size: 0.9em; }
   margin-right: 0.25rem;
   position: relative;
 }
+.nav-time-range.is-disabled {
+  opacity: 0.55;
+}
+.nav-time-range.is-disabled .tr-btn {
+  cursor: not-allowed;
+}
+.nav-refresh.is-live-locked #selAutoRefresh {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
 /* Grafana-style time range picker (panel is position:fixed on body — not clipped by nav). */
-.tr-picker { position: relative; z-index: 50; }
+.tr-picker { position: relative; z-index: 50; display: flex; align-items: center; }
 .tr-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.78rem;
+  /* Match .app-nav / .nav-right control height */
+  font-size: 0.9rem;
+  line-height: 1.2;
   max-width: 16rem;
-  padding: 0.28rem 0.55rem;
+  padding: 0.4rem 0.75rem;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: #121820;
+  background: #1a222c;
   color: var(--text);
   cursor: pointer;
   font-family: inherit;
-  line-height: 1.2;
+  box-sizing: border-box;
 }
 .tr-btn:hover,
 .tr-btn[aria-expanded="true"] {
   border-color: var(--accent);
   color: #fff;
+}
+.tr-btn-icon {
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 .tr-btn-label {
   overflow: hidden;
@@ -195,8 +256,12 @@ code { font-size: 0.9em; }
   padding: 0.75rem 0.85rem;
   min-width: 12rem;
 }
-.tr-rel {
+.tr-abs {
+  min-width: 15rem;
+  flex: 1 1 auto;
   border-right: 1px solid var(--border);
+}
+.tr-rel {
   display: flex;
   flex-direction: column;
   gap: 0.12rem;
@@ -211,6 +276,12 @@ code { font-size: 0.9em; }
   color: var(--muted);
   font-weight: 600;
   margin-bottom: 0.45rem;
+}
+.tr-rel-sep {
+  height: 1px;
+  margin: 0.4rem 0.35rem;
+  background: var(--border);
+  flex-shrink: 0;
 }
 .tr-rel-btn {
   text-align: left;
@@ -231,10 +302,6 @@ code { font-size: 0.9em; }
   font-weight: 600;
 }
 .tr-rel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.tr-abs {
-  min-width: 15rem;
-  flex: 1 1 auto;
-}
 .tr-field {
   display: flex;
   flex-direction: column;
@@ -254,6 +321,17 @@ code { font-size: 0.9em; }
   width: 100%;
   box-sizing: border-box;
   color-scheme: dark;
+}
+.tr-field input.invalid {
+  border-color: color-mix(in srgb, var(--bad) 65%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bad) 35%, transparent);
+}
+.tr-abs-error {
+  margin: 0 0 0.45rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--bad);
+  font-weight: 600;
 }
 .tr-apply {
   width: 100%;
@@ -278,9 +356,11 @@ code { font-size: 0.9em; }
     min-width: min(18rem, calc(100vw - 1rem));
     max-height: calc(100vh - 3rem);
   }
-  .tr-rel {
+  .tr-abs {
     border-right: none;
     border-bottom: 1px solid var(--border);
+  }
+  .tr-rel {
     max-height: 40vh;
   }
 }
@@ -366,6 +446,14 @@ td .current-value {
   line-height: 1.2;
 }
 
+.brand-title-row {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  min-width: 0;
+}
+
 h1.brand-title,
 .brand-title {
   margin: 0;
@@ -393,12 +481,13 @@ h1.brand-title,
 
 .brand-version {
   font-weight: 500;
-  font-size: 0.65rem;
+  font-size: 0.78rem;
   letter-spacing: 0.02em;
   text-transform: none;
-  opacity: 0.75;
-  margin-left: 0.35rem;
-  vertical-align: baseline;
+  color: var(--muted);
+  opacity: 0.9;
+  -webkit-text-fill-color: var(--muted);
+  flex-shrink: 0;
 }
 
 .brand-version:empty {
@@ -483,7 +572,7 @@ h1.brand-title,
   padding: 0.1rem 0.3rem;
 }
 
-/* Grafana-style: [↻ Reload] [interval ▾] */
+/* Grafana-style: [↻ Reload] [interval ▾] — same height as .nav-right links */
 .nav-refresh {
   display: inline-flex;
   align-items: stretch;
@@ -491,27 +580,29 @@ h1.brand-title,
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--header-elevated);
+  background: #1a222c;
   color: var(--text);
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .nav-refresh-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.28rem 0.55rem;
+  padding: 0.4rem 0.75rem;
   margin: 0;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 500;
-  line-height: 1;
+  line-height: 1.2;
   background: transparent;
   border: none;
   border-right: 1px solid var(--border);
   color: var(--text);
   cursor: pointer;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .nav-refresh-btn:hover {
@@ -549,9 +640,10 @@ select#selAutoRefresh {
   border: none;
   background-color: transparent;
   color: var(--text);
-  padding: 0.28rem 1.35rem 0.28rem 0.45rem;
+  padding: 0.4rem 1.45rem 0.4rem 0.55rem;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
+  line-height: 1.2;
   min-width: 3.75rem;
   border-radius: 0;
   cursor: pointer;
@@ -559,6 +651,7 @@ select#selAutoRefresh {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
+  box-sizing: border-box;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--muted) 50%),
     linear-gradient(135deg, var(--muted) 50%, transparent 50%);
@@ -668,7 +761,8 @@ a.btn-secondary:hover {
   color: var(--warn);
 }
 
-.banner.err {
+.banner.err,
+.banner.critical {
   border-color: #8b3a42;
   background: #2a1518;
   color: #f0a0a5;
@@ -1475,6 +1569,34 @@ body.chart-modal-open { overflow: hidden; }
 }
 .op-panel-hint { margin: 0; }
 .op-actions { display: flex; justify-content: flex-start; }
+.op-write-alert { margin: 0.75rem 0; }
+.op-write-incomplete .table-wrap { margin-top: 0.55rem; }
+.op-confirm-modal { width: min(520px, 100%); }
+.op-confirm-list {
+  margin: 0.35rem 0 0.85rem;
+  padding-left: 1.2rem;
+  line-height: 1.5;
+}
+.op-confirm-warn { margin: 0 0 0.75rem; }
+.op-confirm-note { margin: 0 0 1rem; line-height: 1.45; }
+.op-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+button.danger {
+  background: color-mix(in srgb, var(--bad) 35%, #1a222c);
+  border: 1px solid color-mix(in srgb, var(--bad) 55%, var(--border));
+  color: #ffb4b8;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+button.danger:hover { filter: brightness(1.08); }
 .op-setting-rows {
   display: flex;
   flex-direction: column;
@@ -1525,6 +1647,8 @@ body.chart-modal-open { overflow: hidden; }
   overflow: auto;
   font-size: 0.82rem;
   max-height: 320px;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .low-n {

@@ -13,10 +13,11 @@ public interface IClusterCommandBus
     bool IsEnabled { get; }
 
     /// <summary>
-    /// Delivers <paramref name="command"/> to peers (excluding self). Best-effort; implementations
-    /// should not throw for partial peer failures (log/metrics instead).
+    /// Delivers <paramref name="command"/> to peers (excluding self) and returns per-peer outcomes.
+    /// Implementations should not throw for individual peer HTTP/timeout failures — report them in
+    /// <see cref="ClusterPublishResult"/>. Transport/setup failures may still throw.
     /// </summary>
     /// <param name="command">Command to publish (must not carry cache payloads).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    Task PublishAsync(ClusterCommand command, CancellationToken cancellationToken = default);
+    Task<ClusterPublishResult> PublishAsync(ClusterCommand command, CancellationToken cancellationToken = default);
 }

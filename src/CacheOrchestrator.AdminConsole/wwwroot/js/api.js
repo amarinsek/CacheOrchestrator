@@ -32,8 +32,13 @@ export async function api(path, options = {}) {
       body = text;
     }
     if (!res.ok) {
-      const msg = body && body.error ? body.error : (text || res.statusText);
-      throw new Error(msg);
+      const msg = body && body.error
+        ? body.error
+        : (body && body.warning ? body.warning : (text || res.statusText));
+      const err = new Error(msg || res.statusText || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.body = body;
+      throw err;
     }
     return body;
   })();

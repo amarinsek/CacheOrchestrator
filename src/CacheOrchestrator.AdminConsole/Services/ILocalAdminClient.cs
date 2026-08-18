@@ -81,6 +81,14 @@ public sealed class InstanceCallOutcome<T>
     /// <summary>Elapsed milliseconds.</summary>
     public double LatencyMs { get; init; }
 
+    /// <summary>
+    /// When Local Admin returned 409 cluster-publish incomplete: origin already applied locally.
+    /// </summary>
+    public bool LocalApplied { get; init; }
+
+    /// <summary>Peer failures from a 409 cluster-publish incomplete response.</summary>
+    public IReadOnlyList<LocalAdminPeerFailureDto> PeerFailures { get; init; } = [];
+
     /// <summary>Maps to the fan-out result DTO (without payload).</summary>
     public InstanceCallResultDto ToResultDto() =>
         new()

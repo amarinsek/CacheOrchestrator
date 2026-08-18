@@ -10,6 +10,19 @@ public static class DistributionModes
     public const string BusDistribute = "bus-distribute";
 }
 
+/// <summary>Aggregate write completeness for Console APIs.</summary>
+public static class WriteOutcomes
+{
+    /// <summary>Every contacted instance applied the command.</summary>
+    public const string Success = "success";
+
+    /// <summary>Some instances applied; others failed or were skipped (cluster may be inconsistent).</summary>
+    public const string PartialFailure = "partialFailure";
+
+    /// <summary>No instance applied the command.</summary>
+    public const string Failed = "failed";
+}
+
 /// <summary>Generic fan-out result wrapper.</summary>
 public sealed class FanOutResultDto<T>
 {
@@ -33,11 +46,54 @@ public sealed class FanOutResultDto<T>
     /// <summary>Whether Local Admin requests used <c>distribute: true</c>.</summary>
     public bool Distribute { get; init; }
 
+    /// <summary>
+    /// <see cref="WriteOutcomes.Success"/>, <see cref="WriteOutcomes.PartialFailure"/>, or <see cref="WriteOutcomes.Failed"/>.
+    /// </summary>
+    public string Outcome { get; init; } = WriteOutcomes.Failed;
+
+    /// <summary>Human warning when the write is incomplete.</summary>
+    public string? Warning { get; init; }
+
+    /// <summary>Instance ids that did not succeed.</summary>
+    public IReadOnlyList<string> FailedInstanceIds { get; init; } = [];
+
     /// <summary>True when every targeted instance succeeded.</summary>
-    public bool AllSucceeded => Results.Count > 0 && Results.All(r => r.Succeeded);
+    public bool AllSucceeded =>
+        string.Equals(Outcome, WriteOutcomes.Success, StringComparison.Ordinal)
+        || (Results.Count > 0 && Results.All(r => r.Succeeded));
 
     /// <summary>True when at least one instance succeeded.</summary>
     public bool AnySucceeded => Results.Any(r => r.Succeeded);
+
+    /// <summary>Fills <see cref="Outcome"/>, <see cref="FailedInstanceIds"/>, and <see cref="Warning"/> from <see cref="Results"/>.</summary>
+    public FanOutResultDto<T> WithWriteOutcome()
+    {
+        string[] failed = Results.Where(r => !r.Succeeded).Select(r => r.InstanceId).ToArray();
+        string outcome = Results.Count == 0
+            ? WriteOutcomes.Failed
+            : failed.Length == 0
+                ? WriteOutcomes.Success
+                : failed.Length == Results.Count
+                    ? WriteOutcomes.Failed
+                    : WriteOutcomes.PartialFailure;
+
+        string? warning = outcome == WriteOutcomes.Success
+            ? null
+            : "Cluster write incomplete — one or more instances did not apply the change; cache settings may be inconsistent.";
+
+        return new FanOutResultDto<T>
+        {
+            Data = Data,
+            Results = Results,
+            DistributionMode = DistributionMode,
+            DistributionSummary = DistributionSummary,
+            BusOriginInstanceId = BusOriginInstanceId,
+            Distribute = Distribute,
+            Outcome = outcome,
+            Warning = warning,
+            FailedInstanceIds = failed,
+        };
+    }
 }
 
 /// <summary>Cluster bus capability snapshot from Local <c>GET …/cluster/info</c>.</summary>
@@ -117,4 +173,30 @@ public sealed class InstanceCallResultDto
 
     /// <summary>Call duration in milliseconds.</summary>
     public double LatencyMs { get; init; }
+}
+
+/// <summary>Local Admin <c>409</c> body when <c>distribute:true</c> peer publish is incomplete.</summary>
+public sealed class LocalAdminClusterPublishIncompleteDto
+{
+    /// <summary>Short error message.</summary>
+    public string? Error { get; set; }
+
+    /// <summary>Domain when applicable.</summary>
+    public string? Domain { get; set; }
+
+    /// <summary>True when the origin already applied the mutation locally.</summary>
+    public bool LocalApplied { get; set; }
+
+    /// <summary>Peers that did not apply.</summary>
+    public List<LocalAdminPeerFailureDto>? PeerFailures { get; set; }
+}
+
+/// <summary>One peer failure from a Local Admin cluster-publish incomplete response.</summary>
+public sealed class LocalAdminPeerFailureDto
+{
+    /// <summary>Membership peer id.</summary>
+    public string? PeerId { get; set; }
+
+    /// <summary>Peer error detail.</summary>
+    public string? Error { get; set; }
 }

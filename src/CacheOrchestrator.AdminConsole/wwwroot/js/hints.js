@@ -122,6 +122,11 @@ export function summarizeHints(hints) {
  * Flatten domain + endpoint hints (including byInstance rows) for the Hints page.
  * Each row: { severity, code, message, instanceId, domain, route, entityType }
  *
+ * Menu badge + domain detail use aggregate `hints`. When `byInstance` exists, older
+ * logic skipped aggregate rows — domain-only rules that fire on cluster aggregates
+ * then appeared in the menu/domain page but not on Hints. We keep per-instance rows
+ * and still add aggregate hints that are not already present on any instance.
+ *
  * @param {{ domains?: any[], endpoints?: any[] }} stats Cluster stats DTO
  */
 export function collectHintRows(stats) {
@@ -138,42 +143,44 @@ export function collectHintRows(stats) {
     });
   };
 
-  // Prefer byInstance when present (avoids double count: aggregate row + each instance).
+  const hintKey = (h) => `${h.severity || "Info"}|${h.code || ""}|${h.message || ""}`;
+
   for (const d of stats.domains || []) {
-    if (d.byInstance?.length) {
-      for (const bi of d.byInstance) {
-        for (const h of bi.hints || []) {
-          push(h, { domain: d.name, instanceId: bi.instanceId || "", entityType: "domain" });
-        }
+    const fromInstances = new Set();
+    for (const bi of d.byInstance || []) {
+      for (const h of bi.hints || []) {
+        fromInstances.add(hintKey(h));
+        push(h, { domain: d.name, instanceId: bi.instanceId || "", entityType: "domain" });
       }
-    } else {
-      for (const h of d.hints || []) {
-        push(h, { domain: d.name, instanceId: d.instanceId || "", entityType: "domain" });
-      }
+    }
+    for (const h of d.hints || []) {
+      // Skip aggregate duplicate when the same hint already appears per-instance.
+      if (fromInstances.has(hintKey(h))) continue;
+      push(h, { domain: d.name, instanceId: d.instanceId || "", entityType: "domain" });
     }
   }
 
   for (const e of stats.endpoints || []) {
-    if (e.byInstance?.length) {
-      for (const bi of e.byInstance) {
-        for (const h of bi.hints || []) {
-          push(h, {
-            domain: e.configuredDomain || bi.configuredDomain || "",
-            route: e.route,
-            instanceId: bi.instanceId || "",
-            entityType: "endpoint",
-          });
-        }
-      }
-    } else {
-      for (const h of e.hints || []) {
+    const fromInstances = new Set();
+    for (const bi of e.byInstance || []) {
+      for (const h of bi.hints || []) {
+        fromInstances.add(hintKey(h));
         push(h, {
-          domain: e.configuredDomain || "",
+          domain: e.configuredDomain || bi.configuredDomain || "",
           route: e.route,
-          instanceId: e.instanceId || "",
+          instanceId: bi.instanceId || "",
           entityType: "endpoint",
         });
       }
+    }
+    for (const h of e.hints || []) {
+      if (fromInstances.has(hintKey(h))) continue;
+      push(h, {
+        domain: e.configuredDomain || "",
+        route: e.route,
+        instanceId: e.instanceId || "",
+        entityType: "endpoint",
+      });
     }
   }
 

@@ -23,6 +23,11 @@ export function setRefreshing(on) {
   if (label) label.textContent = busy ? "Loading" : "Reload";
 }
 
+/** Page scroll host under the chrome (`#appScroll`), or window as fallback. */
+export function scrollRoot() {
+  return document.getElementById("appScroll") || document.scrollingElement || document.documentElement;
+}
+
 /**
  * Replace main content while preserving scroll position (used for soft refresh paints).
  * @param {string} html
@@ -30,12 +35,17 @@ export function setRefreshing(on) {
 export function paintMain(html) {
   const el = main();
   if (!el) return;
-  const y = window.scrollY;
+  const root = scrollRoot();
+  const y = root.scrollTop ?? window.scrollY ?? 0;
   el.innerHTML = html;
   // Restore after layout; double-rAF covers late table layout.
+  const restore = () => {
+    if ("scrollTop" in root) root.scrollTop = y;
+    else window.scrollTo(0, y);
+  };
   requestAnimationFrame(() => {
-    window.scrollTo(0, y);
-    requestAnimationFrame(() => window.scrollTo(0, y));
+    restore();
+    requestAnimationFrame(restore);
   });
 }
 

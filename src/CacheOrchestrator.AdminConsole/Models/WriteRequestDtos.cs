@@ -1,6 +1,6 @@
 namespace CacheOrchestrator.AdminConsole.Models;
 
-/// <summary>Invalidate request for the Admin Console App (adds multi-instance target).</summary>
+/// <summary>Invalidate request for the Admin Console App (cluster-wide).</summary>
 public sealed class AdminConsoleInvalidateRequest
 {
     /// <summary><c>domain</c>, <c>entity</c>, <c>entityKind</c>, or <c>tags</c>.</summary>
@@ -17,22 +17,20 @@ public sealed class AdminConsoleInvalidateRequest
 
     /// <summary>Custom tags.</summary>
     public string[]? Tags { get; set; }
-
-    /// <summary><c>all</c> or <c>instance:{id}</c>.</summary>
-    public string Target { get; set; } = "all";
 }
 
-/// <summary>Version request with multi-instance target.</summary>
+/// <summary>Version request (cluster-wide).</summary>
 public sealed class AdminConsoleVersionRequest
 {
     /// <summary>New version token; empty generates a stamp on each instance.</summary>
     public string? Version { get; set; }
-
-    /// <summary><c>all</c> or <c>instance:{id}</c>.</summary>
-    public string Target { get; set; } = "all";
 }
 
-/// <summary>TTL patch with multi-instance target.</summary>
+/// <summary>
+/// TTL patch (cluster-wide).
+/// Prefer <see cref="AdminConsoleSettingsPatchRequest"/> / <c>PATCH /api/domains/{domain}/settings</c>.
+/// </summary>
+[Obsolete("Use AdminConsoleSettingsPatchRequest and PATCH /api/domains/{domain}/settings. This DTO remains for compatibility.")]
 public sealed class AdminConsoleTtlPatchRequest
 {
     /// <summary>Output Cache TTL seconds.</summary>
@@ -52,17 +50,11 @@ public sealed class AdminConsoleTtlPatchRequest
 
     /// <summary>Client min TTL seconds.</summary>
     public int? ClientTtlMinSeconds { get; set; }
-
-    /// <summary><c>all</c> or <c>instance:{id}</c>.</summary>
-    public string Target { get; set; } = "all";
 }
 
-/// <summary>Sparse domain settings patch with multi-instance target.</summary>
+/// <summary>Sparse domain settings patch (cluster-wide).</summary>
 public sealed class AdminConsoleSettingsPatchRequest
 {
     /// <summary>CamelCase setting id → JSON value (overlay catalog entries only).</summary>
     public Dictionary<string, System.Text.Json.JsonElement>? Settings { get; set; }
-
-    /// <summary><c>all</c> or <c>instance:{id}</c>.</summary>
-    public string Target { get; set; } = "all";
 }

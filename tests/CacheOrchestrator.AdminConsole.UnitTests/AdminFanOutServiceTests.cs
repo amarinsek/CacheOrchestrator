@@ -10,38 +10,6 @@ namespace CacheOrchestrator.AdminConsole.UnitTests;
 public class AdminFanOutServiceTests
 {
     [Fact]
-    public void ResolveTarget_All_ReturnsEveryConfiguredInstance()
-    {
-        AdminFanOutService sut = CreateSut(
-            new AdminInstanceOptions { Id = "a", Url = "http://a" },
-            new AdminInstanceOptions { Id = "b", Url = "http://b" });
-
-        IReadOnlyList<AdminInstanceOptions> targets = sut.ResolveTarget("all");
-        targets.Select(t => t.Id).Should().BeEquivalentTo(["a", "b"]);
-    }
-
-    [Fact]
-    public void ResolveTarget_InstancePrefix_ReturnsSingle()
-    {
-        AdminFanOutService sut = CreateSut(
-            new AdminInstanceOptions { Id = "a", Url = "http://a" },
-            new AdminInstanceOptions { Id = "b", Url = "http://b" });
-
-        IReadOnlyList<AdminInstanceOptions> targets = sut.ResolveTarget("instance:b");
-        targets.Should().ContainSingle(t => t.Id == "b");
-    }
-
-    [Fact]
-    public void ResolveTarget_UnknownInstance_Throws()
-    {
-        AdminFanOutService sut = CreateSut(
-            new AdminInstanceOptions { Id = "a", Url = "http://a" });
-
-        Action act = () => sut.ResolveTarget("instance:missing");
-        act.Should().Throw<KeyNotFoundException>();
-    }
-
-    [Fact]
     public async Task GetOverviewAsync_HealthOnly_NoTrafficCounters()
     {
         FakeLocalAdminClient client = new();
@@ -117,19 +85,84 @@ public class AdminFanOutServiceTests
             {
                 Scope = "domain",
                 Domain = "catalog",
-                Target = "all"
             },
             TestContext.Current.CancellationToken);
 
         result.DistributionMode.Should().Be(DistributionModes.FanOut);
         result.Distribute.Should().BeFalse();
+        result.Outcome.Should().Be(WriteOutcomes.Success);
+        result.FailedInstanceIds.Should().BeEmpty();
         result.Results.Should().HaveCount(2);
         client.InvalidateCalls.Should().BeEquivalentTo(["a", "b"]);
         client.LastInvalidateBody!.Distribute.Should().BeFalse();
     }
 
     [Fact]
-    public async Task InvalidateAsync_WhenBusAvailableAndTargetAll_UsesSingleOriginDistribute()
+    public void ExpandWriteResults_ClusterPublishIncomplete_MarksOriginAppliedAndPeersFailed()
+    {
+        InstanceCallOutcome<object?> origin = new()
+        {
+            InstanceId = "playground-a",
+            Succeeded = false,
+            StatusCode = 409,
+            Error = "Cluster publish incomplete.",
+            LatencyMs = 2000,
+            LocalApplied = true,
+            PeerFailures =
+            [
+                new LocalAdminPeerFailureDto
+                {
+                    PeerId = "playground-b",
+                    Error = "Timed out after 2000ms",
+                },
+            ],
+        };
+
+        IReadOnlyList<InstanceCallResultDto> results = AdminFanOutService.ExpandWriteResults([origin]);
+        FanOutResultDto<object?> aggregate = new FanOutResultDto<object?>
+        {
+            Results = results,
+            DistributionMode = DistributionModes.BusDistribute,
+            Distribute = true,
+            BusOriginInstanceId = "playground-a",
+        }.WithWriteOutcome();
+
+        results.Should().HaveCount(2);
+        results.Should().ContainSingle(r => r.InstanceId == "playground-a" && r.Succeeded);
+        results.Should().ContainSingle(r =>
+            r.InstanceId == "playground-b" && !r.Succeeded && r.Error!.Contains("Timed out"));
+        aggregate.Outcome.Should().Be(WriteOutcomes.PartialFailure);
+        aggregate.FailedInstanceIds.Should().Equal("playground-b");
+    }
+
+    [Fact]
+    public async Task InvalidateAsync_WhenOneInstanceSkippedDown_PartialFailure()
+    {
+        FakeLocalAdminClient client = new();
+        client.FailHealth.Add("b");
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        // Seed reachability so write fan-out skips b without HTTP.
+        await sut.GetInstancesAsync(TestContext.Current.CancellationToken);
+
+        FanOutResultDto<object?> result = await sut.InvalidateAsync(
+            new AdminConsoleInvalidateRequest
+            {
+                Scope = "domain",
+                Domain = "catalog",
+            },
+            TestContext.Current.CancellationToken);
+
+        result.Outcome.Should().Be(WriteOutcomes.PartialFailure);
+        result.FailedInstanceIds.Should().ContainSingle(id => id == "b");
+        result.Warning.Should().NotBeNullOrWhiteSpace();
+        client.InvalidateCalls.Should().ContainSingle(c => c == "a");
+    }
+
+    [Fact]
+    public async Task InvalidateAsync_WhenBusAvailable_UsesSingleOriginDistribute()
     {
         FakeLocalAdminClient client = new();
         client.ClusterInfo["a"] = new LocalClusterInfoDto
@@ -156,7 +189,6 @@ public class AdminFanOutServiceTests
             {
                 Scope = "domain",
                 Domain = "catalog",
-                Target = "all"
             },
             TestContext.Current.CancellationToken);
 
@@ -166,29 +198,6 @@ public class AdminFanOutServiceTests
         result.Results.Should().ContainSingle(r => r.InstanceId == "a");
         client.InvalidateCalls.Should().ContainSingle(c => c == "a");
         client.LastInvalidateBody!.Distribute.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task InvalidateAsync_ExplicitInstanceWithoutBus_FansOutLocalOnly()
-    {
-        FakeLocalAdminClient client = new();
-        AdminFanOutService sut = CreateSut(client,
-            new AdminInstanceOptions { Id = "a", Url = "http://a" },
-            new AdminInstanceOptions { Id = "b", Url = "http://b" });
-
-        FanOutResultDto<object?> result = await sut.InvalidateAsync(
-            new AdminConsoleInvalidateRequest
-            {
-                Scope = "domain",
-                Domain = "catalog",
-                Target = "instance:a"
-            },
-            TestContext.Current.CancellationToken);
-
-        result.DistributionMode.Should().Be(DistributionModes.FanOut);
-        result.Distribute.Should().BeFalse();
-        result.Results.Should().ContainSingle(r => r.InstanceId == "a" && r.Succeeded);
-        client.InvalidateCalls.Should().ContainSingle(c => c == "a");
     }
 
     [Fact]
@@ -267,7 +276,7 @@ public class AdminFanOutServiceTests
 
         FanOutResultDto<object?> result = await sut.SetVersionAsync(
             "catalog",
-            new AdminConsoleVersionRequest { Version = "bump", Target = "all" },
+            new AdminConsoleVersionRequest { Version = "bump" },
             TestContext.Current.CancellationToken);
 
         result.DistributionMode.Should().Be(DistributionModes.FanOut);
@@ -290,7 +299,6 @@ public class AdminFanOutServiceTests
             new AdminConsoleTtlPatchRequest
             {
                 OutputCacheTtlSeconds = 120,
-                Target = "all",
             },
             TestContext.Current.CancellationToken);
 
@@ -416,6 +424,27 @@ public class AdminFanOutServiceTests
                 },
             }));
         }
+
+        public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchSettingsAsync(
+            AdminInstanceOptions instance,
+            string domain,
+            AdminSettingsPatchRequest body,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Ok(instance.Id, new AdminDomainMutationResultDto
+            {
+                Domain = domain,
+                Effective = new AdminDomainConfigDto
+                {
+                    Name = domain,
+                    Version = "1",
+                    FusionCacheInstanceName = "default",
+                },
+            }));
+
+        public Task<InstanceCallOutcome<AdminDomainSettingsCatalogDto>> GetDomainSettingsCatalogAsync(
+            AdminInstanceOptions instance,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Ok(instance.Id, new AdminDomainSettingsCatalogDto { Settings = [] }));
 
         public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
             AdminInstanceOptions instance,

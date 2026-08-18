@@ -2,6 +2,7 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Models;
 using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.Invalidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Net.Http.Json;
@@ -171,6 +172,28 @@ public sealed class LocalAdminClient : ILocalAdminClient
             string raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
+                if ((int)response.StatusCode == StatusCodes.Status409Conflict
+                    && TryParseClusterPublishIncomplete(raw, out LocalAdminClusterPublishIncompleteDto? incomplete)
+                    && incomplete is not null
+                    && incomplete.LocalApplied
+                    && incomplete.PeerFailures is { Count: > 0 })
+                {
+                    return new InstanceCallOutcome<TResponse>
+                    {
+                        InstanceId = instance.Id,
+                        Succeeded = false,
+                        StatusCode = StatusCodes.Status409Conflict,
+                        Error = string.IsNullOrWhiteSpace(incomplete.Error)
+                            ? "Cluster publish incomplete."
+                            : incomplete.Error.Trim(),
+                        LatencyMs = sw.Elapsed.TotalMilliseconds,
+                        LocalApplied = true,
+                        PeerFailures = incomplete.PeerFailures
+                            .Where(p => !string.IsNullOrWhiteSpace(p.PeerId))
+                            .ToArray(),
+                    };
+                }
+
                 return Fail<TResponse>(
                     instance.Id,
                     (int)response.StatusCode,
@@ -270,8 +293,51 @@ public sealed class LocalAdminClient : ILocalAdminClient
         if (trimmed.StartsWith('<') || trimmed.StartsWith("<!"))
             return $"HTTP {statusCode}: non-JSON body (HTML). Check Local Admin path and that the target is not an SPA fallback.";
 
+        if (TryParseClusterPublishIncomplete(trimmed, out LocalAdminClusterPublishIncompleteDto? incomplete)
+            && incomplete is not null
+            && !string.IsNullOrWhiteSpace(incomplete.Error))
+        {
+            return incomplete.Error.Trim();
+        }
+
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(trimmed);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("error", out JsonElement err)
+                && err.ValueKind == JsonValueKind.String)
+            {
+                string? msg = err.GetString();
+                if (!string.IsNullOrWhiteSpace(msg))
+                    return msg.Trim();
+            }
+        }
+        catch (JsonException)
+        {
+            // fall through to raw body
+        }
+
         if (trimmed.Length > 280)
             trimmed = trimmed[..280] + "…";
         return trimmed;
+    }
+
+    private static bool TryParseClusterPublishIncomplete(
+        string raw,
+        out LocalAdminClusterPublishIncompleteDto? dto)
+    {
+        dto = null;
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+        try
+        {
+            dto = JsonSerializer.Deserialize<LocalAdminClusterPublishIncompleteDto>(raw, JsonOptions);
+            return dto is not null
+                && (dto.LocalApplied || (dto.PeerFailures is { Count: > 0 }));
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 }

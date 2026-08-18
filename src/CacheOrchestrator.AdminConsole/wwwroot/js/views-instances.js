@@ -211,7 +211,7 @@ export async function renderInstanceDetail(id, params = new URLSearchParams(), o
     </div>
     <div id="instMetricsMount"></div>
     <p><a href="#/instances">← Instances</a>
-      · <a href="#/operations?target=instance:${encodeURIComponent(id)}">Operations on this instance</a></p>`, soft);
+      · <a href="#/operations">Operations</a></p>`, soft);
 
   bindEntityTableClicks(main());
   $("#instDomSort")?.addEventListener("change", (ev) => {

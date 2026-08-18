@@ -26,11 +26,9 @@ function overlayCatalog(catalog) {
 export async function renderOperations(params) {
   setBreadcrumb([]);
   const domainParam = params.get("domain") || "";
-  const target = params.get("target") || "all";
   const action = normalizeAction(params.get("action") || "invalidate");
 
-  const [instances, distribution, domainsFan, catalogDto] = await Promise.all([
-    api("/api/instances"),
+  const [distribution, domainsFan, catalogDto] = await Promise.all([
     api("/api/distribution").catch(() => null),
     api("/api/domains").catch(() => ({ data: [] })),
     api("/api/domain-settings/catalog").catch(() => ({ settings: [] })),
@@ -52,16 +50,20 @@ export async function renderOperations(params) {
   const modeDetail = distribution?.summary
     || "How this Console will deliver the operation.";
 
-  const probeRows = (distribution?.instances || []).map((p) => {
+  const probeInstances = distribution?.instances || [];
+  const unreachableIds = probeInstances.filter((p) => !p.succeeded).map((p) => p.id);
+
+  const probeRows = probeInstances.map((p) => {
     const bus = p.busEnabled
       ? `<span class="badge ok">bus</span>`
       : `<span class="badge muted">no bus</span>`;
     const mem = p.membership ? esc(p.membership) : "—";
     const peers = p.peerCount != null ? p.peerCount : "—";
-    const st = p.succeeded ? "ok" : "bad";
+    const probeLabel = p.succeeded ? "Reachable" : "Down";
+    const probeClass = p.succeeded ? "status-Healthy" : "status-Down";
     return `<tr>
       <td>${esc(p.id)}</td>
-      <td class="${st}">${p.succeeded ? "reachable" : "down"}</td>
+      <td class="${probeClass}">${probeLabel}</td>
       <td>${bus}</td>
       <td>${mem}</td>
       <td>${peers}</td>
@@ -81,7 +83,7 @@ export async function renderOperations(params) {
             </div>
             <p class="muted dist-banner-detail">${esc(modeDetail)}</p>
             <p class="muted small">
-                <strong>Direct</strong> — this Console calls each selected instance.
+                <strong>Direct</strong> — this Console calls every configured instance.
                 <strong>Cluster bus</strong> — one origin receives the command; peers apply it via the bus.
             </p>
         </div>
@@ -117,20 +119,12 @@ export async function renderOperations(params) {
               : `<option value="">No domains available</option>`}
           </select>
         </div>
-        <div class="op-field">
-          <label for="opTarget">Target</label>
-          <select id="opTarget" name="target">
-            <option value="all" ${target === "all" ? "selected" : ""}>all</option>
-            ${(instances || []).map((i) =>
-              `<option value="instance:${esc(i.id)}" ${target === `instance:${i.id}` ? "selected" : ""}>instance:${esc(i.id)}</option>`
-            ).join("")}
-          </select>
-        </div>
         <div id="opActionPanel" class="op-panel"></div>
         <div class="op-actions">
           <button type="submit">Run</button>
         </div>
       </form>
+      <div id="opWriteAlert" class="op-write-alert" hidden></div>
       <div id="opModeUsed" class="dist-result-meta muted">No operation yet.</div>
       <pre id="opResult" class="result">No operation yet.</pre>
     </div>`;
@@ -171,7 +165,7 @@ export async function renderOperations(params) {
       settingsCtrl.render();
       return;
     }
-    panel.innerHTML = `<p class="muted small op-panel-hint">Invalidates the selected domain on the target instance(s).</p>`;
+    panel.innerHTML = `<p class="muted small op-panel-hint">Invalidates the selected domain across the cluster.</p>`;
   }
 
   actionEl.addEventListener("change", mountActionPanel);
@@ -191,17 +185,109 @@ export async function renderOperations(params) {
       ? ` · origin <code>${esc(result.busOriginInstanceId)}</code>`
       : "";
     const dist = result.distribute ? "distribute:true" : "distribute:false";
-    meta.innerHTML = `${badge} · ${dist}${origin}<br/><span class="muted">${esc(result.distributionSummary || "")}</span>`;
+    const outcome = result.outcome
+      ? ` · <span class="badge ${result.outcome === "success" ? "ok" : "bad"}">${esc(result.outcome)}</span>`
+      : "";
+    meta.innerHTML = `${badge} · ${dist}${origin}${outcome}<br/><span class="muted">${esc(result.distributionSummary || "")}</span>`;
+  }
+
+  function renderWriteAlert(result) {
+    const el = $("#opWriteAlert");
+    if (!el) return;
+    if (!result || result.outcome === "success" || result.allSucceeded) {
+      el.hidden = true;
+      el.innerHTML = "";
+      return;
+    }
+    const failed = result.failedInstanceIds?.length
+      ? result.failedInstanceIds
+      : (result.results || []).filter((r) => !r.succeeded).map((r) => r.instanceId);
+    const rows = (result.results || [])
+      .filter((r) => !r.succeeded)
+      .map((r) => `<tr><td><code>${esc(r.instanceId)}</code></td><td>${esc(r.error || "failed")}</td></tr>`)
+      .join("");
+    el.hidden = false;
+    el.innerHTML = `
+      <div class="banner critical op-write-incomplete">
+        <strong>Cluster write incomplete</strong>
+        <p>${esc(result.warning || "One or more instances did not apply the change. Cache settings may be inconsistent across the cluster.")}</p>
+        ${failed.length ? `<p class="small">Failed: ${failed.map((id) => `<code>${esc(id)}</code>`).join(", ")}</p>` : ""}
+        ${rows ? `<div class="table-wrap"><table class="data"><thead><tr><th>Instance</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}
+      </div>`;
+  }
+
+  /**
+   * Confirm when some probe instances are down. Returns true to proceed.
+   * @param {string[]} downIds
+   * @returns {Promise<boolean>}
+   */
+  function confirmRunWithUnreachable(downIds) {
+    return new Promise((resolve) => {
+      const existing = document.getElementById("opConfirmBackdrop");
+      if (existing) existing.remove();
+
+      const list = downIds.map((id) => `<li><code>${esc(id)}</code></li>`).join("");
+      const backdrop = document.createElement("div");
+      backdrop.className = "chart-modal-backdrop";
+      backdrop.id = "opConfirmBackdrop";
+      backdrop.innerHTML = `
+        <div class="chart-modal op-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="opConfirmTitle">
+          <div class="chart-modal-head">
+            <h2 id="opConfirmTitle">Not all instances are reachable</h2>
+            <div class="chart-modal-actions">
+              <button type="button" class="secondary chart-modal-icon-btn" data-op-confirm-cancel aria-label="Cancel" title="Cancel">✕</button>
+            </div>
+          </div>
+          <p>This command will <strong>not</strong> be delivered to every configured instance.</p>
+          <p class="muted small">Unreachable (${downIds.length}):</p>
+          <ul class="op-confirm-list">${list}</ul>
+          <p class="banner warn op-confirm-warn">
+            Settings or version overlays can become <strong>inconsistent</strong> across the cluster.
+            Continue only if you know what you are doing (for example intentional maintenance).
+          </p>
+          <p class="muted small op-confirm-note">
+            The result will be an <strong>Error</strong> (incomplete cluster write).
+            Check the result details for which peers succeeded and which did not.
+          </p>
+          <div class="op-confirm-actions">
+            <button type="button" class="secondary" data-op-confirm-cancel>Cancel</button>
+            <button type="button" class="danger" data-op-confirm-run>Run anyway</button>
+          </div>
+        </div>`;
+      document.body.appendChild(backdrop);
+      document.body.classList.add("chart-modal-open");
+
+      const close = (proceed) => {
+        if (backdrop._onKey) document.removeEventListener("keydown", backdrop._onKey);
+        backdrop.remove();
+        document.body.classList.remove("chart-modal-open");
+        resolve(proceed);
+      };
+      backdrop.querySelectorAll("[data-op-confirm-cancel]").forEach((btn) => {
+        btn.addEventListener("click", () => close(false));
+      });
+      backdrop.querySelector("[data-op-confirm-run]")?.addEventListener("click", () => close(true));
+      backdrop.addEventListener("click", (ev) => {
+        if (ev.target === backdrop) close(false);
+      });
+      const onKey = (ev) => {
+        if (ev.key === "Escape") close(false);
+      };
+      backdrop._onKey = onKey;
+      document.addEventListener("keydown", onKey);
+    });
   }
 
   $("#opForm").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const a = normalizeAction(actionEl.value);
     const dom = $("#opDomain").value.trim();
-    const tgt = $("#opTarget").value;
     const out = $("#opResult");
-    out.textContent = "Running…";
-    $("#opModeUsed").textContent = "Running…";
+    const alertEl = $("#opWriteAlert");
+    if (alertEl) {
+      alertEl.hidden = true;
+      alertEl.innerHTML = "";
+    }
 
     if (!dom) {
       $("#opModeUsed").textContent = "Error";
@@ -209,12 +295,24 @@ export async function renderOperations(params) {
       return;
     }
 
+    if (unreachableIds.length) {
+      const ok = await confirmRunWithUnreachable(unreachableIds);
+      if (!ok) {
+        $("#opModeUsed").textContent = "Cancelled";
+        out.textContent = "Cancelled — operation not sent.";
+        return;
+      }
+    }
+
+    out.textContent = "Running…";
+    $("#opModeUsed").textContent = "Running…";
+
     try {
       let result;
       if (a === "invalidate") {
         result = await api("/api/invalidate", {
           method: "POST",
-          body: JSON.stringify({ scope: "domain", domain: dom, target: tgt }),
+          body: JSON.stringify({ scope: "domain", domain: dom }),
         });
       } else if (a === "entity") {
         result = await api("/api/invalidate", {
@@ -224,14 +322,13 @@ export async function renderOperations(params) {
             domain: dom,
             entityKind: $("#opEntityKind").value.trim(),
             entityId: $("#opEntity").value.trim(),
-            target: tgt,
           }),
         });
       } else if (a === "version") {
         const version = $("#opVersion").value.trim();
         result = await api(`/api/domains/${encodeURIComponent(dom)}/version`, {
           method: "POST",
-          body: JSON.stringify({ version: version || null, target: tgt }),
+          body: JSON.stringify({ version: version || null }),
         });
       } else {
         if (!settingsCtrl) throw new Error("Settings panel is not ready.");
@@ -243,17 +340,52 @@ export async function renderOperations(params) {
         }
         result = await api(`/api/domains/${encodeURIComponent(dom)}/settings`, {
           method: "PATCH",
-          body: JSON.stringify({ settings: built.settings, target: tgt }),
+          body: JSON.stringify({ settings: built.settings }),
         });
       }
       renderModeUsed(result);
-      out.textContent = JSON.stringify(result, null, 2);
+      renderWriteAlert(result);
+      out.textContent = formatResultJson(result);
       shell.refreshHeader();
     } catch (err) {
+      const body = err?.body;
+      if (err?.status === 409 && body && Array.isArray(body.results)) {
+        renderModeUsed(body);
+        renderWriteAlert(body);
+        out.textContent = formatResultJson(body);
+        shell.refreshHeader();
+        return;
+      }
       $("#opModeUsed").textContent = "Error";
-      out.textContent = "Error: " + err.message;
+      if (body && typeof body === "object") {
+        out.textContent = formatResultJson(body);
+      } else {
+        out.textContent = "Error: " + formatResultJson(err?.message || String(err));
+      }
     }
   });
+}
+
+/** Pretty-print JSON for the Operations result panel. */
+function formatResultJson(value) {
+  if (value == null) return "";
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}"))
+      || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        return JSON.stringify(JSON.parse(trimmed), null, 2);
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }
 
 /**

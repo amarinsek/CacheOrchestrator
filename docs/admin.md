@@ -95,7 +95,9 @@ When the HTTP bus is enabled, Admin API mutation bodies accept **`distribute`** 
 |----------|---------------------|--------------------|
 | `POST …/invalidate` | This process only | Local + peers via bus |
 | `POST …/domains/{d}/version` | Local Version overlay | Local + `VersionBumpCommand` |
-| `PATCH …/domains/{d}/ttl` | Local TTL overlay | Local + `TtlPatchCommand` |
+| `PATCH …/domains/{d}/settings` (and obsolete TTL) | Local overlay | Local + bus command |
+
+With **`distribute: true`**, Local Admin applies the change on the origin first, then publishes to peers. If **any peer fails**, the HTTP response is **409 Conflict** with `localApplied: true` and `peerFailures[]` (cluster may already be inconsistent — no automatic rollback).
 
 **Admin Console App** probes `GET …/cluster/info` on each configured instance (`GET /api/distribution`):
 
@@ -104,7 +106,9 @@ When the HTTP bus is enabled, Admin API mutation bodies accept **`distribute`** 
 | No bus | **fan-out** — HTTP to every target with `distribute:false` |
 | Bus enabled (Static/ServiceDiscovery) | **bus-distribute** — one healthy origin with `distribute:true` (peers via bus) |
 
-The Operations UI shows a banner and the mode used for the last result. Never combine full Admin Console App fan-out **and** `distribute:true` for the same action — the App chooses one path automatically.
+Console write APIs return **200** only when every contacted instance succeeded; otherwise **409** with `outcome` (`partialFailure` / `failed`), `failedInstanceIds`, and `warning`. Operations UI confirms before Run when probes show down instances, and shows a critical alert on incomplete writes.
+
+Never combine full Admin Console App fan-out **and** `distribute:true` for the same action — the App chooses one path automatically.
 
 Receive path for peers: `MapCacheOrchestratorHttpBus()` (not gated on `Admin:Enabled`).
 

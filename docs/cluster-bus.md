@@ -21,11 +21,13 @@ Package README: [src/CacheOrchestrator.Bus/README.md](../src/CacheOrchestrator.B
 ```text
 Origin: Invalidate* / Admin distribute
    → local apply
-   → IClusterCommandBus.PublishAsync (if enabled)
+   → IClusterCommandBus.PublishAsync → ClusterPublishResult (per-peer)
         → membership peers (except self)
         → POST {peer}{prefix}/cluster/apply
              → ApplyLocal only (no re-publish)
 ```
+
+Peer HTTP/timeout failures are reported in `ClusterPublishResult` (not swallowed). Admin mutations with `distribute: true` return **409** when any peer failed; local apply may already have succeeded (`localApplied: true`).
 
 ---
 
