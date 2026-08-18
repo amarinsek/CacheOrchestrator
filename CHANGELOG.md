@@ -9,44 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Admin Console **Live** page (`#/live`, `GET /api/live`) — near-real-time health/performance with fixed **1m** Prometheus rates (independent of Range)
-- Window stats **Peak RPS** on domain/endpoint rows (`max_over_time(rate(...[1m]))` in the selected Range)
-- OTel histogram **`cache_orchestrator.factory.duration`** (ms; miss/stale/**fail** factory path)
-- OTel Fusion **`result=fail`** on hard factory throw (no fail-safe value); Console window maps it to factory failures
-- `AdminLiveStatsRawSnapshot` / raw counter DTOs; `IAdminStatsCollector.GetRawSnapshot()`
-- `CacheImpactKpiDto` on domain/endpoint stats (filled by Admin Console from Prometheus)
-- Admin Console: **ImpactMath** (factory avoidance, est. time saved, benefit/candidate bands)
-- Admin Console hint paths `domain.impact.*` / `endpoint.impact.*` + core rules (poor candidate, at-risk, strong)
-- Console **`GET /api/stats/window`** — domain/endpoint traffic + impact + hints from Prometheus for the selected Range
+#### Libraries (NuGet)
 
-### Fixed
+- OTel histogram **`cache_orchestrator.factory.duration`** (ms; miss / stale / **fail**)
+- OTel Fusion **`result=fail`** on hard factory throw (no fail-safe value returned)
+- OTel **`cache_orchestrator.factory.result_size`** + Admin **`Cache:Admin:TrackResultSize`** / raw `factoryResultSize*`
+- Local Admin raw counter model (`AdminLiveStatsRawSnapshot`, `IAdminStatsCollector.GetRawSnapshot()`); fat **`GET …/stats`** still projected via `AdminStatsV1Mapper`
+- Optional low-cardinality `kind` tag on **`cache_orchestrator.invalidate`** (Domain / Entity / EntityKind)
 
-- OTel `cache_orchestrator.invalidate` no longer uses entity scope paths (e.g. `product-crud/products/42`) as the `domain` label — only the domain name (cardinality-safe). Optional low-cardinality `kind` tag (Domain/Entity/EntityKind).
-- Window stats use Prometheus **`increase()` over the Range** (not instant `now − offset`), so idle/stale label sets stay visible like charts; brand-new single-scrape series fall back to current value
+#### Admin Console App
+
+- **`GET /api/stats/window`** — domain/endpoint traffic, Peak RPS, impact, by-instance (`instance_id`, missing → `undefined`), and HintEngine results from Prometheus for the selected Range (`increase()` over the window)
+- **Live** page (`#/live`, `GET /api/live`) — near-real-time health/performance with fixed **1m** Prometheus rates (independent of Range)
+- **ImpactMath** + `CacheImpactKpiDto` (factory avoidance, est. time saved, benefit/candidate); cluster Time saved sums per-domain estimates
+- Hint paths `domain.impact.*` / `endpoint.impact.*` and core impact rules
+- Global **Range** picker (Last 15m–7d / absolute from–to); Metrics `from`/`to`; Metrics panels `factory_p95_ms`, `factory_run_rate`, `factory_share`, `factory_size_p95`
+- Metrics UI: multi-select domains, empty-window charts, shared Overview chart cards, current-value styling, Metrics status on Instances
 
 ### Changed
 
-- **Admin Console stats are Prometheus-only** — no Local Admin process-totals fan-out for traffic UI; Overview/header KPIs, Domains, Endpoints, Hints, impact all use `/api/stats/window`
-- Removed Local Admin **`GET …/stats/v2`**; process-lifetime **`GET …/stats`** kept but **obsolete** (diagnostics / external tools)
-- Console `GET /api/stats` and `/api/endpoints` return empty shells (wire compatibility); SPA does not use them for traffic
-- Local Admin live counters store **raw** values; `/stats` fat DTO still projected via `AdminStatsV1Mapper`
-- Admin factory latency samples only on factory path (miss/stale/fail), not on Fusion hits
+#### Libraries (NuGet)
+
+- Local Admin **`GET …/stats`** is **obsolete for analytics** (process-lifetime diagnostics / external tools only); prefer OTEL meter `CacheOrchestrator` + Prometheus
+- **`cache_orchestrator.invalidate`** `domain` label is domain-only (entity paths refused — cardinality-safe)
+- Admin factory latency samples only on factory path (miss / stale / fail), not on Fusion hits
 - `cache_orchestrator.fc.duration` remains as legacy dual-write (all timed Fusion results)
-- Metrics panels: `factory_p95_ms`, `factory_run_rate`, `factory_share`, `factory_size_p95` (windowed)
-- **`Cache:Admin:TrackResultSize`** + Admin raw `factoryResultSize*`; OTel `cache_orchestrator.factory.result_size`
-- Console global **Range** picker: Last 15m–7d / absolute from–to (Grafana-style); Metrics `from`/`to` query params (process-totals mode removed)
-- Console Metrics UI: multi-select domains, empty-window charts + no-samples badge, shared chart cards on Overview
-- Console: current-value styling (green underline), Metrics store card on Instances, breadcrumbs only on detail pages
-- Window stats: **HintEngine** on Prometheus rows + optional **by-instance** (`instance_id`, missing → `undefined`)
+
+#### Admin Console App
+
+- Traffic UI is **Prometheus-only** (Overview, Domains, Endpoints, Hints, impact, header KPIs) via `/api/stats/window`; Local Admin is used for health, config, and operations
+- Console `GET /api/stats` and `/api/endpoints` are obsolete empty compatibility shells (SPA traffic uses `/api/stats/window`)
 
 ### Removed
 
-- Local Admin **`GET …/stats/v2`**
-- Console **Process totals** Range mode and instance counter fan-out for stats UI
+- Console process-lifetime counter fan-out for stats UI (no longer aggregates Local Admin `GET …/stats` for Overview / Domains / Endpoints / Hints)
 
 ### Documentation
 
-- `docs/admin.md` / Console README / labs — Prom-only Console stats; `/stats` obsolete; `docs/observability.md` — `result=fail`, `factory.duration`
+- `docs/admin.md`, Console README, labs, `docs/observability.md` — Prom-only Console stats, Live, Peak RPS, Local Admin `/stats` obsolete for analytics, `result=fail`, `factory.duration`
 
 ## [2.1.0] - 2026-08-15
 
