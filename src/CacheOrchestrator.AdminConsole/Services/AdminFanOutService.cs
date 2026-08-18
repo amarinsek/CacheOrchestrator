@@ -1,6 +1,7 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Models;
 using CacheOrchestrator.AdminConsole.Options;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
@@ -316,6 +317,7 @@ public sealed class AdminFanOutService
         };
     }
 
+#pragma warning disable CS0618 // AdminTtlPatchRequest retained for compatibility
     public async Task<FanOutResultDto<object?>> PatchTtlAsync(
         string domain,
         AdminConsoleTtlPatchRequest request,
@@ -341,6 +343,63 @@ public sealed class AdminFanOutService
             await FanOutAsync(
                     plan.Targets,
                     (inst, ct) => _client.PatchTtlAsync(inst, domain, body, ct),
+                    cancellationToken,
+                    skipKnownDown: true)
+                .ConfigureAwait(false);
+        RecordDataOutcomes(outcomes);
+
+        return new FanOutResultDto<object?>
+        {
+            Data = outcomes.FirstOrDefault(o => o.Succeeded)?.Value,
+            Results = outcomes.Select(o => o.ToResultDto()).ToArray(),
+            DistributionMode = plan.Mode,
+            DistributionSummary = plan.Summary,
+            BusOriginInstanceId = plan.BusOriginInstanceId,
+            Distribute = plan.Distribute
+        };
+    }
+#pragma warning restore CS0618
+
+    /// <summary>GET domain-settings catalog from the first healthy instance.</summary>
+    public async Task<AdminDomainSettingsCatalogDto> GetDomainSettingsCatalogAsync(
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AdminInstanceOptions> targets = GetConfiguredInstances();
+        foreach (AdminInstanceOptions inst in targets)
+        {
+            InstanceCallOutcome<AdminDomainSettingsCatalogDto> outcome =
+                await _client.GetDomainSettingsCatalogAsync(inst, cancellationToken).ConfigureAwait(false);
+            if (outcome.Succeeded && outcome.Value is not null)
+                return outcome.Value;
+        }
+
+        // Fallback: catalog is assembly-local and identical across instances.
+        return new AdminDomainSettingsCatalogDto
+        {
+            Settings = DomainSettingCatalog.GetEntries(),
+        };
+    }
+
+    public async Task<FanOutResultDto<object?>> PatchSettingsAsync(
+        string domain,
+        AdminConsoleSettingsPatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        AdminConsoleWriteValidators.Validate(request);
+        WriteDistributionPlan plan = await PlanWriteDistributionAsync(request.Target, cancellationToken)
+            .ConfigureAwait(false);
+
+        AdminSettingsPatchRequest body = new()
+        {
+            Settings = request.Settings,
+            Distribute = plan.Distribute,
+        };
+
+        List<InstanceCallOutcome<AdminDomainMutationResultDto>> outcomes =
+            await FanOutAsync(
+                    plan.Targets,
+                    (inst, ct) => _client.PatchSettingsAsync(inst, domain, body, ct),
                     cancellationToken,
                     skipKnownDown: true)
                 .ConfigureAwait(false);

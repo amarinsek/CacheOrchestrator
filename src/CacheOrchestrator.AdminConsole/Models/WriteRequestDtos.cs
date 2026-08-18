@@ -56,3 +56,13 @@ public sealed class AdminConsoleTtlPatchRequest
     /// <summary><c>all</c> or <c>instance:{id}</c>.</summary>
     public string Target { get; set; } = "all";
 }
+
+/// <summary>Sparse domain settings patch with multi-instance target.</summary>
+public sealed class AdminConsoleSettingsPatchRequest
+{
+    /// <summary>CamelCase setting id → JSON value (overlay catalog entries only).</summary>
+    public Dictionary<string, System.Text.Json.JsonElement>? Settings { get; set; }
+
+    /// <summary><c>all</c> or <c>instance:{id}</c>.</summary>
+    public string Target { get; set; } = "all";
+}

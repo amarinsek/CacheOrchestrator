@@ -40,6 +40,18 @@ public interface ILocalAdminClient
         AdminTtlPatchRequest body,
         CancellationToken cancellationToken = default);
 
+    /// <summary>PATCH domain settings override on one instance.</summary>
+    Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchSettingsAsync(
+        AdminInstanceOptions instance,
+        string domain,
+        AdminSettingsPatchRequest body,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>GET domain settings catalog.</summary>
+    Task<InstanceCallOutcome<AdminDomainSettingsCatalogDto>> GetDomainSettingsCatalogAsync(
+        AdminInstanceOptions instance,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// GET cluster bus info (<c>…/cluster/info</c>). Fails when bus receive endpoints are not mapped.
     /// </summary>

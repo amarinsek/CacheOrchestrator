@@ -138,10 +138,13 @@ public sealed class AdminPipelineDto
     /// <summary>Served from Fusion without factory.</summary>
     public double? FcHitShare { get; init; }
 
+    /// <summary>Fail-safe stale serve share of requests (<c>stale / requests</c>).</summary>
+    public double? StaleShare { get; init; }
+
     private double? _factoryShare;
 
     /// <summary>
-    /// Factory share of requests (factoryRuns / requests). Also known as origin share.
+    /// Factory run share of requests (factoryRuns / requests). Also known as origin share.
     /// </summary>
     public double? FactoryShare
     {
@@ -163,7 +166,7 @@ public sealed class AdminPipelineDto
     /// <summary>OC or FC bypass share (combined).</summary>
     public double? BypassShare { get; init; }
 
-    /// <summary>Remainder (e.g. OC miss accounted via FC, rounding).</summary>
+    /// <summary>Remainder after OC hit, FC hit, stale, factory, and bypass.</summary>
     public double? OtherShare { get; init; }
 }
 
@@ -613,7 +616,11 @@ public sealed class AdminVersionRequest
     public bool Distribute { get; set; }
 }
 
-/// <summary>TTL patch request body (all fields optional).</summary>
+/// <summary>
+/// TTL patch request body (all fields optional).
+/// Prefer <see cref="AdminSettingsPatchRequest"/> for new clients.
+/// </summary>
+[Obsolete("Use AdminSettingsPatchRequest / PATCH …/settings. This DTO remains for compatibility.")]
 public sealed class AdminTtlPatchRequest
 {
     /// <summary>Output Cache TTL seconds.</summary>
@@ -639,6 +646,26 @@ public sealed class AdminTtlPatchRequest
     /// Default <see langword="false"/> = this process only.
     /// </summary>
     public bool Distribute { get; set; }
+}
+
+/// <summary>Sparse domain settings patch (camelCase keys from <see cref="Configuration.DomainSettingCatalog"/>).</summary>
+public sealed class AdminSettingsPatchRequest
+{
+    /// <summary>Setting id → value. Only <c>runtimeOverlay</c> catalog entries are accepted.</summary>
+    public Dictionary<string, System.Text.Json.JsonElement>? Settings { get; set; }
+
+    /// <summary>
+    /// When <see langword="true"/> and the cluster bus is enabled, peers apply the same overlay.
+    /// Default <see langword="false"/> = this process only.
+    /// </summary>
+    public bool Distribute { get; set; }
+}
+
+/// <summary>Domain settings catalog response.</summary>
+public sealed class AdminDomainSettingsCatalogDto
+{
+    /// <summary>Catalog entries.</summary>
+    public required IReadOnlyList<Configuration.DomainSettingCatalogEntry> Settings { get; init; }
 }
 
 /// <summary>Response after version or TTL mutation.</summary>

@@ -7,6 +7,7 @@ import { $, beginPageLoad, main, mainHasContent, paintPage } from "./dom.js";
 import {
   currentValueHtml,
   esc,
+  fafcHtml,
   factoryShareOf,
   fmtDurationMs,
   fmtUnit,
@@ -14,7 +15,8 @@ import {
   METRIC_TITLES,
   num,
   pct,
-  pipelineBar,
+  pipelinePanelHtml,
+  staleShareHtml,
   thMetric,
   tipAttr,
 } from "./format.js";
@@ -38,6 +40,7 @@ import {
   emptyStateHtml,
   endpointTableHtml,
   impactDetailHtml,
+  fadCell,
   impactKpiRowHtml,
   layerDetailFc,
   layerDetailOc,
@@ -216,15 +219,11 @@ export function domainDetailHeadHtml(name, domain, cfg) {
       </h2>
       ${recommendationsSectionHtml(domain.hints)}
       <div class="kpi-row">
-        <div class="kpi" title="${esc(METRIC_TITLES.inv)}"><div class="label">Invalidations</div><div class="value">${num(domain.invalidations)}</div></div>
-        <div class="kpi" title="${esc(METRIC_TITLES.req)}"><div class="label">Requests</div><div class="value">${num(domain.requests)}</div></div>
-        <div class="kpi"${tipAttr("ocHitShare")}><div class="label">OC hit %</div><div class="value">${pct(domain.oc?.hitShare, domain.oc?.lowRequestSample, "request")}</div></div>
-        <div class="kpi"${tipAttr("fcHitShare")}><div class="label">FC hit %</div><div class="value">${pct(domain.fc?.hitShare, domain.fc?.lowRequestSample, "request")}</div></div>
-        <div class="kpi"${tipAttr("factoryShare")}><div class="label">Factory %</div><div class="value">${pct(factoryShareOf(domain.fc), domain.fc?.lowRequestSample, "request")}</div></div>
-        ${impactKpiRowHtml(domain.impact)}
+        <div class="kpi"${tipAttr("inv")}><div class="label">Inv</div><div class="value">${num(domain.invalidations)}</div></div>
+        <div class="kpi"${tipAttr("req")}><div class="label">Req</div><div class="value">${num(domain.requests)}</div></div>
+        ${impactKpiRowHtml(domain.impact, domain.fc)}
       </div>
-      <p class="muted">Pipeline</p>
-      ${pipelineBar(domain.pipeline, true)}
+      ${pipelinePanelHtml(domain.pipeline)}
     </div>
     <div class="detail-grid">
       ${layerDetailOc(domain.oc)}
@@ -232,17 +231,17 @@ export function domainDetailHeadHtml(name, domain, cfg) {
       ${impactDetailHtml(domain.impact)}
       ${hasConfig ? `
       <div class="detail-block">
-        <h3>Effective config <span class="badge" title="Current values (not part of the selected time range)">current</span></h3>
+        <h3>Effective config <span class="badge" title="Current - Values not part of the selected time range">current</span></h3>
         <div class="kv">
-          <span title="Domain version">Version</span>${currentValueHtml(esc(ver))}${verRt ? " *" : ""}
+          <span${tipAttr("version")}>Version</span>${currentValueHtml(esc(ver))}${verRt ? " *" : ""}
           ${cfg ? `
-          <span${tipAttr("oc")}>Output TTL</span>${currentValueHtml(fmtUnit(cfg.outputCacheTtlSeconds, "s"))}
+          <span${tipAttr("outputTtl")}>Output TTL</span>${currentValueHtml(fmtUnit(cfg.outputCacheTtlSeconds, "s"))}
           <span${tipAttr("softTtl")}>Fusion soft</span>${currentValueHtml(fmtUnit(cfg.fusionCacheSoftTtlSeconds, "s"))}
           <span${tipAttr("hardTtl")}>Fusion hard</span>${currentValueHtml(fmtUnit(cfg.fusionCacheHardTtlSeconds, "s"))}
           <span${tipAttr("failSafe")}>Fail-safe</span>${currentValueHtml(fmtUnit(cfg.fusionCacheFailSafeSeconds, "s"))}
           <span${tipAttr("clientTtl")}>Client TTL / min</span>${currentValueHtml(clientTtl)}
-          <span${tipAttr("schedule")}>Schedule phase</span>${currentValueHtml(esc(cfg.schedulePhase || "—"))}
-          <span${tipAttr("fc")}>FC instance</span>${currentValueHtml(esc(cfg.fusionCacheInstanceName || "—"))}
+          <span${tipAttr("schedulePhase")}>Schedule phase</span>${currentValueHtml(esc(cfg.schedulePhase || "—"))}
+          <span${tipAttr("fcInstance")}>FC instance</span>${currentValueHtml(esc(cfg.fusionCacheInstanceName || "—"))}
           ` : ""}
         </div>
       </div>` : ""}
@@ -253,13 +252,15 @@ export function domainDetailHeadHtml(name, domain, cfg) {
       <table class="dense">
         <thead><tr>
           ${thMetric("Instance", "instance", { fromKey: true })}
-          ${thMetric("Version", "version", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
           ${thMetric("Inv", "inv", { fromKey: true })}
           ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
           ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
-          ${thMetric("Factory %", "factoryShare", { fromKey: true })}
-          ${thMetric("Time saved", "estTimeSaved", { fromKey: true })}
+          ${thMetric("FC stale %", "staleShare", { fromKey: true })}
+          ${thMetric("FA run %", "factoryShare", { fromKey: true })}
+          ${thMetric("FAFC", "factoryFailures", { fromKey: true, className: "col-num" })}
+          ${thMetric("FAD", "avgFactoryDuration", { fromKey: true })}
+          ${thMetric("EFTS", "estTimeSaved", { fromKey: true })}
           ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
           ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
         </tr></thead>
@@ -272,7 +273,10 @@ export function domainDetailHeadHtml(name, domain, cfg) {
               <td>${num(bi.invalidations)}</td>
               <td>${pct(bi.oc?.hitShare, bi.oc?.lowRequestSample, "request")}</td>
               <td>${pct(bi.fc?.hitShare, bi.fc?.lowRequestSample, "request")}</td>
+              ${staleShareHtml(bi.fc)}
               <td>${pct(factoryShareOf(bi.fc), bi.fc?.lowRequestSample, "request")}</td>
+              ${fafcHtml(bi.fc)}
+              <td>${fadCell(bi.impact)}</td>
               <td>${fmtDurationMs(bi.impact?.estFactoryTimeSavedMs)}</td>
               <td>${impactBandLabel(bi.impact?.benefit, { html: true })}</td>
               <td>${impactBandLabel(bi.impact?.candidate, { html: true })}</td>

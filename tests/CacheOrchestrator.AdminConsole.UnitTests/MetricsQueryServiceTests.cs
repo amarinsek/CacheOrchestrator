@@ -166,6 +166,37 @@ public class MetricsQueryServiceTests
     }
 
     [Fact]
+    public async Task GetSeries_relative_range_snaps_query_bounds_to_step()
+    {
+        FakeMetricsClient client = new()
+        {
+            Probe = new MetricsProbeResult { Succeeded = true, LatencyMs = 1 },
+            Matrix = [],
+        };
+        var clock = new TestMutableTimeProvider(new DateTimeOffset(2026, 3, 18, 12, 00, 37, TimeSpan.Zero));
+        MetricsQueryService svc = CreateService(
+            new MetricsStoreOptions { Enabled = true, BaseUrl = "http://localhost:9090" },
+            client,
+            clock);
+
+        MetricsSeriesResponseDto series = await svc.GetSeriesAsync(
+            "1h", "request_rate", null, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(MetricsStoreStatusCodes.Connected, series.Status);
+        Assert.Equal("30s", series.Step);
+        Assert.Equal(new DateTimeOffset(2026, 3, 18, 12, 00, 30, TimeSpan.Zero), series.ToUtc);
+        Assert.Equal(new DateTimeOffset(2026, 3, 18, 11, 00, 30, TimeSpan.Zero), series.FromUtc);
+        Assert.Equal(series.FromUtc, client.LastRangeStart);
+        Assert.Equal(series.ToUtc, client.LastRangeEnd);
+
+        clock.Advance(TimeSpan.FromSeconds(5));
+        MetricsSeriesResponseDto again = await svc.GetSeriesAsync(
+            "1h", "request_rate", null, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(series.FromUtc, again.FromUtc);
+        Assert.Equal(series.ToUtc, again.ToUtc);
+    }
+
+    [Fact]
     public async Task GetSeries_unknown_panel_only_FallsBackToDefaultPanels()
     {
         FakeMetricsClient client = new()
@@ -205,13 +236,14 @@ public class MetricsQueryServiceTests
 
     private static MetricsQueryService CreateService(
         MetricsStoreOptions metrics,
-        IMetricsQueryClient? client = null)
+        IMetricsQueryClient? client = null,
+        TimeProvider? time = null)
     {
         AdminConsoleOptions opts = new() { Metrics = metrics };
         return new MetricsQueryService(
             client ?? new FakeMetricsClient(),
             Microsoft.Extensions.Options.Options.Create(opts),
-            TimeProvider.System);
+            time ?? TimeProvider.System);
     }
 
     private sealed class FakeMetricsClient : IMetricsQueryClient

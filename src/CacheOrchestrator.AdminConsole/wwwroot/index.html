@@ -46,16 +46,25 @@
       </div>
       <div class="nav-right">
         <div class="nav-time-range" id="navTimeRangeHost" aria-label="Stats time range"></div>
-        <div class="nav-refresh" title="Auto-refresh interval">
-          <select id="selAutoRefresh" aria-label="Auto refresh">
+        <div class="nav-refresh" title="Reload and auto-refresh interval">
+          <button type="button" id="btnHeaderRefresh" class="nav-refresh-btn" aria-label="Reload">
+            <svg class="nav-refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+              <path d="M21 3v6h-6"/>
+            </svg>
+            <span class="nav-refresh-label" data-refresh-label>Reload</span>
+          </button>
+          <select id="selAutoRefresh" aria-label="Auto refresh interval">
             <option value="0">Off</option>
-            <option value="5">5 s</option>
-            <option value="10">10 s</option>
-            <option value="30">30 s</option>
-            <option value="60">1 m</option>
-            <option value="300">5 m</option>
+            <option value="5">5s</option>
+            <option value="10">10s</option>
+            <option value="30">30s</option>
+            <option value="60">1m</option>
+            <option value="300">5m</option>
+            <option value="900">15m</option>
+            <option value="1800">30m</option>
+            <option value="3600">1h</option>
           </select>
-          <button type="button" id="btnHeaderRefresh" title="Refresh now">↻</button>
         </div>
         <a href="#/hints" data-nav="hints" class="nav-hints" title="Recommendations">
           <span data-nav-hints-badge class="nav-hints-badge"><span class="sev-stack empty">○</span></span>

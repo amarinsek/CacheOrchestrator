@@ -93,6 +93,10 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
                     ApplyTtlPatch(ttl);
                     break;
 
+                case SettingsPatchCommand settings:
+                    ApplySettingsPatch(settings);
+                    break;
+
                 default:
                     _logger.LogWarning(
                         "Unsupported cluster command type {Type} ({CommandId})",
@@ -186,7 +190,7 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
             return;
         }
 
-        DomainTtlPatch patch = new()
+        DomainSettingsPatch patch = new()
         {
             OutputCacheTtlSeconds = command.OutputCacheTtlSeconds,
             FusionCacheSoftTtlSeconds = command.FusionCacheSoftTtlSeconds,
@@ -202,6 +206,29 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
             return;
         }
 
-        _overrides.PatchTtl(command.Domain, patch);
+        _overrides.PatchSettings(command.Domain, patch);
+    }
+
+    private void ApplySettingsPatch(SettingsPatchCommand command)
+    {
+        if (string.IsNullOrWhiteSpace(command.Domain))
+        {
+            _logger.LogWarning("SettingsPatchCommand {CommandId} missing domain", command.CommandId);
+            return;
+        }
+
+        try
+        {
+            DomainSettingsPatch patch = DomainSettingsPatchMapper.FromDictionary(command.Settings);
+            _overrides.PatchSettings(command.Domain, patch);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "SettingsPatchCommand {CommandId} rejected: {Message}",
+                command.CommandId,
+                ex.Message);
+        }
     }
 }

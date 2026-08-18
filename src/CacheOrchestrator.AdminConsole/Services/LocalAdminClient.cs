@@ -74,6 +74,7 @@ public sealed class LocalAdminClient : ILocalAdminClient
             instance, $"/domains/{Uri.EscapeDataString(domain)}/version", body, cancellationToken);
 
     /// <inheritdoc />
+#pragma warning disable CS0618 // AdminTtlPatchRequest retained for compatibility
     public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchTtlAsync(
         AdminInstanceOptions instance,
         string domain,
@@ -85,6 +86,26 @@ public sealed class LocalAdminClient : ILocalAdminClient
             $"/domains/{Uri.EscapeDataString(domain)}/ttl",
             body,
             cancellationToken);
+#pragma warning restore CS0618
+
+    /// <inheritdoc />
+    public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchSettingsAsync(
+        AdminInstanceOptions instance,
+        string domain,
+        AdminSettingsPatchRequest body,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<AdminSettingsPatchRequest, AdminDomainMutationResultDto>(
+            instance,
+            HttpMethod.Patch,
+            $"/domains/{Uri.EscapeDataString(domain)}/settings",
+            body,
+            cancellationToken);
+
+    /// <inheritdoc />
+    public Task<InstanceCallOutcome<AdminDomainSettingsCatalogDto>> GetDomainSettingsCatalogAsync(
+        AdminInstanceOptions instance,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<AdminDomainSettingsCatalogDto>(instance, "/domain-settings/catalog", cancellationToken);
 
     /// <inheritdoc />
     public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(

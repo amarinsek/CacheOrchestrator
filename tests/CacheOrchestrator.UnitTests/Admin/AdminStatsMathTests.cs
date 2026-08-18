@@ -40,4 +40,20 @@ public class AdminStatsMathTests
         oc.LowSample.Should().BeTrue();
         fc.LowSample.Should().BeTrue();
     }
+
+    [Fact]
+    public void Pipeline_includes_stale_share_and_excludes_it_from_other()
+    {
+        (_, _, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+            AdminStatsMath.BuildAll(
+                ocHits: 80, ocMisses: 20, ocBypass: 0,
+                fcHits: 10, fcMisses: 5, fcStale: 5, fcBypass: 0,
+                factoryRuns: 5, factoryFailures: 5);
+
+        fc.StaleShare.Should().BeApproximately(0.05, 0.0001);
+        pipe.StaleShare.Should().BeApproximately(0.05, 0.0001);
+        pipe.FactoryShare.Should().BeApproximately(0.05, 0.0001);
+        // 100 - 80 ocHit - 10 fcHit - 5 stale - 5 factory = 0 other
+        (pipe.OtherShare ?? 0).Should().BeApproximately(0, 0.0001);
+    }
 }

@@ -28,10 +28,22 @@ export function severityStack(summary) {
   return `<span class="sev-stack max-${esc(max)}" title="${c} critical · ${w} warning · ${i} info">${parts.join("")}</span>`;
 }
 
-/** Compact code badges on entity list rows. Empty → ○. */
+/**
+ * Compact code badges on entity list rows. Empty → ○.
+ * 1–2 hints: short labels (e.g. Inv↑). More than 2: severity counts [c1][w2][i3].
+ */
 export function hintBadges(hints) {
   if (!hints || !hints.length) {
     return `<span class="hint-badges"><span class="hint empty" title="No recommendations">○</span></span>`;
+  }
+  if (hints.length > 2) {
+    const s = summarizeHints(hints);
+    const parts = [];
+    if (s.critical) parts.push(`<span class="hint Critical">[c${s.critical}]</span>`);
+    if (s.warning) parts.push(`<span class="hint Warning">[w${s.warning}]</span>`);
+    if (s.info) parts.push(`<span class="hint Info">[i${s.info}]</span>`);
+    const tip = hints.map((h) => `${shortHint(h)}: ${h.message || h.code || ""}`).join(" · ");
+    return `<span class="hint-badges hint-badges-compact" title="${esc(tip)}">${parts.join("")}</span>`;
   }
   return `<span class="hint-badges">${hints.map((h) =>
     `<span class="hint ${esc(h.severity || "Info")}" title="${esc(h.message)}">${esc(shortHint(h))}</span>`

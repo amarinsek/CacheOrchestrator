@@ -87,6 +87,15 @@ public static class AdminConsoleWriteValidators
         ValidateNonNegative(request.ClientTtlMinSeconds, nameof(request.ClientTtlMinSeconds));
     }
 
+    /// <summary>Validates settings patch body (target + at least one setting).</summary>
+    public static void Validate(AdminConsoleSettingsPatchRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ValidateTarget(request.Target);
+        if (request.Settings is null || request.Settings.Count == 0)
+            throw new ArgumentException("At least one setting must be set.", nameof(request));
+    }
+
     private static void ValidateTarget(string? target)
     {
         if (string.IsNullOrWhiteSpace(target)

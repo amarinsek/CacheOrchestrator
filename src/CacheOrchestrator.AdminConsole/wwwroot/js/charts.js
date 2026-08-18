@@ -29,7 +29,7 @@ export function seriesHasSamples(series) {
  * When the selected time window is known (tMin/tMax) but there are no points,
  * draws empty axes for that window (zero baseline) instead of a "No samples" box.
  * @param {Array<{ name: string, points: Array<{ t: number, v: number }> }>} series
- * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean, tMin?: number, tMax?: number, range?: string }} [opts]
+ * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean, tMin?: number, tMax?: number, range?: string, step?: string|null, stepSec?: number|null }} [opts]
  */
 export function lineChartHtml(series, opts = {}) {
   const height = opts.height || 200;
@@ -46,7 +46,7 @@ export function lineChartHtml(series, opts = {}) {
  * and structure is unchanged (same series count/names). Returns true if updated in place.
  * @param {HTMLElement} host element that currently contains `.chart-wrap` or empty
  * @param {Array} series
- * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean, tMin?: number, tMax?: number, range?: string }} [opts]
+ * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean, tMin?: number, tMax?: number, range?: string, step?: string|null, stepSec?: number|null }} [opts]
  */
 export function updateChartInPlace(host, series, opts = {}) {
   if (!host) return false;
@@ -146,6 +146,7 @@ export function openChartModal(opts, ctx = {}) {
     range: opts.range,
     tMin: opts.tMin,
     tMax: opts.tMax,
+    step: opts.step,
   };
   const desc = opts.description && String(opts.description).trim();
   backdrop.innerHTML = `
@@ -163,7 +164,7 @@ export function openChartModal(opts, ctx = {}) {
       </div>
       <div class="chart-modal-body">
         <div data-chart-host data-modal-chart="1">${lineChartHtml(series, chartOpts)}</div>
-        <p class="muted small chart-hover-hint">Hover to see values at a point in time.</p>
+        <div data-chart-series-stats>${seriesStatsTableHtml(series, unit)}</div>
       </div>
     </div>`;
   document.body.appendChild(backdrop);
@@ -214,6 +215,7 @@ export function refreshOpenChartModal() {
   if (!data) return;
   const host = backdrop.querySelector("[data-modal-chart]");
   if (!host) return;
+  const series = data.series || [];
   const chartOpts = {
     unit: data.unit,
     width: 960,
@@ -223,17 +225,20 @@ export function refreshOpenChartModal() {
     range: data.range,
     tMin: data.tMin,
     tMax: data.tMax,
+    step: data.step,
   };
   // Remount interactive chart (hover bindings need a fresh wrap).
-  host.innerHTML = lineChartHtml(data.series || [], chartOpts);
+  host.innerHTML = lineChartHtml(series, chartOpts);
   const wrap = host.querySelector(".chart-wrap");
   if (wrap) {
-    const built = buildChartModel(data.series || [], chartOpts, chartOpts.width, chartOpts.height);
+    const built = buildChartModel(series, chartOpts, chartOpts.width, chartOpts.height);
     if (built) {
-      storeInteractionData(wrap, built, data.series || [], chartOpts);
+      storeInteractionData(wrap, built, series, chartOpts);
       bindChartHover(wrap);
     }
   }
+  const statsHost = backdrop.querySelector("[data-chart-series-stats]");
+  if (statsHost) statsHost.innerHTML = seriesStatsTableHtml(series, data.unit);
   const title = backdrop.querySelector(".chart-modal-head h2");
   if (title && data.title) title.textContent = data.title;
 }
@@ -364,6 +369,10 @@ function buildChartModel(series, opts, width, height) {
     return `<text class="chart-axis chart-axis-x" x="${x.toFixed(1)}" y="${height - 8}" text-anchor="${anchor}">${esc(formatAxisTime(t, span))}</text>`;
   }).join("");
 
+  // Break the polyline when samples are farther apart than ~1.5× step (missing data),
+  // instead of drawing a misleading continuous segment across the gap.
+  const gapSec = resolveGapThresholdSec(opts, series);
+
   const paths = [];
   const pathSvg = empty
     ? ""
@@ -373,9 +382,7 @@ function buildChartModel(series, opts, width, height) {
         paths.push("");
         return "";
       }
-      const d = pts
-        .map((p, idx) => `${idx === 0 ? "M" : "L"}${xOf(p.t).toFixed(1)},${yOf(p.v).toFixed(1)}`)
-        .join(" ");
+      const d = buildLinePathD(pts, xOf, yOf, gapSec);
       paths.push(d);
       const color = SERIES_COLORS[i % SERIES_COLORS.length];
       const sw = interactive ? 2.1 : 1.75;
@@ -407,6 +414,7 @@ function buildChartModel(series, opts, width, height) {
     pathSvg,
     legend,
     paths,
+    gapSec,
     gridYs,
     axisLabels,
     yTickCount,
@@ -446,7 +454,8 @@ function chartMarkup(built, opts) {
   const tip = interactive
     ? `<div class="chart-tooltip" hidden></div>`
     : "";
-  const legend = built.legend
+  // Modal uses a Grafana-style stats table instead of the compact legend strip.
+  const legend = !interactive && built.legend
     ? `<div class="chart-legend">${built.legend}</div>`
     : "";
   const emptyCls = built.empty ? " chart-wrap-empty" : "";
@@ -636,6 +645,12 @@ function samplePolylineAtT(points, built, t) {
   const a = points[lo];
   const b = points[hi];
   const span = b.t - a.t;
+  const gapSec = built.gapSec || 0;
+  // Do not interpolate across a path break (same rule as buildLinePathD).
+  if (gapSec > 0 && span > gapSec) {
+    const nearer = (t - a.t) <= (b.t - t) ? a : b;
+    return { t: nearer.t, v: nearer.v, x: xOfT(built, nearer.t), y: yOfV(built, nearer.v) };
+  }
   const u = span === 0 ? 0 : (t - a.t) / span;
   const v = a.v + (b.v - a.v) * u;
   // Place marker on the segment using the same linear mapping as the path (t → x).
@@ -680,6 +695,7 @@ function chartFingerprint(series, opts) {
     opts.range || "",
     String(opts.tMin ?? ""),
     String(opts.tMax ?? ""),
+    String(opts.step || opts.stepSec || ""),
   ];
   for (const s of series || []) {
     parts.push(s.name || "");
@@ -688,6 +704,150 @@ function chartFingerprint(series, opts) {
     }
   }
   return parts.join("|");
+}
+
+/**
+ * Parse Prometheus step tokens used by the Metrics BFF (`15s`, `1m`, `2m`, …).
+ * @param {string|null|undefined} step
+ * @returns {number} seconds, or 0 when unknown
+ */
+export function parseStepSeconds(step) {
+  if (!step || typeof step !== "string") return 0;
+  const d = step.trim();
+  if (d.length < 2 || d.length > 8) return 0;
+  const n = Number(d.slice(0, -1));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const unit = d.slice(-1);
+  if (unit === "s") return n;
+  if (unit === "m") return n * 60;
+  if (unit === "h") return n * 3600;
+  if (unit === "d") return n * 86400;
+  return 0;
+}
+
+/**
+ * Gap threshold (seconds) above which the line path breaks instead of connecting.
+ * Prefers explicit step from the API; falls back to median point spacing.
+ * @param {{ step?: string|null, stepSec?: number|null }} opts
+ * @param {Array<{ points?: Array<{ t: number }> }>|null|undefined} series
+ */
+function resolveGapThresholdSec(opts, series) {
+  const fromOpts = Number(opts?.stepSec);
+  if (Number.isFinite(fromOpts) && fromOpts > 0)
+    return fromOpts * 1.5;
+  const parsed = parseStepSeconds(opts?.step);
+  if (parsed > 0)
+    return parsed * 1.5;
+
+  const deltas = [];
+  for (const s of series || []) {
+    const pts = s.points || [];
+    for (let i = 1; i < pts.length; i++) {
+      const dt = pts[i].t - pts[i - 1].t;
+      if (Number.isFinite(dt) && dt > 0) deltas.push(dt);
+    }
+  }
+  if (!deltas.length) return 120;
+  deltas.sort((a, b) => a - b);
+  const median = deltas[Math.floor(deltas.length / 2)];
+  return Math.max(median * 1.5, 30);
+}
+
+/**
+ * SVG path `d` with Move on gaps larger than gapSec.
+ * @param {Array<{ t: number, v: number }>} pts
+ * @param {(t: number) => number} xOf
+ * @param {(v: number) => number} yOf
+ * @param {number} gapSec
+ */
+function buildLinePathD(pts, xOf, yOf, gapSec) {
+  let d = "";
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const cmd = i === 0 || (gapSec > 0 && (p.t - pts[i - 1].t) > gapSec) ? "M" : "L";
+    d += `${cmd}${xOf(p.t).toFixed(1)},${yOf(p.v).toFixed(1)}`;
+    if (i < pts.length - 1) d += " ";
+  }
+  return d;
+}
+
+/**
+ * Per-series window stats (Grafana-style Mean / Last / Min / Max) from sample points.
+ * @param {Array<{ name?: string, points?: Array<{ t: number, v: number }> }>|null|undefined} series
+ * @returns {Array<{ name: string, color: string, mean: number|null, last: number|null, min: number|null, max: number|null, count: number }>}
+ */
+export function computeSeriesStats(series) {
+  return (series || []).map((s, i) => {
+    const pts = (s.points || []).filter((p) => p && Number.isFinite(p.v));
+    if (!pts.length) {
+      return {
+        name: s.name || `series ${i + 1}`,
+        color: SERIES_COLORS[i % SERIES_COLORS.length],
+        mean: null,
+        last: null,
+        min: null,
+        max: null,
+        count: 0,
+      };
+    }
+    let min = pts[0].v;
+    let max = pts[0].v;
+    let sum = 0;
+    let last = pts[0];
+    for (const p of pts) {
+      if (p.v < min) min = p.v;
+      if (p.v > max) max = p.v;
+      sum += p.v;
+      if (p.t >= last.t) last = p;
+    }
+    return {
+      name: s.name || `series ${i + 1}`,
+      color: SERIES_COLORS[i % SERIES_COLORS.length],
+      mean: sum / pts.length,
+      last: last.v,
+      min,
+      max,
+      count: pts.length,
+    };
+  });
+}
+
+/**
+ * Grafana-style series stats table under the enlarge modal chart.
+ * @param {Array} series
+ * @param {string|undefined} unit
+ */
+export function seriesStatsTableHtml(series, unit) {
+  const rows = computeSeriesStats(series);
+  if (!rows.length) {
+    return `<div class="chart-series-stats muted small">No series in this window.</div>`;
+  }
+  const body = rows.map((r) => `
+    <tr>
+      <td class="chart-series-name">
+        <span class="chart-swatch" style="background:${r.color}"></span>
+        <span title="${esc(r.name)}">${esc(r.name)}</span>
+      </td>
+      <td class="col-num">${esc(formatValue(r.mean, unit))}</td>
+      <td class="col-num">${esc(formatValue(r.last, unit))}</td>
+      <td class="col-num">${esc(formatValue(r.min, unit))}</td>
+      <td class="col-num">${esc(formatValue(r.max, unit))}</td>
+    </tr>`).join("");
+  return `
+    <div class="chart-series-stats" role="region" aria-label="Series statistics">
+      <table class="chart-series-stats-table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col" class="col-num">Mean</th>
+            <th scope="col" class="col-num">Last</th>
+            <th scope="col" class="col-num">Min</th>
+            <th scope="col" class="col-num">Max</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
 }
 
 /** Compact X-axis label; longer windows include day. */

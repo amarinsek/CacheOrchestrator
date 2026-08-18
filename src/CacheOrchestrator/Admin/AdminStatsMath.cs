@@ -132,18 +132,19 @@ public static class AdminStatsMath
         AdminFusionLayerDto fc = BuildFc(
             fcHits, fcMisses, fcStale, fcBypass, factoryRuns, factoryFailures, requests);
 
-        // Pipeline: OC hit | FC hit | factory | bypass | other
+        // Pipeline: OC hit | FC hit | FC stale | factory run | bypass | other
         // OC miss typically continues to FC — do not put OC miss in the bar separately.
         AdminPipelineDto pipeline = new()
         {
             OcHitShare = oc.HitShare,
             FcHitShare = fc.HitShare,
+            StaleShare = fc.StaleShare,
             FactoryShare = fc.FactoryShare,
             BypassShare = Share(ocBypass + fcBypass, requests),
             OtherShare = requests <= 0
                 ? null
                 : Share(
-                    Math.Max(0, requests - ocHits - fcHits - factoryRuns - ocBypass - fcBypass),
+                    Math.Max(0, requests - ocHits - fcHits - fcStale - factoryRuns - ocBypass - fcBypass),
                     requests)
         };
 

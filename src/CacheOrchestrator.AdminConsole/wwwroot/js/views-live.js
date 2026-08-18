@@ -78,12 +78,12 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
     {
       label: "Factory / s",
       valueHtml: metricsOk ? rateOrDash(c.factoryRate) : noDataHtml(),
-      title: "Factory (FC miss) rate",
+      tipAttr: tipAttr("factoryRate"),
     },
     {
       label: "Inv / s",
       valueHtml: metricsOk ? rateOrDash(c.invalidationRate) : noDataHtml(),
-      title: "Invalidation rate",
+      tipAttr: tipAttr("invRate"),
     },
     {
       label: "OC hit %",
@@ -96,14 +96,14 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
       tipAttr: tipAttr("fcHitShare"),
     },
     {
-      label: "Factory %",
+      label: "FA run %",
       valueHtml: metricsOk ? shareOrDash(c.factoryShare) : noDataHtml(),
       tipAttr: tipAttr("factoryShare"),
     },
     {
       label: "Fail %",
       valueHtml: metricsOk ? shareOrDash(c.factoryFailShare) : noDataHtml(),
-      title: "FC fail + stale share of requests",
+      tipAttr: tipAttr("factoryFailShare"),
     },
     {
       label: "Hints",
@@ -200,7 +200,7 @@ function liveInstancesTable(list) {
         <tr>
           <th>Id</th>
           <th>Status</th>
-          <th class="col-num" title="${esc(METRIC_TITLES.liveRps || "Request rate")}">RPS</th>
+          <th class="col-num" title="${esc(METRIC_TITLES.liveRps)}">RPS</th>
           <th class="col-num">Latency</th>
           <th>Uptime</th>
           <th>Error</th>
@@ -239,7 +239,7 @@ function liveEntityTable(list, { kind }) {
           <th class="col-num">RPS</th>
           <th class="col-num">OC hit %</th>
           <th class="col-num">FC hit %</th>
-          <th class="col-num">Factory %</th>
+          <th class="col-num" title="${esc(METRIC_TITLES.factoryShare)}">FA run %</th>
           <th class="col-num">Fail %</th>
         </tr>
       </thead>

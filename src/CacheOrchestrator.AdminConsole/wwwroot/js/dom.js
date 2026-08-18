@@ -12,7 +12,15 @@ export const main = () => $("#appMain");
 
 /** Subtle chrome indicator while a soft refresh runs (no full-page loading flash). */
 export function setRefreshing(on) {
-  document.documentElement.classList.toggle("is-refreshing", !!on);
+  const busy = !!on;
+  document.documentElement.classList.toggle("is-refreshing", busy);
+  const btn = document.getElementById("btnHeaderRefresh");
+  if (btn) {
+    btn.setAttribute("aria-busy", busy ? "true" : "false");
+    btn.classList.toggle("is-loading", busy);
+  }
+  const label = document.querySelector("[data-refresh-label]");
+  if (label) label.textContent = busy ? "Loading" : "Reload";
 }
 
 /**

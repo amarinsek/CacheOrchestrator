@@ -36,47 +36,31 @@ internal sealed class DomainRuntimeOverrideStore : IDomainRuntimeOverrideStore
 
         return _map.AddOrUpdate(
             key,
-            _ => new DomainRuntimeOverride
-            {
-                Stamp = NextStamp(),
-                Version = v
-            },
-            (_, existing) => new DomainRuntimeOverride
-            {
-                Stamp = NextStamp(),
-                Version = v,
-                OutputCacheTtlSeconds = existing.OutputCacheTtlSeconds,
-                FusionCacheSoftTtlSeconds = existing.FusionCacheSoftTtlSeconds,
-                FusionCacheHardTtlSeconds = existing.FusionCacheHardTtlSeconds,
-                FusionCacheFailSafeSeconds = existing.FusionCacheFailSafeSeconds,
-                ClientTtlSeconds = existing.ClientTtlSeconds,
-                ClientTtlMinSeconds = existing.ClientTtlMinSeconds
-            });
+            _ => new DomainRuntimeOverride { Stamp = NextStamp(), Version = v },
+            (_, existing) => WithVersion(existing, v, NextStamp()));
     }
 
     /// <inheritdoc />
-    public DomainRuntimeOverride PatchTtl(string domain, DomainTtlPatch patch)
+    public DomainRuntimeOverride PatchSettings(string domain, DomainSettingsPatch patch)
     {
         ArgumentNullException.ThrowIfNull(patch);
         if (!patch.HasAny)
-            throw new ArgumentException("At least one TTL field must be set.", nameof(patch));
+            throw new ArgumentException("At least one setting must be set.", nameof(patch));
 
         string key = DomainName.Normalize(domain);
 
         return _map.AddOrUpdate(
             key,
-            _ => FromPatch(patch, version: null),
-            (_, existing) => new DomainRuntimeOverride
-            {
-                Stamp = NextStamp(),
-                Version = existing.Version,
-                OutputCacheTtlSeconds = patch.OutputCacheTtlSeconds ?? existing.OutputCacheTtlSeconds,
-                FusionCacheSoftTtlSeconds = patch.FusionCacheSoftTtlSeconds ?? existing.FusionCacheSoftTtlSeconds,
-                FusionCacheHardTtlSeconds = patch.FusionCacheHardTtlSeconds ?? existing.FusionCacheHardTtlSeconds,
-                FusionCacheFailSafeSeconds = patch.FusionCacheFailSafeSeconds ?? existing.FusionCacheFailSafeSeconds,
-                ClientTtlSeconds = patch.ClientTtlSeconds ?? existing.ClientTtlSeconds,
-                ClientTtlMinSeconds = patch.ClientTtlMinSeconds ?? existing.ClientTtlMinSeconds
-            });
+            _ => FromPatch(patch, version: null, NextStamp()),
+            (_, existing) => Merge(existing, patch, NextStamp()));
+    }
+
+    /// <inheritdoc />
+    [Obsolete("Use PatchSettings.")]
+    public DomainRuntimeOverride PatchTtl(string domain, DomainTtlPatch patch)
+    {
+        ArgumentNullException.ThrowIfNull(patch);
+        return PatchSettings(domain, patch.ToSettingsPatch());
     }
 
     /// <inheritdoc />
@@ -89,17 +73,71 @@ internal sealed class DomainRuntimeOverrideStore : IDomainRuntimeOverrideStore
     /// <inheritdoc />
     public IReadOnlyCollection<string> GetOverriddenDomains() => [.. _map.Keys];
 
-    private DomainRuntimeOverride FromPatch(DomainTtlPatch patch, string? version) =>
+    internal static DomainRuntimeOverride FromPatch(DomainSettingsPatch patch, string? version, int stamp) =>
+        Merge(new DomainRuntimeOverride { Stamp = stamp, Version = version }, patch, stamp);
+
+    internal static DomainRuntimeOverride Merge(DomainRuntimeOverride existing, DomainSettingsPatch patch, int stamp) =>
         new()
         {
-            Stamp = NextStamp(),
+            Stamp = stamp,
+            Version = existing.Version,
+            OutputCacheEnabled = patch.OutputCacheEnabled ?? existing.OutputCacheEnabled,
+            FusionCacheEnabled = patch.FusionCacheEnabled ?? existing.FusionCacheEnabled,
+            BypassWhenAuthenticated = patch.BypassWhenAuthenticated ?? existing.BypassWhenAuthenticated,
+            VaryOutputCacheByUser = patch.VaryOutputCacheByUser ?? existing.VaryOutputCacheByUser,
+            ETagMode = patch.ETagMode ?? existing.ETagMode,
+            ClientCacheability = patch.ClientCacheability ?? existing.ClientCacheability,
+            ClientTtlSeconds = patch.ClientTtlSeconds ?? existing.ClientTtlSeconds,
+            ClientTtlMinSeconds = patch.ClientTtlMinSeconds ?? existing.ClientTtlMinSeconds,
+            ScheduledUpdateUtc = patch.ScheduledUpdateUtc ?? existing.ScheduledUpdateUtc,
+            ClientMustRevalidateNearUpdate = patch.ClientMustRevalidateNearUpdate ?? existing.ClientMustRevalidateNearUpdate,
+            OutputCacheTtlSeconds = patch.OutputCacheTtlSeconds ?? existing.OutputCacheTtlSeconds,
+            FusionCacheSoftTtlSeconds = patch.FusionCacheSoftTtlSeconds ?? existing.FusionCacheSoftTtlSeconds,
+            FusionCacheHardTtlSeconds = patch.FusionCacheHardTtlSeconds ?? existing.FusionCacheHardTtlSeconds,
+            FusionCacheFailSafeSeconds = patch.FusionCacheFailSafeSeconds ?? existing.FusionCacheFailSafeSeconds,
+            FusionCacheEagerRefreshRatio = patch.FusionCacheEagerRefreshRatio ?? existing.FusionCacheEagerRefreshRatio,
+            FusionCacheJitterSeconds = patch.FusionCacheJitterSeconds ?? existing.FusionCacheJitterSeconds,
+            FusionCacheFactorySoftTimeoutSeconds = patch.FusionCacheFactorySoftTimeoutSeconds ?? existing.FusionCacheFactorySoftTimeoutSeconds,
+            FusionCacheFactoryHardTimeoutSeconds = patch.FusionCacheFactoryHardTimeoutSeconds ?? existing.FusionCacheFactoryHardTimeoutSeconds,
+            FusionCacheMaxItemBytes = patch.FusionCacheMaxItemBytes ?? existing.FusionCacheMaxItemBytes,
+            FusionCacheRespectNoStore = patch.FusionCacheRespectNoStore ?? existing.FusionCacheRespectNoStore,
+            FusionCacheAllowBackgroundDistributed = patch.FusionCacheAllowBackgroundDistributed ?? existing.FusionCacheAllowBackgroundDistributed,
+            FusionCacheAllowBackgroundBackplane = patch.FusionCacheAllowBackgroundBackplane ?? existing.FusionCacheAllowBackgroundBackplane,
+            FusionCacheVaryOnPublicAddress = patch.FusionCacheVaryOnPublicAddress ?? existing.FusionCacheVaryOnPublicAddress,
+            FusionCacheVaryOnEncoding = patch.FusionCacheVaryOnEncoding ?? existing.FusionCacheVaryOnEncoding,
+            OutputCacheVaryByHost = patch.OutputCacheVaryByHost ?? existing.OutputCacheVaryByHost,
+        };
+
+    private static DomainRuntimeOverride WithVersion(DomainRuntimeOverride existing, string version, int stamp) =>
+        new()
+        {
+            Stamp = stamp,
             Version = version,
-            OutputCacheTtlSeconds = patch.OutputCacheTtlSeconds,
-            FusionCacheSoftTtlSeconds = patch.FusionCacheSoftTtlSeconds,
-            FusionCacheHardTtlSeconds = patch.FusionCacheHardTtlSeconds,
-            FusionCacheFailSafeSeconds = patch.FusionCacheFailSafeSeconds,
-            ClientTtlSeconds = patch.ClientTtlSeconds,
-            ClientTtlMinSeconds = patch.ClientTtlMinSeconds
+            OutputCacheEnabled = existing.OutputCacheEnabled,
+            FusionCacheEnabled = existing.FusionCacheEnabled,
+            BypassWhenAuthenticated = existing.BypassWhenAuthenticated,
+            VaryOutputCacheByUser = existing.VaryOutputCacheByUser,
+            ETagMode = existing.ETagMode,
+            ClientCacheability = existing.ClientCacheability,
+            ClientTtlSeconds = existing.ClientTtlSeconds,
+            ClientTtlMinSeconds = existing.ClientTtlMinSeconds,
+            ScheduledUpdateUtc = existing.ScheduledUpdateUtc,
+            ClientMustRevalidateNearUpdate = existing.ClientMustRevalidateNearUpdate,
+            OutputCacheTtlSeconds = existing.OutputCacheTtlSeconds,
+            FusionCacheSoftTtlSeconds = existing.FusionCacheSoftTtlSeconds,
+            FusionCacheHardTtlSeconds = existing.FusionCacheHardTtlSeconds,
+            FusionCacheFailSafeSeconds = existing.FusionCacheFailSafeSeconds,
+            FusionCacheEagerRefreshRatio = existing.FusionCacheEagerRefreshRatio,
+            FusionCacheJitterSeconds = existing.FusionCacheJitterSeconds,
+            FusionCacheFactorySoftTimeoutSeconds = existing.FusionCacheFactorySoftTimeoutSeconds,
+            FusionCacheFactoryHardTimeoutSeconds = existing.FusionCacheFactoryHardTimeoutSeconds,
+            FusionCacheMaxItemBytes = existing.FusionCacheMaxItemBytes,
+            FusionCacheRespectNoStore = existing.FusionCacheRespectNoStore,
+            FusionCacheAllowBackgroundDistributed = existing.FusionCacheAllowBackgroundDistributed,
+            FusionCacheAllowBackgroundBackplane = existing.FusionCacheAllowBackgroundBackplane,
+            FusionCacheVaryOnPublicAddress = existing.FusionCacheVaryOnPublicAddress,
+            FusionCacheVaryOnEncoding = existing.FusionCacheVaryOnEncoding,
+            OutputCacheVaryByHost = existing.OutputCacheVaryByHost,
         };
 
     private int NextStamp() => Interlocked.Increment(ref _stamp);
@@ -121,6 +159,10 @@ internal sealed class NullDomainRuntimeOverrideStore : IDomainRuntimeOverrideSto
     public DomainRuntimeOverride SetVersion(string domain, string version) =>
         throw new InvalidOperationException("Admin runtime overrides are disabled.");
 
+    public DomainRuntimeOverride PatchSettings(string domain, DomainSettingsPatch patch) =>
+        throw new InvalidOperationException("Admin runtime overrides are disabled.");
+
+    [Obsolete("Use PatchSettings.")]
     public DomainRuntimeOverride PatchTtl(string domain, DomainTtlPatch patch) =>
         throw new InvalidOperationException("Admin runtime overrides are disabled.");
 

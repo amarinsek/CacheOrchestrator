@@ -45,9 +45,9 @@ public static class MetricsPanelCatalog
         new()
         {
             Id = "request_rate",
-            Title = "Request rate",
+            Title = "RPS",
             Description =
-                "How many HTTP cache outcomes happen per second in this window. Higher means more traffic through Output Cache instrumentation (a good proxy for overall request volume).",
+                "Requests per second (RPS): how many HTTP cache outcomes happen per second in this window. Higher means more traffic through Output Cache instrumentation (a good proxy for overall request volume).",
             Unit = "rate",
         },
         new()
@@ -117,9 +117,9 @@ public static class MetricsPanelCatalog
         new()
         {
             Id = "factory_share",
-            Title = "Factory share (window)",
+            Title = "FA run % (window)",
             Description =
-                "Approximate factory share over the metrics window: FC miss rate / OC request rate (same window).",
+                "Approximate FA run share over the metrics window: FC miss rate / OC request rate (same window).",
             Unit = "percent",
         },
         new()

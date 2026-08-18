@@ -48,9 +48,12 @@ export function setRouteHandler(fn) {
   routeHandler = fn;
 }
 
+/** Allowed auto-refresh intervals (seconds), Grafana-style plus Off. */
+const AUTO_REFRESH_SEC = [0, 5, 10, 30, 60, 300, 900, 1800, 3600];
+
 export function getAutoRefreshSec() {
   const v = Number(localStorage.getItem(REFRESH_KEY) || "0");
-  return [0, 5, 10, 30, 60, 300].includes(v) ? v : 0;
+  return AUTO_REFRESH_SEC.includes(v) ? v : 0;
 }
 
 export function setAutoRefreshSec(sec) {
@@ -211,12 +214,12 @@ export function renderHeader(o, windowStats = null) {
     </span>
     <span class="hm" title="${esc(METRIC_TITLES.req)}">Req <strong>${req}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.inv)}">Inv <strong>${inv}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(pipe)}</span>
+    <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(pipe, false, { title: false })}</span>
     <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit % <strong>${oc}</strong></span>
     <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${fc}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">Factory % <strong>${fac}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">Time saved <strong>${timeSaved}</strong></span>
-    <span class="hm muted" title="Domains and endpoints with traffic in the selected time range">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
+    <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">FA run % <strong>${fac}</strong></span>
+    <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">EFTS <strong>${timeSaved}</strong></span>
+    <span class="hm muted" title="${esc(METRIC_TITLES.entities)}">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
     ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
   `;
   refreshMetricsStatusPill();

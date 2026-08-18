@@ -31,6 +31,8 @@ public sealed record MetricsWindow(
     /// <summary>
     /// Relative token (15m…7d) or <c>custom</c> for absolute from/to.
     /// Absolute wins when both from and to parse and to &gt; from.
+    /// Start/end are snapped down onto the <see cref="Step"/> grid so auto-refresh
+    /// does not slide <c>query_range</c> timestamps every few seconds (Grafana-style).
     /// </summary>
     public static MetricsWindow Resolve(string? range, string? from, string? to, DateTimeOffset now)
     {
@@ -40,13 +42,53 @@ public sealed record MetricsWindow(
         {
             if (t - f > TimeSpan.FromDays(31))
                 f = t - TimeSpan.FromDays(31);
-            return new MetricsWindow(f, t, MetricsRange.StepForDuration(t - f), "custom", IsAbsolute: true);
+            string step = MetricsRange.StepForDuration(t - f);
+            return SnapToStep(new MetricsWindow(f, t, step, "custom", IsAbsolute: true));
         }
 
         string resolved = MetricsRange.Normalize(range, "1h");
+        TimeSpan duration = MetricsRange.ToTimeSpan(resolved);
+        string stepToken = MetricsRange.StepFor(resolved);
         DateTimeOffset end = now;
-        DateTimeOffset start = end - MetricsRange.ToTimeSpan(resolved);
-        return new MetricsWindow(start, end, MetricsRange.StepFor(resolved), resolved, IsAbsolute: false);
+        DateTimeOffset start = end - duration;
+        return SnapToStep(new MetricsWindow(start, end, stepToken, resolved, IsAbsolute: false));
+    }
+
+    /// <summary>
+    /// Aligns window bounds to the step grid. Relative windows keep nominal duration
+    /// (<c>end_snapped - duration</c>); absolute windows floor both ends independently.
+    /// </summary>
+    public static MetricsWindow SnapToStep(MetricsWindow window)
+    {
+        long stepSec = MetricsRange.ParseStepSeconds(window.Step);
+        if (stepSec <= 1)
+            return window;
+
+        long endUnix = window.End.ToUnixTimeSeconds();
+        long startUnix = window.Start.ToUnixTimeSeconds();
+        long snappedEnd = MetricsRange.FloorUnixToStep(endUnix, stepSec);
+
+        long snappedStart;
+        if (window.IsAbsolute)
+        {
+            snappedStart = MetricsRange.FloorUnixToStep(startUnix, stepSec);
+        }
+        else
+        {
+            long durationSec = Math.Max(stepSec, endUnix - startUnix);
+            snappedStart = snappedEnd - durationSec;
+            // Duration tokens are multiples of step; keep start on-grid if clock skew intervened.
+            snappedStart = MetricsRange.FloorUnixToStep(snappedStart, stepSec);
+        }
+
+        if (snappedStart >= snappedEnd)
+            snappedStart = snappedEnd - stepSec;
+
+        return window with
+        {
+            Start = DateTimeOffset.FromUnixTimeSeconds(snappedStart).ToUniversalTime(),
+            End = DateTimeOffset.FromUnixTimeSeconds(snappedEnd).ToUniversalTime(),
+        };
     }
 
     /// <summary>Scrape / series label when instance id is missing on samples.</summary>

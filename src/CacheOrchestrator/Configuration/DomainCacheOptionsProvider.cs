@@ -154,8 +154,11 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
 
         ulong versionHash = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes(version));
         string versionHex = versionHash.ToString("x16");
+        ETagMode etagMode = overlay?.ETagMode
+            ?? dom.ETagMode
+            ?? defaults.ETagMode
+            ?? ETagMode.Version;
         StringValues etag = CacheETagFactory.FromVersion(version);
-        ETagMode etagMode = dom.ETagMode ?? defaults.ETagMode ?? ETagMode.Version;
 
         int outputTtlSeconds = overlay?.OutputCacheTtlSeconds
             ?? Pick(dom.OutputCacheTtlSeconds, defaults.OutputCacheTtlSeconds, 3700);
@@ -174,10 +177,14 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
         {
             Domain = domain,
             FusionCacheInstanceName = instanceName,
-            OutputCacheEnabled = Pick(dom.OutputCacheEnabled, defaults.OutputCacheEnabled, true),
-            FusionCacheEnabled = Pick(dom.FusionCacheEnabled, defaults.FusionCacheEnabled, true),
-            BypassWhenAuthenticated = Pick(dom.BypassWhenAuthenticated, defaults.BypassWhenAuthenticated, true),
-            VaryOutputCacheByUser = Pick(dom.VaryOutputCacheByUser, defaults.VaryOutputCacheByUser, true),
+            OutputCacheEnabled = overlay?.OutputCacheEnabled
+                ?? Pick(dom.OutputCacheEnabled, defaults.OutputCacheEnabled, true),
+            FusionCacheEnabled = overlay?.FusionCacheEnabled
+                ?? Pick(dom.FusionCacheEnabled, defaults.FusionCacheEnabled, true),
+            BypassWhenAuthenticated = overlay?.BypassWhenAuthenticated
+                ?? Pick(dom.BypassWhenAuthenticated, defaults.BypassWhenAuthenticated, true),
+            VaryOutputCacheByUser = overlay?.VaryOutputCacheByUser
+                ?? Pick(dom.VaryOutputCacheByUser, defaults.VaryOutputCacheByUser, true),
             Version = version,
             VersionHex = versionHex,
             ETagMode = etagMode,
@@ -185,11 +192,17 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
             CacheableStatusCodes = dom.CacheableStatusCodes ?? defaults.CacheableStatusCodes ?? [200],
             EncodingNormalizationList = dom.EncodingNormalizationList ?? defaults.EncodingNormalizationList,
 
-            ClientCacheability = dom.ClientCacheability ?? defaults.ClientCacheability ?? ClientCacheability.Public,
+            ClientCacheability = overlay?.ClientCacheability
+                ?? dom.ClientCacheability
+                ?? defaults.ClientCacheability
+                ?? ClientCacheability.Public,
             ClientTtlSeconds = clientTtlSeconds,
             ClientTtlMinSeconds = clientTtlMinSeconds,
-            ScheduledUpdateUtc = dom.ScheduledUpdateUtc ?? defaults.ScheduledUpdateUtc,
-            ClientMustRevalidateNearUpdate = Pick(dom.ClientMustRevalidateNearUpdate, defaults.ClientMustRevalidateNearUpdate, false),
+            ScheduledUpdateUtc = overlay?.ScheduledUpdateUtc
+                ?? dom.ScheduledUpdateUtc
+                ?? defaults.ScheduledUpdateUtc,
+            ClientMustRevalidateNearUpdate = overlay?.ClientMustRevalidateNearUpdate
+                ?? Pick(dom.ClientMustRevalidateNearUpdate, defaults.ClientMustRevalidateNearUpdate, false),
 
             OutputTtl = TimeSpan.FromSeconds(Math.Max(0, outputTtlSeconds)),
             FusionCacheSoftTtl = TimeSpan.FromSeconds(fusionSoftSeconds),
@@ -201,17 +214,28 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
                 ? inst.GetNamespace(instanceName, options)
                 : new CacheOrchestratorOptions.FusionCacheInstanceOptions().GetNamespace(instanceName, options),
 
-            FusionCacheEagerRefreshRatio = Pick(dom.FusionCacheEagerRefreshRatio, defaults.FusionCacheEagerRefreshRatio, 0.9),
-            FusionCacheJitterSeconds = Pick(dom.FusionCacheJitterSeconds, defaults.FusionCacheJitterSeconds, 60),
-            FusionCacheFactorySoftTimeoutSeconds = Pick(dom.FusionCacheFactorySoftTimeoutSeconds, defaults.FusionCacheFactorySoftTimeoutSeconds, 1),
-            FusionCacheFactoryHardTimeoutSeconds = Pick(dom.FusionCacheFactoryHardTimeoutSeconds, defaults.FusionCacheFactoryHardTimeoutSeconds, 5),
-            FusionCacheMaxItemBytes = Pick(dom.FusionCacheMaxItemBytes, defaults.FusionCacheMaxItemBytes, 0),
-            FusionCacheRespectNoStore = Pick(dom.FusionCacheRespectNoStore, defaults.FusionCacheRespectNoStore, true),
-            FusionCacheAllowBackgroundDistributed = Pick(dom.FusionCacheAllowBackgroundDistributed, defaults.FusionCacheAllowBackgroundDistributed, true),
-            FusionCacheAllowBackgroundBackplane = Pick(dom.FusionCacheAllowBackgroundBackplane, defaults.FusionCacheAllowBackgroundBackplane, true),
-            FusionCacheVaryOnPublicAddress = Pick(dom.FusionCacheVaryOnPublicAddress, defaults.FusionCacheVaryOnPublicAddress, true),
-            FusionCacheVaryOnEncoding = Pick(dom.FusionCacheVaryOnEncoding, defaults.FusionCacheVaryOnEncoding, true),
-            OutputCacheVaryByHost = Pick(dom.OutputCacheVaryByHost, defaults.OutputCacheVaryByHost, true),
+            FusionCacheEagerRefreshRatio = overlay?.FusionCacheEagerRefreshRatio
+                ?? Pick(dom.FusionCacheEagerRefreshRatio, defaults.FusionCacheEagerRefreshRatio, 0.9),
+            FusionCacheJitterSeconds = overlay?.FusionCacheJitterSeconds
+                ?? Pick(dom.FusionCacheJitterSeconds, defaults.FusionCacheJitterSeconds, 60),
+            FusionCacheFactorySoftTimeoutSeconds = overlay?.FusionCacheFactorySoftTimeoutSeconds
+                ?? Pick(dom.FusionCacheFactorySoftTimeoutSeconds, defaults.FusionCacheFactorySoftTimeoutSeconds, 1),
+            FusionCacheFactoryHardTimeoutSeconds = overlay?.FusionCacheFactoryHardTimeoutSeconds
+                ?? Pick(dom.FusionCacheFactoryHardTimeoutSeconds, defaults.FusionCacheFactoryHardTimeoutSeconds, 5),
+            FusionCacheMaxItemBytes = overlay?.FusionCacheMaxItemBytes
+                ?? Pick(dom.FusionCacheMaxItemBytes, defaults.FusionCacheMaxItemBytes, 0),
+            FusionCacheRespectNoStore = overlay?.FusionCacheRespectNoStore
+                ?? Pick(dom.FusionCacheRespectNoStore, defaults.FusionCacheRespectNoStore, true),
+            FusionCacheAllowBackgroundDistributed = overlay?.FusionCacheAllowBackgroundDistributed
+                ?? Pick(dom.FusionCacheAllowBackgroundDistributed, defaults.FusionCacheAllowBackgroundDistributed, true),
+            FusionCacheAllowBackgroundBackplane = overlay?.FusionCacheAllowBackgroundBackplane
+                ?? Pick(dom.FusionCacheAllowBackgroundBackplane, defaults.FusionCacheAllowBackgroundBackplane, true),
+            FusionCacheVaryOnPublicAddress = overlay?.FusionCacheVaryOnPublicAddress
+                ?? Pick(dom.FusionCacheVaryOnPublicAddress, defaults.FusionCacheVaryOnPublicAddress, true),
+            FusionCacheVaryOnEncoding = overlay?.FusionCacheVaryOnEncoding
+                ?? Pick(dom.FusionCacheVaryOnEncoding, defaults.FusionCacheVaryOnEncoding, true),
+            OutputCacheVaryByHost = overlay?.OutputCacheVaryByHost
+                ?? Pick(dom.OutputCacheVaryByHost, defaults.OutputCacheVaryByHost, true),
         };
     }
 }

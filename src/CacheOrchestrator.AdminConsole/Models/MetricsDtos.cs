@@ -247,4 +247,44 @@ public static class MetricsRange
         if (duration <= TimeSpan.FromHours(30)) return "24h";
         return "7d";
     }
+
+    /// <summary>
+    /// Parses a Prometheus duration token used as <c>query_range</c> step
+    /// (e.g. <c>15s</c>, <c>1m</c>, <c>2m</c>, <c>15m</c>, <c>1h</c>).
+    /// </summary>
+    /// <returns>Seconds, or 0 when the token is not a safe step duration.</returns>
+    public static long ParseStepSeconds(string? step)
+    {
+        if (string.IsNullOrWhiteSpace(step))
+            return 0;
+        string d = step.Trim();
+        if (d.Length is < 2 or > 8)
+            return 0;
+        for (int i = 0; i < d.Length - 1; i++)
+        {
+            if (!char.IsAsciiDigit(d[i]))
+                return 0;
+        }
+
+        if (!long.TryParse(d.AsSpan(0, d.Length - 1), out long n) || n <= 0)
+            return 0;
+
+        return d[^1] switch
+        {
+            's' => n,
+            'm' => n * 60,
+            'h' => n * 3600,
+            'd' => n * 86400,
+            _ => 0,
+        };
+    }
+
+    /// <summary>Floors a Unix-second timestamp onto a step grid (Grafana-style align).</summary>
+    public static long FloorUnixToStep(long unixSeconds, long stepSeconds)
+    {
+        if (stepSeconds <= 1)
+            return unixSeconds;
+        long rem = unixSeconds % stepSeconds;
+        return rem == 0 ? unixSeconds : unixSeconds - rem;
+    }
 }

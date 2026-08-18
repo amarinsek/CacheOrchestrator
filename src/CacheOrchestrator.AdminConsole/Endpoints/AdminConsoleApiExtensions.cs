@@ -85,6 +85,24 @@ public static class AdminConsoleApiExtensions
                     () => fanOut.PatchTtlAsync(domain, body, cancellationToken))
                 .ConfigureAwait(false));
 
+        api.MapGet("/domain-settings/catalog", async (
+            AdminFanOutService fanOut,
+            CancellationToken cancellationToken) =>
+        {
+            AdminDomainSettingsCatalogDto catalog =
+                await fanOut.GetDomainSettingsCatalogAsync(cancellationToken).ConfigureAwait(false);
+            return Results.Ok(catalog);
+        });
+
+        api.MapMethods("/domains/{domain}/settings", ["PATCH"], async (
+            string domain,
+            AdminConsoleSettingsPatchRequest body,
+            AdminFanOutService fanOut,
+            CancellationToken cancellationToken) =>
+            await ExecuteWriteAsync(
+                    () => fanOut.PatchSettingsAsync(domain, body, cancellationToken))
+                .ConfigureAwait(false));
+
         api.MapGet("/metrics/status", async (MetricsQueryService metrics, CancellationToken cancellationToken) =>
         {
             MetricsStatusDto status =
