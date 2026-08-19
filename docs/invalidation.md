@@ -61,10 +61,13 @@ CacheInvalidationResult r4 = await invalidator.InvalidateTagsAsync(
 | `Tags` | Tags targeted for eviction |
 | `FusionSucceeded` | All Fusion removals for this call succeeded |
 | `OutputSucceeded` | All Output Cache evictions succeeded |
-| `Succeeded` | Both layers succeeded |
-| `Errors` | Non-fatal messages (partial failure detail) |
+| `IsSkipped` | No-op (empty domain/tags); nothing was evicted |
+| `Succeeded` | Both layers succeeded **and** the call was not skipped. Cluster publish failures do not flip this. |
+| `Errors` | Non-fatal messages (partial failure or skip reason) |
 
-Empty input (null domain, no tags) → `CacheInvalidationResult.Skipped(...)` with `Succeeded == true` and no store calls.
+Empty input (null domain, no tags) → `CacheInvalidationResult.Skipped(...)` with `IsSkipped == true`, `Succeeded == false`, and no store calls.
+
+`ICacheInvalidationObserver` sees `CacheInvalidationKind.Domain` (or Entity / EntityKind / Tags) per operation. `InvalidateDomainsAsync` also fires one aggregate **`Domains`** before/after pair for the batch (per-domain callbacks still run).
 
 ### Tag formats (`CacheTags`)
 

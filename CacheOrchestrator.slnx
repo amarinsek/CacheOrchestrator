@@ -18,7 +18,10 @@
   <Folder Name="/tests/">
     <Project Path="tests/CacheOrchestrator.AdminConsole.UnitTests/CacheOrchestrator.AdminConsole.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.Benchmarks/CacheOrchestrator.Benchmarks.csproj" />
+    <Project Path="tests/CacheOrchestrator.Bus.UnitTests/CacheOrchestrator.Bus.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/CacheOrchestrator.EFCore.Invalidation.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.Redis.UnitTests/CacheOrchestrator.Redis.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.UnitTests/CacheOrchestrator.UnitTests.csproj" />
   </Folder>
 </Solution>

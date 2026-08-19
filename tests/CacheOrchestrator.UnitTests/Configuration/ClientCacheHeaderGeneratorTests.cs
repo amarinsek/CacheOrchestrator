@@ -134,6 +134,42 @@ public class ClientCacheHeaderGeneratorTests
     }
 
     [Fact]
+    public void InsideLastMinuteBeforeSchedule_StaysAtMinFloor()
+    {
+        var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        var now = schedule.AddSeconds(-1);
+        var result = ClientCacheHeaderGenerator.Build(
+            Cfg(ttl: 3600, ttlMin: 60, schedule: schedule), now);
+
+        result.Phase.Should().Be(ClientCacheSchedulePhase.Approaching);
+        result.MaxAgeSeconds.Should().Be(60);
+    }
+
+    [Fact]
+    public void CacheabilityOverride_Private_WinsOverPublicConfig()
+    {
+        var now = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
+        var result = ClientCacheHeaderGenerator.Build(
+            Cfg(ClientCacheability.Public, ttl: 90),
+            now,
+            ClientCacheability.Private);
+
+        result.Header.Should().Be("private, max-age=90");
+    }
+
+    [Fact]
+    public void MinGreaterThanMax_IsClampedToMax()
+    {
+        var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        var now = schedule.AddSeconds(-30);
+        var result = ClientCacheHeaderGenerator.Build(
+            Cfg(ttl: 60, ttlMin: 3600, schedule: schedule), now);
+
+        result.MaxAgeSeconds.Should().Be(60);
+        result.Phase.Should().Be(ClientCacheSchedulePhase.Approaching);
+    }
+
+    [Fact]
     public void NearFloor_WithMustRevalidate_AppendsMustRevalidate()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);

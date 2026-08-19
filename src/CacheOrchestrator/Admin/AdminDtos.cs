@@ -551,7 +551,11 @@ public sealed class AdminRuntimeOverrideFlagsDto
 /// <summary>Local Admin health response.</summary>
 public sealed class AdminHealthDto
 {
-    /// <summary>Always true when the endpoint responds.</summary>
+    /// <summary>
+    /// <see langword="true"/> when live counters can be read and every registered
+    /// <c>ICacheOrchestratorHealthProbe</c> succeeds. <see langword="false"/> means the instance
+    /// responded but is degraded (Admin Console maps this to Degraded). HTTP 200 is still returned.
+    /// </summary>
     public bool Healthy { get; init; } = true;
 
     /// <summary>Instance id.</summary>

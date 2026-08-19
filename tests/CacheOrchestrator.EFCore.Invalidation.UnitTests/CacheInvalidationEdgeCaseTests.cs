@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.UnitTests.EFCore;
+namespace CacheOrchestrator.EFCore.Invalidation.UnitTests;
 
 public class CacheInvalidationEdgeCaseTests
 {

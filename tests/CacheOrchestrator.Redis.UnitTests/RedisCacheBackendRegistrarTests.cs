@@ -6,7 +6,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CacheOrchestrator.UnitTests.Backends;
+namespace CacheOrchestrator.Redis.UnitTests;
 
 public class RedisCacheBackendRegistrarTests
 {

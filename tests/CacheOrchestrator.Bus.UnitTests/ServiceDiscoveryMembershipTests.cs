@@ -1,7 +1,7 @@
 using CacheOrchestrator.Bus;
 using System.Net;
 
-namespace CacheOrchestrator.UnitTests.Cluster;
+namespace CacheOrchestrator.Bus.UnitTests;
 
 public class ServiceDiscoveryMembershipTests
 {

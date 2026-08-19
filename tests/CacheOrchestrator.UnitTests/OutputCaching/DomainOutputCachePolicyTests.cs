@@ -1,12 +1,16 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using System.IO.Hashing;
+using System.IO.Pipelines;
+using System.Security.Claims;
 using System.Text;
 
 namespace CacheOrchestrator.UnitTests.OutputCaching;
@@ -32,6 +36,20 @@ public class DomainOutputCachePolicyTests
     {
         var act = () => new DomainOutputCachePolicy((Func<HttpContext, string>)null!);
         act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Constructor_WhenEntityKindIsGarbage_Throws()
+    {
+        var act = () => new DomainOutputCachePolicy("store", "id", "!!!");
+        act.Should().Throw<ArgumentException>().WithParameterName("entityKind");
+    }
+
+    [Fact]
+    public void Constructor_WhenEntityKindIsUsable_Normalizes()
+    {
+        var policy = new DomainOutputCachePolicy("store", "id", "Products");
+        policy.EntityKind.Should().Be("products");
     }
 
     // =========================
@@ -77,6 +95,7 @@ public class DomainOutputCachePolicyTests
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
         context.EnableOutputCaching.Should().BeFalse();
+        http.Response.Headers.CacheControl.ToString().Should().Be("no-store, no-cache, must-revalidate");
     }
 
     [Fact]
@@ -89,6 +108,7 @@ public class DomainOutputCachePolicyTests
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
         context.EnableOutputCaching.Should().BeFalse();
+        http.Response.Headers.CacheControl.ToString().Should().Be("no-store, no-cache, must-revalidate");
     }
 
     [Fact]
@@ -155,6 +175,44 @@ public class DomainOutputCachePolicyTests
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
         context.EnableOutputCaching.Should().BeFalse();
+        http.Response.Headers.CacheControl.ToString().Should().Be("no-store, no-cache, must-revalidate");
+    }
+
+    [Fact]
+    public async Task CacheRequestAsync_WhenCacheControlIsMaxAgeOnly_StillEnablesCaching()
+    {
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, http) = CreateContext();
+        http.Request.Headers.CacheControl = "private, max-age=60";
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+
+        context.EnableOutputCaching.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CacheRequestAsync_WhenCacheControlValueLooksLikeNoStore_StillEnablesCaching()
+    {
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, http) = CreateContext();
+        http.Request.Headers.CacheControl = "max-age=no-store";
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+
+        context.EnableOutputCaching.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CacheRequestAsync_WhenHead_EnablesCaching()
+    {
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, _) = CreateContext(method: "HEAD");
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+
+        context.EnableOutputCaching.Should().BeTrue();
+        context.AllowCacheLookup.Should().BeTrue();
+        context.AllowCacheStorage.Should().BeTrue();
     }
 
     // =========================
@@ -231,6 +289,33 @@ public class DomainOutputCachePolicyTests
         context.CacheVaryByRules.QueryKeys.Should().NotContain("fbclid");
     }
 
+    [Fact]
+    public async Task CacheRequestAsync_SetsDataVersionAndNamespacePrefix()
+    {
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, _) = CreateContext(version: "v1");
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+
+        ulong versionHash = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes("v1"));
+        context.CacheVaryByRules.VaryByValues["data-version"].ToString().Should().Be($"{versionHash:x16}");
+        context.CacheVaryByRules.CacheKeyPrefix.Should().Be("test-oc");
+    }
+
+    [Fact]
+    public async Task CacheRequestAsync_WhenEntityRoute_AddsEntityTags()
+    {
+        var policy = new DomainOutputCachePolicy("store", "id", "products");
+        var (context, http) = CreateContext(domain: "store");
+        http.Request.RouteValues["id"] = "42";
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+
+        context.Tags.Should().Contain("domain:store");
+        context.Tags.Should().Contain("entity:store:products:42");
+        context.Tags.Should().Contain("entitykind:store:products");
+    }
+
     // =========================
     // ServeResponseAsync
     // =========================
@@ -286,8 +371,123 @@ public class DomainOutputCachePolicyTests
     }
 
     // =========================
+    // OnStarting headers (X-Cache, schedule, client)
+    // =========================
+
+    [Fact]
+    public async Task ServeFromCacheAsync_ThenOnStarting_WritesHitWithoutData()
+    {
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, http) = CreateContext();
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+        await policy.ServeFromCacheAsync(context, CancellationToken.None);
+        await FlushHeadersAsync(http);
+
+        string xcache = http.Response.Headers["X-Cache"].ToString();
+        xcache.Should().Contain("output=hit");
+        xcache.Should().NotContain("data=");
+        xcache.Should().NotContain("ms=");
+        xcache.Should().Contain("phase=");
+        xcache.Should().Contain("domain=products");
+    }
+
+    [Fact]
+    public async Task OnStarting_WhenHoldSchedule_WritesFloorMaxAgeAndPhaseHold()
+    {
+        var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        var now = schedule.AddMinutes(5);
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, http) = CreateContext(
+            scheduledUpdateUtc: schedule,
+            clientTtlSeconds: 3600,
+            clientTtlMinSeconds: 90,
+            timeProvider: new FixedTimeProvider(now));
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+        await FlushHeadersAsync(http);
+
+        http.Response.Headers.CacheControl.ToString().Should().Be("public, max-age=90");
+        http.Response.Headers["X-Cache"].ToString().Should().Contain("phase=hold");
+    }
+
+    [Fact]
+    public async Task OnStarting_WhenFarFromSchedule_WritesMaxTtlAndPhaseCalm()
+    {
+        var schedule = new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
+        var now = schedule.AddHours(-2);
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, http) = CreateContext(
+            scheduledUpdateUtc: schedule,
+            clientTtlSeconds: 3600,
+            clientTtlMinSeconds: 90,
+            timeProvider: new FixedTimeProvider(now));
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+        await FlushHeadersAsync(http);
+
+        http.Response.Headers.CacheControl.ToString().Should().Be("public, max-age=3600");
+        http.Response.Headers["X-Cache"].ToString().Should().Contain("phase=calm");
+    }
+
+    [Fact]
+    public async Task OnStarting_WhenMidwayToSchedule_WritesLinearMaxAgeAndPhaseApproaching()
+    {
+        var schedule = new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
+        var now = schedule.AddSeconds(-1800);
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, http) = CreateContext(
+            scheduledUpdateUtc: schedule,
+            clientTtlSeconds: 3600,
+            clientTtlMinSeconds: 90,
+            timeProvider: new FixedTimeProvider(now));
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+        await FlushHeadersAsync(http);
+
+        http.Response.Headers.CacheControl.ToString().Should().Be("public, max-age=1800");
+        http.Response.Headers["X-Cache"].ToString().Should().Contain("phase=approaching");
+    }
+
+    [Fact]
+    public async Task OnStarting_WhenAuthenticatedAndPublic_ForcesPrivateClientHeader()
+    {
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, http) = CreateContext(bypassWhenAuthenticated: false);
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.Name, "alice")],
+            authenticationType: "test"));
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+        await FlushHeadersAsync(http);
+
+        http.Response.Headers.CacheControl.ToString().Should().StartWith("private, max-age=");
+        http.Response.Headers["X-Cache"].ToString().Should().Contain("client=private");
+    }
+
+    [Fact]
+    public async Task OnStarting_WhenEmitDiagnosticsHeadersFalse_OmitsXCache()
+    {
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, http) = CreateContext(
+            orchestratorOptions: new CacheOrchestratorOptions { EmitDiagnosticsHeaders = false });
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+        await FlushHeadersAsync(http);
+
+        http.Response.Headers.ContainsKey("X-Cache").Should().BeFalse();
+        http.Response.Headers.CacheControl.ToString().Should().Contain("max-age=");
+    }
+
+    // =========================
     // Helpers
     // =========================
+
+    private static Task FlushHeadersAsync(DefaultHttpContext http)
+    {
+        http.Response.StatusCode = 200;
+        return http.Response.StartAsync();
+    }
 
     private static (OutputCacheContext context, DefaultHttpContext http) CreateContext(
         string method = "GET",
@@ -295,9 +495,18 @@ public class DomainOutputCachePolicyTests
         int outputTtlSeconds = 60,
         string? version = null,
         bool bypassWhenAuthenticated = true,
-        bool varyOutputCacheByUser = true)
+        bool varyOutputCacheByUser = true,
+        string domain = "products",
+        DateTimeOffset? scheduledUpdateUtc = null,
+        int clientTtlSeconds = 60,
+        int clientTtlMinSeconds = 60,
+        TimeProvider? timeProvider = null,
+        CacheOrchestratorOptions? orchestratorOptions = null)
     {
         var http = new DefaultHttpContext();
+        var responseFeature = new OnStartingResponseFeature();
+        http.Features.Set<IHttpResponseFeature>(responseFeature);
+        http.Features.Set<IHttpResponseBodyFeature>(responseFeature);
         http.Request.Method = method;
         http.Request.Path = "/api/products";
 
@@ -306,19 +515,37 @@ public class DomainOutputCachePolicyTests
             outputTtlSeconds,
             version,
             bypassWhenAuthenticated,
-            varyOutputCacheByUser);
+            varyOutputCacheByUser,
+            domain,
+            scheduledUpdateUtc,
+            clientTtlSeconds,
+            clientTtlMinSeconds);
 
         var domainConfig = Substitute.For<IDomainCacheOptionsProvider>();
-        domainConfig.EnsureDomainOptions(http, Arg.Any<string>()).Returns(cfg);
+        domainConfig.EnsureDomainOptions(http, Arg.Any<string>()).Returns(call =>
+        {
+            http.Items[CacheOrchestratorKeys.DomainOptionsKey] = cfg;
+            return cfg;
+        });
 
         var services = new ServiceCollection();
         services.AddSingleton(domainConfig);
         services.AddSingleton(typeof(ILogger<DomainOutputCachePolicy>), NullLogger<DomainOutputCachePolicy>.Instance);
+        services.AddSingleton(timeProvider ?? TimeProvider.System);
+        if (orchestratorOptions is not null)
+        {
+            IOptionsMonitor<CacheOrchestratorOptions> monitor = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
+            monitor.CurrentValue.Returns(orchestratorOptions);
+            services.AddSingleton(monitor);
+        }
+
         http.RequestServices = services.BuildServiceProvider();
 
         var context = new OutputCacheContext
         {
-            HttpContext = http
+            HttpContext = http,
+            // Simulate the ASP.NET base policy already enabling GET/HEAD caching.
+            EnableOutputCaching = true
         };
 
         return (context, http);
@@ -329,9 +556,13 @@ public class DomainOutputCachePolicyTests
         int outputTtlSeconds = 60,
         string? version = null,
         bool bypassWhenAuthenticated = true,
-        bool varyOutputCacheByUser = true) => new()
+        bool varyOutputCacheByUser = true,
+        string domain = "products",
+        DateTimeOffset? scheduledUpdateUtc = null,
+        int clientTtlSeconds = 60,
+        int clientTtlMinSeconds = 60) => new()
         {
-            Domain = "products",
+            Domain = domain,
             OutputCacheEnabled = outputCacheEnabled,
             BypassWhenAuthenticated = bypassWhenAuthenticated,
             VaryOutputCacheByUser = varyOutputCacheByUser,
@@ -341,11 +572,71 @@ public class DomainOutputCachePolicyTests
             ETag = new StringValues($"W/\"{XxHash3.HashToUInt64(Encoding.UTF8.GetBytes(version ?? "1")):x16}\""),
             CacheableStatusCodes = [200],
             ClientCacheability = ClientCacheability.Public,
-            ClientTtlSeconds = 60,
-            ClientTtlMinSeconds = 60,
-            ScheduledUpdateUtc = null,
+            ClientTtlSeconds = clientTtlSeconds,
+            ClientTtlMinSeconds = clientTtlMinSeconds,
+            ScheduledUpdateUtc = scheduledUpdateUtc,
             ClientMustRevalidateNearUpdate = false,
             OutputCacheNamespace = "test-oc",
-            EncodingNormalizationList = null
+            EncodingNormalizationList = null,
+            ClientForcePrivateWhenAuthenticated = true,
         };
+
+    private sealed class FixedTimeProvider(DateTimeOffset utc) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utc;
+    }
+
+    /// <summary>
+    /// DefaultHttpContext's stock <see cref="IHttpResponseFeature.OnStarting"/> is a no-op.
+    /// This feature stores callbacks and fires them from <see cref="StartAsync"/>, matching Kestrel
+    /// (reverse order, <see cref="HasStarted"/> becomes true after callbacks so headers can still be set).
+    /// </summary>
+    private sealed class OnStartingResponseFeature : IHttpResponseFeature, IHttpResponseBodyFeature
+    {
+        private readonly List<(Func<object, Task> Callback, object State)> _onStarting = [];
+        private PipeWriter? _writer;
+
+        public int StatusCode { get; set; } = 200;
+        public string? ReasonPhrase { get; set; }
+        public IHeaderDictionary Headers { get; set; } = new HeaderDictionary();
+        public Stream Body { get; set; } = new MemoryStream();
+        public bool HasStarted { get; private set; }
+        public Stream Stream => Body;
+        public PipeWriter Writer => _writer ??= PipeWriter.Create(Body);
+
+        public void OnStarting(Func<object, Task> callback, object state)
+        {
+            ArgumentNullException.ThrowIfNull(callback);
+            if (HasStarted)
+                throw new InvalidOperationException("Headers already sent.");
+            _onStarting.Add((callback, state));
+        }
+
+        public void OnCompleted(Func<object, Task> callback, object state)
+        {
+        }
+
+        public async Task StartAsync(CancellationToken cancellationToken = default)
+        {
+            if (HasStarted)
+                return;
+
+            for (int i = _onStarting.Count - 1; i >= 0; i--)
+            {
+                (Func<object, Task> callback, object state) = _onStarting[i];
+                await callback(state);
+            }
+
+            HasStarted = true;
+        }
+
+        public Task CompleteAsync() => Task.CompletedTask;
+
+        public void DisableBuffering()
+        {
+        }
+
+        public Task SendFileAsync(string path, long offset, long? count, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
 }

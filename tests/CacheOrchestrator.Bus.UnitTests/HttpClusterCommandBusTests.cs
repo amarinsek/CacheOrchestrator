@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using System.Net;
 
-namespace CacheOrchestrator.UnitTests.Cluster;
+namespace CacheOrchestrator.Bus.UnitTests;
 
 public class HttpClusterCommandBusTests
 {

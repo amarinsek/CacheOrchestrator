@@ -39,8 +39,8 @@ Details: [output-cache.md — Base policy](output-cache.md#base-policy-and-endpo
 
 `IDomainFusionCache.GetOrSetAsync` needs a **domain**. Resolution order:
 
-1. Options already on the request (usually set by Output Cache policy)
-2. Explicit overload `GetOrSetAsync(http, domain, factory)`
+1. Explicit overload `GetOrSetAsync(http, domain, factory)` (replaces a different snapshot already on the request)
+2. Options already on the request (usually set by Output Cache policy)
 3. Endpoint metadata (`.CacheOutputWithDomain` / `[CacheDomain]`)
 4. Else: factory runs **without** Fusion caching
 
@@ -189,8 +189,9 @@ Bus does **not** share cache payloads. Details: [cluster-bus.md](cluster-bus.md)
 
 ## Tracking query parameters
 
-Known tracking prefixes (`utm_*`, `gclid`, `fbclid`, …) are stripped from **cache keys / vary rules** so campaigns do not fragment the cache.  
-They still reach your app on the request.
+Known tracking keys are stripped from **cache keys / vary rules** so campaigns do not fragment the cache:
+`utm_*`, click ids (`gclid`, `fbclid`, …), `_ga` / `_ga_*`, `_gl` / `_gl_*`.
+They still reach your app on the request. (`_game` is not tracking.)
 
 ---
 

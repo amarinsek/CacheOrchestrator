@@ -2,7 +2,7 @@ using CacheOrchestrator.Configuration;
 using CacheOrchestrator.EFCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace CacheOrchestrator.UnitTests.EFCore;
+namespace CacheOrchestrator.EFCore.Invalidation.UnitTests;
 
 public class EntityResourceIdFormatterTests
 {

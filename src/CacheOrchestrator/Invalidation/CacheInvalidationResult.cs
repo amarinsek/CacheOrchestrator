@@ -16,7 +16,8 @@ public sealed class CacheInvalidationResult
         bool fusionSucceeded,
         bool outputSucceeded,
         IReadOnlyList<string>? errors = null,
-        ClusterPublishResult? clusterPublish = null)
+        ClusterPublishResult? clusterPublish = null,
+        bool skipped = false)
     {
         Scope = scope ?? string.Empty;
         Tags = tags ?? [];
@@ -24,6 +25,7 @@ public sealed class CacheInvalidationResult
         OutputSucceeded = outputSucceeded;
         Errors = errors ?? [];
         ClusterPublish = clusterPublish;
+        IsSkipped = skipped;
     }
 
     /// <summary>Human-readable scope label (domain, domain/id, or joined tags).</summary>
@@ -38,8 +40,17 @@ public sealed class CacheInvalidationResult
     /// <summary><see langword="true"/> when all Output Cache evictions for this scope succeeded.</summary>
     public bool OutputSucceeded { get; }
 
-    /// <summary><see langword="true"/> when both Fusion and Output Cache fully succeeded.</summary>
-    public bool Succeeded => FusionSucceeded && OutputSucceeded;
+    /// <summary>
+    /// <see langword="true"/> when this call was a no-op (empty domain/tags).
+    /// <see cref="Succeeded"/> is <see langword="false"/> for skipped results.
+    /// </summary>
+    public bool IsSkipped { get; }
+
+    /// <summary>
+    /// <see langword="true"/> when both Fusion and Output Cache fully succeeded and the call was not skipped.
+    /// Cluster publish failures do not flip this flag.
+    /// </summary>
+    public bool Succeeded => !IsSkipped && FusionSucceeded && OutputSucceeded;
 
     /// <summary>Non-fatal error messages collected during best-effort invalidation.</summary>
     public IReadOnlyList<string> Errors { get; }
@@ -58,7 +69,8 @@ public sealed class CacheInvalidationResult
             tags: [],
             fusionSucceeded: true,
             outputSucceeded: true,
-            errors: string.IsNullOrWhiteSpace(reason) ? [] : [reason]);
+            errors: string.IsNullOrWhiteSpace(reason) ? [] : [reason],
+            skipped: true);
 
     /// <summary>
     /// Aggregates multiple domain results (for <see cref="ICacheOrchestratorInvalidator.InvalidateDomainsAsync"/>).
@@ -73,6 +85,7 @@ public sealed class CacheInvalidationResult
         List<string> errors = [];
         bool fusionOk = true;
         bool outputOk = true;
+        bool anyWork = false;
         List<string> scopes = [];
 
         foreach (CacheInvalidationResult part in parts)
@@ -82,6 +95,8 @@ public sealed class CacheInvalidationResult
             errors.AddRange(part.Errors);
             fusionOk &= part.FusionSucceeded;
             outputOk &= part.OutputSucceeded;
+            if (!part.IsSkipped)
+                anyWork = true;
         }
 
         return new CacheInvalidationResult(
@@ -89,6 +104,7 @@ public sealed class CacheInvalidationResult
             tags: tags,
             fusionSucceeded: fusionOk,
             outputSucceeded: outputOk,
-            errors: errors);
+            errors: errors,
+            skipped: !anyWork);
     }
 }

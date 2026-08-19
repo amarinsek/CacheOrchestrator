@@ -1,4 +1,5 @@
-﻿using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Diagnostics;
 using System.Diagnostics.Metrics;
 
 namespace CacheOrchestrator.UnitTests.Diagnostics;
@@ -11,6 +12,7 @@ public class CacheOrchestratorMetricsTests
         long? value = null;
         string? domain = null;
         string? result = null;
+        const string expectedDomain = "ut-metrics-fc-hit";
 
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
@@ -24,22 +26,19 @@ public class CacheOrchestratorMetricsTests
 
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
+            if (ReadTag(tags, "domain") != expectedDomain)
+                return;
             value = measurement;
-            foreach (var tag in tags)
-            {
-                if (tag.Key == "domain")
-                    domain = tag.Value?.ToString();
-                if (tag.Key == "result")
-                    result = tag.Value?.ToString();
-            }
+            domain = expectedDomain;
+            result = ReadTag(tags, "result");
         });
 
         listener.Start();
 
-        CacheOrchestratorMetrics.RecordFusion("catalog", "hit", 12);
+        CacheOrchestratorMetrics.RecordFusion(expectedDomain, "hit", 12);
 
         value.Should().Be(1);
-        domain.Should().Be("catalog");
+        domain.Should().Be(expectedDomain);
         result.Should().Be("hit");
     }
 
@@ -49,6 +48,7 @@ public class CacheOrchestratorMetricsTests
         double? duration = null;
         string? domain = null;
         string? result = null;
+        const string expectedDomain = "ut-metrics-fc-duration";
 
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
@@ -62,22 +62,19 @@ public class CacheOrchestratorMetricsTests
 
         listener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) =>
         {
+            if (ReadTag(tags, "domain") != expectedDomain)
+                return;
             duration = measurement;
-            foreach (var tag in tags)
-            {
-                if (tag.Key == "domain")
-                    domain = tag.Value?.ToString();
-                if (tag.Key == "result")
-                    result = tag.Value?.ToString();
-            }
+            domain = expectedDomain;
+            result = ReadTag(tags, "result");
         });
 
         listener.Start();
 
-        CacheOrchestratorMetrics.RecordFusion("products", "miss", 45.5);
+        CacheOrchestratorMetrics.RecordFusion(expectedDomain, "miss", 45.5);
 
         duration.Should().Be(45.5);
-        domain.Should().Be("products");
+        domain.Should().Be(expectedDomain);
         result.Should().Be("miss");
     }
 
@@ -86,6 +83,7 @@ public class CacheOrchestratorMetricsTests
     {
         long? value = null;
         string? result = null;
+        const string expectedDomain = "ut-metrics-fc-bypass";
 
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
@@ -99,17 +97,15 @@ public class CacheOrchestratorMetricsTests
 
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
+            if (ReadTag(tags, "domain") != expectedDomain)
+                return;
             value = measurement;
-            foreach (var tag in tags)
-            {
-                if (tag.Key == "result")
-                    result = tag.Value?.ToString();
-            }
+            result = ReadTag(tags, "result");
         });
 
         listener.Start();
 
-        CacheOrchestratorMetrics.RecordFusion("catalog", "bypass");
+        CacheOrchestratorMetrics.RecordFusion(expectedDomain, "bypass");
 
         value.Should().Be(1);
         result.Should().Be("bypass");
@@ -121,6 +117,7 @@ public class CacheOrchestratorMetricsTests
         long? value = null;
         string? domain = null;
         string? result = null;
+        const string expectedDomain = "ut-metrics-oc-hit";
 
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
@@ -134,22 +131,19 @@ public class CacheOrchestratorMetricsTests
 
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
+            if (ReadTag(tags, "domain") != expectedDomain)
+                return;
             value = measurement;
-            foreach (var tag in tags)
-            {
-                if (tag.Key == "domain")
-                    domain = tag.Value?.ToString();
-                if (tag.Key == "result")
-                    result = tag.Value?.ToString();
-            }
+            domain = expectedDomain;
+            result = ReadTag(tags, "result");
         });
 
         listener.Start();
 
-        CacheOrchestratorMetrics.RecordOutput("catalog", "hit");
+        CacheOrchestratorMetrics.RecordOutput(expectedDomain, "hit");
 
         value.Should().Be(1);
-        domain.Should().Be("catalog");
+        domain.Should().Be(expectedDomain);
         result.Should().Be("hit");
     }
 
@@ -158,6 +152,7 @@ public class CacheOrchestratorMetricsTests
     {
         long? value = null;
         string? domain = null;
+        const string expectedDomain = "ut-metrics-invalidate";
 
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
@@ -171,26 +166,25 @@ public class CacheOrchestratorMetricsTests
 
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
+            if (ReadTag(tags, "domain") != expectedDomain)
+                return;
             value = measurement;
-            foreach (var tag in tags)
-            {
-                if (tag.Key == "domain")
-                    domain = tag.Value?.ToString();
-            }
+            domain = expectedDomain;
         });
 
         listener.Start();
 
-        CacheOrchestratorMetrics.RecordInvalidate("catalog");
+        CacheOrchestratorMetrics.RecordInvalidate(expectedDomain);
 
         value.Should().Be(1);
-        domain.Should().Be("catalog");
+        domain.Should().Be(expectedDomain);
     }
 
     [Fact]
     public void RecordInvalidate_RefusesPathLikeDomain()
     {
         long? value = null;
+        const string pathLike = "product-crud/products/42";
 
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
@@ -204,13 +198,15 @@ public class CacheOrchestratorMetricsTests
 
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
+            if (ReadTag(tags, "domain") != pathLike)
+                return;
             value = measurement;
         });
 
         listener.Start();
 
         // Legacy bug: entity scope was passed as domain label — must not emit a series.
-        CacheOrchestratorMetrics.RecordInvalidate("product-crud/products/42");
+        CacheOrchestratorMetrics.RecordInvalidate(pathLike);
 
         value.Should().BeNull();
     }
@@ -221,6 +217,7 @@ public class CacheOrchestratorMetricsTests
         long? value = null;
         string? domain = null;
         string? phase = null;
+        const string expectedDomain = "ut-metrics-schedule-hold";
 
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
@@ -234,22 +231,32 @@ public class CacheOrchestratorMetricsTests
 
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
+            if (ReadTag(tags, "domain") != expectedDomain)
+                return;
             value = measurement;
-            foreach (var tag in tags)
-            {
-                if (tag.Key == "domain")
-                    domain = tag.Value?.ToString();
-                if (tag.Key == "phase")
-                    phase = tag.Value?.ToString();
-            }
+            domain = expectedDomain;
+            phase = ReadTag(tags, "phase");
         });
 
         listener.Start();
 
-        CacheOrchestratorMetrics.RecordClientSchedule("catalog", "hold-after-version");
+        CacheOrchestratorMetrics.RecordClientSchedule(
+            expectedDomain,
+            XCacheHeaderFormatter.PhaseToString(ClientCacheSchedulePhase.Hold));
 
         value.Should().Be(1);
-        domain.Should().Be("catalog");
-        phase.Should().Be("hold-after-version");
+        domain.Should().Be(expectedDomain);
+        phase.Should().Be("hold");
+    }
+
+    private static string? ReadTag(ReadOnlySpan<KeyValuePair<string, object?>> tags, string key)
+    {
+        foreach (var tag in tags)
+        {
+            if (tag.Key == key)
+                return tag.Value?.ToString();
+        }
+
+        return null;
     }
 }

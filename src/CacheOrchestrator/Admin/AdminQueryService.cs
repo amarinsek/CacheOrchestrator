@@ -1,4 +1,5 @@
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Diagnostics;
 using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.Admin;
@@ -15,6 +16,7 @@ internal sealed class AdminQueryService
     private readonly IDomainRuntimeOverrideStore _overrides;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly TimeProvider _time;
+    private readonly ICacheOrchestratorHealthProbe[] _probes;
 
     public AdminQueryService(
         IAdminStatsCollector stats,
@@ -22,7 +24,8 @@ internal sealed class AdminQueryService
         IDomainCacheOptionsProvider domainOptions,
         IDomainRuntimeOverrideStore overrides,
         IOptionsMonitor<CacheOrchestratorOptions> options,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IEnumerable<ICacheOrchestratorHealthProbe>? probes = null)
     {
         ArgumentNullException.ThrowIfNull(stats);
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -36,15 +39,17 @@ internal sealed class AdminQueryService
         _overrides = overrides;
         _options = options;
         _time = timeProvider ?? TimeProvider.System;
+        _probes = probes is null ? [] : [.. probes];
     }
 
-    public AdminHealthDto GetHealth()
+    public async Task<AdminHealthDto> GetHealthAsync(CancellationToken cancellationToken = default)
     {
         CacheOrchestratorOptions.AdminOptions admin = _options.CurrentValue.Admin;
         DateTimeOffset now = _time.GetUtcNow();
         DateTimeOffset started = AdminProcessInfo.StartedAtUtc;
         long uptimeSeconds = (long)Math.Max(0, (now - started).TotalSeconds);
         long requests = 0;
+        bool statsOk = true;
         try
         {
             AdminLiveStatsRawSnapshot snap = _stats.GetRawSnapshot();
@@ -58,12 +63,28 @@ internal sealed class AdminQueryService
         }
         catch
         {
-            // Health must not fail if counters are unavailable.
+            statsOk = false;
+        }
+
+        bool probesOk = true;
+        for (int i = 0; i < _probes.Length; i++)
+        {
+            ICacheOrchestratorHealthProbe probe = _probes[i];
+            try
+            {
+                using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(2));
+                await probe.ProbeAsync(cts.Token).ConfigureAwait(false);
+            }
+            catch
+            {
+                probesOk = false;
+            }
         }
 
         return new AdminHealthDto
         {
-            Healthy = true,
+            Healthy = statsOk && probesOk,
             InstanceId = AdminInstanceId.Resolve(_options.CurrentValue),
             UtcNow = now,
             AdminEnabled = admin.Enabled,

@@ -6,8 +6,8 @@ FusionCache stores **serializable objects** (JSON via System.Text.Json): L1 in m
 
 `IDomainFusionCache.GetOrSetAsync` looks for domain options in this order:
 
-1. Already on the request — usually set by Output Cache when you use `.CacheOutputWithDomain` or `[CacheDomain]`.
-2. The overload `GetOrSetAsync(http, domain, factory)`.
+1. The overload `GetOrSetAsync(http, domain, factory)` — same domain reuses the request snapshot; a **different** name replaces it (so `products` and `catalog` never share an entry).
+2. Already on the request — usually set by Output Cache when you use `.CacheOutputWithDomain` or `[CacheDomain]`.
 3. Endpoint metadata (the same attribute or extension), then the options are loaded.
 4. If none of those apply, the factory runs uncached.
 

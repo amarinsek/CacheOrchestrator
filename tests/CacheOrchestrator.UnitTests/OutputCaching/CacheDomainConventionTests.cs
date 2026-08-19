@@ -41,6 +41,7 @@ public class CacheDomainConventionTests
         {
             var policy = action.Filters.OfType<DomainOutputCachePolicy>().SingleOrDefault();
             policy.Should().NotBeNull();
+            policy!.FixedDomain.Should().Be("products");
         }
     }
 
@@ -78,9 +79,8 @@ public class CacheDomainConventionTests
         var action = application.Controllers[0].Actions
             .Single(a => a.ActionName == nameof(ControllerWithBothAttributes.GetDetail));
 
-        // We can only verify that exactly one policy was added.
-        // The domain value is private inside the policy, so we check count.
-        action.Filters.OfType<DomainOutputCachePolicy>().Should().HaveCount(1);
+        DomainOutputCachePolicy policy = action.Filters.OfType<DomainOutputCachePolicy>().Should().ContainSingle().Subject;
+        policy.FixedDomain.Should().Be("product-detail");
     }
 
     // =========================

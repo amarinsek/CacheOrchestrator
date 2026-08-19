@@ -36,6 +36,10 @@ public class HttpHelperTests
     [InlineData("category")]
     [InlineData("")]
     [InlineData(null)]
+    [InlineData("_game")]
+    [InlineData("_galaxy")]
+    [InlineData("_global")]
+    [InlineData("ga")]
     public void IsTrackingParameter_NormalKeys_ReturnsFalse(string? key) =>
         HttpHelper.IsTrackingParameter(key!).Should().BeFalse();
 
@@ -68,6 +72,14 @@ public class HttpHelperTests
     public void ContainsCacheDirective_WhenEmpty_ReturnsFalse()
     {
         HttpHelper.ContainsCacheDirective(StringValues.Empty, "no-store").Should().BeFalse();
+    }
+
+    [Fact]
+    public void ContainsCacheDirective_DoesNotMatchSubstringTokens()
+    {
+        HttpHelper.ContainsCacheDirective(new("s-maxage=60"), "max-age").Should().BeFalse();
+        HttpHelper.ContainsCacheDirective(new("no-storey"), "no-store").Should().BeFalse();
+        HttpHelper.ContainsCacheDirective(new("max-age=no-store"), "no-store").Should().BeFalse();
     }
 
     // =========================
@@ -132,5 +144,49 @@ public class HttpHelperTests
         HttpHelper.NormalizeAcceptEncoding(http, ["gzip"]);
 
         http.Request.Headers.AcceptEncoding.ToString().Should().Be("gzip");
+    }
+
+    [Fact]
+    public void NormalizeAccept_JsonSeq_DoesNotMatchJson()
+    {
+        var http = new DefaultHttpContext();
+        http.Request.Headers.Accept = "application/json-seq";
+
+        HttpHelper.NormalizeAccept(http, ["application/json", "application/xml"]);
+
+        http.Request.Headers.Accept.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void NormalizeAccept_IgnoresQParameter()
+    {
+        var http = new DefaultHttpContext();
+        http.Request.Headers.Accept = "text/html, application/json;q=0.9";
+
+        HttpHelper.NormalizeAccept(http, ["application/xml", "application/json"]);
+
+        http.Request.Headers.Accept.ToString().Should().Be("application/json");
+    }
+
+    [Fact]
+    public void NormalizeAcceptLanguage_EnMatchesEnUs()
+    {
+        var http = new DefaultHttpContext();
+        http.Request.Headers.AcceptLanguage = "en-US, sl;q=0.8";
+
+        HttpHelper.NormalizeAcceptLanguage(http, ["en", "sl"]);
+
+        http.Request.Headers.AcceptLanguage.ToString().Should().Be("en");
+    }
+
+    [Fact]
+    public void NormalizeAcceptLanguage_DoesNotMatchUnrelatedPrefix()
+    {
+        var http = new DefaultHttpContext();
+        http.Request.Headers.AcceptLanguage = "ena";
+
+        HttpHelper.NormalizeAcceptLanguage(http, ["en"]);
+
+        http.Request.Headers.AcceptLanguage.ToString().Should().BeEmpty();
     }
 }

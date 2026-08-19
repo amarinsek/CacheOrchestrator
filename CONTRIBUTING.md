@@ -20,11 +20,17 @@ dotnet build CacheOrchestrator.slnx -c Release
 ## Tests
 
 ```bash
-# Unit tests — multi-target net8.0 + net10.0 (library coverage). Admin Console App tests run only under net10.0.
+# Unit tests — multi-target net8.0 + net10.0 per library package.
 dotnet test tests/CacheOrchestrator.UnitTests -c Release
-# Or one TFM:
-dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net8.0   # libraries only (no Admin tests)
-dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net10.0  # libraries + Admin
+dotnet test tests/CacheOrchestrator.Redis.UnitTests -c Release
+dotnet test tests/CacheOrchestrator.Bus.UnitTests -c Release
+dotnet test tests/CacheOrchestrator.EFCore.Invalidation.UnitTests -c Release
+# Or one TFM, e.g.:
+dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net8.0
+dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net10.0
+
+# Admin Console App tests are net10.0 only
+dotnet test tests/CacheOrchestrator.AdminConsole.UnitTests -c Release -f net10.0
 
 # Integration tests — multi-target net8.0 + net10.0 (matches published library TFMs)
 # - InMemory tests: no Docker

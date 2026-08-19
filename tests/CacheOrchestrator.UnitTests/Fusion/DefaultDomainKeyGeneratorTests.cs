@@ -261,6 +261,16 @@ public class DefaultDomainKeyGeneratorTests
         key1.Should().Be(key2);
     }
 
+    [Fact]
+    public void Generate_DoesNotTreatGameQueryAsTracking()
+    {
+        var cfg = CreateConfig();
+        string withGame = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "42", ["_game"] = "1" }));
+        string without = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "42" }));
+
+        withGame.Should().NotBe(without);
+    }
+
     // =========================
     // Accept-Encoding
     // =========================
@@ -285,6 +295,65 @@ public class DefaultDomainKeyGeneratorTests
         string key2 = _sut.Generate(cfg, CreateHttpContext(acceptEncoding: "br"));
 
         key1.Should().Be(key2);
+    }
+
+    [Fact]
+    public void Generate_WithAcceptNormalization_DoesNotLeaveMutatedRequestHeaders()
+    {
+        var cfg = new DomainCacheOptions
+        {
+            Domain = "products",
+            Version = "1",
+            VersionHex = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes("1")).ToString("x16"),
+            FusionCacheVaryOnEncoding = false,
+            FusionCacheVaryOnPublicAddress = false,
+            VaryByAccept = true,
+            AcceptNormalizationList = ["application/json", "application/xml"],
+        };
+
+        const string original = "text/html, application/json;q=0.9";
+        var http = CreateHttpContext(accept: original);
+
+        _ = _sut.Generate(cfg, http);
+
+        http.Request.Headers.Accept.ToString().Should().Be(original);
+    }
+
+    [Fact]
+    public void Generate_AcceptNormalization_SamePreferMatch_ProducesSameKey()
+    {
+        var cfg = new DomainCacheOptions
+        {
+            Domain = "products",
+            Version = "1",
+            VersionHex = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes("1")).ToString("x16"),
+            FusionCacheVaryOnEncoding = false,
+            FusionCacheVaryOnPublicAddress = false,
+            VaryByAccept = true,
+            AcceptNormalizationList = ["application/json", "application/xml"],
+        };
+
+        string key1 = _sut.Generate(cfg, CreateHttpContext(accept: "text/html, application/json;q=0.9"));
+        string key2 = _sut.Generate(cfg, CreateHttpContext(accept: "application/json"));
+
+        key1.Should().Be(key2);
+    }
+
+    [Fact]
+    public void Generate_AfterEntityItemsCleared_UsesUrlKeyShape()
+    {
+        var cfg = CreateConfig(domain: "products");
+        var http = CreateHttpContext();
+        http.Items[CacheOrchestratorKeys.EntityKindKey] = "items";
+        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
+        string entityKey = _sut.Generate(cfg, http);
+
+        http.Items.Remove(CacheOrchestratorKeys.EntityKindKey);
+        http.Items.Remove(CacheOrchestratorKeys.ResourceIdKey);
+        string urlKey = _sut.Generate(cfg, http);
+
+        entityKey.Should().Contain(":id:items:42:");
+        urlKey.Should().NotContain(":id:");
     }
 
     [Fact]

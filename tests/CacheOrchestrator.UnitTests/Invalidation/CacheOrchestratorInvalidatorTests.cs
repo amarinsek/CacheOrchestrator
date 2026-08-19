@@ -60,7 +60,8 @@ public class CacheOrchestratorInvalidatorTests
         CacheInvalidationResult result =
             await _sut.InvalidateDomainAsync(domain!, TestContext.Current.CancellationToken);
 
-        result.Succeeded.Should().BeTrue();
+        result.IsSkipped.Should().BeTrue();
+        result.Succeeded.Should().BeFalse();
         result.Scope.Should().Be("(skipped)");
         result.Errors.Should().NotBeEmpty();
 
@@ -122,6 +123,10 @@ public class CacheOrchestratorInvalidatorTests
             "entity:store:products:42",
             Arg.Any<FusionCacheEntryOptions?>(),
             Arg.Any<CancellationToken>());
+
+        await _outputCacheStore.Received(1).EvictByTagAsync(
+            "entity:store:products:42",
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -141,6 +146,11 @@ public class CacheOrchestratorInvalidatorTests
             "entity:store:products:42", Arg.Any<FusionCacheEntryOptions?>(), Arg.Any<CancellationToken>());
         await _defaultFusion.Received(1).RemoveByTagAsync(
             "entity:store:products:7", Arg.Any<FusionCacheEntryOptions?>(), Arg.Any<CancellationToken>());
+
+        await _outputCacheStore.Received(1).EvictByTagAsync(
+            "entity:store:products:42", Arg.Any<CancellationToken>());
+        await _outputCacheStore.Received(1).EvictByTagAsync(
+            "entity:store:products:7", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -157,6 +167,49 @@ public class CacheOrchestratorInvalidatorTests
             "entitykind:store:products",
             Arg.Any<FusionCacheEntryOptions?>(),
             Arg.Any<CancellationToken>());
+
+        await _outputCacheStore.Received(1).EvictByTagAsync(
+            "entitykind:store:products",
+            Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("!!!")]
+    [InlineData("---")]
+    public async Task InvalidateEntityAsync_WhenEntityKindIsGarbage_ReturnsSkipped(string kind)
+    {
+        CacheInvalidationResult result =
+            await _sut.InvalidateEntityAsync("store", kind, "42", TestContext.Current.CancellationToken);
+
+        result.IsSkipped.Should().BeTrue();
+        result.Succeeded.Should().BeFalse();
+
+        await _defaultFusion.DidNotReceiveWithAnyArgs()
+            .RemoveByTagAsync(Arg.Any<string>(), Arg.Any<FusionCacheEntryOptions?>(), Arg.Any<CancellationToken>());
+        await _outputCacheStore.DidNotReceiveWithAnyArgs()
+            .EvictByTagAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InvalidateEntityKindAsync_WhenEntityKindIsGarbage_ReturnsSkipped()
+    {
+        CacheInvalidationResult result =
+            await _sut.InvalidateEntityKindAsync("store", "!!!", TestContext.Current.CancellationToken);
+
+        result.IsSkipped.Should().BeTrue();
+        result.Succeeded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task InvalidateDomainsAsync_WhenNoDomains_ReturnsSkippedNotSucceeded()
+    {
+        CacheInvalidationResult result = await _sut.InvalidateDomainsAsync(
+            ["", "  "],
+            TestContext.Current.CancellationToken);
+
+        result.IsSkipped.Should().BeTrue();
+        result.Succeeded.Should().BeFalse();
+        result.Scope.Should().Be("(skipped)");
     }
 
     [Fact]
@@ -336,5 +389,37 @@ public class CacheOrchestratorInvalidatorTests
         result.Succeeded.Should().BeTrue();
         await _defaultFusion.Received(1).RemoveByTagAsync(
             "domain:products", Arg.Any<FusionCacheEntryOptions?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InvalidateDomainsAsync_NotifiesObserversWithDomainsKind()
+    {
+        ICacheInvalidationObserver observer = Substitute.For<ICacheInvalidationObserver>();
+        _observers.Add(observer);
+
+        CacheInvalidationResult result = await _sut.InvalidateDomainsAsync(
+            ["products", "catalog"],
+            TestContext.Current.CancellationToken);
+
+        result.Succeeded.Should().BeTrue();
+
+        await observer.Received(1).OnBeforeInvalidateAsync(
+            Arg.Is<CacheInvalidationContext>(c =>
+                c.Kind == CacheInvalidationKind.Domains
+                && c.Tags.Contains("domain:products")
+                && c.Tags.Contains("domain:catalog")),
+            Arg.Any<CancellationToken>());
+
+        await observer.Received(1).OnAfterInvalidateAsync(
+            Arg.Is<CacheInvalidationContext>(c => c.Kind == CacheInvalidationKind.Domains),
+            Arg.Is<CacheInvalidationResult>(r => r.Succeeded),
+            Arg.Any<CancellationToken>());
+
+        await observer.Received(1).OnBeforeInvalidateAsync(
+            Arg.Is<CacheInvalidationContext>(c => c.Kind == CacheInvalidationKind.Domain && c.Scope == "products"),
+            Arg.Any<CancellationToken>());
+        await observer.Received(1).OnBeforeInvalidateAsync(
+            Arg.Is<CacheInvalidationContext>(c => c.Kind == CacheInvalidationKind.Domain && c.Scope == "catalog"),
+            Arg.Any<CancellationToken>());
     }
 }

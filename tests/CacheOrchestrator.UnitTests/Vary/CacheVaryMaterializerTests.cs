@@ -205,6 +205,32 @@ public class CacheVaryMaterializerTests
         http.Request.Headers.Accept.ToString().Should().Be("application/json");
     }
 
+    [Fact]
+    public void AcceptNormalization_DoesNotMatchJsonSeqAsJson()
+    {
+        var http = CreateHttp(accept: "application/json-seq");
+        var opts = CreateOptions(
+            varyByAccept: true,
+            acceptNormalization: ["application/json", "application/xml"]);
+
+        _ = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
+
+        http.Request.Headers.Accept.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AcceptNormalization_UsesFirstPreferThatIsPresent()
+    {
+        var http = CreateHttp(accept: "application/json");
+        var opts = CreateOptions(
+            varyByAccept: true,
+            acceptNormalization: ["application/xml", "application/json"]);
+
+        _ = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
+
+        http.Request.Headers.Accept.ToString().Should().Be("application/json");
+    }
+
     private static DomainCacheOptions CreateOptions(
         bool varyEncoding = false,
         bool varyByAccept = false,

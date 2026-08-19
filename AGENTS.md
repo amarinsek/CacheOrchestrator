@@ -22,7 +22,7 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 - Target frameworks: libraries `net8.0` + `net10.0`; Admin Console App `net10.0` only; samples typically net10  
 - Version: **MinVer** from Git tags `v*` (do not hardcode `<Version>` in Directory.Build.props)  
 - Samples: `samples/CacheOrchestrator.Minimal` (1-minute InMemory), `samples/CacheOrchestrator.Sample` (playground; Redis package)  
-- Tests: `tests/CacheOrchestrator.UnitTests` (net8+net10 for libraries), `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only; Admin Console App), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
+- Tests: `tests/CacheOrchestrator.UnitTests` (core, net8+net10), `tests/CacheOrchestrator.Redis.UnitTests`, `tests/CacheOrchestrator.Bus.UnitTests`, `tests/CacheOrchestrator.EFCore.Invalidation.UnitTests` (net8+net10), `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only; Admin Console App), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
 
 ## Non-goals
 
@@ -42,8 +42,8 @@ Domain (config name)
 
 **Domain for FusionCache** (`IDomainFusionCache.GetOrSetAsync`):
 
-1. Options already on request (Output Cache policy usually set them via `.CacheOutputWithDomain` / `[CacheDomain]`).  
-2. Else explicit overload `GetOrSetAsync(http, domain, factory)`.  
+1. Explicit overload `GetOrSetAsync(http, domain, factory)` — same name reuses the request snapshot; a different name **replaces** it.  
+2. Else options already on request (Output Cache policy usually set them via `.CacheOutputWithDomain` / `[CacheDomain]`).  
 3. Else resolve domain from endpoint metadata (`DomainOutputCachePolicy` / `CacheDomainAttribute`) and `EnsureDomainOptions`.  
 4. Else factory runs **uncached**.
 
@@ -128,7 +128,13 @@ src/CacheOrchestrator.Redis/    Redis package: registrar, RedisConnectionOptions
 src/CacheOrchestrator.Bus/      HTTP cluster bus + Static membership + cluster receive endpoints
 src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges interceptor (not an EF cache provider)
 src/CacheOrchestrator.AdminConsole/    Admin Console App host (fan-out, UI, Scalar; not packable)
-tests/
+tests/CacheOrchestrator.UnitTests/          core library unit tests
+tests/CacheOrchestrator.Redis.UnitTests/
+tests/CacheOrchestrator.Bus.UnitTests/
+tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/
+tests/CacheOrchestrator.AdminConsole.UnitTests/
+tests/CacheOrchestrator.IntegrationTests/
+tests/CacheOrchestrator.Benchmarks/
 samples/
 docs/                human technical docs
 ```
@@ -143,7 +149,7 @@ docs/                human technical docs
 ## Safe change checklist
 
 1. Build solution (`CacheOrchestrator.slnx`)  
-2. Run unit tests (`tests/CacheOrchestrator.UnitTests`)  
+2. Run unit tests (`tests/CacheOrchestrator.UnitTests` plus Redis / Bus / EFCore.Invalidation unit-test projects when those packages change)  
 3. Update sample if public API or config surface changes  
 4. Avoid introducing `CacheOrchestrator.Abstractions` again  
 5. Avoid reintroducing Slovenian comments or `ct` as public parameter names  

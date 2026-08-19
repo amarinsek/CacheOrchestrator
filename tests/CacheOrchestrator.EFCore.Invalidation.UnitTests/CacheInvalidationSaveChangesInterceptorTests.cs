@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.UnitTests.EFCore;
+namespace CacheOrchestrator.EFCore.Invalidation.UnitTests;
 
 public class CacheInvalidationSaveChangesInterceptorTests
 {

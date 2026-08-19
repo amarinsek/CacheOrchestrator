@@ -62,6 +62,95 @@ public class DomainAuthEvaluatorTests
         DomainAuthEvaluator.ShouldBypassForAuth(http, opts).Should().BeFalse();
     }
 
+    [Fact]
+    public void ResolveAuthenticatedVaryKey_UsesNamePrefix()
+    {
+        HttpContext http = CreateHttp(authenticated: true, hasAuthorization: false);
+        DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
+
+        DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("u:user");
+    }
+
+    [Fact]
+    public void ResolveAuthenticatedVaryKey_UsesSortedClaims()
+    {
+        var http = new DefaultHttpContext();
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim("tenant_id", "acme"), new Claim("role", "admin"), new Claim(ClaimTypes.Name, "carol")],
+            authenticationType: "test"));
+        DomainCacheOptions opts = new()
+        {
+            AuthBypassMode = AuthBypassMode.Never,
+            VaryByAuthClaims = ["tenant_id", "role"],
+        };
+
+        DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts)
+            .Should().Be("claims:role=admin;tenant_id=acme");
+    }
+
+    [Fact]
+    public void ResolveAuthenticatedVaryKey_HashesAuthorization_AndDoesNotLeakToken()
+    {
+        HttpContext http = CreateHttp(authenticated: false, hasAuthorization: true);
+        DomainCacheOptions opts = new()
+        {
+            AuthBypassMode = AuthBypassMode.Never,
+            AuthVaryIncludeAuthorizationHash = true,
+        };
+
+        string key = DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts);
+        key.Should().StartWith("ah:");
+        key.Should().NotContain("Bearer");
+        key.Should().NotContain("token");
+        key.Length.Should().Be("ah:".Length + 16);
+    }
+
+    [Fact]
+    public void ResolveAuthenticatedVaryKey_WhenHashDisabled_ReturnsAuthSentinel()
+    {
+        HttpContext http = CreateHttp(authenticated: false, hasAuthorization: true);
+        DomainCacheOptions opts = new()
+        {
+            AuthBypassMode = AuthBypassMode.Never,
+            AuthVaryIncludeAuthorizationHash = false,
+        };
+
+        DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("auth");
+    }
+
+    [Fact]
+    public void ResolveAuthenticatedVaryKey_UsesSubWhenNameMissing()
+    {
+        var http = new DefaultHttpContext();
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim("sub", "user-42")],
+            authenticationType: "test"));
+        DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
+
+        DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("id:user-42");
+    }
+
+    [Fact]
+    public void ResolveAuthenticatedVaryKey_UsesNameIdentifierWhenNameAndSubMissing()
+    {
+        var http = new DefaultHttpContext();
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "nid-7")],
+            authenticationType: "test"));
+        DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
+
+        DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("id:nid-7");
+    }
+
+    [Fact]
+    public void ResolveAuthenticatedVaryKey_WhenAnonymous_ReturnsAuthSentinel()
+    {
+        HttpContext http = CreateHttp(authenticated: false, hasAuthorization: false);
+        DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
+
+        DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("auth");
+    }
+
     private static DefaultHttpContext CreateHttp(bool authenticated, bool hasAuthorization)
     {
         var http = new DefaultHttpContext();

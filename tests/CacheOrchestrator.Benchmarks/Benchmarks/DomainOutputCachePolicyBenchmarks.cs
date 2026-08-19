@@ -1,6 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.OutputCache;
+using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,7 @@ public class DomainOutputCachePolicyBenchmarks
     private OutputCacheContext _simple = null!;
     private OutputCacheContext _withQuery = null!;
     private IQueryCollection _queryMixed = null!;
+    private DomainCacheOptions _queryOpts = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -42,6 +44,7 @@ public class DomainOutputCachePolicyBenchmarks
             });
 
         _queryMixed = _withQuery.HttpContext.Request.Query;
+        _queryOpts = (DomainCacheOptions)_withQuery.HttpContext.Items[CacheOrchestratorKeys.DomainOptionsKey]!;
     }
 
     [Benchmark(Baseline = true)]
@@ -53,8 +56,8 @@ public class DomainOutputCachePolicyBenchmarks
         => await _policy.CacheRequestAsync(_withQuery, CancellationToken.None);
 
     [Benchmark]
-    public StringValues CollectNonTrackingQueryKeys()
-        => DomainOutputCachePolicy.CollectNonTrackingQueryKeys(_queryMixed);
+    public StringValues CollectQueryKeysForOutputCache()
+        => CacheVaryMaterializer.CollectQueryKeysForOutputCache(_queryMixed, _queryOpts);
 
     private static OutputCacheContext CreateContext(
         string path,
@@ -87,11 +90,13 @@ public class DomainOutputCachePolicyBenchmarks
             EncodingNormalizationList = null,
         };
 
+        var provider = new FixedDomainOptionsProvider(cfg);
         var services = new ServiceCollection();
-        services.AddSingleton<IDomainCacheOptionsProvider>(new FixedDomainOptionsProvider(cfg));
+        services.AddSingleton<IDomainCacheOptionsProvider>(provider);
         services.AddSingleton(typeof(ILogger<DomainOutputCachePolicy>), NullLogger<DomainOutputCachePolicy>.Instance);
         services.AddSingleton(TimeProvider.System);
         http.RequestServices = services.BuildServiceProvider();
+        provider.EnsureDomainOptions(http, cfg.Domain);
 
         return new OutputCacheContext { HttpContext = http };
     }

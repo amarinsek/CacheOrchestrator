@@ -1,11 +1,5 @@
 # Security Policy
 
-## Supported versions
-
-| Version | Supported |
-|---------|-----------|
-| `1.0.x` | Yes (current stable) |
-| Pre-release (`*-rc.*`, etc.) | No (use latest stable) |
 
 ## Reporting a vulnerability
 

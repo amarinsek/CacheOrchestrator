@@ -35,7 +35,7 @@ All classes use a shared short job (`[ShortJob]`: net10.0, warmup 1 / iteration 
 | `FusionEntryOptionsBenchmarks` | `GetFusionEntryOptions` build/reuse per domain snapshot |
 | `DomainCacheOptionsProviderBenchmarks` | Domain options L1 (HttpContext) / L2 (process) hit paths |
 | `DomainTemplateCompilerBenchmarks` | Template `GetOrAdd` + per-request resolve |
-| `DomainOutputCachePolicyBenchmarks` | `CacheRequestAsync` + **`CollectNonTrackingQueryKeys`** |
+| `DomainOutputCachePolicyBenchmarks` | `CacheRequestAsync` + **`CollectQueryKeysForOutputCache`** (real OC query-key path) |
 
 ## Performance engineering notes (library)
 

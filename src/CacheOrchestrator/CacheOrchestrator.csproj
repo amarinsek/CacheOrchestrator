@@ -35,6 +35,9 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="CacheOrchestrator.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Bus.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.EFCore.Invalidation.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Benchmarks" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Bus" />
 	</ItemGroup>

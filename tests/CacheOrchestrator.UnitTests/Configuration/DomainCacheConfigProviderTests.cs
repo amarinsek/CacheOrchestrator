@@ -65,6 +65,30 @@ public class DomainCacheConfigProviderTests
     }
 
     [Fact]
+    public void EnsureConfig_DifferentDomainOnSameRequest_ReplacesSnapshot()
+    {
+        var provider = CreateProvider(new CacheOrchestratorOptions
+        {
+            Domains =
+            {
+                ["products"] = new() { OutputCacheTtlSeconds = 100, Version = "p1" },
+                ["catalog"] = new() { OutputCacheTtlSeconds = 200, Version = "c1" }
+            }
+        });
+        var http = new DefaultHttpContext();
+
+        DomainCacheOptions products = provider.EnsureDomainOptions(http, "products");
+        DomainCacheOptions catalog = provider.EnsureDomainOptions(http, "catalog");
+
+        products.Domain.Should().Be("products");
+        catalog.Should().NotBeSameAs(products);
+        catalog.Domain.Should().Be("catalog");
+        catalog.OutputTtl.Should().Be(TimeSpan.FromSeconds(200));
+        catalog.Version.Should().Be("c1");
+        provider.GetDomainOptions(http).Should().BeSameAs(catalog);
+    }
+
+    [Fact]
     public void EnsureConfig_UsesDomainSpecificSettings()
     {
         var provider = CreateProvider(new CacheOrchestratorOptions
@@ -176,10 +200,60 @@ public class DomainCacheConfigProviderTests
         cfg.OutputCacheEnabled.Should().BeTrue();
         cfg.FusionCacheEnabled.Should().BeTrue();
         cfg.CacheableStatusCodes.Should().Contain(200);
-        cfg.OutputTtl.Should().BePositive();
-        cfg.FusionCacheSoftTtl.Should().BePositive();
-        cfg.FusionCacheHardTtl.Should().BePositive();
-        cfg.FusionCacheFailSafe.Should().BePositive();
+        cfg.OutputTtl.Should().Be(TimeSpan.FromSeconds(3700));
+        cfg.FusionCacheSoftTtl.Should().Be(TimeSpan.FromSeconds(3800));
+        cfg.FusionCacheHardTtl.Should().Be(TimeSpan.FromSeconds(43200));
+        cfg.FusionCacheFailSafe.Should().Be(TimeSpan.FromSeconds(86400));
+        cfg.EncodingNormalizationList.Should().Equal("br", "gzip");
+        cfg.FusionRespectAuthBypass.Should().BeTrue();
+        cfg.FusionCacheRespectNoStore.Should().BeTrue();
+        cfg.FusionCacheVaryOnEncoding.Should().BeTrue();
+        cfg.OutputCacheVaryByHost.Should().BeTrue();
+    }
+
+    [Fact]
+    public void HandBuiltDomainCacheOptions_ShareProviderBoolDefaults()
+    {
+        DomainCacheOptions opts = new();
+
+        opts.OutputCacheEnabled.Should().BeTrue();
+        opts.FusionCacheEnabled.Should().BeTrue();
+        opts.FusionCacheRespectNoStore.Should().BeTrue();
+        opts.FusionCacheVaryOnEncoding.Should().BeTrue();
+        opts.FusionCacheVaryOnPublicAddress.Should().BeTrue();
+        opts.OutputCacheVaryByHost.Should().BeTrue();
+        opts.FusionCacheAllowBackgroundDistributed.Should().BeTrue();
+        opts.FusionCacheAllowBackgroundBackplane.Should().BeTrue();
+        opts.EncodingNormalizationList.Should().Equal("br", "gzip");
+    }
+
+    [Theory]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
+    [InlineData("42", "42")]
+    [InlineData("ABC-1", "abc-1")]
+    [InlineData("!!!", "")]
+    [InlineData("---", "")]
+    [InlineData("default", "default")]
+    [InlineData("DEFAULT", "default")]
+    public void NormalizeResourceId_DoesNotCollapseGarbageToDefault(string? input, string expected)
+    {
+        DomainName.NormalizeResourceId(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
+    [InlineData("products", "products")]
+    [InlineData("Items", "items")]
+    [InlineData("!!!", "")]
+    [InlineData("---", "")]
+    [InlineData("default", "default")]
+    public void NormalizeEntityKind_DoesNotCollapseGarbageToDefault(string? input, string expected)
+    {
+        DomainName.NormalizeEntityKind(input).Should().Be(expected);
     }
 
     // =========================

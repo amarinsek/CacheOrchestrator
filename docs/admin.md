@@ -130,7 +130,7 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/health` | `Healthy`, `InstanceId`, `StartedAtUtc`, `UptimeSeconds`, `Requests` |
+| GET | `/health` | `Healthy` (probes + counters), `InstanceId`, `StartedAtUtc`, `UptimeSeconds`, `Requests` |
 | GET | `/stats` | **Obsolete** process-lifetime fat DTO (shares + rates) — diagnostics / external tools only; Admin Console does **not** use this for the stats UI |
 | GET | `/endpoints` | Discovered + counted routes |
 | GET | `/domains` | Effective domain options snapshot |
@@ -197,6 +197,8 @@ So if OC absorbs almost all traffic, FC hit **share** is still trustworthy once 
 | Timeout / connection error / 401 | **Down** |
 
 `Requests` / uptime on the instance row come from health when the probe succeeds.
+
+`Healthy` is **not** “the HTTP endpoint answered”. It is `true` only when live counters can be read **and** every registered `ICacheOrchestratorHealthProbe` succeeds (InMemory with no probes stays `true`). A failed Redis (or other backend) probe returns HTTP 200 with `Healthy: false` so the Console can show **Degraded**.
 
 ### Limitations (Admin API)
 
