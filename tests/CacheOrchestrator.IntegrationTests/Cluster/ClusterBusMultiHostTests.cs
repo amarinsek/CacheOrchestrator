@@ -716,4 +716,47 @@ public class ClusterBusMultiHostTests
             b.Hits.Count.Should().Be(2);
         }
     }
+
+    [Fact]
+    public async Task UnreachablePeer_DoesNotFlipLocalInvalidationSucceeded()
+    {
+        string ns = "it-dead-" + Guid.NewGuid().ToString("N")[..8];
+        string domain = "dead-peer";
+        int port = GetFreePort();
+        int deadPort = GetFreePort();
+        string url = $"http://127.0.0.1:{port}";
+        string dead = $"http://127.0.0.1:{deadPort}";
+
+        await using ClusterHost host = await StartHostOnPortAsync(
+            "node-a",
+            ns,
+            domain,
+            "/api/x",
+            port,
+            peers: [("node-a", url), ("node-dead", dead)],
+            apiKey: "k",
+            adminEnabled: false,
+            extraConfig: new Dictionary<string, string?>
+            {
+                ["Cache:Cluster:Bus:PeerTimeoutMs"] = "400",
+            });
+
+        (await host.Client.GetAsync("/api/x", Ct)).EnsureSuccessStatusCode();
+        host.Hits.Count.Should().Be(1);
+
+        CacheInvalidationResult result = await host.App.Services
+            .GetRequiredService<ICacheOrchestratorInvalidator>()
+            .InvalidateDomainAsync(domain, Ct);
+
+        result.Succeeded.Should().BeTrue(
+            "cluster publish failure must not flip local Fusion/Output Succeeded");
+        result.FusionSucceeded.Should().BeTrue();
+        result.OutputSucceeded.Should().BeTrue();
+        result.ClusterPublish.Should().NotBeNull();
+        result.ClusterPublish!.AllSucceeded.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+
+        (await host.Client.GetAsync("/api/x", Ct)).EnsureSuccessStatusCode();
+        host.Hits.Count.Should().Be(2, "local Output Cache must still be evicted");
+    }
 }

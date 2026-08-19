@@ -382,6 +382,101 @@ public class EfSaveChangesInvalidationHttpTests
         }
     }
 
+    [Fact]
+    public async Task CacheEntityAttribute_WithoutMap_SaveChanges_Invalidates()
+    {
+        const string domain = "attr-http-store";
+        string dbName = "ef-it-attr-" + Guid.NewGuid().ToString("N");
+
+        IConfigurationRoot config = new ConfigurationBuilder().AddInMemoryCollection(BaseConfig(domain)).Build();
+        WebApplicationBuilder builder = CreateBuilder();
+        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorEfCoreInvalidation(config);
+        builder.Services.AddSingleton<FactoryCounter>();
+        builder.Services.AddDbContext<AttrCatalogDbContext>((sp, opt) =>
+        {
+            opt.UseInMemoryDatabase(dbName);
+            opt.AddCacheOrchestratorInvalidation(sp);
+        });
+
+        WebApplication app = builder.Build();
+        app.UseRouting();
+        app.UseCacheOrchestrator();
+        app.MapGet("/api/attr/{id:int}", async (
+            HttpContext http,
+            int id,
+            IDomainFusionCache cache,
+            AttrCatalogDbContext db,
+            FactoryCounter factories,
+            CancellationToken cancellationToken) =>
+        {
+            AttrProduct? product = await cache.GetOrSetEntityAsync(
+                http,
+                domain,
+                "products",
+                id.ToString(),
+                async ct =>
+                {
+                    factories.Increment();
+                    return await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
+                },
+                cancellationToken);
+            return product is null ? Results.NotFound() : Results.Json(product);
+        }).CacheOutputWithDomain(domain, resourceRouteKey: "id", entityKind: "products");
+
+        app.MapPut("/api/attr/{id:int}", async (
+            int id,
+            ProductUpdate body,
+            AttrCatalogDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            AttrProduct? product = await db.Products.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            if (product is null)
+                return Results.NotFound();
+            product.Name = body.Name;
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.NoContent();
+        });
+
+        await using (app)
+        {
+            await using (AsyncServiceScope seed = app.Services.CreateAsyncScope())
+            {
+                AttrCatalogDbContext db = seed.ServiceProvider.GetRequiredService<AttrCatalogDbContext>();
+                db.Products.Add(new AttrProduct { Id = 1, Name = "Widget" });
+                db.Products.Add(new AttrProduct { Id = 2, Name = "Other" });
+                await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            await app.StartAsync(TestContext.Current.CancellationToken);
+            HttpClient client = app.GetTestClient();
+            FactoryCounter factories = app.Services.GetRequiredService<FactoryCounter>();
+
+            (_, string miss, _) = await GetAsync(client, "/api/attr/1");
+            miss.Should().Contain("output=miss");
+            factories.Count.Should().Be(1);
+
+            (_, string hit, _) = await GetAsync(client, "/api/attr/1");
+            hit.Should().Contain("output=hit");
+
+            (_, string sibling, _) = await GetAsync(client, "/api/attr/2");
+            sibling.Should().Contain("output=miss");
+            factories.Count.Should().Be(2);
+
+            (await client.PutAsJsonAsync("/api/attr/1", new ProductUpdate("Gadget"), TestContext.Current.CancellationToken))
+                .StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+            (_, string after1, string body1) = await GetAsync(client, "/api/attr/1");
+            after1.Should().Contain("output=miss");
+            body1.Should().Contain("Gadget");
+            factories.Count.Should().Be(3);
+
+            (_, string after2, string body2) = await GetAsync(client, "/api/attr/2");
+            after2.Should().Contain("output=hit");
+            body2.Should().Contain("Other");
+        }
+    }
+
     private static Dictionary<string, string?> BaseConfig(string domain) => new()
     {
         ["Cache:OutputCache:Provider"] = "InMemory",
@@ -491,5 +586,27 @@ public class EfSaveChangesInvalidationHttpTests
         }
 
         public DbSet<GuidProduct> Products => Set<GuidProduct>();
+    }
+
+    [CacheEntity("attr-http-store", "products")]
+    public sealed class AttrProduct
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public sealed class AttrCatalogDbContext : DbContext
+    {
+        public AttrCatalogDbContext(DbContextOptions<AttrCatalogDbContext> options)
+            : base(options)
+        {
+        }
+
+        public DbSet<AttrProduct> Products => Set<AttrProduct>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<AttrProduct>().Property(p => p.Id).ValueGeneratedNever();
+        }
     }
 }
