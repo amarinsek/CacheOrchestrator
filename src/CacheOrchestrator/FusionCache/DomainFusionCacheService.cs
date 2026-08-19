@@ -151,6 +151,21 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             return await factory(cancellationToken).ConfigureAwait(false);
         }
 
+        // Parity with Output Cache auth bypass (default true). Set FusionRespectAuthBypass=false for 2.1-like Fusion-under-Authorization.
+        if (opts.FusionRespectAuthBypass && DomainAuthEvaluator.ShouldBypassForAuth(http, opts))
+        {
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("FusionCache skipped due to auth bypass (FusionRespectAuthBypass)");
+
+            SetData(http, DataCacheResult.Bypass);
+            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "bypass", durationMs: null, elapsedTicks: null);
+
+            using Activity? authBypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+            authBypassActivity?.SetTag("domain", opts.Domain);
+            authBypassActivity?.SetTag("cache.result", "bypass");
+            return await factory(cancellationToken).ConfigureAwait(false);
+        }
+
         // Respect Cache-Control: no-store (avoid Header.ToString() allocation on the hot path)
         if (opts.FusionCacheRespectNoStore
             && HttpHelper.ContainsCacheDirective(http.Request.Headers.CacheControl, "no-store"))

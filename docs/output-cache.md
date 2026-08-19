@@ -103,15 +103,15 @@ app.MapGet(...).CacheOutputWithDomainAttribute();
 |-----------|--------|
 | Not GET/HEAD | No output caching |
 | Request `Cache-Control: no-store` | Bypass; client `no-store` |
-| Authenticated / `Authorization` and `BypassWhenAuthenticated: true` (default) | Bypass; client blocked |
-| Authenticated / `Authorization` and `BypassWhenAuthenticated: false` | Cache allowed; optional `auth-user` vary |
+| Auth signal matches `AuthBypassMode` (default `AuthenticatedOrAuthorization`) | Bypass; client blocked |
+| `AuthBypassMode: Never` (or legacy `BypassWhenAuthenticated: false`) | Cache allowed; optional `auth-user` vary |
 | `OutputCacheEnabled: false` | Bypass; client headers still applied |
 | Enabled | Lookup and store, locking, TTL from the domain |
 | Status not in `CacheableStatusCodes` | No store |
 | `Set-Cookie` or response `Authorization` | No store; client blocked |
-| Signed-in user and `ClientCacheability: Public` | Client header forced to **private** |
+| Signed-in user and `ClientCacheability: Public` (when `ClientForcePrivateWhenAuthenticated`) | Client header forced to **private** |
 
-**Vary:** host, query keys (tracking parameters omitted), optional `Accept-Encoding`, `data-version` from `Version`. When authenticated traffic is cached and `VaryOutputCacheByUser` is true, also **`auth-user`** (name / `sub` / hash of `Authorization`).
+**Vary:** host, query keys (tracking omitted; optional allow/deny lists), `Accept-Encoding`, optional `Accept` / `Accept-Language` / headers / cookies, `data-version` from `Version`. When authenticated traffic is cached and `VaryOutputCacheByUser` is true, also **`auth-user`**. Full matrix: [vary.md](vary.md).
 
 **Tags:** `domain:{name}`. If `resourceRouteKey` and `entityKind` resolve, also `entity:{domain}:{entityKind}:{id}` and `entitykind:{domain}:{entityKind}`.
 
@@ -119,16 +119,18 @@ app.MapGet(...).CacheOutputWithDomainAttribute();
 
 ### Authenticated traffic
 
-By default any signed-in user or `Authorization` header skips Output Cache. That is the safe setting for mixed public and private APIs.
+By default any signed-in user or `Authorization` header skips Output Cache (`AuthBypassMode: AuthenticatedOrAuthorization`). That is the safe setting for mixed public and private APIs.
 
-- **BypassWhenAuthenticated** (default `true`) — skip Output Cache and block client cache for authenticated traffic.
-- **VaryOutputCacheByUser** (default `true`) — when you allow caching, partition Output Cache by user or API key.
+- **AuthBypassMode** — preferred control (`Never`, `AuthenticatedIdentityOnly`, `AuthorizationHeaderOnly`, `AuthenticatedOrAuthorization`).
+- **BypassWhenAuthenticated** — **obsolete**; still binds for compatibility (`true`/`false` map to `AuthenticatedOrAuthorization` / `Never` when `AuthBypassMode` is unset).
+- **VaryOutputCacheByUser** (default `true`) — when you allow caching, partition by user, claims, or API-key hash.
+- **FusionRespectAuthBypass** (default `true`) — Fusion also skips when OC would auth-bypass; set `false` for 2.1-like Fusion-under-Authorization.
 
 **Private dashboard (per-user server cache):**
 
 ```json
 "user-dashboard": {
-  "BypassWhenAuthenticated": false,
+  "AuthBypassMode": "Never",
   "VaryOutputCacheByUser": true,
   "ClientCacheability": "Private",
   "ClientTtlSeconds": 60,
@@ -142,8 +144,9 @@ Alice and Bob both call `GET /api/me/summary`. The server stores two entries (`a
 
 ```json
 "osm-tiles": {
-  "BypassWhenAuthenticated": false,
+  "AuthBypassMode": "Never",
   "VaryOutputCacheByUser": false,
+  "TreatAuthorizationAsAuthSignal": false,
   "ClientCacheability": "Public",
   "ClientTtlSeconds": 86400,
   "OutputCacheTtlSeconds": 3600
@@ -152,7 +155,7 @@ Alice and Bob both call `GET /api/me/summary`. The server stores two entries (`a
 
 Clients send `Authorization: Bearer <map-key>` for rate limits or billing. The body is the same for everyone. Use this only when the payload does not depend on the caller.
 
-See [configuration.md](configuration.md) and [domain-profiles.md](domain-profiles.md).
+See [vary.md](vary.md), [configuration.md](configuration.md), and [domain-profiles.md](domain-profiles.md).
 
 ## Headers
 

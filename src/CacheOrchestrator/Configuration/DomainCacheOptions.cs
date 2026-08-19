@@ -34,15 +34,94 @@ public sealed class DomainCacheOptions
     /// Set to <see langword="false"/> to allow caching for authenticated traffic (see also
     /// <see cref="VaryOutputCacheByUser"/>).
     /// </summary>
+    /// <remarks>
+    /// Prefer <see cref="AuthBypassMode"/> when configuring domains.
+    /// This flag mirrors <c>AuthBypassMode != Never</c> for source compatibility with existing readers.
+    /// </remarks>
     public bool BypassWhenAuthenticated { get; init; } = true;
 
     /// <summary>
-    /// When caching is allowed for authenticated requests (<see cref="BypassWhenAuthenticated"/> is
-    /// <see langword="false"/>), include a per-user key in the Output Cache vary rules so users do not
-    /// share each other's cached responses. Default: <see langword="true"/>.
+    /// When Output Cache (and optionally FusionCache) auto-bypasses for auth traffic.
+    /// Default: <see cref="AuthBypassMode.AuthenticatedOrAuthorization"/> (historical behaviour).
+    /// </summary>
+    public AuthBypassMode AuthBypassMode { get; init; } = AuthBypassMode.AuthenticatedOrAuthorization;
+
+    /// <summary>
+    /// When caching is allowed for authenticated requests, include a per-user key in vary rules
+    /// so users do not share each other's cached responses. Default: <see langword="true"/>.
     /// Set to <see langword="false"/> for shared public content that only happens to carry an API key.
     /// </summary>
     public bool VaryOutputCacheByUser { get; init; } = true;
+
+    /// <summary>
+    /// When <see langword="true"/> (default), an <c>Authorization</c> header counts as an auth signal
+    /// for <see cref="AuthBypassMode.AuthenticatedOrAuthorization"/> and user vary.
+    /// </summary>
+    public bool TreatAuthorizationAsAuthSignal { get; init; } = true;
+
+    /// <summary>
+    /// When <see langword="true"/> (default) and no identity claims/name are available, hash the
+    /// <c>Authorization</c> header into the auth-user vary segment.
+    /// </summary>
+    public bool AuthVaryIncludeAuthorizationHash { get; init; } = true;
+
+    /// <summary>
+    /// Optional claim types included in the auth-user vary material (e.g. <c>tenant_id</c>, <c>sub</c>).
+    /// </summary>
+    public string[]? VaryByAuthClaims { get; init; }
+
+    /// <summary>
+    /// When <see langword="true"/> (default), FusionCache <c>GetOrSet*</c> runs the factory uncached when
+    /// <see cref="DomainAuthEvaluator.ShouldBypassForAuth"/> would fire for Output Cache.
+    /// Set <see langword="false"/> only if you intentionally want Fusion to cache while OC auth-bypasses.
+    /// </summary>
+    public bool FusionRespectAuthBypass { get; init; } = true;
+
+    /// <summary>
+    /// When <see langword="true"/> (default), clamp client <c>Cache-Control</c> from Public to Private
+    /// for authenticated Identity users.
+    /// </summary>
+    public bool ClientForcePrivateWhenAuthenticated { get; init; } = true;
+
+    /// <summary>Vary Output Cache / Fusion by the <c>Accept</c> header. Default: false.</summary>
+    public bool VaryByAccept { get; init; }
+
+    /// <summary>Optional prefer-list for <c>Accept</c> normalization (same pattern as encoding).</summary>
+    public string[]? AcceptNormalizationList { get; init; }
+
+    /// <summary>Vary by <c>Accept-Language</c>. Default: false.</summary>
+    public bool VaryByAcceptLanguage { get; init; }
+
+    /// <summary>Optional prefer-list for <c>Accept-Language</c> normalization.</summary>
+    public string[]? AcceptLanguageNormalizationList { get; init; }
+
+    /// <summary>
+    /// Extra request headers to vary on (case-insensitive). Sensitive names are hashed.
+    /// Default: <see langword="null"/> (none).
+    /// </summary>
+    public string[]? VaryByHeaders { get; init; }
+
+    /// <summary>
+    /// Query-string allowlist for cache identity.
+    /// <see langword="null"/> = all non-tracking keys (historical);
+    /// empty = no query vary;
+    /// non-empty = only these keys (tracking still stripped).
+    /// </summary>
+    public string[]? VaryByQueryKeys { get; init; }
+
+    /// <summary>Extra query keys to ignore on top of built-in tracking prefixes.</summary>
+    public string[]? IgnoreQueryKeys { get; init; }
+
+    /// <summary>
+    /// Cookie-name allowlist for vary (values always hashed). Default: <see langword="null"/> (never).
+    /// </summary>
+    public string[]? VaryByCookies { get; init; }
+
+    /// <summary>
+    /// When <see langword="true"/> (default), append HTTP response <c>Vary</c> for non-secret headers we varied on.
+    /// Set <see langword="false"/> to omit the response <c>Vary</c> header (pre-2.x-like silence).
+    /// </summary>
+    public bool EmitResponseVary { get; init; } = true;
 
     /// <summary>Version token (e.g. "v1", "2026-08") used for bulk invalidation and ETag generation.</summary>
     public string Version { get; init; } = "1";

@@ -105,5 +105,43 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 
         if (settings.FusionCacheHardTtlSeconds is < 0)
             failures.Add($"{label}: FusionCacheHardTtlSeconds cannot be negative.");
+
+        ValidateAllowlist(label, "VaryByHeaders", settings.VaryByHeaders, Vary.CacheVaryMaterializer.MaxVaryByHeaders, failures);
+        ValidateAllowlist(label, "VaryByCookies", settings.VaryByCookies, Vary.CacheVaryMaterializer.MaxVaryByCookies, failures);
+        ValidateAllowlist(label, "VaryByQueryKeys", settings.VaryByQueryKeys, max: 32, failures, allowEmpty: true);
+        ValidateAllowlist(label, "IgnoreQueryKeys", settings.IgnoreQueryKeys, max: 32, failures, allowEmpty: true);
+        ValidateAllowlist(label, "VaryByAuthClaims", settings.VaryByAuthClaims, max: 16, failures, allowEmpty: true);
+        ValidateAllowlist(label, "AcceptNormalizationList", settings.AcceptNormalizationList, max: 16, failures, allowEmpty: true);
+        ValidateAllowlist(label, "AcceptLanguageNormalizationList", settings.AcceptLanguageNormalizationList, max: 16, failures, allowEmpty: true);
+
+        if (settings.AuthBypassMode is AuthBypassMode mode && !Enum.IsDefined(mode))
+            failures.Add($"{label}: AuthBypassMode value '{mode}' is not defined.");
+    }
+
+    private static void ValidateAllowlist(
+        string label,
+        string propertyName,
+        string[]? values,
+        int max,
+        List<string> failures,
+        bool allowEmpty = false)
+    {
+        if (values is null)
+            return;
+
+        if (!allowEmpty && values.Length == 0)
+            return;
+
+        if (values.Length > max)
+        {
+            failures.Add($"{label}: {propertyName} cannot contain more than {max} entries (got {values.Length}).");
+            return;
+        }
+
+        for (int i = 0; i < values.Length; i++)
+        {
+            if (string.IsNullOrWhiteSpace(values[i]))
+                failures.Add($"{label}: {propertyName}[{i}] must not be null or whitespace.");
+        }
     }
 }

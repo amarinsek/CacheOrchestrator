@@ -107,8 +107,17 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults).
 | `OutputCacheEnabled` | true | Enable HTTP output cache for domain |
 | `FusionCacheEnabled` | true | Enable FusionCache for domain |
 | `FusionCacheInstance` | `default` | Which named FusionCache instance to use |
-| `BypassWhenAuthenticated` | true | Skip Output Cache for signed-in users / `Authorization` header |
-| `VaryOutputCacheByUser` | true | When auth is not bypassed, vary OC by user / API-key hash |
+| `AuthBypassMode` | derived | Prefer this: `Never` / `AuthenticatedIdentityOnly` / `AuthorizationHeaderOnly` / `AuthenticatedOrAuthorization` |
+| `BypassWhenAuthenticated` | true | **Obsolete** — maps to `AuthBypassMode` when mode unset |
+| `VaryOutputCacheByUser` | true | When auth is not bypassed, vary OC (and Fusion when intentional) by user / claims / API-key hash |
+| `TreatAuthorizationAsAuthSignal` | true | `Authorization` counts as auth signal for OR-mode |
+| `AuthVaryIncludeAuthorizationHash` | true | Hash `Authorization` into auth-user when no identity |
+| `VaryByAuthClaims` | null | Claim types for auth-user material |
+| `FusionRespectAuthBypass` | **true** | Fusion skips cache when auth bypass would fire (set `false` for 2.1-like Fusion-under-Authorization) |
+| `ClientForcePrivateWhenAuthenticated` | true | Force client Private for signed-in Identity + Public |
+| `VaryByAccept` / `VaryByAcceptLanguage` | false | Content negotiation / locale vary (Accept planned `true` in 3.0) |
+| `VaryByHeaders` / `VaryByCookies` / `VaryByQueryKeys` / `IgnoreQueryKeys` | null | Allowlists — see [vary.md](vary.md) |
+| `EmitResponseVary` | **true** | Emit HTTP response `Vary` for non-secret headers (set `false` to omit) |
 
 \*After merge with defaults.
 

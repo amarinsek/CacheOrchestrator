@@ -20,11 +20,56 @@ public sealed class DomainRuntimeOverride
     /// <summary>Override FusionCache enabled.</summary>
     public bool? FusionCacheEnabled { get; init; }
 
-    /// <summary>Override bypass-when-authenticated.</summary>
+    /// <summary>Override bypass-when-authenticated (legacy; prefer <see cref="AuthBypassMode"/>).</summary>
     public bool? BypassWhenAuthenticated { get; init; }
+
+    /// <summary>Override auth bypass mode.</summary>
+    public Configuration.AuthBypassMode? AuthBypassMode { get; init; }
 
     /// <summary>Override vary-by-user.</summary>
     public bool? VaryOutputCacheByUser { get; init; }
+
+    /// <summary>Override treat-Authorization-as-auth-signal.</summary>
+    public bool? TreatAuthorizationAsAuthSignal { get; init; }
+
+    /// <summary>Override auth vary Authorization hash.</summary>
+    public bool? AuthVaryIncludeAuthorizationHash { get; init; }
+
+    /// <summary>Override Fusion respects auth bypass.</summary>
+    public bool? FusionRespectAuthBypass { get; init; }
+
+    /// <summary>Override force-private-when-authenticated.</summary>
+    public bool? ClientForcePrivateWhenAuthenticated { get; init; }
+
+    /// <summary>Override vary-by-Accept.</summary>
+    public bool? VaryByAccept { get; init; }
+
+    /// <summary>Override vary-by-Accept-Language.</summary>
+    public bool? VaryByAcceptLanguage { get; init; }
+
+    /// <summary>Override emit response Vary.</summary>
+    public bool? EmitResponseVary { get; init; }
+
+    /// <summary>Override Accept normalization list (<see langword="null"/> = inherit).</summary>
+    public string[]? AcceptNormalizationList { get; init; }
+
+    /// <summary>Override Accept-Language normalization list.</summary>
+    public string[]? AcceptLanguageNormalizationList { get; init; }
+
+    /// <summary>Override VaryByHeaders allowlist.</summary>
+    public string[]? VaryByHeaders { get; init; }
+
+    /// <summary>Override VaryByQueryKeys allowlist.</summary>
+    public string[]? VaryByQueryKeys { get; init; }
+
+    /// <summary>Override IgnoreQueryKeys deny list.</summary>
+    public string[]? IgnoreQueryKeys { get; init; }
+
+    /// <summary>Override VaryByCookies allowlist.</summary>
+    public string[]? VaryByCookies { get; init; }
+
+    /// <summary>Override VaryByAuthClaims list.</summary>
+    public string[]? VaryByAuthClaims { get; init; }
 
     /// <summary>Override ETag mode.</summary>
     public Configuration.ETagMode? ETagMode { get; init; }
@@ -95,7 +140,22 @@ public sealed class DomainRuntimeOverride
         || OutputCacheEnabled is not null
         || FusionCacheEnabled is not null
         || BypassWhenAuthenticated is not null
+        || AuthBypassMode is not null
         || VaryOutputCacheByUser is not null
+        || TreatAuthorizationAsAuthSignal is not null
+        || AuthVaryIncludeAuthorizationHash is not null
+        || FusionRespectAuthBypass is not null
+        || ClientForcePrivateWhenAuthenticated is not null
+        || VaryByAccept is not null
+        || VaryByAcceptLanguage is not null
+        || EmitResponseVary is not null
+        || AcceptNormalizationList is not null
+        || AcceptLanguageNormalizationList is not null
+        || VaryByHeaders is not null
+        || VaryByQueryKeys is not null
+        || IgnoreQueryKeys is not null
+        || VaryByCookies is not null
+        || VaryByAuthClaims is not null
         || ETagMode is not null
         || ClientCacheability is not null
         || ClientTtlSeconds is not null
@@ -131,11 +191,56 @@ public sealed class DomainSettingsPatch
     /// <summary>FusionCache enabled.</summary>
     public bool? FusionCacheEnabled { get; init; }
 
-    /// <summary>Bypass when authenticated.</summary>
+    /// <summary>Bypass when authenticated (legacy).</summary>
     public bool? BypassWhenAuthenticated { get; init; }
+
+    /// <summary>Auth bypass mode.</summary>
+    public Configuration.AuthBypassMode? AuthBypassMode { get; init; }
 
     /// <summary>Vary Output Cache by user.</summary>
     public bool? VaryOutputCacheByUser { get; init; }
+
+    /// <summary>Treat Authorization as auth signal.</summary>
+    public bool? TreatAuthorizationAsAuthSignal { get; init; }
+
+    /// <summary>Auth vary include Authorization hash.</summary>
+    public bool? AuthVaryIncludeAuthorizationHash { get; init; }
+
+    /// <summary>Fusion respects auth bypass.</summary>
+    public bool? FusionRespectAuthBypass { get; init; }
+
+    /// <summary>Force private when authenticated.</summary>
+    public bool? ClientForcePrivateWhenAuthenticated { get; init; }
+
+    /// <summary>Vary by Accept.</summary>
+    public bool? VaryByAccept { get; init; }
+
+    /// <summary>Vary by Accept-Language.</summary>
+    public bool? VaryByAcceptLanguage { get; init; }
+
+    /// <summary>Emit response Vary.</summary>
+    public bool? EmitResponseVary { get; init; }
+
+    /// <summary>Accept normalization list.</summary>
+    public string[]? AcceptNormalizationList { get; init; }
+
+    /// <summary>Accept-Language normalization list.</summary>
+    public string[]? AcceptLanguageNormalizationList { get; init; }
+
+    /// <summary>Vary by headers.</summary>
+    public string[]? VaryByHeaders { get; init; }
+
+    /// <summary>Vary by query keys.</summary>
+    public string[]? VaryByQueryKeys { get; init; }
+
+    /// <summary>Ignore query keys.</summary>
+    public string[]? IgnoreQueryKeys { get; init; }
+
+    /// <summary>Vary by cookies.</summary>
+    public string[]? VaryByCookies { get; init; }
+
+    /// <summary>Vary by auth claims.</summary>
+    public string[]? VaryByAuthClaims { get; init; }
 
     /// <summary>ETag mode.</summary>
     public Configuration.ETagMode? ETagMode { get; init; }
@@ -205,7 +310,22 @@ public sealed class DomainSettingsPatch
         OutputCacheEnabled is not null
         || FusionCacheEnabled is not null
         || BypassWhenAuthenticated is not null
+        || AuthBypassMode is not null
         || VaryOutputCacheByUser is not null
+        || TreatAuthorizationAsAuthSignal is not null
+        || AuthVaryIncludeAuthorizationHash is not null
+        || FusionRespectAuthBypass is not null
+        || ClientForcePrivateWhenAuthenticated is not null
+        || VaryByAccept is not null
+        || VaryByAcceptLanguage is not null
+        || EmitResponseVary is not null
+        || AcceptNormalizationList is not null
+        || AcceptLanguageNormalizationList is not null
+        || VaryByHeaders is not null
+        || VaryByQueryKeys is not null
+        || IgnoreQueryKeys is not null
+        || VaryByCookies is not null
+        || VaryByAuthClaims is not null
         || ETagMode is not null
         || ClientCacheability is not null
         || ClientTtlSeconds is not null
@@ -234,7 +354,22 @@ public sealed class DomainSettingsPatch
         && OutputCacheEnabled is null
         && FusionCacheEnabled is null
         && BypassWhenAuthenticated is null
+        && AuthBypassMode is null
         && VaryOutputCacheByUser is null
+        && TreatAuthorizationAsAuthSignal is null
+        && AuthVaryIncludeAuthorizationHash is null
+        && FusionRespectAuthBypass is null
+        && ClientForcePrivateWhenAuthenticated is null
+        && VaryByAccept is null
+        && VaryByAcceptLanguage is null
+        && EmitResponseVary is null
+        && AcceptNormalizationList is null
+        && AcceptLanguageNormalizationList is null
+        && VaryByHeaders is null
+        && VaryByQueryKeys is null
+        && IgnoreQueryKeys is null
+        && VaryByCookies is null
+        && VaryByAuthClaims is null
         && ETagMode is null
         && ClientCacheability is null
         && ScheduledUpdateUtc is null

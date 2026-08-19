@@ -1,9 +1,10 @@
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.Utilities;
+using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.Extensions.Primitives;
+using Microsoft.Net.Http.Headers;
 using System.Buffers;
 using System.IO.Hashing;
 using System.Runtime.CompilerServices;
@@ -21,10 +22,34 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
     private static readonly byte[] PrefixPath = "path:"u8.ToArray();
     private static readonly byte[] PrefixQuery = "|q:"u8.ToArray();
     private static readonly byte[] PrefixEnc = "|e:"u8.ToArray();
+    private static readonly byte[] PrefixHdr = "|hdr:"u8.ToArray();
+    private static readonly byte[] PrefixVal = "|v:"u8.ToArray();
     private static readonly byte[] PrefixScheme = "|s:"u8.ToArray();
     private static readonly byte[] PrefixHost = "|h:"u8.ToArray();
     private static readonly byte[] EqualsSign = "="u8.ToArray();
     private static readonly byte[] Comma = ","u8.ToArray();
+    private static readonly byte[] Colon = ":"u8.ToArray();
+
+    private readonly CacheVaryMaterializer _materializer;
+
+    /// <summary>Creates a generator with no <see cref="ICacheVaryContributor"/> registrations.</summary>
+    public DefaultDomainKeyGenerator()
+        : this(new CacheVaryMaterializer())
+    {
+    }
+
+    /// <summary>Creates a generator that uses the shared <paramref name="materializer"/>.</summary>
+    public DefaultDomainKeyGenerator(CacheVaryMaterializer materializer)
+    {
+        ArgumentNullException.ThrowIfNull(materializer);
+        _materializer = materializer;
+    }
+
+    /// <summary>Creates a generator that runs the given contributors after built-in vary rules.</summary>
+    public DefaultDomainKeyGenerator(IEnumerable<ICacheVaryContributor> contributors)
+        : this(new CacheVaryMaterializer(contributors))
+    {
+    }
 
     /// <inheritdoc />
     public string Generate(DomainCacheOptions opts, HttpContext http)
@@ -42,6 +67,8 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
 
         try
         {
+            CacheVaryMaterial vary = _materializer.Build(http, opts, CacheVarySurface.Fusion);
+
             // 0. Entity identity (CRUD) — both kind and id are required; no id-only key shape.
             if (http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? kindObj)
                 && kindObj is string entityKind
@@ -55,25 +82,10 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                 AppendRaw(hasher, ":"u8);
                 AppendString(hasher, resourceId, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
 
-                // Still vary on encoding / public address when configured.
-                if (opts.FusionCacheVaryOnEncoding)
-                {
-                    StringValues ae = http.Request.Headers.AcceptEncoding;
-                    if (ae.Count > 0)
-                    {
-                        AppendRaw(hasher, PrefixEnc);
-                        AppendStringValues(hasher, ae, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
-                    }
-                }
+                AppendVaryMaterial(hasher, http, opts, vary, includeQuery: false, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
                 if (opts.FusionCacheVaryOnPublicAddress)
-                {
-                    AppendRaw(hasher, PrefixScheme);
-                    AppendString(hasher, http.Request.Scheme, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
-
-                    AppendRaw(hasher, PrefixHost);
-                    AppendString(hasher, http.Request.Host.Value, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
-                }
+                    AppendPublicAddress(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
                 ulong resourceHash = hasher.GetCurrentHashAsUInt64();
                 return string.Create(
@@ -107,24 +119,67 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                 AppendString(hasher, http.Request.Path.Value, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
             }
 
-            // 2. Query
-            IQueryCollection query = http.Request.Query;
-            if (query.Count > 0)
-            {
-                string[] keys = ArrayPool<string>.Shared.Rent(query.Count);
-                int keyCount = 0;
+            // 2. Query + header/auth/custom vary (+ encoding via materializer)
+            AppendVaryMaterial(hasher, http, opts, vary, includeQuery: true, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
+            // 3. Public address
+            if (opts.FusionCacheVaryOnPublicAddress)
+                AppendPublicAddress(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
+
+            ulong hash = hasher.GetCurrentHashAsUInt64();
+            return string.Create(null, stackalloc char[128], $"{opts.Domain}:{opts.VersionHex}:{hash:x16}");
+        }
+        finally
+        {
+            if (rentedBytes != null)
+                ArrayPool<byte>.Shared.Return(rentedBytes);
+            if (rentedChars != null)
+                ArrayPool<char>.Shared.Return(rentedChars);
+        }
+    }
+
+    private static void AppendPublicAddress(
+        XxHash3 hasher,
+        HttpContext http,
+        ref Span<byte> byteBuffer,
+        ref byte[]? rentedBytes,
+        ref Span<char> charBuffer,
+        ref char[]? rentedChars)
+    {
+        AppendRaw(hasher, PrefixScheme);
+        AppendString(hasher, http.Request.Scheme, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
+
+        AppendRaw(hasher, PrefixHost);
+        AppendString(hasher, http.Request.Host.Value, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
+    }
+
+    private static void AppendVaryMaterial(
+        XxHash3 hasher,
+        HttpContext http,
+        DomainCacheOptions opts,
+        CacheVaryMaterial vary,
+        bool includeQuery,
+        ref Span<byte> byteBuffer,
+        ref byte[]? rentedBytes,
+        ref Span<char> charBuffer,
+        ref char[]? rentedChars)
+    {
+        if (includeQuery)
+        {
+            IReadOnlyList<string> queryKeys = vary.QueryKeys;
+            if (queryKeys.Count > 0)
+            {
+                string[] keys = ArrayPool<string>.Shared.Rent(queryKeys.Count);
                 try
                 {
-                    foreach (string key in query.Keys)
-                    {
-                        if (!HttpHelper.IsTrackingParameter(key))
-                            keys[keyCount++] = key;
-                    }
+                    for (int i = 0; i < queryKeys.Count; i++)
+                        keys[i] = queryKeys[i];
 
+                    int keyCount = queryKeys.Count;
                     if (keyCount > 1)
                         Array.Sort(keys, 0, keyCount, StringComparer.OrdinalIgnoreCase);
 
+                    IQueryCollection query = http.Request.Query;
                     for (int i = 0; i < keyCount; i++)
                     {
                         string key = keys[i];
@@ -139,37 +194,44 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                     ArrayPool<string>.Shared.Return(keys);
                 }
             }
-
-            // 3. Accept-Encoding
-            if (opts.FusionCacheVaryOnEncoding)
-            {
-                StringValues ae = http.Request.Headers.AcceptEncoding;
-                if (ae.Count > 0)
-                {
-                    AppendRaw(hasher, PrefixEnc);
-                    AppendStringValues(hasher, ae, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
-                }
-            }
-
-            // 4. Public address
-            if (opts.FusionCacheVaryOnPublicAddress)
-            {
-                AppendRaw(hasher, PrefixScheme);
-                AppendString(hasher, http.Request.Scheme, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
-
-                AppendRaw(hasher, PrefixHost);
-                AppendString(hasher, http.Request.Host.Value, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
-            }
-
-            ulong hash = hasher.GetCurrentHashAsUInt64();
-            return string.Create(null, stackalloc char[128], $"{opts.Domain}:{opts.VersionHex}:{hash:x16}");
         }
-        finally
+
+        // Header names (non-sensitive): hash current request values.
+        // Accept-Encoding uses the historical "|e:" prefix so existing keys stay stable when only encoding varies.
+        for (int i = 0; i < vary.HeaderNames.Count; i++)
         {
-            if (rentedBytes != null)
-                ArrayPool<byte>.Shared.Return(rentedBytes);
-            if (rentedChars != null)
-                ArrayPool<char>.Shared.Return(rentedChars);
+            string headerName = vary.HeaderNames[i];
+            StringValues values = http.Request.Headers[headerName];
+            if (values.Count == 0)
+                continue;
+
+            if (string.Equals(headerName, HeaderNames.AcceptEncoding, StringComparison.OrdinalIgnoreCase))
+            {
+                AppendRaw(hasher, PrefixEnc);
+                AppendStringValues(hasher, values, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
+            }
+            else
+            {
+                AppendRaw(hasher, PrefixHdr);
+                AppendString(hasher, headerName, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
+                AppendRaw(hasher, EqualsSign);
+                AppendStringValues(hasher, values, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
+            }
+        }
+
+        // Named values (auth-user, hashed cookies/headers, contributor values) — sorted for stability.
+        if (vary.Values.Count > 0)
+        {
+            string[] valueKeys = vary.Values.Keys.ToArray();
+            Array.Sort(valueKeys, StringComparer.Ordinal);
+            for (int i = 0; i < valueKeys.Length; i++)
+            {
+                string key = valueKeys[i];
+                AppendRaw(hasher, PrefixVal);
+                AppendString(hasher, key, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
+                AppendRaw(hasher, Colon);
+                AppendString(hasher, vary.Values[key], ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
+            }
         }
     }
 

@@ -52,6 +52,54 @@ public static class DemoEndpoints
         }
     }
 
+    /// <summary>
+    /// Single compact demo for domain vary: <c>VaryByAccept</c> + <c>VaryByQueryKeys: [lang]</c>
+    /// under domain <c>vary-demo</c> (<c>AuthBypassMode: Never</c>).
+    /// </summary>
+    public static void MapVaryDemoEndpoint(this WebApplication app)
+    {
+        const string domain = "vary-demo";
+        const string note =
+            "Change Accept and/or ?lang= — OC/FC should MISS across variants; utm_* and other query keys are ignored (allowlist).";
+
+        app.MapGet("/api/vary-demo", async (HttpContext http, IDomainFusionCache cache) =>
+        {
+            var sw = Stopwatch.StartNew();
+            VaryDemoPayload data = await cache.GetOrSetAsync(http, async _ =>
+            {
+                await Task.Delay(40);
+                string lang = http.Request.Query.TryGetValue("lang", out var lv) && lv.Count > 0
+                    ? lv.ToString()
+                    : "en";
+                return new VaryDemoPayload(lang, DateTimeOffset.UtcNow);
+            });
+            sw.Stop();
+            http.Response.Headers["X-Demo-Elapsed-Ms"] = sw.ElapsedMilliseconds.ToString();
+
+            string accept = http.Request.Headers.Accept.ToString();
+            bool wantXml = accept.Contains("xml", StringComparison.OrdinalIgnoreCase);
+            if (wantXml)
+            {
+                string xml =
+                    $"<varyDemo domain=\"{domain}\" lang=\"{System.Security.SecurityElement.Escape(data.Lang)}\" " +
+                    $"generatedAt=\"{data.GeneratedAt:O}\"><note>{System.Security.SecurityElement.Escape(note)}</note></varyDemo>";
+                return Results.Content(xml, "application/xml");
+            }
+
+            return Results.Json(new
+            {
+                domain,
+                representation = "json",
+                lang = data.Lang,
+                accept,
+                note,
+                generatedAt = data.GeneratedAt,
+            });
+        }).CacheOutputWithDomain(domain);
+    }
+
+    private sealed record VaryDemoPayload(string Lang, DateTimeOffset GeneratedAt);
+
     /// <summary>Studio control APIs for the demo UI.</summary>
     public static void MapDemoStudioEndpoints(this WebApplication app)
     {
@@ -85,6 +133,20 @@ public static class DemoEndpoints
                 source = "config",
             });
 
+            // Vary demo (Accept + lang query) — listed with config routes so it appears in the domain panel.
+            var varyMeta = new[]
+            {
+                new
+                {
+                    url = "/api/vary-demo",
+                    domain = "vary-demo",
+                    label = "Vary demo (Accept + ?lang=)",
+                    backend = BackendFor("vary-demo"),
+                    method = "GET",
+                    source = "config",
+                },
+            };
+
             // Metadata for the Entity invalidation panel (not mixed into the domain dropdown).
             var crudMeta = new[]
             {
@@ -99,7 +161,7 @@ public static class DemoEndpoints
                 },
             };
 
-            return Results.Json(fromConfig.Concat(crudMeta));
+            return Results.Json(fromConfig.Concat(varyMeta).Concat(crudMeta));
         }));
 
         // Returns the raw appsettings.json content for the JSON editor.

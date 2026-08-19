@@ -62,7 +62,9 @@
             <!-- 1) Classic domain-scoped routes from Demo:Endpoints -->
             <div class="cmd-panel" id="panelDomain" role="tabpanel" aria-labelledby="tabDomain">
                 <p class="panel-lead">
-                    Config-driven GET routes (<code>Demo:Endpoints</code>). Try TTLs, Output/Fusion hits, Client Cache Schedule, query keys, and domain-wide invalidate.
+                    Config-driven GET routes (<code>Demo:Endpoints</code>) plus <strong>Vary demo</strong>
+                    (<code>vary-demo</code>: try <em>Accept</em> (JSON vs XML) and <code>?lang=</code> (allowlisted; <code>utm_*</code> ignored).
+                    Also TTLs, OC/FC hits, Client Cache Schedule, and domain invalidate.
                 </p>
                 <div class="playground-controls">
                     <div class="control-row">
@@ -71,8 +73,15 @@
                             <select id="endpoint"></select>
                         </label>
                         <label class="control-label">
+                            Accept
+                            <select id="acceptHeader" title="Used by vary-demo; harmless on other routes">
+                                <option value="application/json">application/json</option>
+                                <option value="application/xml">application/xml</option>
+                            </select>
+                        </label>
+                        <label class="control-label">
                             Extra query params
-                            <input id="extraQuery" type="text" placeholder="page=2&amp;sort=name or utm_source=demo, etc." />
+                            <input id="extraQuery" type="text" placeholder="lang=sl or utm_source=demo, etc." />
                         </label>
                     </div>
                     <div class="control-row checks-and-buttons">
