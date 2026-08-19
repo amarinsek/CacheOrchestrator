@@ -77,4 +77,39 @@ public class ClusterBusRegistrationTests
         using ServiceProvider sp = services.BuildServiceProvider();
         sp.GetRequiredService<IClusterCommandBus>().IsEnabled.Should().BeFalse();
     }
+
+    [Fact]
+    public void AddHttpClusterBus_WhenMembershipNull_RegistersNullMembership()
+    {
+        ServiceCollection services = new();
+        IConfiguration config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Cache:OutputCache:Provider"] = "InMemory",
+            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:Cluster:Bus:Enabled"] = "true",
+            ["Cache:Cluster:Bus:Membership"] = "Null"
+        }).Build();
+
+        services.AddLogging();
+        services.AddCacheOrchestrator(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+
+        using ServiceProvider sp = services.BuildServiceProvider();
+        sp.GetRequiredService<IClusterCommandBus>().Should().BeOfType<HttpClusterCommandBus>();
+        sp.GetRequiredService<IClusterMembership>().Should().BeSameAs(NullClusterMembership.Instance);
+    }
+
+    [Fact]
+    public void AddHttpClusterBus_WhenSectionIsWhitespace_Throws()
+    {
+        ServiceCollection services = new();
+        IConfiguration config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Cache:OutputCache:Provider"] = "InMemory",
+            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory"
+        }).Build();
+
+        services.AddLogging();
+        var act = () => services.AddCacheOrchestrator(config, o => o.AddHttpClusterBus(" "), enableMvcConvention: false);
+        act.Should().Throw<ArgumentException>();
+    }
 }

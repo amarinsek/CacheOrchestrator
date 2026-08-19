@@ -1,13 +1,5 @@
 # Security Policy
 
-## Supported versions
-
-| Version | Supported |
-|---------|-----------|
-| `2.x` | Yes (current stable) |
-| `1.x` | No |
-| Pre-release (`*-rc.*`, etc.) | No (use latest stable) |
-
 ## Reporting a vulnerability
 
 **Do not** file a public GitHub issue for security vulnerabilities.
