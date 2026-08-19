@@ -171,7 +171,7 @@ Core package `Description` may append: `Redis backends: install CacheOrchestrato
 
 1. **Fork** (or branch from `main` if you have write access)
 2. Keep PRs focused — one topic per PR when possible
-3. Ensure `dotnet build` and unit tests pass
+3. Ensure `dotnet build` and unit tests pass (core `CacheOrchestrator.UnitTests` plus Redis / Bus / EFCore.Invalidation unit-test projects when those packages change; Admin Console tests on net10)
 4. Prefer clear commit messages (what / why, not just “fix”)
 5. Fill in the PR description: problem, approach, test plan
 6. Do **not** commit secrets, production Redis endpoints, or local `_local/` artifacts
@@ -179,7 +179,7 @@ Core package `Description` may append: `Redis backends: install CacheOrchestrato
 ### Safe change checklist
 
 1. Build solution (`CacheOrchestrator.slnx`)
-2. Run unit tests
+2. Run unit tests (projects listed under [Tests](#tests))
 3. Update sample if public API or config surface changes
 4. Avoid reintroducing a separate Abstractions assembly
 5. Avoid non-English comments or `ct` as a public parameter name

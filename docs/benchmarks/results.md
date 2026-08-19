@@ -30,7 +30,7 @@ All classes use a shared short job (`[ShortJob]`: net10.0, warmup 1 / iteration 
 | `HttpHelperBenchmarks` | Tracking query detection, `Cache-Control: no-store` scan, Accept-Encoding normalization |
 | `ClientCacheHeaderGeneratorBenchmarks` | Client Cache Schedule `Cache-Control` (Calm / Approaching / **Hold** / **must-revalidate** / NoStore / Private) |
 | `XCacheHeaderFormatterBenchmarks` | Diagnostic `X-Cache` formatting (Hit / Miss / **Stale** / **Bypass** / **Blocked** / Hold phase) |
-| `NormalizeDomainBenchmarks` | `DomainName.Normalize` and **`NormalizeResourceId`** |
+| `NormalizeDomainBenchmarks` | `DomainName.Normalize` and **`NormalizeResourceId`** / **`NormalizeEntityKind`** |
 | `CacheETagFactoryBenchmarks` | Weak ETag from version and version+resource |
 | `FusionEntryOptionsBenchmarks` | `GetFusionEntryOptions` build/reuse per domain snapshot |
 | `DomainCacheOptionsProviderBenchmarks` | Domain options L1 (HttpContext) / L2 (process) hit paths |

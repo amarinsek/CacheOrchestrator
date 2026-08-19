@@ -53,7 +53,7 @@ Do **not** pack the root README into the core package (HTML/logo does not render
 
 5. Create a **GitHub Release** for that tag (**not** marked pre-release for stable 1.0.0).  
    This triggers [`.github/workflows/publish.yml`](../.github/workflows/publish.yml):
-   - test (unit + integration on net8/net10 + Testcontainers Redis)
+   - test (core + Redis / Bus / EFCore unit tests + integration on net8/net10 + Testcontainers Redis)
    - `dotnet pack` → `.nupkg` + `.snupkg`
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)
    - **Admin Console App Docker image** → `ghcr.io/amarinsek/cacheorchestrator-admin-console` (same version tags)

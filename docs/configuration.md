@@ -235,7 +235,9 @@ Bound JSON still uses `*Seconds` integers.
 - replaces other chars with `-`, collapses dashes  
 - empty → `default`  
 
-Resource ids: `DomainName.NormalizeResourceId` (same rules; empty input → empty string).
+Resource ids: `DomainName.NormalizeResourceId` (same character rules; null/whitespace or values with no usable characters such as `!!!` → empty string, **not** `default`).
+
+Entity kinds: `DomainName.NormalizeEntityKind` (same as resource ids). Unusable kinds do not share the domain name `default`.
 
 ## Example domains
 

@@ -48,7 +48,7 @@ Technical reference. The [root README](../README.md) is the product overview. Yo
 
 - [CHANGELOG](../CHANGELOG.md)
 - [Releasing](releasing.md)
-- [Contributing](../CONTRIBUTING.md)
+- [Contributing](../CONTRIBUTING.md) — build, unit tests (core / Redis / Bus / EF Core), integration tests
 - [Security](../SECURITY.md)
 - [License](../LICENSE.md)
 

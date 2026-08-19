@@ -106,7 +106,9 @@ builder.Services.AddHealthChecks()
 - Redis backend registers a probe that pings `IConnectionMultiplexer`  
 - InMemory registers no external probe (healthy if none registered)  
 - Custom backends (e.g., SQL Server) can register their own specific database probes
-- Default timeout 3s; failure status default `Degraded`  
+- Default timeout 3s; failure status default `Degraded`
+
+Local Admin `GET …/health` is a **separate** endpoint: it still returns HTTP 200 when a registered cache probe fails, with `Healthy: false` (Admin Console maps that to **Degraded**). See [admin.md](admin.md#health-semantics-admin-console-app-mapping).
 
 ## Related
 

@@ -121,7 +121,7 @@ The HTTP cache path must use the **same** domain and `entityKind`:
 await cache.GetOrSetEntityAsync(http, "store", "products", id.ToString(), factory, cancellationToken);
 ```
 
-Primary keys: stringify each PK part with invariant culture, join composite keys with `:`, then `DomainName.NormalizeResourceId`. Route `resourceRouteKey` must produce the same string.
+Primary keys: stringify each PK part with invariant culture, join composite keys with `:`, then `DomainName.NormalizeResourceId`. Route `resourceRouteKey` must produce the same string. Entity kinds use `DomainName.NormalizeEntityKind` (garbage such as `!!!` is empty, not `default`).
 
 TPH: map the **concrete** `ClrType`. Mapping only the base type does not cover derived types.
 

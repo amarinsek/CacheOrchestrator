@@ -104,13 +104,15 @@ Order of query keys does not matter: `?a=1&b=2` and `?b=2&a=1` produce the same 
 
 #### Entity keys (`GetOrSetEntityAsync`)
 
-Kind and resource id are stored on `HttpContext.Items` and preferred for identity:
+Kind and resource id are set on `HttpContext.Items` **only for that call**, then restored, so a later URL-shaped `GetOrSetAsync` on the same request is not forced into `:id:` keys.
 
 | Input | Included |
 |-------|----------|
 | Normalized `entityKind` + `resourceId` | Always (visible as the `id:{entityKind}:{resourceId}` segment) |
 | Accept-Encoding / scheme+host | Same flags as above |
 | Path / query / route | **Not** used for the key |
+
+Unusable kind or id (whitespace, or only punctuation such as `!!!`) does **not** become `default`. `GetOrSetEntityAsync` throws; invalidators skip those values.
 
 Use this for CRUD-style resources so invalidation can target `entity:{domain}:{entityKind}:{id}` without depending on the full URL shape. Wire the matching Output Cache route with `resourceRouteKey` **and** `entityKind` ([invalidation.md](invalidation.md#wiring-entity-tags)).
 
