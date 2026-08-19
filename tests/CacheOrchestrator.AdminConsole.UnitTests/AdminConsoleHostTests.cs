@@ -78,6 +78,75 @@ public class AdminConsoleHostTests : IClassFixture<AdminConsoleHostTests.Factory
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task Overview_ReturnsJsonWithStringHealthStatus()
+    {
+        HttpClient client = _factory.CreateClient();
+        HttpResponseMessage response = await client.GetAsync("/api/overview", TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        string json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("\"status\":\"Down\"",
+            "JsonStringEnumConverter must emit Healthy/Degraded/Down for the SPA");
+        json.Should().Contain("\"id\":\"app-1\"");
+    }
+
+    [Fact]
+    public async Task HintsRules_ReturnsCatalog()
+    {
+        HttpClient client = _factory.CreateClient();
+        HttpResponseMessage response = await client.GetAsync("/api/hints/rules", TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        string json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("high-factory-share");
+        json.Should().Contain("knownPaths");
+    }
+
+    [Fact]
+    public async Task PatchSettings_EmptyBody_ReturnsBadRequest()
+    {
+        HttpClient client = _factory.CreateClient();
+        HttpResponseMessage response = await client.PatchAsJsonAsync(
+            "/api/domains/catalog/settings",
+            new AdminConsoleSettingsPatchRequest { Settings = [] },
+            TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Invalidate_UnknownScope_ReturnsBadRequest()
+    {
+        HttpClient client = _factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/invalidate",
+            new AdminConsoleInvalidateRequest { Scope = "all", Domain = "catalog" },
+            TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task MetricsCatalog_ReturnsPanels()
+    {
+        HttpClient client = _factory.CreateClient();
+        MetricsCatalogDto? catalog = await client.GetFromJsonAsync<MetricsCatalogDto>(
+            "/api/metrics/catalog",
+            TestContext.Current.CancellationToken);
+        catalog.Should().NotBeNull();
+        catalog!.Status.Should().Be(MetricsStoreStatusCodes.NotConfigured);
+        catalog.Panels.Should().BeEmpty("catalog panels are empty until a metrics store is configured");
+    }
+
+    [Fact]
+    public async Task Distribution_WhenInstanceUnreachable_ReportsFanOut()
+    {
+        HttpClient client = _factory.CreateClient();
+        ClusterDistributionCapabilityDto? cap = await client.GetFromJsonAsync<ClusterDistributionCapabilityDto>(
+            "/api/distribution",
+            TestContext.Current.CancellationToken);
+        cap.Should().NotBeNull();
+        cap!.RecommendedMode.Should().Be(DistributionModes.FanOut);
+        cap.BusAvailable.Should().BeFalse();
+    }
+
     public sealed class Factory : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)

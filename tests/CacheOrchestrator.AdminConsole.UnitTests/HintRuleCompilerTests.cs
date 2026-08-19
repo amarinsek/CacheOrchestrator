@@ -119,4 +119,69 @@ public class HintRuleCompilerTests
         hints.Should().ContainSingle(h => h.Code == "team-origin" && h.Severity == "Warning");
         hints[0].Message.Should().Contain("%");
     }
+
+    [Fact]
+    public void Compile_EmptyRules_Fails()
+    {
+        HintRuleCompileBatchResult result = _compiler.CompileFile("empty.json", """{"rules":[]}""");
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Path == "rules");
+    }
+
+    [Fact]
+    public void Compile_MissingCode_Fails()
+    {
+        const string json = """
+            {
+              "rules": [
+                { "severity": "Info", "scope": "domain", "when": { "path": "domain.requests", "op": ">", "value": 0 }, "message": "x" }
+              ]
+            }
+            """;
+        HintRuleCompileBatchResult result = _compiler.CompileFile("nocode.json", json);
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Path.Contains("code", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compile_AnyNot_Evaluates()
+    {
+        const string json = """
+            {
+              "rules": [
+                {
+                  "code": "any-not",
+                  "severity": "Info",
+                  "scope": "domain",
+                  "when": {
+                    "any": [
+                      { "path": "domain.requests", "op": ">=", "value": 1000 },
+                      { "not": { "path": "domain.version", "op": "eq", "value": "skip-me" } }
+                    ]
+                  },
+                  "message": "matched"
+                }
+              ]
+            }
+            """;
+        HintRuleCompileBatchResult compiled = _compiler.CompileFile("any.json", json);
+        compiled.Success.Should().BeTrue(string.Join("; ", compiled.Errors.Select(e => e.Message)));
+        IHintRule rule = compiled.Rules[0];
+
+        var ctx = new HintEvaluationContext
+        {
+            NowUtc = DateTimeOffset.UtcNow,
+            Domain = new AdminDomainStatsDto
+            {
+                Name = "maps",
+                Version = "1",
+                Requests = 1,
+                Oc = new AdminLayerDto(),
+                Fc = new AdminFusionLayerDto(),
+                Pipeline = new AdminPipelineDto(),
+            },
+        };
+
+        rule.Evaluate(ctx).Should().ContainSingle(h => h.Code == "any-not");
+    }
 }

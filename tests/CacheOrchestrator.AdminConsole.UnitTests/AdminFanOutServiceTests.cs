@@ -1,5 +1,6 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Models;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.AdminConsole.Services;
 using CacheOrchestrator.Invalidation;
@@ -308,6 +309,168 @@ public class AdminFanOutServiceTests
         client.LastTtlBody.Distribute.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task GetInstancesAsync_HttpOkButHealthyFalse_IsDegraded()
+    {
+        FakeLocalAdminClient client = new();
+        client.Unhealthy.Add("a");
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" });
+
+        IReadOnlyList<InstanceStatusDto> instances =
+            await sut.GetInstancesAsync(TestContext.Current.CancellationToken);
+
+        instances.Should().ContainSingle();
+        instances[0].Status.Should().Be(InstanceHealthStatus.Degraded,
+            "Local Admin HTTP 200 + Healthy:false maps to Console Degraded");
+        OverviewDto overview = await sut.GetOverviewAsync(TestContext.Current.CancellationToken);
+        overview.DegradedCount.Should().Be(1);
+        overview.HealthyCount.Should().Be(0);
+        overview.Alerts.Should().Contain(a => a.Contains("degraded", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void GetConfiguredInstances_SkipsBlankIdOrUrl()
+    {
+        AdminFanOutService sut = CreateSut(
+            new AdminInstanceOptions { Id = " ", Url = "http://a" },
+            new AdminInstanceOptions { Id = "ok", Url = "http://ok" },
+            new AdminInstanceOptions { Id = "empty-url", Url = "" });
+
+        sut.GetConfiguredInstances().Select(i => i.Id).Should().Equal("ok");
+    }
+
+    [Fact]
+    public async Task GetDistributionCapabilityAsync_NullMembership_IsNotBus()
+    {
+        FakeLocalAdminClient client = new();
+        client.ClusterInfo["a"] = new LocalClusterInfoDto
+        {
+            InstanceId = "a",
+            BusEnabled = true,
+            Membership = "Null",
+            PeerCount = 0,
+        };
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" });
+
+        ClusterDistributionCapabilityDto cap =
+            await sut.GetDistributionCapabilityAsync(TestContext.Current.CancellationToken);
+
+        cap.BusAvailable.Should().BeFalse();
+        cap.RecommendedMode.Should().Be(DistributionModes.FanOut);
+    }
+
+    [Fact]
+    public async Task PatchSettingsAsync_FansOutWithDistributeFalse_WhenNoBus()
+    {
+        FakeLocalAdminClient client = new();
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        FanOutResultDto<object?> result = await sut.PatchSettingsAsync(
+            "catalog",
+            new AdminConsoleSettingsPatchRequest
+            {
+                Settings = new Dictionary<string, System.Text.Json.JsonElement>
+                {
+                    ["outputCacheTtlSeconds"] = System.Text.Json.JsonSerializer.SerializeToElement(90),
+                },
+            },
+            TestContext.Current.CancellationToken);
+
+        result.DistributionMode.Should().Be(DistributionModes.FanOut);
+        result.Outcome.Should().Be(WriteOutcomes.Success);
+        client.SettingsCalls.Should().BeEquivalentTo(["a:catalog", "b:catalog"]);
+        client.LastSettingsBody!.Distribute.Should().BeFalse();
+        client.LastSettingsBody.Settings!["outputCacheTtlSeconds"].GetInt32().Should().Be(90);
+    }
+
+    [Fact]
+    public async Task InvalidateAsync_WhenNoInstances_IsFailed()
+    {
+        AdminFanOutService sut = CreateSut();
+        FanOutResultDto<object?> result = await sut.InvalidateAsync(
+            new AdminConsoleInvalidateRequest { Scope = "domain", Domain = "catalog" },
+            TestContext.Current.CancellationToken);
+
+        result.Outcome.Should().Be(WriteOutcomes.Failed);
+        result.Results.Should().BeEmpty();
+        result.AllSucceeded.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task InvalidateAsync_WhenEveryTargetFails_IsFailed()
+    {
+        FakeLocalAdminClient client = new();
+        client.FailHealth.Add("a");
+        client.FailHealth.Add("b");
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        FanOutResultDto<object?> result = await sut.InvalidateAsync(
+            new AdminConsoleInvalidateRequest { Scope = "domain", Domain = "catalog" },
+            TestContext.Current.CancellationToken);
+
+        result.Outcome.Should().Be(WriteOutcomes.Failed);
+        result.FailedInstanceIds.Should().BeEquivalentTo(["a", "b"]);
+    }
+
+    [Fact]
+    public async Task GetDomainSettingsCatalogAsync_UsesFirstSuccessfulInstance()
+    {
+        FakeLocalAdminClient client = new();
+        client.FailCatalog.Add("a");
+        client.CatalogById["b"] = new AdminDomainSettingsCatalogDto
+        {
+            Settings =
+            [
+                new DomainSettingCatalogEntry
+                {
+                    Id = "outputCacheTtlSeconds",
+                    PropertyName = "OutputCacheTtlSeconds",
+                    DisplayName = "Output TTL",
+                },
+            ],
+        };
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        AdminDomainSettingsCatalogDto catalog =
+            await sut.GetDomainSettingsCatalogAsync(TestContext.Current.CancellationToken);
+
+        catalog.Settings.Should().ContainSingle(s => s.Id == "outputCacheTtlSeconds");
+    }
+
+    [Fact]
+    public async Task SetVersionAsync_WhenBusAvailable_UsesSingleOriginDistribute()
+    {
+        FakeLocalAdminClient client = new();
+        client.ClusterInfo["a"] = new LocalClusterInfoDto
+        {
+            InstanceId = "a",
+            BusEnabled = true,
+            Membership = "Static",
+            PeerCount = 2,
+        };
+        AdminFanOutService sut = CreateSut(client,
+            new AdminInstanceOptions { Id = "a", Url = "http://a" },
+            new AdminInstanceOptions { Id = "b", Url = "http://b" });
+
+        FanOutResultDto<object?> result = await sut.SetVersionAsync(
+            "catalog",
+            new AdminConsoleVersionRequest { Version = "v9" },
+            TestContext.Current.CancellationToken);
+
+        result.DistributionMode.Should().Be(DistributionModes.BusDistribute);
+        result.Distribute.Should().BeTrue();
+        client.VersionCalls.Should().Equal("a:catalog");
+        client.LastVersionBody!.Distribute.Should().BeTrue();
+    }
+
     private static AdminFanOutService CreateSut(params AdminInstanceOptions[] instances) =>
         CreateSut(new FakeLocalAdminClient(), instances);
 
@@ -335,16 +498,22 @@ public class AdminFanOutServiceTests
     private sealed class FakeLocalAdminClient : ILocalAdminClient
     {
         public HashSet<string> FailHealth { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Unhealthy { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> FailCatalog { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, int> HealthCallCountById { get; } = new(StringComparer.Ordinal);
         public List<string> InvalidateCalls { get; } = [];
         public List<string> VersionCalls { get; } = [];
         public List<string> TtlCalls { get; } = [];
+        public List<string> SettingsCalls { get; } = [];
         public Dictionary<string, LocalClusterInfoDto> ClusterInfo { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, IReadOnlyList<AdminDomainConfigDto>> DomainsById { get; } =
+            new(StringComparer.Ordinal);
+        public Dictionary<string, AdminDomainSettingsCatalogDto> CatalogById { get; } =
             new(StringComparer.Ordinal);
         public AdminInvalidateRequest? LastInvalidateBody { get; private set; }
         public AdminVersionRequest? LastVersionBody { get; private set; }
         public AdminTtlPatchRequest? LastTtlBody { get; private set; }
+        public AdminSettingsPatchRequest? LastSettingsBody { get; private set; }
 
         public Task<InstanceCallOutcome<AdminHealthDto>> GetHealthAsync(
             AdminInstanceOptions instance,
@@ -356,7 +525,7 @@ public class AdminFanOutServiceTests
 
             return Task.FromResult(Ok(instance.Id, new AdminHealthDto
             {
-                Healthy = true,
+                Healthy = !Unhealthy.Contains(instance.Id),
                 InstanceId = instance.Id,
                 UtcNow = DateTimeOffset.UtcNow,
                 AdminEnabled = true
@@ -379,6 +548,8 @@ public class AdminFanOutServiceTests
             AdminInvalidateRequest body,
             CancellationToken cancellationToken = default)
         {
+            if (FailHealth.Contains(instance.Id))
+                return Task.FromResult(Fail<CacheInvalidationResult>(instance.Id, "down"));
             InvalidateCalls.Add(instance.Id);
             LastInvalidateBody = body;
             return Task.FromResult(Ok(instance.Id, CacheInvalidationResult.Skipped("test")));
@@ -429,8 +600,11 @@ public class AdminFanOutServiceTests
             AdminInstanceOptions instance,
             string domain,
             AdminSettingsPatchRequest body,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(Ok(instance.Id, new AdminDomainMutationResultDto
+            CancellationToken cancellationToken = default)
+        {
+            SettingsCalls.Add(instance.Id + ":" + domain);
+            LastSettingsBody = body;
+            return Task.FromResult(Ok(instance.Id, new AdminDomainMutationResultDto
             {
                 Domain = domain,
                 Effective = new AdminDomainConfigDto
@@ -440,11 +614,18 @@ public class AdminFanOutServiceTests
                     FusionCacheInstanceName = "default",
                 },
             }));
+        }
 
         public Task<InstanceCallOutcome<AdminDomainSettingsCatalogDto>> GetDomainSettingsCatalogAsync(
             AdminInstanceOptions instance,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(Ok(instance.Id, new AdminDomainSettingsCatalogDto { Settings = [] }));
+            CancellationToken cancellationToken = default)
+        {
+            if (FailCatalog.Contains(instance.Id))
+                return Task.FromResult(Fail<AdminDomainSettingsCatalogDto>(instance.Id, "catalog down"));
+            if (CatalogById.TryGetValue(instance.Id, out AdminDomainSettingsCatalogDto? catalog))
+                return Task.FromResult(Ok(instance.Id, catalog));
+            return Task.FromResult(Ok(instance.Id, new AdminDomainSettingsCatalogDto { Settings = [] }));
+        }
 
         public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
             AdminInstanceOptions instance,

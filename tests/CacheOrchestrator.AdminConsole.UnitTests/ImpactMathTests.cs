@@ -94,4 +94,40 @@ public class ImpactMathTests
         summed.AvgFactoryDurationMs.Should().Be(kpi.AvgFactoryDurationMs);
         summed.Benefit.Should().Be(kpi.Benefit);
     }
+
+    [Fact]
+    public void ZeroRequests_IsInsufficientData()
+    {
+        CacheImpactKpiDto kpi = ImpactMath.Compute(
+            requests: 0,
+            factoryRuns: 0,
+            factoryDurationSumMs: null,
+            factoryDurationCount: 0);
+
+        kpi.LowRequestSample.Should().BeTrue();
+        kpi.Candidate.Should().Be("INSUFFICIENT_DATA");
+        kpi.Benefit.Should().Be("UNKNOWN");
+        kpi.FactoryShare.Should().BeNull();
+    }
+
+    [Fact]
+    public void HighTraffic_LowCost_IsVolume()
+    {
+        CacheImpactKpiDto kpi = ImpactMath.Compute(
+            requests: 5_000,
+            factoryRuns: 50,
+            factoryDurationSumMs: 50 * 2,
+            factoryDurationCount: 50);
+
+        kpi.Candidate.Should().Be("VOLUME");
+        kpi.Benefit.Should().Be("LOW_GAIN");
+    }
+
+    [Fact]
+    public void MaxCost_PrefersHighOverUnknown()
+    {
+        ImpactMath.MaxCost("UNKNOWN", "HIGH").Should().Be("HIGH");
+        ImpactMath.MaxCost("LOW", "MEDIUM").Should().Be("MEDIUM");
+        ImpactMath.MaxCost("UNKNOWN", "UNKNOWN").Should().Be("UNKNOWN");
+    }
 }
