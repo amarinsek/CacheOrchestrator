@@ -72,6 +72,7 @@ public class AdminRegistrationTests
         body.Should().NotBeNull();
         body!.InstanceId.Should().Be("unit-1");
         body.AdminEnabled.Should().BeTrue();
+        body.Healthy.Should().BeTrue();
 
         HttpResponseMessage stats = await client.GetAsync("/cache-admin/local/stats", Ct);
         stats.StatusCode.Should().Be(HttpStatusCode.OK);

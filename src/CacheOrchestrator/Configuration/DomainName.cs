@@ -76,12 +76,34 @@ public static class DomainName
     /// Normalizes a resource id for cache keys and entity tags (same character rules as domains).
     /// </summary>
     /// <param name="resourceId">Raw resource id (e.g. product id from the route).</param>
-    /// <returns>Normalized id, or empty string when input is null/whitespace.</returns>
-    public static string NormalizeResourceId(string? resourceId)
+    /// <returns>
+    /// Normalized id, or empty string when input is null/whitespace, or when the value
+    /// contains no usable characters (unlike <see cref="Normalize"/>, this does not fall
+    /// back to <see cref="Default"/> — that would collide unrelated ids).
+    /// </returns>
+    public static string NormalizeResourceId(string? resourceId) => NormalizeKeySegment(resourceId);
+
+    /// <summary>
+    /// Normalizes an entity kind (resource type) for cache keys and tags.
+    /// Same character rules as <see cref="NormalizeResourceId"/>: garbage such as <c>!!!</c>
+    /// becomes empty instead of <see cref="Default"/>, so unrelated kinds do not share a tag.
+    /// </summary>
+    /// <param name="entityKind">Raw entity kind (e.g. <c>products</c>).</param>
+    /// <returns>Normalized kind, or empty string when the value is unusable.</returns>
+    public static string NormalizeEntityKind(string? entityKind) => NormalizeKeySegment(entityKind);
+
+    private static string NormalizeKeySegment(string? value)
     {
-        if (string.IsNullOrWhiteSpace(resourceId))
+        if (string.IsNullOrWhiteSpace(value))
             return string.Empty;
 
-        return Normalize(resourceId);
+        string normalized = Normalize(value);
+        if (normalized == Default
+            && !string.Equals(value.Trim(), Default, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        return normalized;
     }
 }

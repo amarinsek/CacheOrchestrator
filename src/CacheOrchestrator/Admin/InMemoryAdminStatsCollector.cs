@@ -179,10 +179,12 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
                 break;
             case "stale":
                 Interlocked.Increment(ref set.FcStale);
+                Interlocked.Increment(ref set.FcFactoryRuns);
                 Interlocked.Increment(ref set.FcFactoryFailures);
                 break;
             case "fail":
-                // Hard factory throw (no fail-safe value returned).
+                // Hard factory throw (no fail-safe value returned). Factory still ran.
+                Interlocked.Increment(ref set.FcFactoryRuns);
                 Interlocked.Increment(ref set.FcFactoryFailures);
                 break;
             case "bypass":

@@ -13,6 +13,11 @@ public interface IDomainCacheOptionsProvider
     /// <param name="http">Current HTTP context.</param>
     /// <param name="domain">Raw domain name (normalized internally).</param>
     /// <returns>Effective domain options (never null).</returns>
+    /// <remarks>
+    /// If a snapshot for the same normalized domain is already on the request, it is reused.
+    /// A different domain replaces the request snapshot (Output Cache headers already queued
+    /// for the previous domain are unchanged).
+    /// </remarks>
     DomainCacheOptions EnsureDomainOptions(HttpContext http, string domain);
 
     /// <summary>

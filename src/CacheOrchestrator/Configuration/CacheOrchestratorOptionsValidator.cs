@@ -106,8 +106,29 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
         if (settings.FusionCacheHardTtlSeconds is < 0)
             failures.Add($"{label}: FusionCacheHardTtlSeconds cannot be negative.");
 
-        ValidateAllowlist(label, "VaryByHeaders", settings.VaryByHeaders, Vary.CacheVaryMaterializer.MaxVaryByHeaders, failures);
-        ValidateAllowlist(label, "VaryByCookies", settings.VaryByCookies, Vary.CacheVaryMaterializer.MaxVaryByCookies, failures);
+        if (settings.FusionCacheFailSafeSeconds is < 0)
+            failures.Add($"{label}: FusionCacheFailSafeSeconds cannot be negative.");
+
+        if (settings.ClientTtlSeconds is < 0)
+            failures.Add($"{label}: ClientTtlSeconds cannot be negative.");
+
+        if (settings.ClientTtlMinSeconds is < 0)
+            failures.Add($"{label}: ClientTtlMinSeconds cannot be negative.");
+
+        if (settings.FusionCacheJitterSeconds is < 0)
+            failures.Add($"{label}: FusionCacheJitterSeconds cannot be negative.");
+
+        if (settings.FusionCacheFactorySoftTimeoutSeconds is < 0)
+            failures.Add($"{label}: FusionCacheFactorySoftTimeoutSeconds cannot be negative.");
+
+        if (settings.FusionCacheFactoryHardTimeoutSeconds is < 0)
+            failures.Add($"{label}: FusionCacheFactoryHardTimeoutSeconds cannot be negative.");
+
+        if (settings.FusionCacheEagerRefreshRatio is double ratio && (ratio < 0 || ratio >= 1))
+            failures.Add($"{label}: FusionCacheEagerRefreshRatio must be 0 (disabled) or in (0, 1).");
+
+        ValidateAllowlist(label, "VaryByHeaders", settings.VaryByHeaders, Vary.CacheVaryMaterializer.MaxVaryByHeaders, failures, allowEmpty: true);
+        ValidateAllowlist(label, "VaryByCookies", settings.VaryByCookies, Vary.CacheVaryMaterializer.MaxVaryByCookies, failures, allowEmpty: true);
         ValidateAllowlist(label, "VaryByQueryKeys", settings.VaryByQueryKeys, max: 32, failures, allowEmpty: true);
         ValidateAllowlist(label, "IgnoreQueryKeys", settings.IgnoreQueryKeys, max: 32, failures, allowEmpty: true);
         ValidateAllowlist(label, "VaryByAuthClaims", settings.VaryByAuthClaims, max: 16, failures, allowEmpty: true);
@@ -118,7 +139,7 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
             failures.Add($"{label}: AuthBypassMode value '{mode}' is not defined.");
     }
 
-    private static void ValidateAllowlist(
+    internal static void ValidateAllowlist(
         string label,
         string propertyName,
         string[]? values,
@@ -129,8 +150,12 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
         if (values is null)
             return;
 
-        if (!allowEmpty && values.Length == 0)
+        if (values.Length == 0)
+        {
+            if (!allowEmpty)
+                failures.Add($"{label}: {propertyName} must not be empty.");
             return;
+        }
 
         if (values.Length > max)
         {

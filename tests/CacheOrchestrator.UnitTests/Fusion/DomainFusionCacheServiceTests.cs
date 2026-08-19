@@ -3,6 +3,7 @@ using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Security.Claims;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.UnitTests.Fusion;
@@ -61,15 +62,9 @@ public class DomainFusionCacheServiceTests
         _domainConfig.GetDomainOptions(http).Returns((DomainCacheOptions?)null);
         _domainConfig.EnsureDomainOptions(http, "reports").Returns(cfg);
         _keyGenerator.Generate(cfg, http).Returns("key");
+        StubGetOrSetAndCaptureOptions(returnValue: 1);
 
-        try
-        {
-            await _sut.GetOrSetAsync(http, "reports", _ => Task.FromResult(1), TestContext.Current.CancellationToken);
-        }
-        catch
-        {
-            // Fusion substitute may not complete GetOrSetAsync
-        }
+        await _sut.GetOrSetAsync(http, "reports", _ => Task.FromResult(1), TestContext.Current.CancellationToken);
 
         _domainConfig.Received(1).EnsureDomainOptions(http, "reports");
         _keyGenerator.Received(1).Generate(cfg, http);
@@ -89,15 +84,9 @@ public class DomainFusionCacheServiceTests
             new EndpointMetadataCollection(new DomainOutputCachePolicy("catalog")),
             "test");
         http.SetEndpoint(endpoint);
+        StubGetOrSetAndCaptureOptions(returnValue: 1);
 
-        try
-        {
-            await _sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
-        }
-        catch
-        {
-            // expected with substitute
-        }
+        await _sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
 
         _domainConfig.Received(1).EnsureDomainOptions(http, "catalog");
     }
@@ -116,38 +105,43 @@ public class DomainFusionCacheServiceTests
             new EndpointMetadataCollection(new CacheDomainAttribute("orders")),
             "test");
         http.SetEndpoint(endpoint);
+        StubGetOrSetAndCaptureOptions(returnValue: 1);
 
-        try
-        {
-            await _sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
-        }
-        catch
-        {
-            // expected
-        }
+        await _sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
 
         _domainConfig.Received(1).EnsureDomainOptions(http, "orders");
     }
 
     [Fact]
-    public async Task GetOrSetAsync_WhenConfigAlreadyOnRequest_DoesNotReEnsure()
+    public async Task GetOrSetAsync_WhenConfigAlreadyOnRequest_SameDomain_DoesNotReEnsure()
     {
         var http = new DefaultHttpContext();
         var cfg = CreateConfig(domain: "products");
         _domainConfig.GetDomainOptions(http).Returns(cfg);
         _keyGenerator.Generate(cfg, http).Returns("key");
+        StubGetOrSetAndCaptureOptions(returnValue: 1);
 
-        try
-        {
-            await _sut.GetOrSetAsync(http, "ignored", _ => Task.FromResult(1), TestContext.Current.CancellationToken);
-        }
-        catch
-        {
-            // expected
-        }
+        await _sut.GetOrSetAsync(http, "products", _ => Task.FromResult(1), TestContext.Current.CancellationToken);
 
         _domainConfig.DidNotReceive().EnsureDomainOptions(Arg.Any<HttpContext>(), Arg.Any<string>());
         _keyGenerator.Received(1).Generate(cfg, http);
+    }
+
+    [Fact]
+    public async Task GetOrSetAsync_WithDomainOverload_WhenDifferentDomainAlreadyOnRequest_UsesExplicitDomain()
+    {
+        var http = new DefaultHttpContext();
+        var products = CreateConfig(domain: "products");
+        var catalog = CreateConfig(domain: "catalog");
+        _domainConfig.GetDomainOptions(http).Returns(products);
+        _domainConfig.EnsureDomainOptions(http, "catalog").Returns(catalog);
+        _keyGenerator.Generate(catalog, http).Returns("key");
+        StubGetOrSetAndCaptureOptions(returnValue: 1);
+
+        await _sut.GetOrSetAsync(http, "catalog", _ => Task.FromResult(1), TestContext.Current.CancellationToken);
+
+        _domainConfig.Received(1).EnsureDomainOptions(http, "catalog");
+        _keyGenerator.Received(1).Generate(catalog, http);
     }
 
     [Fact]
@@ -165,6 +159,47 @@ public class DomainFusionCacheServiceTests
 
         result.Should().Be(99);
         factoryCalled.Should().BeTrue();
+        http.Items[CacheOrchestratorKeys.DispositionKey].Should().BeOfType<CacheDisposition>()
+            .Which.Data.Should().Be(DataCacheResult.Off);
+    }
+
+    [Fact]
+    public async Task GetOrSetAsync_WhenFusionRespectAuthBypass_AndAuthenticated_CallsFactoryUncached()
+    {
+        var http = new DefaultHttpContext();
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.Name, "alice")],
+            authenticationType: "test"));
+        _domainConfig.GetDomainOptions(http).Returns(CreateConfig(fusionRespectAuthBypass: true));
+
+        bool factoryCalled = false;
+        int result = await _sut.GetOrSetAsync(http, _ =>
+        {
+            factoryCalled = true;
+            return Task.FromResult(3);
+        }, TestContext.Current.CancellationToken);
+
+        result.Should().Be(3);
+        factoryCalled.Should().BeTrue();
+        _keyGenerator.DidNotReceive().Generate(Arg.Any<DomainCacheOptions>(), Arg.Any<HttpContext>());
+        http.Items[CacheOrchestratorKeys.DispositionKey].Should().BeOfType<CacheDisposition>()
+            .Which.Data.Should().Be(DataCacheResult.Bypass);
+    }
+
+    [Fact]
+    public async Task GetOrSetAsync_WhenFusionRespectAuthBypassFalse_StillCachesUnderAuthorization()
+    {
+        var http = new DefaultHttpContext();
+        http.Request.Headers.Authorization = "Bearer token";
+        var cfg = CreateConfig(fusionRespectAuthBypass: false);
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
+        _keyGenerator.Generate(cfg, http).Returns("key");
+        StubGetOrSetAndCaptureOptions(returnValue: 8);
+
+        int result = await _sut.GetOrSetAsync(http, _ => Task.FromResult(8), TestContext.Current.CancellationToken);
+
+        result.Should().Be(8);
+        _keyGenerator.Received(1).Generate(cfg, http);
     }
 
     // =========================
@@ -187,6 +222,8 @@ public class DomainFusionCacheServiceTests
 
         result.Should().Be(7);
         factoryCalled.Should().BeTrue();
+        http.Items[CacheOrchestratorKeys.DispositionKey].Should().BeOfType<CacheDisposition>()
+            .Which.Data.Should().Be(DataCacheResult.Bypass);
     }
 
     [Fact]
@@ -196,18 +233,11 @@ public class DomainFusionCacheServiceTests
         var cfg = CreateConfig(respectNoStore: true);
         _domainConfig.GetDomainOptions(http).Returns(cfg);
         _keyGenerator.Generate(cfg, http).Returns("test-key");
+        StubGetOrSetAndCaptureOptions(returnValue: 123);
 
-        // We only verify that the key generator was called (meaning we entered the FusionCache path)
-        // Full FusionCache interaction is better covered by integration tests.
-        try
-        {
-            await _sut.GetOrSetAsync(http, _ => Task.FromResult(123), TestContext.Current.CancellationToken);
-        }
-        catch
-        {
-            // Expected � our substitute doesn't fully implement GetOrSetAsync
-        }
+        int result = await _sut.GetOrSetAsync(http, _ => Task.FromResult(123), TestContext.Current.CancellationToken);
 
+        result.Should().Be(123);
         _keyGenerator.Received(1).Generate(cfg, http);
     }
 
@@ -222,17 +252,12 @@ public class DomainFusionCacheServiceTests
         var cfg = CreateConfig();
         _domainConfig.GetDomainOptions(http).Returns(cfg);
         _keyGenerator.Generate(cfg, http).Returns("products:202608011200:abc123");
+        EntryOptionsCapture capture = StubGetOrSetAndCaptureOptions(returnValue: 1);
 
-        try
-        {
-            await _sut.GetOrSetAsync(http, _ => Task.FromResult("value"), TestContext.Current.CancellationToken);
-        }
-        catch
-        {
-            // Expected with incomplete substitute
-        }
+        await _sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
 
         _keyGenerator.Received(1).Generate(cfg, http);
+        capture.Tags.Should().Equal("domain:products");
     }
 
     [Fact]
@@ -242,15 +267,9 @@ public class DomainFusionCacheServiceTests
         var cfg = CreateConfig(domain: "orders");
         _domainConfig.GetDomainOptions(http).Returns(cfg);
         _keyGenerator.Generate(cfg, http).Returns("key");
+        StubGetOrSetAndCaptureOptions(returnValue: 1);
 
-        try
-        {
-            await _sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
-        }
-        catch
-        {
-            // Expected
-        }
+        await _sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
 
         _keyGenerator.Received(1).Generate(
             Arg.Is<DomainCacheOptions>(c => c.Domain == "orders"),
@@ -316,6 +335,197 @@ public class DomainFusionCacheServiceTests
         capture1.Options.Should().BeSameAs(cfg.GetFusionEntryOptions());
     }
 
+    [Fact]
+    public async Task GetOrSetEntityAsync_SetsIdentityOnlyForTheCall_ThenRestores()
+    {
+        var http = new DefaultHttpContext();
+        var cfg = CreateConfig();
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
+        _keyGenerator
+            .Generate(cfg, Arg.Any<HttpContext>())
+            .Returns(ci =>
+            {
+                HttpContext ctx = ci.Arg<HttpContext>();
+                ctx.Items[CacheOrchestratorKeys.EntityKindKey].Should().Be("items");
+                ctx.Items[CacheOrchestratorKeys.ResourceIdKey].Should().Be("42");
+                return "entity-key";
+            });
+        StubGetOrSetAndCaptureOptions(returnValue: 1);
+
+        await _sut.GetOrSetEntityAsync(
+            http,
+            "items",
+            "42",
+            _ => Task.FromResult(1),
+            TestContext.Current.CancellationToken);
+
+        http.Items.ContainsKey(CacheOrchestratorKeys.EntityKindKey).Should().BeFalse();
+        http.Items.ContainsKey(CacheOrchestratorKeys.ResourceIdKey).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetOrSetEntityAsync_RestoresPreviousIdentityFromOutputCache()
+    {
+        var http = new DefaultHttpContext();
+        var cfg = CreateConfig();
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
+        http.Items[CacheOrchestratorKeys.EntityKindKey] = "products";
+        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "99";
+        _keyGenerator.Generate(cfg, Arg.Any<HttpContext>()).Returns("entity-key");
+        StubGetOrSetAndCaptureOptions(returnValue: 1);
+
+        await _sut.GetOrSetEntityAsync(
+            http,
+            "items",
+            "42",
+            _ => Task.FromResult(1),
+            TestContext.Current.CancellationToken);
+
+        http.Items[CacheOrchestratorKeys.EntityKindKey].Should().Be("products");
+        http.Items[CacheOrchestratorKeys.ResourceIdKey].Should().Be("99");
+    }
+
+    [Fact]
+    public async Task GetOrSetEntityAsync_PassesDomainEntityAndKindTags()
+    {
+        var http = new DefaultHttpContext();
+        var cfg = CreateConfig(domain: "store");
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
+        _keyGenerator.Generate(cfg, Arg.Any<HttpContext>()).Returns("entity-key");
+        EntryOptionsCapture capture = StubGetOrSetAndCaptureOptions(returnValue: 1);
+
+        await _sut.GetOrSetEntityAsync(
+            http,
+            "items",
+            "42",
+            _ => Task.FromResult(1),
+            TestContext.Current.CancellationToken);
+
+        capture.Tags.Should().Equal(
+            "domain:store",
+            "entity:store:items:42",
+            "entitykind:store:items");
+    }
+
+    [Fact]
+    public async Task GetOrSetEntityAsync_WhenEntityKindIsGarbage_Throws()
+    {
+        var http = new DefaultHttpContext();
+        _domainConfig.GetDomainOptions(http).Returns(CreateConfig());
+
+        var act = () => _sut.GetOrSetEntityAsync(
+            http,
+            "!!!",
+            "42",
+            _ => Task.FromResult(1),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<ArgumentException>().WithParameterName("entityKind");
+    }
+
+    [Fact]
+    public async Task GetOrSetEntityAsync_WhenResourceIdIsGarbage_Throws()
+    {
+        var http = new DefaultHttpContext();
+        _domainConfig.GetDomainOptions(http).Returns(CreateConfig());
+
+        var act = () => _sut.GetOrSetEntityAsync(
+            http,
+            "items",
+            "---",
+            _ => Task.FromResult(1),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<ArgumentException>().WithParameterName("resourceId");
+    }
+
+    [Fact]
+    public async Task GetOrSetEntityAsync_KeyIgnoresPathAndQuery()
+    {
+        var cfg = CreateConfig(domain: "store");
+        _domainConfig.GetDomainOptions(Arg.Any<HttpContext>()).Returns(cfg);
+
+        var realKeys = new DefaultDomainKeyGenerator();
+        var sut = new DomainFusionCacheService(
+            _fusionProvider,
+            _domainConfig,
+            realKeys,
+            NullLogger<DomainFusionCacheService>.Instance);
+
+        var keys = new List<string>();
+        _fusionCache
+            .GetOrSetAsync(
+                Arg.Any<string>(),
+                Arg.Any<Func<FusionCacheFactoryExecutionContext<int>, CancellationToken, Task<int>>>(),
+                Arg.Any<MaybeValue<int>>(),
+                Arg.Any<FusionCacheEntryOptions>(),
+                Arg.Any<IEnumerable<string>?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                keys.Add(ci.Arg<string>());
+                return ValueTask.FromResult(1);
+            });
+
+        var httpA = new DefaultHttpContext();
+        httpA.Request.Path = "/api/a";
+        httpA.Request.QueryString = new QueryString("?page=1");
+        var httpB = new DefaultHttpContext();
+        httpB.Request.Path = "/api/b";
+        httpB.Request.QueryString = new QueryString("?page=99");
+
+        await sut.GetOrSetEntityAsync(httpA, "items", "42", _ => Task.FromResult(1), TestContext.Current.CancellationToken);
+        await sut.GetOrSetEntityAsync(httpB, "items", "42", _ => Task.FromResult(1), TestContext.Current.CancellationToken);
+
+        keys.Should().HaveCount(2);
+        keys[0].Should().Be(keys[1]);
+        keys[0].Should().Contain(":id:items:42:");
+    }
+
+    [Fact]
+    public async Task GetOrSetAsync_AfterGetOrSetEntityAsync_DoesNotUseEntityKeyShape()
+    {
+        var http = new DefaultHttpContext();
+        http.Request.Method = "GET";
+        http.Request.Path = "/api/products";
+        var cfg = CreateConfig();
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
+
+        var realKeys = new DefaultDomainKeyGenerator();
+        var sut = new DomainFusionCacheService(
+            _fusionProvider,
+            _domainConfig,
+            realKeys,
+            NullLogger<DomainFusionCacheService>.Instance);
+
+        var keys = new List<string>();
+        _fusionCache
+            .GetOrSetAsync(
+                Arg.Any<string>(),
+                Arg.Any<Func<FusionCacheFactoryExecutionContext<int>, CancellationToken, Task<int>>>(),
+                Arg.Any<MaybeValue<int>>(),
+                Arg.Any<FusionCacheEntryOptions>(),
+                Arg.Any<IEnumerable<string>?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                keys.Add(ci.Arg<string>());
+                return ValueTask.FromResult(1);
+            });
+
+        await sut.GetOrSetEntityAsync(
+            http,
+            "items",
+            "42",
+            _ => Task.FromResult(1),
+            TestContext.Current.CancellationToken);
+        await sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
+
+        keys.Should().HaveCount(2);
+        keys[0].Should().Contain(":id:items:42:");
+        keys[1].Should().NotContain(":id:items:42:");
+    }
+
     /// <summary>
     /// Stubs the core <see cref="IFusionCache.GetOrSetAsync{T}"/> overload (with <see cref="MaybeValue{T}"/>)
     /// that extension methods ultimately call, and captures entry options into a mutable holder.
@@ -330,7 +540,7 @@ public class DomainFusionCacheServiceTests
                 Arg.Any<Func<FusionCacheFactoryExecutionContext<int>, CancellationToken, Task<int>>>(),
                 Arg.Any<MaybeValue<int>>(),
                 Arg.Do<FusionCacheEntryOptions>(o => capture.Options = o),
-                Arg.Any<IEnumerable<string>?>(),
+                Arg.Do<IEnumerable<string>?>(t => capture.Tags = t?.ToArray()),
                 Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult(returnValue));
 
@@ -340,6 +550,7 @@ public class DomainFusionCacheServiceTests
     private sealed class EntryOptionsCapture
     {
         public FusionCacheEntryOptions? Options { get; set; }
+        public string[]? Tags { get; set; }
     }
 
     // =========================
@@ -350,11 +561,13 @@ public class DomainFusionCacheServiceTests
         string domain = "products",
         bool enabled = true,
         bool respectNoStore = false,
+        bool fusionRespectAuthBypass = true,
         TimeSpan? failSafe = null) => new()
         {
             Domain = domain,
             FusionCacheEnabled = enabled,
             FusionCacheRespectNoStore = respectNoStore,
+            FusionRespectAuthBypass = fusionRespectAuthBypass,
             Version = "1",
             FusionCacheSoftTtl = TimeSpan.FromMinutes(5),
             FusionCacheHardTtl = TimeSpan.FromHours(1),

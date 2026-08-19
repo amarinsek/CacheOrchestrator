@@ -97,7 +97,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 
 ## Request flow — FusionCache
 
-1. Code calls `IDomainFusionCache.GetOrSetAsync` (domain usually already on the request from the Output Cache policy, or resolved from endpoint metadata / explicit domain overload).  
+1. Code calls `IDomainFusionCache.GetOrSetAsync` (explicit domain argument first, else snapshot already on the request from Output Cache, else endpoint metadata).  
 2. If domain still missing or Fusion disabled → factory runs uncached.  
 3. Optional respect for request `no-store`.  
 4. Key from `IDomainKeyGenerator` (route/query/encoding/host + domain + version).  

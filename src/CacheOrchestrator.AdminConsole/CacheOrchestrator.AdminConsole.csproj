@@ -23,6 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="CacheOrchestrator.AdminConsole.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Ship rule packs + operator handbook with publish/output -->
     <Content Update="hints\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <!-- Operator data tree (custom rules mount point + disabled state path in Production) -->

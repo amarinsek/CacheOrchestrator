@@ -235,10 +235,101 @@ public class CacheOrchestratorOptionsValidatorTests
         options.DomainDefaults.OutputCacheTtlSeconds = 0;
         options.DomainDefaults.FusionCacheSoftTtlSeconds = 0;
         options.DomainDefaults.FusionCacheHardTtlSeconds = 0;
+        options.DomainDefaults.ClientTtlSeconds = 0;
+        options.DomainDefaults.FusionCacheEagerRefreshRatio = 0;
 
         var result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Validate_NegativeClientTtl_Fails()
+    {
+        var options = CreateValidOptions();
+        options.DomainDefaults.ClientTtlSeconds = -1;
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f => f.Contains("ClientTtlSeconds", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validate_NegativeFailSafe_Fails()
+    {
+        var options = CreateValidOptions();
+        options.DomainDefaults.FusionCacheFailSafeSeconds = -1;
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f => f.Contains("FusionCacheFailSafeSeconds", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validate_EagerRefreshRatio_One_Fails()
+    {
+        var options = CreateValidOptions();
+        options.DomainDefaults.FusionCacheEagerRefreshRatio = 1.0;
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f => f.Contains("FusionCacheEagerRefreshRatio", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validate_EmptyVaryByHeaders_Succeeds()
+    {
+        var options = CreateValidOptions();
+        options.DomainDefaults.VaryByHeaders = [];
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Validate_WhitespaceVaryByHeadersEntry_Fails()
+    {
+        var options = CreateValidOptions();
+        options.DomainDefaults.VaryByHeaders = ["Accept", "  "];
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f => f.Contains("VaryByHeaders[1]", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ValidateAllowlist_WhenEmptyAndNotAllowed_Fails()
+    {
+        List<string> failures = [];
+        CacheOrchestratorOptionsValidator.ValidateAllowlist(
+            "Domain 'x'",
+            "RequiredList",
+            [],
+            max: 8,
+            failures,
+            allowEmpty: false);
+
+        failures.Should().ContainSingle(f => f.Contains("must not be empty", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ValidateAllowlist_WhenEmptyAndAllowed_Succeeds()
+    {
+        List<string> failures = [];
+        CacheOrchestratorOptionsValidator.ValidateAllowlist(
+            "Domain 'x'",
+            "OptionalList",
+            [],
+            max: 8,
+            failures,
+            allowEmpty: true);
+
+        failures.Should().BeEmpty();
     }
 
     private static CacheOrchestratorOptions CreateValidOptions() =>

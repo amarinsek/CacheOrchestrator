@@ -39,7 +39,9 @@ public interface IDomainFusionCache
     /// <remarks>
     /// Prefer this overload (or <see cref="Configuration.IDomainCacheOptionsProvider.EnsureDomainOptions"/>)
     /// for <strong>Fusion-only</strong> endpoints that do not use Output Cache / <c>CacheOutputWithDomain</c>.
-    /// If options are already present on the request, they are reused.
+    /// If options for the same domain are already on the request, they are reused.
+    /// A different explicit domain replaces the request snapshot so
+    /// <c>GetOrSetAsync(http, "products")</c> and <c>GetOrSetAsync(http, "catalog")</c> never share an entry.
     /// Domain-scoped (list/snapshot): no entity tags.
     /// </remarks>
     /// <typeparam name="T">Cached value type.</typeparam>
@@ -79,8 +81,9 @@ public interface IDomainFusionCache
     /// Gets or sets one entity (row) for a specific <paramref name="domain"/>.
     /// </summary>
     /// <remarks>
-    /// Ensures domain options, stores the normalized kind and resource id on the request, includes both
-    /// in the Fusion key, and tags the entry with <c>domain:{domain}</c>,
+    /// Ensures domain options, includes kind and resource id in the Fusion key for this call
+    /// (request Items are restored afterwards so a later URL-shaped GetOrSet is not forced
+    /// into the entity key shape), and tags the entry with <c>domain:{domain}</c>,
     /// <c>entity:{domain}:{entityKind}:{resourceId}</c>, and <c>entitykind:{domain}:{entityKind}</c>.
     /// After an update, call <see cref="Invalidation.ICacheOrchestratorInvalidator.InvalidateEntityAsync"/>
     /// with the same domain, kind, and id.

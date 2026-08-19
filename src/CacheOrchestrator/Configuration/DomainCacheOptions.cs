@@ -22,11 +22,11 @@ public sealed class DomainCacheOptions
     /// </summary>
     public string FusionCacheInstanceName { get; init; } = "default";
 
-    /// <summary>Whether Output Cache is enabled for this domain.</summary>
-    public bool OutputCacheEnabled { get; init; }
+    /// <summary>Whether Output Cache is enabled for this domain. Default: <see langword="true"/>.</summary>
+    public bool OutputCacheEnabled { get; init; } = true;
 
-    /// <summary>Whether FusionCache is enabled for this domain.</summary>
-    public bool FusionCacheEnabled { get; init; }
+    /// <summary>Whether FusionCache is enabled for this domain. Default: <see langword="true"/>.</summary>
+    public bool FusionCacheEnabled { get; init; } = true;
 
     /// <summary>
     /// When <see langword="true"/> (default), authenticated requests and requests with an
@@ -195,26 +195,26 @@ public sealed class DomainCacheOptions
     /// <summary>Optional max item size for memory cache (bytes); 0 = unlimited.</summary>
     public int FusionCacheMaxItemBytes { get; init; }
 
-    /// <summary>When true, skip FusionCache if the request has Cache-Control: no-store.</summary>
-    public bool FusionCacheRespectNoStore { get; init; }
+    /// <summary>When true (default), skip FusionCache if the request has Cache-Control: no-store.</summary>
+    public bool FusionCacheRespectNoStore { get; init; } = true;
 
-    /// <summary>Allow background distributed cache operations.</summary>
-    public bool FusionCacheAllowBackgroundDistributed { get; init; }
+    /// <summary>Allow background distributed cache operations. Default: <see langword="true"/>.</summary>
+    public bool FusionCacheAllowBackgroundDistributed { get; init; } = true;
 
-    /// <summary>Allow background backplane operations.</summary>
-    public bool FusionCacheAllowBackgroundBackplane { get; init; }
+    /// <summary>Allow background backplane operations. Default: <see langword="true"/>.</summary>
+    public bool FusionCacheAllowBackgroundBackplane { get; init; } = true;
 
-    /// <summary>Include Accept-Encoding in the FusionCache key.</summary>
-    public bool FusionCacheVaryOnEncoding { get; init; }
+    /// <summary>Include Accept-Encoding in the FusionCache key. Default: <see langword="true"/>.</summary>
+    public bool FusionCacheVaryOnEncoding { get; init; } = true;
 
-    /// <summary>Include scheme/host in the FusionCache key.</summary>
-    public bool FusionCacheVaryOnPublicAddress { get; init; }
+    /// <summary>Include scheme/host in the FusionCache key. Default: <see langword="true"/>.</summary>
+    public bool FusionCacheVaryOnPublicAddress { get; init; } = true;
 
     /// <summary>
     /// When true (default), Output Cache varies by request host (includes port).
     /// Set false when multiple public hosts/ports should share the same OC entry (e.g. multi-instance labs).
     /// </summary>
-    public bool OutputCacheVaryByHost { get; init; }
+    public bool OutputCacheVaryByHost { get; init; } = true;
 
     /// <summary>
     /// Returns a cached <see cref="FusionCacheEntryOptions"/> built from this domain snapshot.

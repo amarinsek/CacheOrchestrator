@@ -62,11 +62,26 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
     {
         ArgumentNullException.ThrowIfNull(http);
 
-        // L1: per-request HttpContext.Items
-        if (http.Items.TryGetValue(CacheOrchestratorKeys.DomainOptionsKey, out object? obj) && obj is DomainCacheOptions cached)
-            return cached;
+        string normalized = DomainName.Normalize(domain);
+
+        // L1: per-request HttpContext.Items — reuse only when the domain matches.
+        if (http.Items.TryGetValue(CacheOrchestratorKeys.DomainOptionsKey, out object? obj)
+            && obj is DomainCacheOptions cached)
+        {
+            if (string.Equals(cached.Domain, normalized, StringComparison.Ordinal))
+                return cached;
+
+            if (_logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning(
+                    "Replacing request domain snapshot '{PreviousDomain}' with '{Domain}'.",
+                    cached.Domain,
+                    normalized);
+            }
+        }
+
         // L2: process-wide ConcurrentDictionary
-        DomainCacheOptions resolved = GetOrCreateDomainOptions(domain);
+        DomainCacheOptions resolved = GetOrCreateDomainOptions(normalized);
         http.Items[CacheOrchestratorKeys.DomainOptionsKey] = resolved;
         return resolved;
     }
@@ -227,7 +242,9 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
             ETagMode = etagMode,
             ETag = etag,
             CacheableStatusCodes = dom.CacheableStatusCodes ?? defaults.CacheableStatusCodes ?? [200],
-            EncodingNormalizationList = dom.EncodingNormalizationList ?? defaults.EncodingNormalizationList,
+            EncodingNormalizationList = dom.EncodingNormalizationList
+                ?? defaults.EncodingNormalizationList
+                ?? ["br", "gzip"],
 
             ClientCacheability = overlay?.ClientCacheability
                 ?? dom.ClientCacheability

@@ -53,6 +53,19 @@ public class InstanceReachabilityCacheTests
         sut.ShouldSkipUnreachable("a").Should().BeFalse();
     }
 
+    [Fact]
+    public void DownReprobeSeconds_BelowFive_ClampsToFive()
+    {
+        InstanceReachabilityCache sut = CreateSut(out TestMutableTimeProvider time, downReprobeSeconds: 1);
+        sut.DownReprobeInterval.Should().Be(TimeSpan.FromSeconds(5));
+
+        sut.RecordFailure("a", "down");
+        time.Advance(TimeSpan.FromSeconds(4));
+        sut.ShouldSkipUnreachable("a").Should().BeTrue();
+        time.Advance(TimeSpan.FromSeconds(2));
+        sut.ShouldSkipUnreachable("a").Should().BeFalse();
+    }
+
     private static InstanceReachabilityCache CreateSut(
         out TestMutableTimeProvider time,
         int downReprobeSeconds = 15)

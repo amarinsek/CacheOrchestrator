@@ -1,12 +1,13 @@
 using CacheOrchestrator.Backends;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Redis;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CacheOrchestrator.UnitTests.Backends;
+namespace CacheOrchestrator.Redis.UnitTests;
 
 public class RedisCacheBackendRegistrarTests
 {
@@ -125,5 +126,41 @@ public class RedisCacheBackendRegistrarTests
 
         keyedDistributed.Should().HaveCount(2);
         keyedDistributed.Select(d => d.ServiceKey).Should().BeEquivalentTo(["default", "pii"]);
+    }
+
+    [Fact]
+    public void RegisterHealthProbes_AddsProbeForInstance()
+    {
+        var services = new ServiceCollection();
+        var options = new CacheOrchestratorOptions();
+        var instanceOpts = new CacheOrchestratorOptions.FusionCacheInstanceOptions { Provider = "Redis" };
+        var configuration = new ConfigurationBuilder().Build();
+        var context = new BackendHealthRegistrationContext(
+            services, configuration, "Cache", "pii", "Redis", options, instanceOpts);
+
+        _sut.RegisterHealthProbes(context);
+
+        services.Should().Contain(d => d.ServiceType == typeof(ICacheOrchestratorHealthProbe));
+    }
+
+    [Fact]
+    public void RegisterOutputCache_WhenContextIsNull_Throws()
+    {
+        var act = () => _sut.RegisterOutputCache(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void RegisterFusionCache_WhenContextIsNull_Throws()
+    {
+        var act = () => _sut.RegisterFusionCache(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void RegisterHealthProbes_WhenContextIsNull_Throws()
+    {
+        var act = () => _sut.RegisterHealthProbes(null!);
+        act.Should().Throw<ArgumentNullException>();
     }
 }

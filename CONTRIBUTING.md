@@ -20,11 +20,17 @@ dotnet build CacheOrchestrator.slnx -c Release
 ## Tests
 
 ```bash
-# Unit tests — multi-target net8.0 + net10.0 (library coverage). Admin Console App tests run only under net10.0.
+# Unit tests — multi-target net8.0 + net10.0 per library package.
 dotnet test tests/CacheOrchestrator.UnitTests -c Release
-# Or one TFM:
-dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net8.0   # libraries only (no Admin tests)
-dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net10.0  # libraries + Admin
+dotnet test tests/CacheOrchestrator.Redis.UnitTests -c Release
+dotnet test tests/CacheOrchestrator.Bus.UnitTests -c Release
+dotnet test tests/CacheOrchestrator.EFCore.Invalidation.UnitTests -c Release
+# Or one TFM, e.g.:
+dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net8.0
+dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net10.0
+
+# Admin Console App tests are net10.0 only
+dotnet test tests/CacheOrchestrator.AdminConsole.UnitTests -c Release -f net10.0
 
 # Integration tests — multi-target net8.0 + net10.0 (matches published library TFMs)
 # - InMemory tests: no Docker
@@ -165,7 +171,7 @@ Core package `Description` may append: `Redis backends: install CacheOrchestrato
 
 1. **Fork** (or branch from `main` if you have write access)
 2. Keep PRs focused — one topic per PR when possible
-3. Ensure `dotnet build` and unit tests pass
+3. Ensure `dotnet build` and unit tests pass (core `CacheOrchestrator.UnitTests` plus Redis / Bus / EFCore.Invalidation unit-test projects when those packages change; Admin Console tests on net10)
 4. Prefer clear commit messages (what / why, not just “fix”)
 5. Fill in the PR description: problem, approach, test plan
 6. Do **not** commit secrets, production Redis endpoints, or local `_local/` artifacts
@@ -173,7 +179,7 @@ Core package `Description` may append: `Redis backends: install CacheOrchestrato
 ### Safe change checklist
 
 1. Build solution (`CacheOrchestrator.slnx`)
-2. Run unit tests
+2. Run unit tests (projects listed under [Tests](#tests))
 3. Update sample if public API or config surface changes
 4. Avoid reintroducing a separate Abstractions assembly
 5. Avoid non-English comments or `ct` as a public parameter name

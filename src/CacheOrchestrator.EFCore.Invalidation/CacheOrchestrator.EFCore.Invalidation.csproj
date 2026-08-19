@@ -36,6 +36,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<InternalsVisibleTo Include="CacheOrchestrator.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.EFCore.Invalidation.UnitTests" />
 	</ItemGroup>
 </Project>

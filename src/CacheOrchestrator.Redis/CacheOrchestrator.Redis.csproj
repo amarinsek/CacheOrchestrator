@@ -42,6 +42,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<InternalsVisibleTo Include="CacheOrchestrator.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
 	</ItemGroup>
 </Project>

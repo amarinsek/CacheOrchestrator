@@ -158,6 +158,62 @@ public class ConfigReloadAndValidationTests
             .WithMessage("*NotARealProvider*");
     }
 
+    [Fact]
+    public async Task NegativeClientTtl_FailsHostStart()
+    {
+        string domain = "neg-ttl-" + Guid.NewGuid().ToString("N");
+        IConfigurationRoot config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Cache:OutputCache:Provider"] = "InMemory",
+                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                [$"Cache:Domains:{domain}:Version"] = "v1",
+                [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "-1",
+                [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "60",
+            })
+            .Build();
+
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = Environments.Development
+        });
+        builder.WebHost.UseTestServer();
+        builder.Logging.ClearProviders();
+        builder.Services.AddCacheOrchestrator(config);
+
+        WebApplication app = builder.Build();
+        app.UseRouting();
+        app.UseCacheOrchestrator();
+        app.MapGet("/x", () => Results.Text("ok")).CacheOutputWithDomain(domain);
+
+        try
+        {
+            Func<Task> act = async () =>
+            {
+                await app.StartAsync(TestContext.Current.CancellationToken);
+                _ = app.Services.GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
+            };
+
+            Exception? caught = null;
+            try
+            {
+                await act();
+            }
+            catch (Exception ex)
+            {
+                caught = ex;
+            }
+
+            caught.Should().NotBeNull("negative ClientTtlSeconds must fail IValidateOptions at host start");
+            caught!.ToString().Should().Contain("ClientTtlSeconds");
+        }
+        finally
+        {
+            await app.DisposeAsync();
+        }
+    }
+
     private static string GetCacheControl(HttpResponseMessage res) =>
         res.Headers.TryGetValues("Cache-Control", out IEnumerable<string>? v)
             ? string.Join(",", v)

@@ -153,6 +153,28 @@ public class InMemoryAdminStatsCollectorTests
     }
 
     [Fact]
+    public void StaleAndFail_CountAsFactoryRunsAndFailures()
+    {
+        InMemoryAdminStatsCollector collector = new(
+            new CacheOrchestratorOptions.AdminOptions
+            {
+                Enabled = true,
+                TrackEndpoints = true
+            },
+            instanceId: "stale");
+
+        collector.RecordFusion("GET /x", "d", "miss");
+        collector.RecordFusion("GET /x", "d", "stale");
+        collector.RecordFusion("GET /x", "d", "fail");
+
+        AdminDomainCountersDto d = collector.GetRawSnapshot().Domains.Single();
+        d.FcMisses.Should().Be(1);
+        d.FcStale.Should().Be(1);
+        d.FactoryRuns.Should().Be(3);
+        d.FactoryFailures.Should().Be(2);
+    }
+
+    [Fact]
     public void TrackResultSize_RecordsMissOnly()
     {
         InMemoryAdminStatsCollector collector = new(

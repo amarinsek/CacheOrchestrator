@@ -65,6 +65,12 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
         byte[]? rentedBytes = null;
         char[]? rentedChars = null;
 
+        IHeaderDictionary headers = http.Request.Headers;
+        bool hadAccept = headers.ContainsKey(HeaderNames.Accept);
+        StringValues originalAccept = hadAccept ? headers.Accept : default;
+        bool hadAcceptLanguage = headers.ContainsKey(HeaderNames.AcceptLanguage);
+        StringValues originalAcceptLanguage = hadAcceptLanguage ? headers.AcceptLanguage : default;
+
         try
         {
             CacheVaryMaterial vary = _materializer.Build(http, opts, CacheVarySurface.Fusion);
@@ -131,11 +137,26 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
         }
         finally
         {
+            RestoreHeader(headers, HeaderNames.Accept, hadAccept, originalAccept);
+            RestoreHeader(headers, HeaderNames.AcceptLanguage, hadAcceptLanguage, originalAcceptLanguage);
+
             if (rentedBytes != null)
                 ArrayPool<byte>.Shared.Return(rentedBytes);
             if (rentedChars != null)
                 ArrayPool<char>.Shared.Return(rentedChars);
         }
+    }
+
+    private static void RestoreHeader(
+        IHeaderDictionary headers,
+        string name,
+        bool hadValue,
+        StringValues original)
+    {
+        if (hadValue)
+            headers[name] = original;
+        else
+            headers.Remove(name);
     }
 
     private static void AppendPublicAddress(

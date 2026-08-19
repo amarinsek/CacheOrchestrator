@@ -2,7 +2,7 @@ using CacheOrchestrator.EFCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.UnitTests.EFCore;
+namespace CacheOrchestrator.EFCore.Invalidation.UnitTests;
 
 public class EntityCacheMappingResolverTests
 {

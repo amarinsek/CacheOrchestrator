@@ -69,8 +69,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         Func<CancellationToken, Task<T>> factory,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
-        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        EnsureUsableEntityIdentity(entityKind, resourceId);
         return GetOrSetCoreAsync(http, domain: null, entityKind, resourceId, factory, cancellationToken);
     }
 
@@ -84,8 +83,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
-        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        EnsureUsableEntityIdentity(entityKind, resourceId);
         return GetOrSetCoreAsync(http, domain, entityKind, resourceId, factory, cancellationToken);
     }
 
@@ -129,14 +127,18 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         string? normalizedEntityKind = null;
         string? normalizedResourceId = null;
+        bool hadPreviousKind = http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? previousKind);
+        bool hadPreviousId = http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out object? previousId);
+        bool replacedIdentity = false;
         if (!string.IsNullOrWhiteSpace(entityKind) && !string.IsNullOrWhiteSpace(resourceId))
         {
-            normalizedEntityKind = DomainName.Normalize(entityKind);
+            normalizedEntityKind = DomainName.NormalizeEntityKind(entityKind);
             normalizedResourceId = DomainName.NormalizeResourceId(resourceId);
             if (!string.IsNullOrEmpty(normalizedEntityKind) && !string.IsNullOrEmpty(normalizedResourceId))
             {
                 http.Items[CacheOrchestratorKeys.EntityKindKey] = normalizedEntityKind;
                 http.Items[CacheOrchestratorKeys.ResourceIdKey] = normalizedResourceId;
+                replacedIdentity = true;
             }
             else
             {
@@ -145,9 +147,43 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             }
         }
 
+        try
+        {
+            return await GetOrSetWithOptionsAsync(
+                    http,
+                    opts,
+                    normalizedEntityKind,
+                    normalizedResourceId,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            if (replacedIdentity)
+            {
+                RestoreItem(http, CacheOrchestratorKeys.EntityKindKey, hadPreviousKind, previousKind);
+                RestoreItem(http, CacheOrchestratorKeys.ResourceIdKey, hadPreviousId, previousId);
+            }
+        }
+    }
+
+    private async Task<T> GetOrSetWithOptionsAsync<T>(
+        HttpContext http,
+        DomainCacheOptions opts,
+        string? normalizedEntityKind,
+        string? normalizedResourceId,
+        Func<CancellationToken, Task<T>> factory,
+        CancellationToken cancellationToken)
+    {
         if (!opts.FusionCacheEnabled)
         {
             SetData(http, DataCacheResult.Off);
+            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "off", durationMs: null, elapsedTicks: null);
+
+            using Activity? offActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+            offActivity?.SetTag("domain", opts.Domain);
+            offActivity?.SetTag("cache.result", "off");
             return await factory(cancellationToken).ConfigureAwait(false);
         }
 
@@ -305,19 +341,36 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         return result;
     }
 
+    private static void RestoreItem(HttpContext http, object key, bool hadPrevious, object? previous)
+    {
+        if (hadPrevious)
+            http.Items[key] = previous;
+        else
+            http.Items.Remove(key);
+    }
+
     /// <summary>
-    /// 1) Options already on the request (Output Cache policy usually set them).
-    /// 2) Explicit domain argument → EnsureDomainOptions.
+    /// 1) Explicit domain argument → EnsureDomainOptions (replaces a different snapshot on the request).
+    /// 2) Options already on the request (Output Cache policy usually set them).
     /// 3) Endpoint metadata (DomainOutputCachePolicy / CacheDomainAttribute) → EnsureDomainOptions.
     /// </summary>
     private DomainCacheOptions? ResolveDomainOptions(HttpContext http, string? domain)
     {
         DomainCacheOptions? opts = _domainConfig.GetDomainOptions(http);
-        if (opts is not null)
-            return opts;
 
         if (!string.IsNullOrWhiteSpace(domain))
+        {
+            if (opts is not null
+                && string.Equals(opts.Domain, DomainName.Normalize(domain), StringComparison.Ordinal))
+            {
+                return opts;
+            }
+
             return _domainConfig.EnsureDomainOptions(http, domain);
+        }
+
+        if (opts is not null)
+            return opts;
 
         string? fromEndpoint = TryResolveDomainFromEndpoint(http);
         if (!string.IsNullOrWhiteSpace(fromEndpoint))
@@ -343,6 +396,16 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         CacheDomainAttribute? attr = endpoint.Metadata.OfType<CacheDomainAttribute>().LastOrDefault();
         return attr?.Domain;
+    }
+
+    private static void EnsureUsableEntityIdentity(string entityKind, string resourceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        if (string.IsNullOrEmpty(DomainName.NormalizeEntityKind(entityKind)))
+            throw new ArgumentException("Entity kind must contain usable characters after normalization.", nameof(entityKind));
+        if (string.IsNullOrEmpty(DomainName.NormalizeResourceId(resourceId)))
+            throw new ArgumentException("Resource id must contain usable characters after normalization.", nameof(resourceId));
     }
 
     private static string[] BuildTags(string domain, string? normalizedEntityKind, string? normalizedResourceId)

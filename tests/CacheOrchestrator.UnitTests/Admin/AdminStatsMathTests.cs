@@ -56,4 +56,31 @@ public class AdminStatsMathTests
         // 100 - 80 ocHit - 10 fcHit - 5 stale - 5 factory = 0 other
         (pipe.OtherShare ?? 0).Should().BeApproximately(0, 0.0001);
     }
+
+    [Fact]
+    public void AuthBypassOnBothLayers_PipelineBypassShareIsNotDoubleCounted()
+    {
+        (long requests, _, _, AdminPipelineDto pipe) =
+            AdminStatsMath.BuildAll(
+                ocHits: 0, ocMisses: 0, ocBypass: 100,
+                fcHits: 0, fcMisses: 0, fcStale: 0, fcBypass: 100,
+                factoryRuns: 0, factoryFailures: 0);
+
+        requests.Should().Be(100);
+        pipe.BypassShare.Should().BeApproximately(1.0, 0.0001);
+        (pipe.OtherShare ?? 0).Should().BeApproximately(0, 0.0001);
+    }
+
+    [Fact]
+    public void FusionOnlyBypass_UsesFusionBypassAsPipelineShare()
+    {
+        (long requests, _, _, AdminPipelineDto pipe) =
+            AdminStatsMath.BuildAll(
+                ocHits: 0, ocMisses: 0, ocBypass: 0,
+                fcHits: 90, fcMisses: 0, fcStale: 0, fcBypass: 10,
+                factoryRuns: 0, factoryFailures: 0);
+
+        requests.Should().Be(100);
+        pipe.BypassShare.Should().BeApproximately(0.10, 0.0001);
+    }
 }

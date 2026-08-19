@@ -12,7 +12,6 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 using System.Diagnostics;
-using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace CacheOrchestrator.OutputCache;
@@ -29,7 +28,7 @@ namespace CacheOrchestrator.OutputCache;
 /// </remarks>
 public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadata
 {
-    private static ILogger<DomainOutputCachePolicy>? _logger;
+    private static readonly object LoggerItemsKey = new();
     private readonly Func<HttpContext, string> _domainProvider;
 
     /// <summary>
@@ -67,7 +66,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         _domainProvider = _ => fixedDomain;
         FixedDomain = fixedDomain;
         ResourceRouteKey = string.IsNullOrWhiteSpace(resourceRouteKey) ? null : resourceRouteKey.Trim();
-        EntityKind = string.IsNullOrWhiteSpace(entityKind) ? null : DomainName.Normalize(entityKind);
+        EntityKind = NormalizeConfiguredEntityKind(entityKind, requireEntity);
     }
 
     /// <summary>
@@ -107,7 +106,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         _domainProvider = http => domainResolver(http) ?? string.Empty;
         FixedDomain = null;
         ResourceRouteKey = string.IsNullOrWhiteSpace(resourceRouteKey) ? null : resourceRouteKey.Trim();
-        EntityKind = string.IsNullOrWhiteSpace(entityKind) ? null : DomainName.Normalize(entityKind);
+        EntityKind = NormalizeConfiguredEntityKind(entityKind, requireEntity);
     }
 
     /// <summary>
@@ -139,10 +138,35 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         return _domainProvider(http) ?? string.Empty;
     }
 
-    private static ILogger<DomainOutputCachePolicy> GetLogger(HttpContext http) =>
-        LazyInitializer.EnsureInitialized(
-            ref _logger,
-            () => http.RequestServices.GetRequiredService<ILogger<DomainOutputCachePolicy>>());
+    private static string? NormalizeConfiguredEntityKind(string? entityKind, bool requireEntity)
+    {
+        if (string.IsNullOrWhiteSpace(entityKind))
+            return null;
+
+        string normalized = DomainName.NormalizeEntityKind(entityKind);
+        if (!string.IsNullOrEmpty(normalized))
+            return normalized;
+
+        if (requireEntity)
+            throw new ArgumentException("Entity kind must contain usable characters.", nameof(entityKind));
+
+        return null;
+    }
+
+    private static ILogger<DomainOutputCachePolicy> GetLogger(HttpContext http)
+    {
+        if (http.Items.TryGetValue(LoggerItemsKey, out object? existing)
+            && existing is ILogger<DomainOutputCachePolicy> cached)
+        {
+            return cached;
+        }
+
+        ILogger<DomainOutputCachePolicy> logger =
+            http.RequestServices.GetService<ILogger<DomainOutputCachePolicy>>()
+            ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<DomainOutputCachePolicy>.Instance;
+        http.Items[LoggerItemsKey] = logger;
+        return logger;
+    }
 
     /// <summary>
     /// Decides whether the request is cacheable and configures vary rules, tags, and TTL for the domain.
@@ -156,7 +180,11 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
 
         string domain = _domainProvider(http);
         if (string.IsNullOrWhiteSpace(domain))
+        {
+            // Dynamic/template domain unresolved: do not leave the ASP.NET base policy enabled.
+            context.EnableOutputCaching = false;
             return ValueTask.CompletedTask;
+        }
 
         DomainCacheOptions opts = http.RequestServices
             .GetRequiredService<IDomainCacheOptionsProvider>()
@@ -168,9 +196,8 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         if (!HttpMethods.IsGet(http.Request.Method) && !HttpMethods.IsHead(http.Request.Method))
             return ValueTask.CompletedTask;
 
-        // Always respect request Cache-Control: no-store (HTTP semantics)
-        string cacheControl = http.Request.Headers.CacheControl.ToString();
-        if (cacheControl.Contains("no-store", StringComparison.OrdinalIgnoreCase))
+        // Always respect request Cache-Control: no-store (HTTP semantics; token match, not substring).
+        if (HttpHelper.ContainsCacheDirective(http.Request.Headers.CacheControl, "no-store"))
         {
             HttpHelper.ApplyNoCache(http.Response);
             RegisterResponseHeaders(http, opts, OutputCacheResult.Bypass, forceClient: ClientCacheClass.NoStore);
@@ -478,8 +505,6 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
                  sc == StatusCodes.Status304NotModified)
         {
             TimeProvider timeProvider = httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System;
-            response.Headers.LastModified =
-                timeProvider.GetUtcNow().ToString("R", CultureInfo.InvariantCulture);
             // Cookie/session identity + Public is unsafe for shared browser/CDN caches → force Private.
             // API-key-only traffic (Authorization without IsAuthenticated) may still use Public.
             ClientCacheability? cacheabilityOverride = null;
@@ -541,49 +566,4 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         return monitor?.CurrentValue.EmitDiagnosticsHeaders ?? true;
     }
 
-    /// <summary>
-    /// Filters tracking query keys without LINQ (hot path on every cacheable request).
-    /// </summary>
-    /// <summary>Exposed as <see langword="internal"/> for micro-benchmarks (query-key hot path).</summary>
-    internal static StringValues CollectNonTrackingQueryKeys(IQueryCollection query)
-    {
-        int count = query.Count;
-        if (count == 0)
-            return StringValues.Empty;
-
-        // Fast path: single key
-        if (count == 1)
-        {
-            foreach (string key in query.Keys)
-            {
-                return HttpHelper.IsTrackingParameter(key)
-                    ? StringValues.Empty
-                    : new StringValues(key);
-            }
-
-            return StringValues.Empty;
-        }
-
-        string[]? buffer = null;
-        int n = 0;
-        foreach (string key in query.Keys)
-        {
-            if (HttpHelper.IsTrackingParameter(key))
-                continue;
-
-            buffer ??= new string[count];
-            buffer[n++] = key;
-        }
-
-        if (n == 0)
-            return StringValues.Empty;
-        if (n == 1)
-            return new StringValues(buffer![0]);
-        if (n == buffer!.Length)
-            return new StringValues(buffer);
-
-        string[] exact = new string[n];
-        Array.Copy(buffer, exact, n);
-        return new StringValues(exact);
-    }
 }

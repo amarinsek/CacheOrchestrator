@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace CacheOrchestrator.UnitTests.EFCore;
+namespace CacheOrchestrator.EFCore.Invalidation.UnitTests;
 
 public class CacheInvalidationSaveChangesInterceptorTests
 {
@@ -208,6 +208,40 @@ public class CacheInvalidationSaveChangesInterceptorTests
             .InvalidateEntitiesAsync(default!, default!, default!, TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task OnBulkKind_UnderThreshold_InvalidatesEntities()
+    {
+        (TestDbContext db, ICacheOrchestratorInvalidator inv) = CreateHarness(onBulk: EfCoreOnBulk.Kind, threshold: 5);
+
+        db.Products.Add(new Product { Name = "A" });
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await inv.Received(1).InvalidateEntitiesAsync(
+            "store", "products", Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>());
+        await inv.DidNotReceiveWithAnyArgs()
+            .InvalidateEntityKindAsync(default!, default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task OwnedEntity_IsNotInvalidated()
+    {
+        ICacheOrchestratorInvalidator inv = CreateInvalidator();
+        CacheInvalidationSaveChangesInterceptor interceptor = CreateInterceptor(inv);
+        await using OwnedDbContext db = new(
+            new DbContextOptionsBuilder<OwnedDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .AddInterceptors(interceptor)
+                .Options);
+
+        db.Orders.Add(new Order { Address = new Address { City = "Ljubljana" } });
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await inv.Received(1).InvalidateEntitiesAsync(
+            "store", "orders", Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>());
+        await inv.DidNotReceive().InvalidateEntitiesAsync(
+            "store", "addresses", Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>());
+    }
+
     private static (TestDbContext Db, ICacheOrchestratorInvalidator Inv) CreateHarness(
         EfCoreOnBulk onBulk = EfCoreOnBulk.Entities,
         int threshold = 20,
@@ -296,6 +330,34 @@ public class CacheInvalidationSaveChangesInterceptorTests
     {
         public int Id { get; set; }
         public string Text { get; set; } = "";
+    }
+
+    [CacheEntity("store", "orders")]
+    public sealed class Order
+    {
+        public int Id { get; set; }
+        public Address Address { get; set; } = new();
+    }
+
+    [CacheEntity("store", "addresses")]
+    public sealed class Address
+    {
+        public string City { get; set; } = "";
+    }
+
+    public sealed class OwnedDbContext : DbContext
+    {
+        public OwnedDbContext(DbContextOptions<OwnedDbContext> options)
+            : base(options)
+        {
+        }
+
+        public DbSet<Order> Orders => Set<Order>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Order>().OwnsOne(o => o.Address);
+        }
     }
 
     public sealed class TestDbContext : DbContext

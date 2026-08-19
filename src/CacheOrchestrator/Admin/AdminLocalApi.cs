@@ -56,7 +56,8 @@ public static class AdminLocalApi
             .WithTags("CacheOrchestrator Admin")
             .WithMetadata(new OutputCacheAttribute { NoStore = true });
 
-        group.MapGet("/health", (AdminQueryService query) => Results.Ok(query.GetHealth()));
+        group.MapGet("/health", async (AdminQueryService query, CancellationToken cancellationToken) =>
+            Results.Ok(await query.GetHealthAsync(cancellationToken)));
 
         // Always available when Local Admin is on (even without CacheOrchestrator.Bus).
         // Prevents SPA MapFallbackToFile HTML from being mistaken for JSON on probe misses.

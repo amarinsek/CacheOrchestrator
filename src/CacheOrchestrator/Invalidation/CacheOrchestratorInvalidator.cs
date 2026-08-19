@@ -85,22 +85,40 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
     {
         ArgumentNullException.ThrowIfNull(domains);
 
-        List<CacheInvalidationResult> parts = [];
+        List<string> requested = [];
         foreach (string? domain in domains)
         {
-            if (string.IsNullOrWhiteSpace(domain))
-                continue;
-
-            CacheInvalidationResult part = await InvalidateDomainAsync(domain, cancellationToken)
-                .ConfigureAwait(false);
-            parts.Add(part);
+            if (!string.IsNullOrWhiteSpace(domain))
+                requested.Add(domain);
         }
 
-        if (parts.Count == 0)
+        if (requested.Count == 0)
             return CacheInvalidationResult.Skipped("No domains provided.");
 
-        // Outer observer for multi-domain aggregate (each domain already notified observers).
+        List<string> tags = new(requested.Count);
+        List<string> scopes = new(requested.Count);
+        for (int i = 0; i < requested.Count; i++)
+        {
+            string normalized = DomainName.Normalize(requested[i]);
+            scopes.Add(normalized);
+            tags.Add(CacheTags.Domain(normalized));
+        }
+
+        CacheInvalidationContext batch = new(
+            CacheInvalidationKind.Domains,
+            string.Join(',', scopes),
+            tags);
+
+        await NotifyBeforeAsync(batch, cancellationToken).ConfigureAwait(false);
+
+        List<CacheInvalidationResult> parts = [];
+        for (int i = 0; i < requested.Count; i++)
+        {
+            parts.Add(await InvalidateDomainAsync(requested[i], cancellationToken).ConfigureAwait(false));
+        }
+
         CacheInvalidationResult aggregate = CacheInvalidationResult.Aggregate(parts);
+        await NotifyAfterAsync(batch, aggregate, cancellationToken).ConfigureAwait(false);
         return aggregate;
     }
 
@@ -120,7 +138,9 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         }
 
         string normalizedDomain = DomainName.Normalize(domain);
-        string normalizedKind = DomainName.Normalize(entityKind);
+        string normalizedKind = DomainName.NormalizeEntityKind(entityKind);
+        if (string.IsNullOrEmpty(normalizedKind))
+            return ValueTask.FromResult(CacheInvalidationResult.Skipped("EntityKind normalized to empty."));
         string normalizedResourceId = DomainName.NormalizeResourceId(resourceId);
         if (string.IsNullOrEmpty(normalizedResourceId))
             return ValueTask.FromResult(CacheInvalidationResult.Skipped("ResourceId normalized to empty."));
@@ -155,7 +175,9 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         }
 
         string normalizedDomain = DomainName.Normalize(domain);
-        string normalizedKind = DomainName.Normalize(entityKind);
+        string normalizedKind = DomainName.NormalizeEntityKind(entityKind);
+        if (string.IsNullOrEmpty(normalizedKind))
+            return ValueTask.FromResult(CacheInvalidationResult.Skipped("EntityKind normalized to empty."));
 
         List<string> ids = [];
         HashSet<string> seen = new(StringComparer.Ordinal);
@@ -204,7 +226,9 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         }
 
         string normalizedDomain = DomainName.Normalize(domain);
-        string normalizedKind = DomainName.Normalize(entityKind);
+        string normalizedKind = DomainName.NormalizeEntityKind(entityKind);
+        if (string.IsNullOrEmpty(normalizedKind))
+            return ValueTask.FromResult(CacheInvalidationResult.Skipped("EntityKind normalized to empty."));
         string tag = CacheTags.EntityKind(normalizedDomain, normalizedKind);
         return InvalidateScopedAsync(
             kind: CacheInvalidationKind.EntityKind,

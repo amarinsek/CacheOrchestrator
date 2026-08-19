@@ -1,7 +1,7 @@
 using CacheOrchestrator.Bus;
 using System.Net;
 
-namespace CacheOrchestrator.UnitTests.Cluster;
+namespace CacheOrchestrator.Bus.UnitTests;
 
 public class ServiceDiscoveryMembershipTests
 {
@@ -36,5 +36,24 @@ public class ServiceDiscoveryMembershipTests
     public void NormalizeServiceQuery_AddsSchemeWhenMissing(string input, string scheme, string expected)
     {
         ServiceDiscoveryClusterMembership.NormalizeServiceQuery(input, scheme).Should().Be(expected);
+    }
+
+    [Fact]
+    public void TryCreateBaseUrl_FromIPv6EndPoint()
+    {
+        bool ok = ServiceDiscoveryClusterMembership.TryCreateBaseUrl(
+            new IPEndPoint(IPAddress.Parse("::1"), 8080),
+            "http",
+            out Uri? uri);
+
+        ok.Should().BeTrue();
+        uri!.ToString().Should().Be("http://[::1]:8080/");
+    }
+
+    [Fact]
+    public void TryCreateBaseUrl_WhenEndPointIsNull_ReturnsFalse()
+    {
+        ServiceDiscoveryClusterMembership.TryCreateBaseUrl(null!, "http", out Uri? uri).Should().BeFalse();
+        uri.Should().BeNull();
     }
 }

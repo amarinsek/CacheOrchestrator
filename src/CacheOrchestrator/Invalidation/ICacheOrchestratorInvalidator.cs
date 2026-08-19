@@ -23,6 +23,8 @@ public interface ICacheOrchestratorInvalidator
 
     /// <summary>
     /// Invalidates multiple domains sequentially (each domain on its owning Fusion instance).
+    /// Observers receive per-domain <see cref="CacheInvalidationKind.Domain"/> callbacks and one
+    /// aggregate <see cref="CacheInvalidationKind.Domains"/> before/after pair for the batch.
     /// </summary>
     /// <param name="domains">Domain names (null/whitespace entries ignored).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
