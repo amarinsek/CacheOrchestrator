@@ -21,6 +21,7 @@ Technical reference. The [root README](../README.md) is the product overview. Yo
 - [Output Cache](output-cache.md) — HTTP policies, authentication flags, Minimal APIs and MVC.
 - [FusionCache](fusion-cache.md) — `IDomainFusionCache`, keys, fail-safe, entity identity.
 - [Cache keys](cache-keys.md) — how Output Cache and Fusion keys are built.
+- [Vary](vary.md) — Accept / language / headers / cookies / query allowlists, auth modes, contributors.
 
 ## Invalidation
 

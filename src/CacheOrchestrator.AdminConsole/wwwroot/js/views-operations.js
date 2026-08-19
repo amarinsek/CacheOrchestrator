@@ -159,7 +159,7 @@ export async function renderOperations(params) {
     }
     if (a === "settings") {
       panel.innerHTML = `
-        <p class="muted small op-panel-hint">Choose one or more runtime settings, then Run. Only overlay-capable keys are listed.</p>
+        <p class="muted small op-panel-hint">Choose one or more runtime settings, then Run. Overlay keys only (bool / enum / numbers / comma-separated string lists for vary allowlists).</p>
         <div id="opSettingRows" class="op-setting-rows"></div>`;
       settingsCtrl = new SettingRowsController($("#opSettingRows"), catalog);
       settingsCtrl.render();
@@ -495,6 +495,12 @@ class SettingRowsController {
     if (kind === "double") {
       return `<input type="number" step="any" class="op-setting-value" data-idx="${idx}" value="${esc(value)}" aria-label="Value" />`;
     }
+    if (kind === "stringarray") {
+      return `<input type="text" class="op-setting-value" data-idx="${idx}" value="${esc(value)}" placeholder="comma-separated, e.g. a, b" aria-label="Value" />`;
+    }
+    if (kind === "string") {
+      return `<input type="text" class="op-setting-value" data-idx="${idx}" value="${esc(value)}" aria-label="Value" />`;
+    }
     // Int / IntSeconds default
     return `<input type="number" min="0" step="1" class="op-setting-value" data-idx="${idx}" value="${esc(value)}" aria-label="Value" />`;
   }
@@ -507,7 +513,9 @@ class SettingRowsController {
       if (!row.key) continue;
       const entry = this.catalog.find((s) => s.id === row.key);
       const raw = String(row.value ?? "").trim();
-      if (raw === "" && normalizeKind(entry?.kind) !== "bool") {
+      const kind = normalizeKind(entry?.kind);
+      // bool unchecked → false; stringarray empty → [] (explicit empty list)
+      if (raw === "" && kind !== "bool" && kind !== "stringarray") {
         return { error: `Value required for '${entry?.displayName || row.key}'.` };
       }
       try {
@@ -544,6 +552,11 @@ function coerceValue(entry, raw) {
   if (kind === "enum" || kind === "string") {
     if (!raw) throw new Error("Value is required.");
     return raw;
+  }
+  if (kind === "stringarray") {
+    // Empty → [] (explicit empty allowlist). Comma-separated otherwise.
+    if (!raw) return [];
+    return raw.split(",").map((s) => s.trim()).filter(Boolean);
   }
   if (kind === "datetimeoffset") {
     if (!raw) throw new Error("Date/time is required.");

@@ -287,6 +287,45 @@ public class DefaultDomainKeyGeneratorTests
         key1.Should().Be(key2);
     }
 
+    [Fact]
+    public void Generate_VaryByAccept_DifferentAccept_ProducesDifferentKey()
+    {
+        var cfg = CreateConfig();
+        cfg = new DomainCacheOptions
+        {
+            Domain = cfg.Domain,
+            Version = cfg.Version,
+            VersionHex = cfg.VersionHex,
+            FusionCacheVaryOnEncoding = false,
+            FusionCacheVaryOnPublicAddress = false,
+            VaryByAccept = true,
+        };
+
+        string key1 = _sut.Generate(cfg, CreateHttpContext(accept: "application/json"));
+        string key2 = _sut.Generate(cfg, CreateHttpContext(accept: "application/xml"));
+
+        key1.Should().NotBe(key2);
+    }
+
+    [Fact]
+    public void Generate_VaryByQueryKeysAllowlist_IgnoresOtherKeys()
+    {
+        var cfg = new DomainCacheOptions
+        {
+            Domain = "products",
+            Version = "1",
+            VersionHex = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes("1")).ToString("x16"),
+            FusionCacheVaryOnEncoding = false,
+            FusionCacheVaryOnPublicAddress = false,
+            VaryByQueryKeys = ["id"],
+        };
+
+        string key1 = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "1", ["page"] = "1" }));
+        string key2 = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "1", ["page"] = "99" }));
+
+        key1.Should().Be(key2);
+    }
+
     // =========================
     // Public address (scheme + host)
     // =========================
@@ -344,6 +383,7 @@ public class DefaultDomainKeyGeneratorTests
         string path = "/api/products",
         Dictionary<string, StringValues>? query = null,
         string? acceptEncoding = null,
+        string? accept = null,
         string scheme = "https",
         string host = "localhost")
     {
@@ -358,6 +398,9 @@ public class DefaultDomainKeyGeneratorTests
 
         if (acceptEncoding is not null)
             context.Request.Headers.AcceptEncoding = acceptEncoding;
+
+        if (accept is not null)
+            context.Request.Headers.Accept = accept;
 
         return context;
     }

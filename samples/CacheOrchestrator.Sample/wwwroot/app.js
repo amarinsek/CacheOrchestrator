@@ -119,6 +119,10 @@ function buildFetchInit(method = 'GET', { disableBrowserCache = true, price } = 
         cache: disableBrowserCache ? 'no-store' : 'default',
         headers: {},
     };
+    const acceptEl = document.getElementById('acceptHeader');
+    if (acceptEl?.value) {
+        init.headers = { Accept: acceptEl.value, ...init.headers };
+    }
     if (method === 'PUT') {
         init.headers = { 'Content-Type': 'application/json', ...init.headers };
         init.body = JSON.stringify({

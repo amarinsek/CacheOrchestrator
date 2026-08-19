@@ -2,6 +2,7 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Utilities;
+using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.OutputCaching;
@@ -176,12 +177,8 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             return ValueTask.CompletedTask;
         }
 
-        bool isAuthenticated = http.User?.Identity?.IsAuthenticated == true;
-        bool hasAuthorization = http.Request.Headers.ContainsKey(HeaderNames.Authorization);
-        bool hasAuthSignal = isAuthenticated || hasAuthorization;
-
-        // Default: no shared caching for auth traffic (safe). Opt out per domain with BypassWhenAuthenticated=false.
-        if (hasAuthSignal && opts.BypassWhenAuthenticated)
+        // Default: no shared caching for auth traffic (safe). Opt out per domain with AuthBypassMode=Never.
+        if (DomainAuthEvaluator.ShouldBypassForAuth(http, opts))
         {
             HttpHelper.ApplyNoCache(http.Response);
             RegisterResponseHeaders(http, opts, OutputCacheResult.Bypass, forceClient: ClientCacheClass.Blocked);
@@ -200,6 +197,10 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
 
         if (opts.EncodingNormalizationList != null)
             HttpHelper.NormalizeAcceptEncoding(http, opts.EncodingNormalizationList);
+        if (opts.AcceptNormalizationList != null)
+            HttpHelper.NormalizeAccept(http, opts.AcceptNormalizationList);
+        if (opts.AcceptLanguageNormalizationList != null)
+            HttpHelper.NormalizeAcceptLanguage(http, opts.AcceptLanguageNormalizationList);
 
         context.EnableOutputCaching = true;
         context.AllowCacheLookup = true;
@@ -207,24 +208,40 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         context.AllowLocking = true;
         context.ResponseExpirationTimeSpan = opts.OutputTtl;
 
+        CacheVaryMaterializer materializer =
+            http.RequestServices.GetService<CacheVaryMaterializer>() ?? new CacheVaryMaterializer();
+        CacheVaryMaterial vary = materializer.Build(http, opts, CacheVarySurface.OutputCache);
+
         context.CacheVaryByRules.VaryByHost = opts.OutputCacheVaryByHost;
-        context.CacheVaryByRules.QueryKeys = CollectNonTrackingQueryKeys(http.Request.Query);
+        context.CacheVaryByRules.QueryKeys = CacheVaryMaterializer.CollectQueryKeysForOutputCache(http.Request.Query, opts);
         context.CacheVaryByRules.CacheKeyPrefix = opts.OutputCacheNamespace;
         context.CacheVaryByRules.VaryByValues["data-version"] = opts.VersionHex;
 
-        // Per-user partition when auth is allowed through (prevents cross-user OC hits).
-        if (hasAuthSignal && opts.VaryOutputCacheByUser)
-        {
-            string userVary = ResolveAuthenticatedVaryKey(http);
-            context.CacheVaryByRules.VaryByValues["auth-user"] = userVary;
-        }
+        foreach ((string key, string value) in vary.Values)
+            context.CacheVaryByRules.VaryByValues[key] = value;
 
-        StringValues ae = http.Request.Headers.AcceptEncoding;
-        if (ae.Count > 0)
+        if (vary.HeaderNames.Count > 0)
         {
             StringValues currentHeaders = context.CacheVaryByRules.HeaderNames;
-            if (!currentHeaders.Contains(HeaderNames.AcceptEncoding))
-                context.CacheVaryByRules.HeaderNames = StringValues.Concat(currentHeaders, HeaderNames.AcceptEncoding);
+            for (int i = 0; i < vary.HeaderNames.Count; i++)
+            {
+                string headerName = vary.HeaderNames[i];
+                if (!currentHeaders.Contains(headerName))
+                    currentHeaders = StringValues.Concat(currentHeaders, headerName);
+            }
+
+            context.CacheVaryByRules.HeaderNames = currentHeaders;
+        }
+
+        if (opts.EmitResponseVary && vary.ResponseVaryHeaderNames.Count > 0)
+        {
+            // Defer writing response Vary until the response starts so we do not advertise secrets.
+            http.Response.OnStarting(static state =>
+            {
+                (HttpContext ctx, IReadOnlyList<string> names) = ((HttpContext, IReadOnlyList<string>))state!;
+                AppendResponseVary(ctx.Response, names);
+                return Task.CompletedTask;
+            }, (http, vary.ResponseVaryHeaderNames));
         }
 
         context.Tags.Add(CacheTags.Domain(opts.Domain));
@@ -236,6 +253,20 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
 
         RegisterResponseHeaders(http, opts, OutputCacheResult.Miss);
         return ValueTask.CompletedTask;
+    }
+
+    private static void AppendResponseVary(HttpResponse response, IReadOnlyList<string> headerNames)
+    {
+        StringValues existing = response.Headers.Vary;
+        for (int i = 0; i < headerNames.Count; i++)
+        {
+            string name = headerNames[i];
+            if (existing.Count > 0 && existing.Contains(name))
+                continue;
+            existing = existing.Count == 0 ? name : StringValues.Concat(existing, name);
+        }
+
+        response.Headers.Vary = existing;
     }
 
     private string? TryResolveEntityKind(HttpContext http)
@@ -305,36 +336,6 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         string path = http.Request.Path.Value ?? "/";
         string query = http.Request.QueryString.Value ?? string.Empty;
         return path + query;
-    }
-
-    /// <summary>
-    /// Stable vary key for authenticated Output Cache entries.
-    /// Prefer claim/name identity; fall back to a short hash of the Authorization header.
-    /// </summary>
-    private static string ResolveAuthenticatedVaryKey(HttpContext http)
-    {
-        System.Security.Claims.ClaimsPrincipal? user = http.User;
-        if (user?.Identity?.IsAuthenticated == true)
-        {
-            string? name = user.Identity.Name;
-            if (!string.IsNullOrWhiteSpace(name))
-                return "u:" + name;
-
-            string? sub = user.FindFirst("sub")?.Value
-                ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (!string.IsNullOrWhiteSpace(sub))
-                return "id:" + sub;
-        }
-
-        string? auth = http.Request.Headers.Authorization.ToString();
-        if (!string.IsNullOrEmpty(auth))
-        {
-            // Do not store the raw secret in the vary dictionary / logs — hash only.
-            ulong hash = System.IO.Hashing.XxHash3.HashToUInt64(System.Text.Encoding.UTF8.GetBytes(auth));
-            return "ah:" + hash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture);
-        }
-
-        return "auth";
     }
 
     /// <summary>
@@ -482,7 +483,8 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             // Cookie/session identity + Public is unsafe for shared browser/CDN caches → force Private.
             // API-key-only traffic (Authorization without IsAuthenticated) may still use Public.
             ClientCacheability? cacheabilityOverride = null;
-            if (httpContext.User?.Identity?.IsAuthenticated == true
+            if (config.ClientForcePrivateWhenAuthenticated
+                && httpContext.User?.Identity?.IsAuthenticated == true
                 && config.ClientCacheability == ClientCacheability.Public)
             {
                 cacheabilityOverride = ClientCacheability.Private;

@@ -92,9 +92,13 @@ store:a1b2c3d4e5f60708:id:products:42:9c8b7a6d5e4f3210
 |-------|---------------|--------|
 | Route pattern + route parameter values | Endpoint is a `RouteEndpoint` | Pattern text + each route value (lowercased) |
 | Path | No route endpoint | Full path |
-| Query string | Always (if any) | Keys sorted; **tracking params excluded** (`utm_*`, `gclid`, `fbclid`, …) |
+| Query string | Per `VaryByQueryKeys` / `IgnoreQueryKeys` | Default: all non-tracking keys sorted; tracking params excluded (`utm_*`, `gclid`, `fbclid`, …) |
 | `Accept-Encoding` | `FusionCacheVaryOnEncoding` | Domain setting |
+| `Accept` / `Accept-Language` | `VaryByAccept` / `VaryByAcceptLanguage` | Optional normalization lists |
+| Extra headers / cookies | `VaryByHeaders` / `VaryByCookies` | Sensitive values hashed; see [vary.md](vary.md) |
+| Auth-user / claims | `AuthBypassMode: Never` (or claim list) + `VaryOutputCacheByUser` | Not applied under default auth-bypass modes (key stability) |
 | Scheme + host | `FusionCacheVaryOnPublicAddress` | Domain setting |
+| `ICacheVaryContributor` values | When registered | After built-in material |
 
 Order of query keys does not matter: `?a=1&b=2` and `?b=2&a=1` produce the same hash.
 
@@ -145,6 +149,7 @@ The library does **not** emit a single custom string of the form `{domain}:{vers
 | Prefix | `CacheKeyPrefix` = `OutputCacheNamespace` (from root / OC `Namespace`) |
 | Method + path | Framework Output Cache |
 | Host | `VaryByHost` from domain `OutputCacheVaryByHost` (default `true`) |
+| `Accept` / language / headers / cookies / query allowlists | Domain vary settings | Shared materializer — [vary.md](vary.md) |
 | Query | `QueryKeys` = non-tracking query keys on the request |
 | Version | `VaryByValues["data-version"]` = `VersionHex` |
 | Encoding | `Accept-Encoding` in header vary when present |

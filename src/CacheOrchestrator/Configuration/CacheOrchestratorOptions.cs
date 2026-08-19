@@ -269,14 +269,98 @@ public sealed class CacheOrchestratorOptions
         /// When <see langword="true"/> (default), skip Output Cache for authenticated users /
         /// <c>Authorization</c> header.
         /// </summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Cache", DisplayName = "Bypass when authenticated")]
+        /// <remarks>
+        /// Obsolete: prefer <see cref="AuthBypassMode"/>.
+        /// <see langword="true"/> maps to <see cref="AuthBypassMode.AuthenticatedOrAuthorization"/>;
+        /// <see langword="false"/> maps to <see cref="AuthBypassMode.Never"/>.
+        /// Ignored when <see cref="AuthBypassMode"/> is set.
+        /// </remarks>
+        [Obsolete("Use AuthBypassMode. true → AuthenticatedOrAuthorization; false → Never. Ignored when AuthBypassMode is set.")]
+        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Cache", DisplayName = "Bypass when authenticated (legacy)")]
         public bool? BypassWhenAuthenticated { get; set; }
+
+        /// <summary>
+        /// When Output Cache (and optionally FusionCache) auto-bypasses for auth traffic.
+        /// When unset, derived from <see cref="BypassWhenAuthenticated"/>.
+        /// </summary>
+        [DomainSetting(Kind = DomainSettingValueKind.Enum, RuntimeOverlay = true, Group = "Cache", DisplayName = "Auth bypass mode")]
+        public AuthBypassMode? AuthBypassMode { get; set; }
 
         /// <summary>
         /// When authentication is not bypassed, vary Output Cache by user identity (default true).
         /// </summary>
         [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Cache", DisplayName = "Vary Output Cache by user")]
         public bool? VaryOutputCacheByUser { get; set; }
+
+        /// <summary>
+        /// When <see langword="true"/> (default), an <c>Authorization</c> header counts as an auth signal.
+        /// </summary>
+        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Cache", DisplayName = "Treat Authorization as auth signal")]
+        public bool? TreatAuthorizationAsAuthSignal { get; set; }
+
+        /// <summary>
+        /// When <see langword="true"/> (default), hash <c>Authorization</c> into auth-user vary when no identity claims.
+        /// </summary>
+        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Cache", DisplayName = "Auth vary include Authorization hash")]
+        public bool? AuthVaryIncludeAuthorizationHash { get; set; }
+
+        /// <summary>Claim types to include in auth vary material.</summary>
+        [DomainSetting(Kind = DomainSettingValueKind.StringArray, RuntimeOverlay = true, Group = "Cache", DisplayName = "Vary by auth claims")]
+        public string[]? VaryByAuthClaims { get; set; }
+
+        /// <summary>
+        /// When <see langword="true"/> (default), FusionCache skips cache read/write when auth bypass would fire for OC.
+        /// Set <see langword="false"/> to keep Fusion caching while Output Cache auth-bypasses (pre-parity behaviour).
+        /// </summary>
+        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Fusion respects auth bypass")]
+        public bool? FusionRespectAuthBypass { get; set; }
+
+        /// <summary>
+        /// When <see langword="true"/> (default), force client Private when Identity is authenticated and cacheability is Public.
+        /// </summary>
+        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Client", DisplayName = "Force private when authenticated")]
+        public bool? ClientForcePrivateWhenAuthenticated { get; set; }
+
+        /// <summary>Vary by <c>Accept</c> header.</summary>
+        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Vary", DisplayName = "Vary by Accept")]
+        public bool? VaryByAccept { get; set; }
+
+        /// <summary>Optional prefer-list for Accept normalization.</summary>
+        [DomainSetting(Kind = DomainSettingValueKind.StringArray, RuntimeOverlay = true, Group = "Vary", DisplayName = "Accept normalization")]
+        public string[]? AcceptNormalizationList { get; set; }
+
+        /// <summary>Vary by <c>Accept-Language</c>.</summary>
+        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Vary", DisplayName = "Vary by Accept-Language")]
+        public bool? VaryByAcceptLanguage { get; set; }
+
+        /// <summary>Optional prefer-list for Accept-Language normalization.</summary>
+        [DomainSetting(Kind = DomainSettingValueKind.StringArray, RuntimeOverlay = true, Group = "Vary", DisplayName = "Accept-Language normalization")]
+        public string[]? AcceptLanguageNormalizationList { get; set; }
+
+        /// <summary>Extra request headers to vary on.</summary>
+        [DomainSetting(Kind = DomainSettingValueKind.StringArray, RuntimeOverlay = true, Group = "Vary", DisplayName = "Vary by headers")]
+        public string[]? VaryByHeaders { get; set; }
+
+        /// <summary>
+        /// Query key allowlist. Null = all non-tracking (historical); empty = none; non-empty = allowlist.
+        /// </summary>
+        [DomainSetting(Kind = DomainSettingValueKind.StringArray, RuntimeOverlay = true, Group = "Vary", DisplayName = "Vary by query keys")]
+        public string[]? VaryByQueryKeys { get; set; }
+
+        /// <summary>Extra query keys to ignore beyond built-in tracking prefixes.</summary>
+        [DomainSetting(Kind = DomainSettingValueKind.StringArray, RuntimeOverlay = true, Group = "Vary", DisplayName = "Ignore query keys")]
+        public string[]? IgnoreQueryKeys { get; set; }
+
+        /// <summary>Cookie-name allowlist for vary (values always hashed).</summary>
+        [DomainSetting(Kind = DomainSettingValueKind.StringArray, RuntimeOverlay = true, Group = "Vary", DisplayName = "Vary by cookies")]
+        public string[]? VaryByCookies { get; set; }
+
+        /// <summary>
+        /// Emit HTTP response <c>Vary</c> for non-secret headers we varied on.
+        /// Default when unset: <see langword="true"/>. Set <see langword="false"/> to omit it.
+        /// </summary>
+        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Vary", DisplayName = "Emit response Vary")]
+        public bool? EmitResponseVary { get; set; }
 
         /// <summary>
         /// Optional version token (e.g. "v1", "2026-08") used for bulk invalidation.

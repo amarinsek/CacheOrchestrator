@@ -139,7 +139,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDomainCacheOptionsProvider, DomainCacheOptionsProvider>();
         services.AddSingleton<IDomainFusionCache, DomainFusionCacheService>();
         services.AddSingleton<ICacheOrchestratorInvalidator, CacheOrchestratorInvalidator>();
-        services.TryAddSingleton<IDomainKeyGenerator, DefaultDomainKeyGenerator>();
+        services.TryAddSingleton<Vary.CacheVaryMaterializer>(sp =>
+            new Vary.CacheVaryMaterializer(sp.GetServices<Vary.ICacheVaryContributor>()));
+        services.TryAddSingleton<IDomainKeyGenerator>(sp =>
+            new DefaultDomainKeyGenerator(sp.GetRequiredService<Vary.CacheVaryMaterializer>()));
     }
 
     private static void RegisterAdminServices(

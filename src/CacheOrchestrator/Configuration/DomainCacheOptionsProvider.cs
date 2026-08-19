@@ -173,6 +173,8 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
         int clientTtlMinSeconds = overlay?.ClientTtlMinSeconds
             ?? Pick(dom.ClientTtlMinSeconds, defaults.ClientTtlMinSeconds, 60);
 
+        AuthBypassMode authBypassMode = ResolveAuthBypassMode(overlay, dom, defaults);
+
         return new DomainCacheOptions
         {
             Domain = domain,
@@ -181,10 +183,45 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
                 ?? Pick(dom.OutputCacheEnabled, defaults.OutputCacheEnabled, true),
             FusionCacheEnabled = overlay?.FusionCacheEnabled
                 ?? Pick(dom.FusionCacheEnabled, defaults.FusionCacheEnabled, true),
-            BypassWhenAuthenticated = overlay?.BypassWhenAuthenticated
-                ?? Pick(dom.BypassWhenAuthenticated, defaults.BypassWhenAuthenticated, true),
+            AuthBypassMode = authBypassMode,
+            BypassWhenAuthenticated = authBypassMode != AuthBypassMode.Never,
             VaryOutputCacheByUser = overlay?.VaryOutputCacheByUser
                 ?? Pick(dom.VaryOutputCacheByUser, defaults.VaryOutputCacheByUser, true),
+            TreatAuthorizationAsAuthSignal = overlay?.TreatAuthorizationAsAuthSignal
+                ?? Pick(dom.TreatAuthorizationAsAuthSignal, defaults.TreatAuthorizationAsAuthSignal, true),
+            AuthVaryIncludeAuthorizationHash = overlay?.AuthVaryIncludeAuthorizationHash
+                ?? Pick(dom.AuthVaryIncludeAuthorizationHash, defaults.AuthVaryIncludeAuthorizationHash, true),
+            FusionRespectAuthBypass = overlay?.FusionRespectAuthBypass
+                ?? Pick(dom.FusionRespectAuthBypass, defaults.FusionRespectAuthBypass, true),
+            ClientForcePrivateWhenAuthenticated = overlay?.ClientForcePrivateWhenAuthenticated
+                ?? Pick(dom.ClientForcePrivateWhenAuthenticated, defaults.ClientForcePrivateWhenAuthenticated, true),
+            VaryByAccept = overlay?.VaryByAccept
+                ?? Pick(dom.VaryByAccept, defaults.VaryByAccept, false),
+            AcceptNormalizationList = overlay?.AcceptNormalizationList
+                ?? dom.AcceptNormalizationList
+                ?? defaults.AcceptNormalizationList,
+            VaryByAcceptLanguage = overlay?.VaryByAcceptLanguage
+                ?? Pick(dom.VaryByAcceptLanguage, defaults.VaryByAcceptLanguage, false),
+            AcceptLanguageNormalizationList = overlay?.AcceptLanguageNormalizationList
+                ?? dom.AcceptLanguageNormalizationList
+                ?? defaults.AcceptLanguageNormalizationList,
+            VaryByHeaders = overlay?.VaryByHeaders
+                ?? dom.VaryByHeaders
+                ?? defaults.VaryByHeaders,
+            VaryByQueryKeys = overlay?.VaryByQueryKeys
+                ?? dom.VaryByQueryKeys
+                ?? defaults.VaryByQueryKeys,
+            IgnoreQueryKeys = overlay?.IgnoreQueryKeys
+                ?? dom.IgnoreQueryKeys
+                ?? defaults.IgnoreQueryKeys,
+            VaryByCookies = overlay?.VaryByCookies
+                ?? dom.VaryByCookies
+                ?? defaults.VaryByCookies,
+            VaryByAuthClaims = overlay?.VaryByAuthClaims
+                ?? dom.VaryByAuthClaims
+                ?? defaults.VaryByAuthClaims,
+            EmitResponseVary = overlay?.EmitResponseVary
+                ?? Pick(dom.EmitResponseVary, defaults.EmitResponseVary, true),
             Version = version,
             VersionHex = versionHex,
             ETagMode = etagMode,
@@ -238,4 +275,28 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
                 ?? Pick(dom.OutputCacheVaryByHost, defaults.OutputCacheVaryByHost, true),
         };
     }
+
+#pragma warning disable CS0618 // BypassWhenAuthenticated is obsolete — kept for config compat
+    private static AuthBypassMode ResolveAuthBypassMode(
+        DomainRuntimeOverride? overlay,
+        CacheOrchestratorOptions.DomainCacheSettings dom,
+        CacheOrchestratorOptions.DomainCacheSettings defaults)
+    {
+        if (overlay?.AuthBypassMode is AuthBypassMode overlayMode)
+            return overlayMode;
+        if (dom.AuthBypassMode is AuthBypassMode domMode)
+            return domMode;
+        if (defaults.AuthBypassMode is AuthBypassMode defaultsMode)
+            return defaultsMode;
+
+        // Legacy bool: overlay → domain → defaults → true
+        bool legacy = overlay?.BypassWhenAuthenticated
+            ?? dom.BypassWhenAuthenticated
+            ?? defaults.BypassWhenAuthenticated
+            ?? true;
+        return legacy
+            ? AuthBypassMode.AuthenticatedOrAuthorization
+            : AuthBypassMode.Never;
+    }
+#pragma warning restore CS0618
 }

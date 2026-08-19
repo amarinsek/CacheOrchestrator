@@ -70,6 +70,8 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheOrchestrator.OutputCache` |
 | `[CacheDomain("…")]` | `CacheOrchestrator.OutputCache` |
 | `IDomainFusionCache` | `CacheOrchestrator.FusionCache` |
+| `ICacheVaryContributor` / `CacheVaryMaterializer` / `ICacheVaryBuilder` | `CacheOrchestrator.Vary` |
+| `AuthBypassMode` / `DomainAuthEvaluator` | `CacheOrchestrator.Configuration` |
 | `IDomainCacheOptionsProvider` / `DomainCacheOptions` / `DomainName` | `CacheOrchestrator.Configuration` |
 | `ICacheOrchestratorInvalidator` / `ICacheInvalidationObserver` / `CacheInvalidationResult` | `CacheOrchestrator.Invalidation` |
 | `CacheTags` | `CacheOrchestrator.Configuration` |
@@ -114,6 +116,7 @@ src/CacheOrchestrator/          core (InMemory only; no Redis/Bus packages)
   Configuration/     options, domain resolution, headers
   OutputCache/       policy, attributes, endpoint extensions
   FusionCache/       data cache API + key gen
+  Vary/              shared OC↔Fusion vary materializer + ICacheVaryContributor
   Backends/          ICacheBackendRegistrar, registration contexts, InMemory
   Invalidation/      tag purge
   Cluster/           Null bus/membership, InstanceId, command handler (HTTP in Bus package)

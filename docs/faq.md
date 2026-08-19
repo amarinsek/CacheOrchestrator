@@ -57,16 +57,38 @@ Details: [fusion-cache.md](fusion-cache.md).
 
 ## Authenticated requests and API keys
 
-**Default:** authenticated users **or** an `Authorization` header → Output Cache **bypassed**, client cache **blocked** (`BypassWhenAuthenticated: true`).
+**Default:** authenticated users **or** an `Authorization` header → Output Cache **bypassed**, client cache **blocked** (`AuthBypassMode: AuthenticatedOrAuthorization`).
 
 | Goal | Config |
 |------|--------|
 | Keep safe default | leave flags as default |
-| Cache private per-user responses | `BypassWhenAuthenticated: false`, `VaryOutputCacheByUser: true`, `ClientCacheability: Private` |
-| Public content that happens to send an API key | `BypassWhenAuthenticated: false`, `VaryOutputCacheByUser: false`, careful `ClientCacheability` |
+| Cache private per-user responses | `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, `ClientCacheability: Private` |
+| Public content that happens to send an API key | `AuthBypassMode: Never`, `VaryOutputCacheByUser: false`, careful `ClientCacheability` |
+| Bypass only cookie/Identity auth | `AuthBypassMode: AuthenticatedIdentityOnly` |
+| Keep 2.1-like Fusion under Authorization while OC bypasses | `FusionRespectAuthBypass: false` (default is `true` = parity) |
 
 Wrong settings can leak one user’s response to another (especially with shared CDNs).  
-Details: [output-cache.md](output-cache.md#authenticated-traffic), [domain-profiles.md](domain-profiles.md#authenticated-traffic-auth-bypass).
+Details: [vary.md](vary.md), [output-cache.md](output-cache.md#authenticated-traffic), [domain-profiles.md](domain-profiles.md#authenticated-traffic-auth-bypass).
+
+---
+
+## JSON vs XML on the same URL?
+
+Enable `VaryByAccept: true` (optional `AcceptNormalizationList`). Output Cache and Fusion then partition by normalized `Accept`. See [vary.md](vary.md).
+
+---
+
+## Tenant claim without a custom key generator?
+
+Set `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, and `VaryByAuthClaims: [ "tenant_id" ]`, or register an `ICacheVaryContributor`. Full `IDomainKeyGenerator` replace remains supported.
+
+---
+
+## Why does Fusion skip under Authorization now?
+
+Default is **`FusionRespectAuthBypass: true`**: when Output Cache would auth-bypass, Fusion runs the factory uncached (OC↔Fusion parity). That fixes the old inconsistency where OC bypassed but Fusion still stored data.
+
+For **2.1-like** behaviour (Fusion still caches under Authorization while OC bypasses), set `"FusionRespectAuthBypass": false`.
 
 ---
 

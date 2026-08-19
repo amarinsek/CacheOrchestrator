@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
+using Microsoft.Net.Http.Headers;
 
 namespace CacheOrchestrator.Utilities;
 
@@ -63,34 +64,53 @@ internal static class HttpHelper
         response.Headers.Pragma = "no-cache";
     }
 
-    public static void NormalizeAcceptEncoding(HttpContext http, string[] allowedEncodings)
+    public static void NormalizeAcceptEncoding(HttpContext http, string[] allowedEncodings) =>
+        NormalizePreferHeader(http.Request.Headers, HeaderNames.AcceptEncoding, allowedEncodings);
+
+    /// <summary>
+    /// Collapses <c>Accept</c> to the first matching prefer-list entry (substring, case-insensitive),
+    /// or clears it when none match.
+    /// </summary>
+    public static void NormalizeAccept(HttpContext http, string[] preferredMediaTypes) =>
+        NormalizePreferHeader(http.Request.Headers, HeaderNames.Accept, preferredMediaTypes);
+
+    /// <summary>
+    /// Collapses <c>Accept-Language</c> to the first matching prefer-list entry (substring, case-insensitive),
+    /// or clears it when none match.
+    /// </summary>
+    public static void NormalizeAcceptLanguage(HttpContext http, string[] preferredLanguages) =>
+        NormalizePreferHeader(http.Request.Headers, HeaderNames.AcceptLanguage, preferredLanguages);
+
+    private static void NormalizePreferHeader(
+        IHeaderDictionary headers,
+        string headerName,
+        string[] preferred)
     {
-        StringValues ae = http.Request.Headers.AcceptEncoding;
-        if (ae.Count == 0)
+        if (preferred.Length == 0 || !headers.TryGetValue(headerName, out StringValues current) || current.Count == 0)
             return;
 
-        // Prefer scanning individual values before falling back to a combined string.
-        for (int i = 0; i < allowedEncodings.Length; i++)
+        for (int i = 0; i < preferred.Length; i++)
         {
-            string enc = allowedEncodings[i];
-            if (ContainsEncoding(ae, enc))
+            string item = preferred[i];
+            if (string.IsNullOrWhiteSpace(item))
+                continue;
+            if (ContainsToken(current, item.Trim()))
             {
-                http.Request.Headers.AcceptEncoding = enc;
+                headers[headerName] = item.Trim();
                 return;
             }
         }
 
-        // If no match found and we mandate normalization, we clear it (identity)
-        http.Request.Headers.AcceptEncoding = string.Empty;
+        headers[headerName] = string.Empty;
     }
 
-    private static bool ContainsEncoding(StringValues header, string encoding)
+    private static bool ContainsToken(StringValues header, string token)
     {
         for (int i = 0; i < header.Count; i++)
         {
             string? value = header[i];
             if (value is not null
-                && value.Contains(encoding, StringComparison.OrdinalIgnoreCase))
+                && value.Contains(token, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

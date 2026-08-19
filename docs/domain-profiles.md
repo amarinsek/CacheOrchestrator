@@ -164,7 +164,7 @@ You can mix both profiles in one app (different domains).
 
 ## Authenticated traffic (auth bypass)
 
-Default: **any** authenticated user or `Authorization` header → Output Cache **off**, client cache **blocked**.  
+Default: **any** authenticated user or `Authorization` header → Output Cache **off**, client cache **blocked** (`AuthBypassMode: AuthenticatedOrAuthorization`). Prefer `AuthBypassMode` over obsolete `BypassWhenAuthenticated`. Full matrix: [vary.md](vary.md).
 Safe default for mixed public/private APIs.
 
 | Goal | Settings |

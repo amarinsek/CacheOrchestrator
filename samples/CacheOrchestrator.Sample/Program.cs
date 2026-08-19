@@ -39,6 +39,7 @@ app.MapPrometheusScrapingEndpoint() // GET /metrics
     .WithMetadata(new Microsoft.AspNetCore.OutputCaching.OutputCacheAttribute { NoStore = true });
 
 app.MapDemoDataEndpoints(builder.Configuration);
+app.MapVaryDemoEndpoint();
 app.MapDemoStudioEndpoints();
 
 // Config reload only (no purge). Invalidation is a separate user action.

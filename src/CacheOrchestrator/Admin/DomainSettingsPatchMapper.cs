@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Vary;
 
 namespace CacheOrchestrator.Admin;
 
@@ -22,7 +23,22 @@ public static class DomainSettingsPatchMapper
         bool? outputCacheEnabled = null;
         bool? fusionCacheEnabled = null;
         bool? bypassWhenAuthenticated = null;
+        AuthBypassMode? authBypassMode = null;
         bool? varyOutputCacheByUser = null;
+        bool? treatAuthorizationAsAuthSignal = null;
+        bool? authVaryIncludeAuthorizationHash = null;
+        bool? fusionRespectAuthBypass = null;
+        bool? clientForcePrivateWhenAuthenticated = null;
+        bool? varyByAccept = null;
+        bool? varyByAcceptLanguage = null;
+        bool? emitResponseVary = null;
+        string[]? acceptNormalizationList = null;
+        string[]? acceptLanguageNormalizationList = null;
+        string[]? varyByHeaders = null;
+        string[]? varyByQueryKeys = null;
+        string[]? ignoreQueryKeys = null;
+        string[]? varyByCookies = null;
+        string[]? varyByAuthClaims = null;
         ETagMode? eTagMode = null;
         ClientCacheability? clientCacheability = null;
         int? clientTtlSeconds = null;
@@ -58,7 +74,22 @@ public static class DomainSettingsPatchMapper
                 case "outputCacheEnabled": outputCacheEnabled = ReadBool(el, id); break;
                 case "fusionCacheEnabled": fusionCacheEnabled = ReadBool(el, id); break;
                 case "bypassWhenAuthenticated": bypassWhenAuthenticated = ReadBool(el, id); break;
+                case "authBypassMode": authBypassMode = ReadEnum<AuthBypassMode>(el, id); break;
                 case "varyOutputCacheByUser": varyOutputCacheByUser = ReadBool(el, id); break;
+                case "treatAuthorizationAsAuthSignal": treatAuthorizationAsAuthSignal = ReadBool(el, id); break;
+                case "authVaryIncludeAuthorizationHash": authVaryIncludeAuthorizationHash = ReadBool(el, id); break;
+                case "fusionRespectAuthBypass": fusionRespectAuthBypass = ReadBool(el, id); break;
+                case "clientForcePrivateWhenAuthenticated": clientForcePrivateWhenAuthenticated = ReadBool(el, id); break;
+                case "varyByAccept": varyByAccept = ReadBool(el, id); break;
+                case "varyByAcceptLanguage": varyByAcceptLanguage = ReadBool(el, id); break;
+                case "emitResponseVary": emitResponseVary = ReadBool(el, id); break;
+                case "acceptNormalizationList": acceptNormalizationList = ReadStringArray(el, id, max: 16); break;
+                case "acceptLanguageNormalizationList": acceptLanguageNormalizationList = ReadStringArray(el, id, max: 16); break;
+                case "varyByHeaders": varyByHeaders = ReadStringArray(el, id, max: CacheVaryMaterializer.MaxVaryByHeaders); break;
+                case "varyByQueryKeys": varyByQueryKeys = ReadStringArray(el, id, max: 32); break;
+                case "ignoreQueryKeys": ignoreQueryKeys = ReadStringArray(el, id, max: 32); break;
+                case "varyByCookies": varyByCookies = ReadStringArray(el, id, max: CacheVaryMaterializer.MaxVaryByCookies); break;
+                case "varyByAuthClaims": varyByAuthClaims = ReadStringArray(el, id, max: 16); break;
                 case "eTagMode": eTagMode = ReadEnum<ETagMode>(el, id); break;
                 case "clientCacheability": clientCacheability = ReadEnum<ClientCacheability>(el, id); break;
                 case "clientTtlSeconds": clientTtlSeconds = ReadNonNegInt(el, id); break;
@@ -90,7 +121,22 @@ public static class DomainSettingsPatchMapper
             OutputCacheEnabled = outputCacheEnabled,
             FusionCacheEnabled = fusionCacheEnabled,
             BypassWhenAuthenticated = bypassWhenAuthenticated,
+            AuthBypassMode = authBypassMode,
             VaryOutputCacheByUser = varyOutputCacheByUser,
+            TreatAuthorizationAsAuthSignal = treatAuthorizationAsAuthSignal,
+            AuthVaryIncludeAuthorizationHash = authVaryIncludeAuthorizationHash,
+            FusionRespectAuthBypass = fusionRespectAuthBypass,
+            ClientForcePrivateWhenAuthenticated = clientForcePrivateWhenAuthenticated,
+            VaryByAccept = varyByAccept,
+            VaryByAcceptLanguage = varyByAcceptLanguage,
+            EmitResponseVary = emitResponseVary,
+            AcceptNormalizationList = acceptNormalizationList,
+            AcceptLanguageNormalizationList = acceptLanguageNormalizationList,
+            VaryByHeaders = varyByHeaders,
+            VaryByQueryKeys = varyByQueryKeys,
+            IgnoreQueryKeys = ignoreQueryKeys,
+            VaryByCookies = varyByCookies,
+            VaryByAuthClaims = varyByAuthClaims,
             ETagMode = eTagMode,
             ClientCacheability = clientCacheability,
             ClientTtlSeconds = clientTtlSeconds,
@@ -178,5 +224,43 @@ public static class DomainSettingsPatchMapper
         }
 
         throw new ArgumentException($"Setting '{id}' must be one of: {string.Join(", ", Enum.GetNames<TEnum>())}.", id);
+    }
+
+    private static string[] ReadStringArray(JsonElement el, string id, int max)
+    {
+        if (el.ValueKind == JsonValueKind.Null)
+            return [];
+
+        if (el.ValueKind == JsonValueKind.String)
+        {
+            string? raw = el.GetString();
+            if (string.IsNullOrWhiteSpace(raw))
+                return [];
+            string[] fromCsv = raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            return ValidateStringArray(fromCsv, id, max);
+        }
+
+        if (el.ValueKind != JsonValueKind.Array)
+            throw new ArgumentException($"Setting '{id}' must be a JSON array of strings (or a comma-separated string).", id);
+
+        List<string> list = new(el.GetArrayLength());
+        foreach (JsonElement item in el.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String)
+                throw new ArgumentException($"Setting '{id}' array entries must be strings.", id);
+            string? s = item.GetString();
+            if (string.IsNullOrWhiteSpace(s))
+                throw new ArgumentException($"Setting '{id}' entries must not be empty.", id);
+            list.Add(s.Trim());
+        }
+
+        return ValidateStringArray(list.ToArray(), id, max);
+    }
+
+    private static string[] ValidateStringArray(string[] values, string id, int max)
+    {
+        if (values.Length > max)
+            throw new ArgumentException($"Setting '{id}' cannot contain more than {max} entries.", id);
+        return values;
     }
 }
