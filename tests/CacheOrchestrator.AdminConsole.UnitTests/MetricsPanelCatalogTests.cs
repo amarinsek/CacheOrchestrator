@@ -70,6 +70,11 @@ public class MetricsPanelCatalogTests
         string share = MetricsPanelCatalog.BuildPromQl("factory_share", null);
         Assert.Contains(MetricsPanelCatalog.OcRequests, share, StringComparison.Ordinal);
         Assert.Contains("result=\"miss\"", share, StringComparison.Ordinal);
+
+        string stale = MetricsPanelCatalog.BuildPromQl("fc_stale_share", null);
+        Assert.Contains(MetricsPanelCatalog.FcRequests, stale, StringComparison.Ordinal);
+        Assert.Contains(MetricsPanelCatalog.OcRequests, stale, StringComparison.Ordinal);
+        Assert.Contains("result=\"stale\"", stale, StringComparison.Ordinal);
     }
 
     [Fact]

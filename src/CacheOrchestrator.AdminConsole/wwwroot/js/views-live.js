@@ -159,10 +159,9 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
       </div>
       <p class="muted" style="margin:0 0 0.75rem">Current health and performance (fixed lookback — not the global Range picker).</p>
       ${kpis}
+      ${pipelinePanelHtml(metricsOk ? snap.pipeline : null)}
       ${!metricsOk ? `<p class="status-Degraded" style="margin:0.75rem 0 0">${esc(snap.error || "Connect metrics to see live rates.")}</p>` : ""}
   `;
-
-  const pipeHtml = pipelinePanelHtml(metricsOk ? snap.pipeline : null);
   const instHtml = instanceTableHtml(instances, { kind: "config" });
   const domHtml = !metricsOk
     ? emptyStateHtml("metrics-config", { title: "Metrics not connected", detail: snap.error })
@@ -246,8 +245,6 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
     if (banner) banner.innerHTML = connectivityBanner(instances);
     const head = document.getElementById("liveHeadCard");
     if (head) head.innerHTML = headHtml;
-    const pipe = $("#livePipeline");
-    if (pipe) pipe.innerHTML = pipeHtml;
     const inst = document.getElementById("liveInstTable");
     if (inst) inst.innerHTML = instHtml;
     const dom = document.getElementById("liveDomTable");
@@ -266,7 +263,6 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
     <div id="liveRoot">
     <div id="liveBanner">${connectivityBanner(instances)}</div>
     <div class="card" id="liveHeadCard">${headHtml}</div>
-    <div class="card" id="livePipeline">${pipeHtml}</div>
 
     <div class="card">
       <div class="card-head">

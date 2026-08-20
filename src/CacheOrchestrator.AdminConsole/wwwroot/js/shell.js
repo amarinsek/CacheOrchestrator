@@ -3,7 +3,8 @@
  *
  * Layout (see index.html):
  * 1) brand / logo
- * 2) header metrics strip (`#headerMetrics`)
+ * 2) header metrics strip (`#headerMetrics`):
+ *    instances + metrics status · gap · Req / Inv / pipeline / hit shares · right-aligned N dom N ep
  * 3) menu strip
  *
  * Soft refresh (route({ soft: true })) repaints without a full "Loading…" flash.
@@ -153,27 +154,31 @@ async function fetchHeaderWindowStats() {
   }
 }
 
-/** Non-blocking metrics store status for the chrome strip. */
+/** Metrics store status pill HTML (empty when not configured). */
+function metricsStatusPillHtml(s) {
+  if (!s || s.status === "NotConfigured") return "";
+  const provider = s.provider || "Prometheus";
+  const target = s.host ? `${provider} · ${s.host}` : provider;
+  const cls = s.status === "Connected" ? "ok" : "bad";
+  const title = s.status === "Connected"
+    ? target
+    : `${target} · not connected${s.error ? ` — ${s.error}` : ""}`;
+  const label = s.status === "Connected" ? "metrics up" : "metrics down";
+  return `<span class="hm" data-metrics-pill title="${esc(title)}"><span class="dot ${cls}"></span><span class="muted">${esc(label)}</span></span>`;
+}
+
+function setMetricsStatusPill(s) {
+  const slot = document.querySelector("[data-metrics-pill-slot]");
+  if (!slot) return;
+  slot.innerHTML = metricsStatusPillHtml(s);
+}
+
+/** Non-blocking metrics store status for the chrome strip (refines host tooltip). */
 async function refreshMetricsStatusPill() {
   try {
-    const s = await api("/api/metrics/status");
-    const el = $("#headerMetrics");
-    if (!el) return;
-    const existing = el.querySelector("[data-metrics-pill]");
-    if (existing) existing.remove();
-    if (s.status === "NotConfigured") return;
-    const provider = s.provider || "Prometheus";
-    const target = s.host ? `${provider} · ${s.host}` : provider;
-    const cls = s.status === "Connected" ? "ok" : "bad";
-    const title = s.status === "Connected"
-      ? target
-      : `${target} · not connected${s.error ? ` — ${s.error}` : ""}`;
-    const label = s.status === "Connected" ? "metrics" : "metrics off";
-    el.insertAdjacentHTML(
-      "beforeend",
-      `<span class="hm" data-metrics-pill title="${esc(title)}"><span class="dot ${cls}"></span><span class="muted">${esc(label)}</span></span>`);
+    setMetricsStatusPill(await api("/api/metrics/status"));
   } catch {
-    /* optional */
+    /* optional — keep the window-stats pill if already rendered */
   }
 }
 
@@ -238,39 +243,62 @@ export function renderHeader(o, windowStats = null) {
   ].filter(Boolean).join(" · ");
 
   const pipe = promOk && !noData ? windowStats.pipeline : null;
-  const oc = promOk && !noData && windowStats.ocHitShare != null
-    ? pct(windowStats.ocHitShare)
-    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
-  const fc = promOk && !noData && windowStats.fcHitShare != null
-    ? pct(windowStats.fcHitShare)
-    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
-  const fac = promOk && !noData && windowStats.factoryShare != null
-    ? pct(windowStats.factoryShare)
-    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
+  const dashTip = promOk ? "No samples yet" : "Metrics offline";
+  const share = (v) => (promOk && !noData && v != null ? pct(v) : noDataHtml(dashTip));
+  // Same fields as pipelineBar (OC hit · FC hit · FC stale · FA run · Bypass).
+  const oc = share(pipe?.ocHitShare ?? windowStats.ocHitShare);
+  const fc = share(pipe?.fcHitShare ?? windowStats.fcHitShare);
+  const stale = share(pipe?.staleShare);
+  const fac = share(pipe?.factoryShare ?? pipe?.originShare ?? windowStats.factoryShare);
+  const bypass = share(pipe?.bypassShare);
+  const fafcFails = promOk && !noData
+    ? (windowStats.domains || []).reduce((s, d) => s + Number(d.fc?.factoryFailures || 0), 0)
+    : null;
+  const fafcRuns = promOk && !noData
+    ? (windowStats.domains || []).reduce((s, d) => s + Number(d.fc?.factoryRuns || 0), 0)
+    : 0;
+  const fafcRate = fafcRuns > 0 && fafcFails != null ? fafcFails / fafcRuns : null;
+  const fafcCls = fafcFails > 0
+    ? (fafcRate != null && fafcRate >= 0.1 ? "metric-bad" : "metric-warn")
+    : "";
+  const fafc = fafcFails != null
+    ? `<strong${fafcCls ? ` class="${fafcCls}"` : ""}>${num(fafcFails)}</strong>`
+    : `<strong>${noDataHtml()}</strong>`;
   const imp = promOk ? (windowStats.impact || {}) : {};
   const req = promOk && !noData ? num(windowStats.totalRequests) : noDataHtml();
   const inv = promOk && !noData ? num(windowStats.totalInvalidations) : noDataHtml();
   const timeSaved = promOk
     ? fmtDurationMs(imp.estFactoryTimeSavedMs)
-    : noDataHtml(promOk ? "No samples yet" : "Metrics offline");
+    : noDataHtml(dashTip);
   const domN = promOk ? (windowStats.domains || []).length : 0;
   const epN = promOk ? (windowStats.endpoints || []).length : 0;
+  const alerts = (o.alerts && o.alerts.length)
+    ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>`
+    : "";
 
   $("#headerMetrics").innerHTML = `
-    <span class="hm" title="${esc(healthTitle)}">${healthDots}
-      <strong class="${upClass}">${up}/${total || 0}</strong><span class="muted">\u2009up</span>
-      ${down > 0 ? `<span class="status-Down">${fmtUnit(down, "down")}</span>` : ""}
-      ${deg > 0 ? `<span class="status-Degraded">${fmtUnit(deg, "deg")}</span>` : ""}
-    </span>
-    <span class="hm" title="${esc(METRIC_TITLES.req)}">Req <strong>${req}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.inv)}">Inv <strong>${inv}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(pipe, false, { title: false })}</span>
-    <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit % <strong>${oc}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${fc}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">FA run % <strong>${fac}</strong></span>
-    <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">EFTS <strong>${timeSaved}</strong></span>
-    <span class="hm muted" title="${esc(METRIC_TITLES.entities)}">${fmtUnit(domN, "dom")} · ${fmtUnit(epN, "ep")}</span>
-    ${(o.alerts && o.alerts.length) ? `<span class="hm status-Degraded" title="${esc(o.alerts.join(" | "))}">⚠\u2009${o.alerts.length}</span>` : ""}
+    <div class="hm-left">
+      <span class="hm-cluster">
+        <span class="hm" title="${esc(healthTitle)}">${healthDots}
+          <strong class="${upClass}">${up}/${total || 0}</strong><span class="muted">\u2009up</span>
+          ${down > 0 ? `<span class="status-Down">${fmtUnit(down, "down")}</span>` : ""}
+          ${deg > 0 ? `<span class="status-Degraded">${fmtUnit(deg, "deg")}</span>` : ""}
+        </span>
+        <span data-metrics-pill-slot>${metricsStatusPillHtml(windowStats)}</span>
+      </span>
+      <span class="hm" title="${esc(METRIC_TITLES.req)}">Req <strong>${req}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.inv)}">Inv <strong>${inv}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(pipe, false, { title: false })}</span>
+      <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit % <strong>${oc}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${fc}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.staleShare)}">FC stale % <strong>${stale}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">FA run % <strong>${fac}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.bypassShare)}">Bypass % <strong>${bypass}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.factoryFailures)}">FAFC ${fafc}</span>
+      <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">EFTS <strong>${timeSaved}</strong></span>
+      ${alerts}
+    </div>
+    <span class="hm hm-entities muted" title="${esc(METRIC_TITLES.entities)}">${fmtUnit(domN, "dom")} ${fmtUnit(epN, "ep")}</span>
   `;
   refreshMetricsStatusPill();
 }

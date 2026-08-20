@@ -38,7 +38,7 @@ export function setNavActive(path) {
 
 /**
  * Breadcrumb under chrome: [{ label, href? }, ...].
- * Top-level pages omit breadcrumb (active nav is enough). Detail pages keep parent › leaf.
+ * Hidden for a single segment or empty (active nav is enough; detail pages use the card title).
  */
 export function setBreadcrumb(parts) {
   const el = $("#breadcrumb");

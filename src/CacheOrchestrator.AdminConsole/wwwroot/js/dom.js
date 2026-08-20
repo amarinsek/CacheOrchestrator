@@ -10,9 +10,13 @@ export const $ = (sel, el = document) => el.querySelector(sel);
 /** Main content host (`#appMain`). */
 export const main = () => $("#appMain");
 
-/** Subtle chrome indicator while a soft refresh runs (no full-page loading flash). */
-export function setRefreshing(on) {
-  const busy = !!on;
+/** Keep Reload spin + "Loading" visible at least this long (fast fetches otherwise just flicker). */
+const MIN_REFRESH_VISIBLE_MS = 1000;
+
+let refreshShownAt = 0;
+let refreshHideTimer = null;
+
+function applyRefreshingUi(busy) {
   document.documentElement.classList.toggle("is-refreshing", busy);
   const btn = document.getElementById("btnHeaderRefresh");
   if (btn) {
@@ -21,6 +25,33 @@ export function setRefreshing(on) {
   }
   const label = document.querySelector("[data-refresh-label]");
   if (label) label.textContent = busy ? "Loading" : "Reload";
+}
+
+/** Subtle chrome indicator while a soft refresh runs (no full-page loading flash). */
+export function setRefreshing(on) {
+  if (on) {
+    if (refreshHideTimer) {
+      clearTimeout(refreshHideTimer);
+      refreshHideTimer = null;
+    }
+    if (!refreshShownAt) refreshShownAt = Date.now();
+    applyRefreshingUi(true);
+    return;
+  }
+
+  const elapsed = refreshShownAt ? Date.now() - refreshShownAt : MIN_REFRESH_VISIBLE_MS;
+  const wait = Math.max(0, MIN_REFRESH_VISIBLE_MS - elapsed);
+  const hide = () => {
+    refreshHideTimer = null;
+    refreshShownAt = 0;
+    applyRefreshingUi(false);
+  };
+  if (wait === 0) {
+    hide();
+    return;
+  }
+  if (refreshHideTimer) return;
+  refreshHideTimer = setTimeout(hide, wait);
 }
 
 /** Page scroll host under the chrome (`#appScroll`), or window as fallback. */

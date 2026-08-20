@@ -189,10 +189,7 @@ export async function renderEndpointsList(params, opts = {}) {
 
 export async function renderEndpointDetail(routeName, opts = {}) {
   const soft = !!opts.soft;
-  setBreadcrumb([
-    { label: "Endpoints", href: "#/endpoints" },
-    { label: routeName },
-  ]);
+  setBreadcrumb([]);
   beginPageLoad(soft, `<p class="muted">Loading ${esc(routeName)}…</p>`);
 
   const w = await fetchWindowStatsIfNeeded();
@@ -221,10 +218,7 @@ export async function renderEndpointDetail(routeName, opts = {}) {
 
   paintPage(`
     <div id="epDetailHead">${endpointDetailHeadHtml(ep)}</div>
-    <div id="epMetricsMount"></div>
-    <p><a href="#/endpoints">← All endpoints</a>
-      ${ep.configuredDomain ? ` · <a href="#/operations?domain=${encodeURIComponent(ep.configuredDomain)}">Operations for domain</a>` : ""}
-    </p>`, soft);
+    <div id="epMetricsMount"></div>`, soft);
 
   main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
     tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
@@ -242,7 +236,7 @@ export function endpointDetailHeadHtml(ep) {
     : "";
   return `
     <div class="card">
-      <h2><code>${esc(ep.route)}</code>
+      <h2>Endpoint <code>${esc(ep.route)}</code>
         ${domainBadge}
         ${hintBadges(ep.hints)}
       </h2>

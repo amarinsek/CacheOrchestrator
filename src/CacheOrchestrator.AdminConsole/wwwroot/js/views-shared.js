@@ -121,7 +121,51 @@ export function sliceWindowStatsForInstance(windowStats, instanceId, reportedId)
       endpointsOnInst.push(e);
     }
   }
-  return { domains: domainsOnInst, endpoints: endpointsOnInst };
+  return {
+    domains: domainsOnInst,
+    endpoints: endpointsOnInst,
+    pipeline: aggregatePipelineFromStatsRows(domainsOnInst),
+  };
+}
+
+/**
+ * Rebuild pipeline shares from per-row OC/FC counters (same formula as AdminStatsMath.BuildAll).
+ * Used for instance detail: cluster window stats are not instance-scoped.
+ * @param {Array<{ oc?: object, fc?: object }>|null|undefined} rows
+ * @returns {object|null}
+ */
+export function aggregatePipelineFromStatsRows(rows) {
+  let ocHits = 0, ocMisses = 0, ocBypass = 0;
+  let fcHits = 0, fcMisses = 0, fcStale = 0, fcBypass = 0;
+  let factoryRuns = 0;
+  for (const r of rows || []) {
+    const oc = r.oc || {};
+    const fc = r.fc || {};
+    ocHits += Number(oc.hits) || 0;
+    ocMisses += Number(oc.misses) || 0;
+    ocBypass += Number(oc.bypass) || 0;
+    fcHits += Number(fc.hits) || 0;
+    fcMisses += Number(fc.misses) || 0;
+    fcStale += Number(fc.stale) || 0;
+    fcBypass += Number(fc.bypass) || 0;
+    factoryRuns += Number(fc.factoryRuns) || 0;
+  }
+  const ocTraffic = ocHits + ocMisses + ocBypass;
+  const requests = ocTraffic > 0
+    ? ocTraffic
+    : fcHits + fcMisses + fcStale + fcBypass;
+  if (requests <= 0) return null;
+  const share = (n) => n / requests;
+  const pipelineBypass = ocTraffic > 0 ? ocBypass : fcBypass;
+  const other = Math.max(0, requests - ocHits - fcHits - fcStale - factoryRuns - pipelineBypass);
+  return {
+    ocHitShare: share(ocHits),
+    fcHitShare: share(fcHits),
+    staleShare: share(fcStale),
+    factoryShare: share(factoryRuns),
+    bypassShare: share(pipelineBypass),
+    otherShare: share(other),
+  };
 }
 
 export function metricsRequiredEmpty(detail) {
