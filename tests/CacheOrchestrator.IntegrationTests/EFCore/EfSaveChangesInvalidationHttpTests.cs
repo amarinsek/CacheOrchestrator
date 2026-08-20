@@ -121,18 +121,18 @@ public class EfSaveChangesInvalidationHttpTests
             FactoryCounter factories = app.Services.GetRequiredService<FactoryCounter>();
 
             (_, string miss1, string body1) = await GetAsync(client, "/api/products/1");
-            miss1.Should().Contain("output=miss");
+            miss1.Should().Contain("oc=miss");
             body1.Should().Contain("Widget");
             factories.Count.Should().Be(1);
 
             (_, string miss2, _) = await GetAsync(client, "/api/products/2");
-            miss2.Should().Contain("output=miss");
+            miss2.Should().Contain("oc=miss");
             factories.Count.Should().Be(2);
 
             (_, string hit1, _) = await GetAsync(client, "/api/products/1");
-            hit1.Should().Contain("output=hit");
+            hit1.Should().Contain("oc=hit");
             (_, string hit2, _) = await GetAsync(client, "/api/products/2");
-            hit2.Should().Contain("output=hit");
+            hit2.Should().Contain("oc=hit");
             factories.Count.Should().Be(2);
 
             HttpResponseMessage put = await client.PutAsJsonAsync(
@@ -142,12 +142,12 @@ public class EfSaveChangesInvalidationHttpTests
             put.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             (_, string after1, string bodyAfter1) = await GetAsync(client, "/api/products/1");
-            after1.Should().Contain("output=miss");
+            after1.Should().Contain("oc=miss");
             bodyAfter1.Should().Contain("Gadget");
             factories.Count.Should().Be(3, "SaveChanges must evict Fusion so the factory runs again");
 
             (_, string after2, string bodyAfter2) = await GetAsync(client, "/api/products/2");
-            after2.Should().Contain("output=hit", "sibling product must stay cached");
+            after2.Should().Contain("oc=hit", "sibling product must stay cached");
             bodyAfter2.Should().Contain("Other");
             factories.Count.Should().Be(3);
         }
@@ -192,12 +192,12 @@ public class EfSaveChangesInvalidationHttpTests
         FactoryCounter factories = app.Services.GetRequiredService<FactoryCounter>();
 
         (_, string miss, string body) = await GetAsync(client, "/api/products/1");
-        miss.Should().Contain("output=miss");
+        miss.Should().Contain("oc=miss");
         body.Should().Contain("Widget");
         factories.Count.Should().Be(1);
 
         (_, string hit, _) = await GetAsync(client, "/api/products/1");
-        hit.Should().Contain("output=hit");
+        hit.Should().Contain("oc=hit");
         factories.Count.Should().Be(1);
     }
 
@@ -278,17 +278,17 @@ public class EfSaveChangesInvalidationHttpTests
 
             string path = "/api/g/" + id.ToString("D").ToUpperInvariant();
             (_, string miss, _) = await GetAsync(client, path);
-            miss.Should().Contain("output=miss");
+            miss.Should().Contain("oc=miss");
             factories.Count.Should().Be(1);
 
             (_, string hit, _) = await GetAsync(client, path);
-            hit.Should().Contain("output=hit");
+            hit.Should().Contain("oc=hit");
 
             (await client.PutAsJsonAsync(path, new ProductUpdate("Gadget"), TestContext.Current.CancellationToken))
                 .StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             (_, string after, string body) = await GetAsync(client, path);
-            after.Should().Contain("output=miss");
+            after.Should().Contain("oc=miss");
             body.Should().Contain("Gadget");
             factories.Count.Should().Be(2);
         }
@@ -354,7 +354,7 @@ public class EfSaveChangesInvalidationHttpTests
 
             await GetAsync(client, "/api/products/1");
             (_, string hit, _) = await GetAsync(client, "/api/products/1");
-            hit.Should().Contain("output=hit");
+            hit.Should().Contain("oc=hit");
             factories.Count.Should().Be(1);
 
             await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
@@ -368,7 +368,7 @@ public class EfSaveChangesInvalidationHttpTests
             }
 
             (_, string stillHit, string staleBody) = await GetAsync(client, "/api/products/1");
-            stillHit.Should().Contain("output=hit", "ExecuteUpdate must not run the interceptor");
+            stillHit.Should().Contain("oc=hit", "ExecuteUpdate must not run the interceptor");
             staleBody.Should().Contain("Widget");
             factories.Count.Should().Be(1);
 
@@ -376,7 +376,7 @@ public class EfSaveChangesInvalidationHttpTests
                 .InvalidateEntityAsync(domain, "products", "1", TestContext.Current.CancellationToken);
 
             (_, string miss, string fresh) = await GetAsync(client, "/api/products/1");
-            miss.Should().Contain("output=miss");
+            miss.Should().Contain("oc=miss");
             fresh.Should().Contain("Bulk");
             factories.Count.Should().Be(2);
         }
@@ -453,26 +453,26 @@ public class EfSaveChangesInvalidationHttpTests
             FactoryCounter factories = app.Services.GetRequiredService<FactoryCounter>();
 
             (_, string miss, _) = await GetAsync(client, "/api/attr/1");
-            miss.Should().Contain("output=miss");
+            miss.Should().Contain("oc=miss");
             factories.Count.Should().Be(1);
 
             (_, string hit, _) = await GetAsync(client, "/api/attr/1");
-            hit.Should().Contain("output=hit");
+            hit.Should().Contain("oc=hit");
 
             (_, string sibling, _) = await GetAsync(client, "/api/attr/2");
-            sibling.Should().Contain("output=miss");
+            sibling.Should().Contain("oc=miss");
             factories.Count.Should().Be(2);
 
             (await client.PutAsJsonAsync("/api/attr/1", new ProductUpdate("Gadget"), TestContext.Current.CancellationToken))
                 .StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             (_, string after1, string body1) = await GetAsync(client, "/api/attr/1");
-            after1.Should().Contain("output=miss");
+            after1.Should().Contain("oc=miss");
             body1.Should().Contain("Gadget");
             factories.Count.Should().Be(3);
 
             (_, string after2, string body2) = await GetAsync(client, "/api/attr/2");
-            after2.Should().Contain("output=hit");
+            after2.Should().Contain("oc=hit");
             body2.Should().Contain("Other");
         }
     }

@@ -15,7 +15,7 @@ curl -i http://localhost:5290/hello
 curl -i http://localhost:5290/hello
 ```
 
-The first response waits about 200 ms (`output=miss`). The second is served from Output Cache (`output=hit`).
+The first response waits about 200 ms (`oc=miss`). The second is served from Output Cache (`oc=hit`).
 
 In a browser, open DevTools, enable **Disable cache** on the Network tab, and request the same URL twice. Otherwise the browser’s own cache hides the server hit.
 

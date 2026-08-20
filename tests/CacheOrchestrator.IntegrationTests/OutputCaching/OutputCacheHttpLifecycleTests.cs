@@ -193,14 +193,15 @@ public class OutputCacheHttpLifecycleTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             r1.IsSuccessStatusCode.Should().BeTrue();
             b1.Should().Be("payload");
-            x1.Should().Contain("output=miss");
-            x1.Should().Contain("data=miss");
+            x1.Should().Contain("oc=miss");
+            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             // Still within OC TTL → full response from Output Cache (handler not run).
             (HttpResponseMessage r2, string x2, string _) = await GetAsync(client, "/x");
-            x2.Should().Contain("output=hit");
+            x2.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
 
             await Task.Delay(TimeSpan.FromMilliseconds(1200), TestContext.Current.CancellationToken);
@@ -209,8 +210,9 @@ public class OutputCacheHttpLifecycleTests
             (HttpResponseMessage r3, string x3, string b3) = await GetAsync(client, "/x");
             r3.IsSuccessStatusCode.Should().BeTrue();
             b3.Should().Be("payload");
-            x3.Should().Contain("output=miss");
-            x3.Should().Contain("data=hit");
+            x3.Should().Contain("oc=miss");
+            x3.Should().Contain("fc=hit");
+            x3.Should().NotContain("fa=");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1,
                 "Fusion soft TTL is long; only Output Cache expired");
@@ -245,12 +247,12 @@ public class OutputCacheHttpLifecycleTests
 
             (HttpResponseMessage r1, string x1, string _) = await GetAsync(client, "/x", noStore);
             r1.IsSuccessStatusCode.Should().BeTrue();
-            x1.Should().Contain("output=bypass");
+            x1.Should().Contain("oc=bypass");
             x1.Should().Contain("client=no-store");
             CacheControl(r1).Should().Contain("no-store");
 
             (HttpResponseMessage r2, string x2, string _) = await GetAsync(client, "/x", noStore);
-            x2.Should().Contain("output=bypass");
+            x2.Should().Contain("oc=bypass");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2,
                 "no-store must not store or serve from Output Cache");
         }
@@ -284,12 +286,12 @@ public class OutputCacheHttpLifecycleTests
 
             (HttpResponseMessage r1, string x1, string _) = await GetAsync(client, "/x", auth);
             r1.IsSuccessStatusCode.Should().BeTrue();
-            x1.Should().Contain("output=bypass");
+            x1.Should().Contain("oc=bypass");
             x1.Should().Contain("client=blocked");
             CacheControl(r1).Should().Contain("no-store");
 
             (HttpResponseMessage r2, string x2, string _) = await GetAsync(client, "/x", auth);
-            x2.Should().Contain("output=bypass");
+            x2.Should().Contain("oc=bypass");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
         finally
@@ -320,7 +322,7 @@ public class OutputCacheHttpLifecycleTests
             Dictionary<string, string> headers = new() { ["X-Test-User"] = "alice" };
 
             (HttpResponseMessage r1, string x1, string _) = await GetAsync(client, "/x", headers);
-            x1.Should().Contain("output=bypass");
+            x1.Should().Contain("oc=bypass");
             x1.Should().Contain("client=blocked");
 
             await GetAsync(client, "/x", headers);
@@ -368,20 +370,20 @@ public class OutputCacheHttpLifecycleTests
 
             (HttpResponseMessage a1, string xa1, string ba1) = await GetAsync(client, "/x", alice);
             ba1.Should().Be("hello-alice");
-            xa1.Should().Contain("output=miss");
+            xa1.Should().Contain("oc=miss");
 
             (HttpResponseMessage a2, string xa2, string ba2) = await GetAsync(client, "/x", alice);
             ba2.Should().Be("hello-alice");
-            xa2.Should().Contain("output=hit");
+            xa2.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage b1, string xb1, string bb1) = await GetAsync(client, "/x", bob);
             bb1.Should().Be("hello-bob");
-            xb1.Should().Contain("output=miss", "Bob must not receive Alice's OC entry");
+            xb1.Should().Contain("oc=miss", "Bob must not receive Alice's OC entry");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
 
             (HttpResponseMessage b2, string xb2, string _) = await GetAsync(client, "/x", bob);
-            xb2.Should().Contain("output=hit");
+            xb2.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
         finally
@@ -421,11 +423,11 @@ public class OutputCacheHttpLifecycleTests
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", keyA);
             b1.Should().Be("public-map-tile");
-            x1.Should().Contain("output=miss");
+            x1.Should().Contain("oc=miss");
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x", keyB);
             b2.Should().Be("public-map-tile");
-            x2.Should().Contain("output=hit", "same body for all API keys when VaryOutputCacheByUser is false");
+            x2.Should().Contain("oc=hit", "same body for all API keys when VaryOutputCacheByUser is false");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
         }
         finally
@@ -530,12 +532,12 @@ public class OutputCacheHttpLifecycleTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             r1.StatusCode.Should().Be(System.Net.HttpStatusCode.InternalServerError);
             b1.Should().Be("fail");
-            x1.Should().Contain("output=miss");
+            x1.Should().Contain("oc=miss");
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             r2.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
             b2.Should().Be("ok");
-            x2.Should().Contain("output=miss", "500 response must not be served from Output Cache");
+            x2.Should().Contain("oc=miss", "500 response must not be served from Output Cache");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
         finally
@@ -581,7 +583,7 @@ public class OutputCacheHttpLifecycleTests
             // If first was miss and second hit: count stays 1.
             int afterHead = app.Services.GetRequiredService<HitCounter>().Count;
             afterHead.Should().BeLessThanOrEqualTo(1);
-            if (xh2.Contains("output=hit", StringComparison.Ordinal))
+            if (xh2.Contains("oc=hit", StringComparison.Ordinal))
                 afterHead.Should().Be(1);
 
             // Also warm GET then HEAD when GET is used by the stack.
@@ -590,7 +592,7 @@ public class OutputCacheHttpLifecycleTests
             (HttpResponseMessage h3, string xh3, string _) = await SendAsync(client, HttpMethod.Head, "/x");
             h3.IsSuccessStatusCode.Should().BeTrue();
             // After a successful GET store, HEAD should typically hit; handler count must not grow on hit.
-            if (xh3.Contains("output=hit", StringComparison.Ordinal))
+            if (xh3.Contains("oc=hit", StringComparison.Ordinal))
                 app.Services.GetRequiredService<HitCounter>().Count.Should().Be(afterGet);
 
             int beforePut = app.Services.GetRequiredService<HitCounter>().Count;
@@ -602,9 +604,9 @@ public class OutputCacheHttpLifecycleTests
                 "PUT must never be served from Output Cache");
             // X-Cache may be empty when policy skips non-GET/HEAD before registering headers.
             if (!string.IsNullOrEmpty(xp1))
-                xp1.Should().NotContain("output=hit");
+                xp1.Should().NotContain("oc=hit");
             if (!string.IsNullOrEmpty(xp2))
-                xp2.Should().NotContain("output=hit");
+                xp2.Should().NotContain("oc=hit");
         }
         finally
         {
@@ -638,9 +640,9 @@ public class OutputCacheHttpLifecycleTests
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
 
             (HttpResponseMessage hit1, string xHit1, string _) = await GetAsync(client, "/p/1");
-            xHit1.Should().Contain("output=hit");
+            xHit1.Should().Contain("oc=hit");
             (HttpResponseMessage hit2, string xHit2, string _) = await GetAsync(client, "/p/2");
-            xHit2.Should().Contain("output=hit");
+            xHit2.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
 
             CacheInvalidationResult inv = await app.Services
@@ -650,12 +652,12 @@ public class OutputCacheHttpLifecycleTests
 
             (HttpResponseMessage after1, string xAfter1, string b1) = await GetAsync(client, "/p/1");
             b1.Should().Be("product-1");
-            xAfter1.Should().Contain("output=miss");
+            xAfter1.Should().Contain("oc=miss");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(3);
 
             (HttpResponseMessage after2, string xAfter2, string b2) = await GetAsync(client, "/p/2");
             b2.Should().Be("product-2");
-            xAfter2.Should().Contain("output=hit", "entity invalidate must not purge sibling ids");
+            xAfter2.Should().Contain("oc=hit", "entity invalidate must not purge sibling ids");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(3);
         }
         finally
@@ -691,16 +693,16 @@ public class OutputCacheHttpLifecycleTests
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/tiles", host1);
             b1.Should().Be("tile-for-shop1.example.com");
-            x1.Should().Contain("output=miss");
+            x1.Should().Contain("oc=miss");
             x1.Should().Contain("domain=tenant-shop1-example-com");
 
             (HttpResponseMessage r1b, string x1b, string _) = await GetAsync(client, "/tiles", host1);
-            x1b.Should().Contain("output=hit");
+            x1b.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/tiles", host2);
             b2.Should().Be("tile-for-shop2.example.com");
-            x2.Should().Contain("output=miss");
+            x2.Should().Contain("oc=miss");
             x2.Should().Contain("domain=tenant-shop2-example-com");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
@@ -735,15 +737,15 @@ public class OutputCacheHttpLifecycleTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/data?tenant=acme");
             b1.Should().Be("data-acme");
             x1.Should().Contain("domain=dyn-acme");
-            x1.Should().Contain("output=miss");
+            x1.Should().Contain("oc=miss");
 
             (HttpResponseMessage r2, string x2, string _) = await GetAsync(client, "/data?tenant=acme");
-            x2.Should().Contain("output=hit");
+            x2.Should().Contain("oc=hit");
 
             (HttpResponseMessage r3, string x3, string b3) = await GetAsync(client, "/data?tenant=globex");
             b3.Should().Be("data-globex");
             x3.Should().Contain("domain=dyn-globex");
-            x3.Should().Contain("output=miss");
+            x3.Should().Contain("oc=miss");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
         finally
@@ -778,19 +780,19 @@ public class OutputCacheHttpLifecycleTests
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", h1);
             b1.Should().Be("host-a.example.com");
-            x1.Should().Contain("output=miss");
+            x1.Should().Contain("oc=miss");
 
             (HttpResponseMessage r1b, string x1b, string _) = await GetAsync(client, "/x", h1);
-            x1b.Should().Contain("output=hit");
+            x1b.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x", h2);
             b2.Should().Be("host-b.example.com");
-            x2.Should().Contain("output=miss");
+            x2.Should().Contain("oc=miss");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
 
             (HttpResponseMessage r2b, string x2b, string _) = await GetAsync(client, "/x", h2);
-            x2b.Should().Contain("output=hit");
+            x2b.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
         finally

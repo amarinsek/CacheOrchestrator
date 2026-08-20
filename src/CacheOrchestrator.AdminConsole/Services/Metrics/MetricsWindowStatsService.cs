@@ -572,7 +572,7 @@ public sealed class MetricsWindowStatsService
                 case "hit": b.OcHits += n; break;
                 case "miss": b.OcMisses += n; break;
                 case "bypass": b.OcBypass += n; break;
-                default: b.OcBypass += n; break;
+                case "off": b.OcOff += n; break;
             }
         }
         else
@@ -586,13 +586,21 @@ public sealed class MetricsWindowStatsService
                     break;
                 case "stale":
                     b.FcStale += n;
-                    b.FactoryFailures += n; // fail-safe after factory issues
+                    b.FactoryRuns += n;
+                    b.FactoryFailures += n;
                     break;
                 case "fail":
-                    b.FactoryFailures += n; // hard factory throw (OTEL)
+                    b.FactoryRuns += n;
+                    b.FactoryFailures += n;
                     break;
-                case "bypass": b.FcBypass += n; break;
-                default: b.FcBypass += n; break;
+                case "bypass":
+                    b.FcBypass += n;
+                    b.FactoryRuns += n;
+                    break;
+                case "off":
+                case "unresolved":
+                    b.FactoryRuns += n;
+                    break;
             }
         }
     }
@@ -747,6 +755,7 @@ public sealed class MetricsWindowStatsService
         public long OcHits;
         public long OcMisses;
         public long OcBypass;
+        public long OcOff;
         public long FcHits;
         public long FcMisses;
         public long FcStale;
@@ -758,13 +767,15 @@ public sealed class MetricsWindowStatsService
         public long FactoryDurationCount;
 
         public long Requests =>
-            AdminStatsMath.Requests(OcHits, OcMisses, OcBypass, FcHits, FcMisses, FcStale, FcBypass);
+            AdminStatsMath.Requests(
+                OcHits, OcMisses, OcBypass, FcHits, FcMisses, FcStale, FcBypass, OcOff, FactoryRuns);
 
         public LayerBucket Add(LayerBucket o)
         {
             OcHits += o.OcHits;
             OcMisses += o.OcMisses;
             OcBypass += o.OcBypass;
+            OcOff += o.OcOff;
             FcHits += o.FcHits;
             FcMisses += o.FcMisses;
             FcStale += o.FcStale;
@@ -781,6 +792,7 @@ public sealed class MetricsWindowStatsService
             AdminStatsMath.BuildAll(
                 OcHits, OcMisses, OcBypass,
                 FcHits, FcMisses, FcStale, FcBypass,
-                FactoryRuns, FactoryFailures);
+                FactoryRuns, FactoryFailures,
+                OcOff);
     }
 }

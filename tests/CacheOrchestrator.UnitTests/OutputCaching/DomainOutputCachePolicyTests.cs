@@ -166,6 +166,19 @@ public class DomainOutputCachePolicyTests
     }
 
     [Fact]
+    public async Task OnStarting_WhenOutputCacheDisabled_WritesOutputOff()
+    {
+        var policy = new DomainOutputCachePolicy("products");
+        var (context, http) = CreateContext(outputCacheEnabled: false);
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+        await FlushHeadersAsync(http);
+
+        http.Response.Headers["X-Cache"].ToString().Should().Contain("oc=off");
+        http.Response.Headers["X-Cache"].ToString().Should().NotContain("oc=bypass");
+    }
+
+    [Fact]
     public async Task CacheRequestAsync_WhenRequestHasNoStore_DoesNotEnableCaching()
     {
         var policy = new DomainOutputCachePolicy("products");
@@ -385,8 +398,9 @@ public class DomainOutputCachePolicyTests
         await FlushHeadersAsync(http);
 
         string xcache = http.Response.Headers["X-Cache"].ToString();
-        xcache.Should().Contain("output=hit");
-        xcache.Should().NotContain("data=");
+        xcache.Should().Contain("oc=hit");
+        xcache.Should().NotContain("fc=");
+        xcache.Should().NotContain("fa=");
         xcache.Should().NotContain("ms=");
         xcache.Should().Contain("phase=");
         xcache.Should().Contain("domain=products");

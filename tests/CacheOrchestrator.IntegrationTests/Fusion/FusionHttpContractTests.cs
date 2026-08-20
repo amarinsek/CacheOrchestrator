@@ -135,13 +135,13 @@ public class FusionHttpContractTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             r1.IsSuccessStatusCode.Should().BeTrue();
             b1.Should().Be("e1|list");
-            x1.Should().Contain("data=miss");
+            x1.Should().Contain("fc=miss");
             Volatile.Read(ref entityCalls).Should().Be(1);
             Volatile.Read(ref listCalls).Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("e1|list");
-            x2.Should().Contain("data=hit");
+            x2.Should().Contain("fc=hit");
             Volatile.Read(ref entityCalls).Should().Be(1);
             Volatile.Read(ref listCalls).Should().Be(1,
                 "URL-shaped GetOrSet after entity GetOrSet must not stay on the :id: key");
@@ -196,7 +196,7 @@ public class FusionHttpContractTests
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", headers);
             r1.IsSuccessStatusCode.Should().BeTrue();
-            x1.Should().Contain("data=miss");
+            x1.Should().Contain("fc=miss");
             b1.Should().EndWith("|payload");
             b1.Should().Contain("text/html",
                 "Fusion key generation must restore Accept after prefer-list collapse");
@@ -205,7 +205,7 @@ public class FusionHttpContractTests
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x", headers);
-            x2.Should().Contain("data=hit");
+            x2.Should().Contain("fc=hit");
             b2.Should().EndWith("|payload");
             b2.Should().Contain("text/html");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
@@ -291,12 +291,12 @@ public class FusionHttpContractTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("from-fc");
             x1.Should().Contain($"domain={ocDomain}");
-            x1.Should().Contain("data=miss");
+            x1.Should().Contain("fc=miss");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("from-fc");
-            x2.Should().Contain("data=hit");
+            x2.Should().Contain("fc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
         }
         finally
@@ -335,11 +335,11 @@ public class FusionHttpContractTests
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", auth);
             b1.Should().Be("n1");
-            x1.Should().Contain("data=bypass");
+            x1.Should().Contain("fc=bypass");
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x", auth);
             b2.Should().Be("n2");
-            x2.Should().Contain("data=bypass");
+            x2.Should().Contain("fc=bypass");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
             r1.IsSuccessStatusCode.Should().BeTrue();
             r2.IsSuccessStatusCode.Should().BeTrue();
@@ -380,11 +380,11 @@ public class FusionHttpContractTests
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", auth);
             b1.Should().Be("secret");
-            x1.Should().Contain("data=miss");
+            x1.Should().Contain("fc=miss");
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x", auth);
             b2.Should().Be("secret");
-            x2.Should().Contain("data=hit");
+            x2.Should().Contain("fc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
             r1.IsSuccessStatusCode.Should().BeTrue();
             r2.IsSuccessStatusCode.Should().BeTrue();
@@ -420,12 +420,13 @@ public class FusionHttpContractTests
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", noStore);
             b1.Should().Be("n1");
-            x1.Should().Contain("output=bypass");
-            x1.Should().Contain("data=bypass");
+            x1.Should().Contain("oc=bypass");
+            x1.Should().Contain("fc=bypass");
+            x1.Should().Contain("fa=run");
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x", noStore);
             b2.Should().Be("n2");
-            x2.Should().Contain("data=bypass");
+            x2.Should().Contain("fc=bypass");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
             r1.IsSuccessStatusCode.Should().BeTrue();
             r2.IsSuccessStatusCode.Should().BeTrue();

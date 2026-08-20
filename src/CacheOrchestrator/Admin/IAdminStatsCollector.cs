@@ -22,7 +22,7 @@ public interface IAdminStatsCollector
     /// </summary>
     /// <param name="endpointKey">e.g. <c>GET /api/x</c>, or null.</param>
     /// <param name="domain">Normalized domain, or null.</param>
-    /// <param name="result"><c>hit</c>, <c>miss</c>, or <c>bypass</c>.</param>
+    /// <param name="result"><c>hit</c>, <c>miss</c>, <c>bypass</c>, or <c>off</c>.</param>
     void RecordOutput(string? endpointKey, string? domain, string result);
 
     /// <summary>
@@ -30,7 +30,7 @@ public interface IAdminStatsCollector
     /// </summary>
     /// <param name="endpointKey">e.g. <c>GET /api/x</c>, or null.</param>
     /// <param name="domain">Normalized domain, or null.</param>
-    /// <param name="result"><c>hit</c>, <c>miss</c>, <c>stale</c>, <c>bypass</c>, etc.</param>
+    /// <param name="result"><c>hit</c>, <c>miss</c>, <c>stale</c>, <c>bypass</c>, <c>off</c>, <c>unresolved</c>, <c>fail</c>.</param>
     /// <param name="elapsedTicks">Optional factory/get duration ticks when latency tracking is on.</param>
     /// <param name="resultSizeBytes">Optional measured factory result size when size tracking is on.</param>
     void RecordFusion(

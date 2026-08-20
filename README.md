@@ -106,7 +106,7 @@ curl -i http://localhost:5290/hello
 curl -i http://localhost:5290/hello
 ```
 
-The first response is an Output Cache miss (the sample waits about 200 ms). The second is a hit. Look at the `X-Cache` header: `output=miss`, then `output=hit`.
+The first response is an Output Cache miss (the sample waits about 200 ms). The second is a hit. Look at the `X-Cache` header: `oc=miss`, then `oc=hit`.
 
 Notes for the sample: [samples/CacheOrchestrator.Minimal](samples/CacheOrchestrator.Minimal). For a playground with TTLs, schedule, Redis, and CRUD, see [samples/CacheOrchestrator.Sample](samples/CacheOrchestrator.Sample).
 

@@ -146,12 +146,12 @@ public class HttpPipelineContractTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/data");
             r1.IsSuccessStatusCode.Should().BeTrue();
             b1.Should().Be("body");
-            x1.Should().NotContain("output=hit");
+            x1.Should().NotContain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string _) = await GetAsync(client, "/data");
             r2.IsSuccessStatusCode.Should().BeTrue();
-            x2.Should().NotContain("output=hit",
+            x2.Should().NotContain("oc=hit",
                 "empty dynamic domain must disable Output Cache so the ASP.NET base policy does not store");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
@@ -182,11 +182,11 @@ public class HttpPipelineContractTests
                 "missing {query:tenant} resolves to empty and must not enable Output Cache");
 
             (HttpResponseMessage miss, string xMiss, string _) = await GetAsync(client, "/t?tenant=acme");
-            xMiss.Should().Contain("output=miss");
+            xMiss.Should().Contain("oc=miss");
             xMiss.Should().Contain("domain=acme");
 
             (HttpResponseMessage hit, string xHit, string _) = await GetAsync(client, "/t?tenant=acme");
-            xHit.Should().Contain("output=hit");
+            xHit.Should().Contain("oc=hit");
             miss.IsSuccessStatusCode.Should().BeTrue();
             hit.IsSuccessStatusCode.Should().BeTrue();
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(3);
@@ -216,11 +216,11 @@ public class HttpPipelineContractTests
             Dictionary<string, string> lookalike = new() { ["Cache-Control"] = "no-storey" };
 
             (HttpResponseMessage r1, string x1, string _) = await GetAsync(client, "/x", lookalike);
-            x1.Should().Contain("output=miss");
-            x1.Should().NotContain("output=bypass");
+            x1.Should().Contain("oc=miss");
+            x1.Should().NotContain("oc=bypass");
 
             (HttpResponseMessage r2, string x2, string _) = await GetAsync(client, "/x", lookalike);
-            x2.Should().Contain("output=hit", "no-storey is not the no-store directive name");
+            x2.Should().Contain("oc=hit", "no-storey is not the no-store directive name");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
             r1.IsSuccessStatusCode.Should().BeTrue();
             r2.IsSuccessStatusCode.Should().BeTrue();
@@ -250,10 +250,10 @@ public class HttpPipelineContractTests
             Dictionary<string, string> headers = new() { ["Cache-Control"] = "max-age=no-store" };
 
             (HttpResponseMessage r1, string x1, string _) = await GetAsync(client, "/x", headers);
-            x1.Should().Contain("output=miss");
+            x1.Should().Contain("oc=miss");
 
             (HttpResponseMessage r2, string x2, string _) = await GetAsync(client, "/x", headers);
-            x2.Should().Contain("output=hit", "no-store as a max-age value is not a directive name");
+            x2.Should().Contain("oc=hit", "no-store as a max-age value is not a directive name");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
             r1.IsSuccessStatusCode.Should().BeTrue();
             r2.IsSuccessStatusCode.Should().BeTrue();
@@ -279,7 +279,7 @@ public class HttpPipelineContractTests
             (HttpResponseMessage res, string xCache, string body) = await GetAsync(client, "/x");
             res.IsSuccessStatusCode.Should().BeTrue();
             body.Should().Be("ok");
-            xCache.Should().Contain("output=miss");
+            xCache.Should().Contain("oc=miss");
 
             res.Content.Headers.LastModified.Should().BeNull();
             res.Content.Headers.Contains("Last-Modified").Should().BeFalse();
@@ -310,26 +310,26 @@ public class HttpPipelineContractTests
         try
         {
             (HttpResponseMessage r1, string x1, string _) = await GetAsync(client, "/x");
-            x1.Should().Contain("output=miss");
+            x1.Should().Contain("oc=miss");
 
             (HttpResponseMessage rGa, string xGa, string _) = await GetAsync(client, "/x?_ga=GA1.2.xxx");
-            xGa.Should().Contain("output=hit", "exact _ga is tracking");
+            xGa.Should().Contain("oc=hit", "exact _ga is tracking");
 
             (HttpResponseMessage rGa4, string xGa4, string _) = await GetAsync(client, "/x?_ga_ABC=1");
-            xGa4.Should().Contain("output=hit", "_ga_* is GA4 tracking");
+            xGa4.Should().Contain("oc=hit", "_ga_* is GA4 tracking");
 
             (HttpResponseMessage rGl, string xGl, string _) = await GetAsync(client, "/x?_gl=1");
-            xGl.Should().Contain("output=hit", "exact _gl is tracking");
+            xGl.Should().Contain("oc=hit", "exact _gl is tracking");
 
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage rGame, string xGame, string bGame) = await GetAsync(client, "/x?_game=1");
             bGame.Should().Be("same");
-            xGame.Should().Contain("output=miss", "_game is not a tracking prefix of _ga");
+            xGame.Should().Contain("oc=miss", "_game is not a tracking prefix of _ga");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
 
             (HttpResponseMessage rGlobal, string xGlobal, string _) = await GetAsync(client, "/x?_global=1");
-            xGlobal.Should().Contain("output=miss", "_global is not _gl / _gl_*");
+            xGlobal.Should().Contain("oc=miss", "_global is not _gl / _gl_*");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(3);
 
             r1.IsSuccessStatusCode.Should().BeTrue();
@@ -366,15 +366,15 @@ public class HttpPipelineContractTests
             Dictionary<string, string> br = new() { ["Accept-Encoding"] = "br" };
 
             (HttpResponseMessage r1, string x1, string _) = await GetAsync(client, "/x", gzip);
-            x1.Should().Contain("output=miss");
+            x1.Should().Contain("oc=miss");
 
             (HttpResponseMessage r2, string x2, string _) = await GetAsync(client, "/x", gzipDeflate);
-            x2.Should().Contain("output=hit",
+            x2.Should().Contain("oc=hit",
                 "default EncodingNormalizationList [br,gzip] must collapse gzip and gzip,deflate");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r3, string x3, string _) = await GetAsync(client, "/x", br);
-            x3.Should().Contain("output=miss", "br is a different preferred encoding than gzip");
+            x3.Should().Contain("oc=miss", "br is a different preferred encoding than gzip");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
             r1.IsSuccessStatusCode.Should().BeTrue();
             r2.IsSuccessStatusCode.Should().BeTrue();
@@ -412,15 +412,15 @@ public class HttpPipelineContractTests
             Dictionary<string, string> jsonSeq = new() { ["Accept"] = "application/json-seq" };
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", json);
-            x1.Should().Contain("output=miss");
+            x1.Should().Contain("oc=miss");
             b1.Should().Be("n1");
 
             (HttpResponseMessage rHit, string xHit, string bHit) = await GetAsync(client, "/x", json);
-            xHit.Should().Contain("output=hit");
+            xHit.Should().Contain("oc=hit");
             bHit.Should().Be("n1");
 
             (HttpResponseMessage rSeq, string xSeq, string bSeq) = await GetAsync(client, "/x", jsonSeq);
-            xSeq.Should().Contain("output=miss", "json-seq is not a substring match of application/json");
+            xSeq.Should().Contain("oc=miss", "json-seq is not a substring match of application/json");
             bSeq.Should().Be("n2");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
             r1.IsSuccessStatusCode.Should().BeTrue();
@@ -451,7 +451,7 @@ public class HttpPipelineContractTests
         {
             await GetAsync(client, "/p/1");
             (HttpResponseMessage hit, string xHit, string _) = await GetAsync(client, "/p/1");
-            xHit.Should().Contain("output=hit");
+            xHit.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
 
             CacheInvalidationResult skipped = await app.Services
@@ -462,7 +462,7 @@ public class HttpPipelineContractTests
             skipped.Succeeded.Should().BeFalse();
 
             (HttpResponseMessage still, string xStill, string _) = await GetAsync(client, "/p/1");
-            xStill.Should().Contain("output=hit");
+            xStill.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
             hit.IsSuccessStatusCode.Should().BeTrue();
             still.IsSuccessStatusCode.Should().BeTrue();
@@ -503,8 +503,8 @@ public class HttpPipelineContractTests
         {
             await GetAsync(client, "/a");
             await GetAsync(client, "/b");
-            (await GetAsync(client, "/a")).XCache.Should().Contain("output=hit");
-            (await GetAsync(client, "/b")).XCache.Should().Contain("output=hit");
+            (await GetAsync(client, "/a")).XCache.Should().Contain("oc=hit");
+            (await GetAsync(client, "/b")).XCache.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
 
             CacheInvalidationResult result = await app.Services
@@ -524,8 +524,8 @@ public class HttpPipelineContractTests
                 observer.After.Count(k => k == CacheInvalidationKind.Domain).Should().Be(2);
             }
 
-            (await GetAsync(client, "/a")).XCache.Should().Contain("output=miss");
-            (await GetAsync(client, "/b")).XCache.Should().Contain("output=miss");
+            (await GetAsync(client, "/a")).XCache.Should().Contain("oc=miss");
+            (await GetAsync(client, "/b")).XCache.Should().Contain("oc=miss");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(4);
         }
         finally

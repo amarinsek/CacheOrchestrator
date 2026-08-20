@@ -123,15 +123,24 @@ public class XCacheHeaderTests
         xCache.Should().Contain($"domain={domain}");
         xCache.Should().Contain($"client={client}");
         xCache.Should().Contain("phase="); // Client Cache Schedule phase is always present
-        xCache.Should().Contain($"output={output}");
+        xCache.Should().Contain($"oc={output}");
         if (data is null)
-            xCache.Should().NotContain("data=");
+        {
+            xCache.Should().NotContain("fc=");
+            xCache.Should().NotContain("fa=");
+        }
         else
-            xCache.Should().Contain($"data={data}");
+        {
+            xCache.Should().Contain($"fc={data}");
+            if (data == "hit")
+                xCache.Should().NotContain("fa=");
+            else
+                xCache.Should().Contain("fa=run");
+        }
     }
 
     // =========================================================================
-    // 1) First request ? output=miss; data=miss
+    // 1) First request ? oc=miss; fc=miss; fa=run
     // =========================================================================
 
     [Fact]
@@ -170,7 +179,7 @@ public class XCacheHeaderTests
     }
 
     // =========================================================================
-    // 2) Second request ? output=hit
+    // 2) Second request ? oc=hit
     // =========================================================================
 
     [Fact]
@@ -296,7 +305,7 @@ public class XCacheHeaderTests
     }
 
     // =========================================================================
-    // 5) OC disabled but policy attached ? output=bypass; second call data=hit
+    // 5) OC disabled but policy attached ? oc=off; second call fc=hit
     // =========================================================================
 
     [Fact]
@@ -323,10 +332,10 @@ public class XCacheHeaderTests
         try
         {
             (HttpResponseMessage _, string? x1, string _) = await GetAsync(client, "/x");
-            AssertXCache(x1, domain, "public", "bypass", "miss");
+            AssertXCache(x1, domain, "public", "off", "miss");
 
             (HttpResponseMessage _, string? x2, string _) = await GetAsync(client, "/x");
-            AssertXCache(x2, domain, "public", "bypass", "hit");
+            AssertXCache(x2, domain, "public", "off", "hit");
 
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
             Volatile.Read(ref fusionCalls[0]).Should().Be(1);

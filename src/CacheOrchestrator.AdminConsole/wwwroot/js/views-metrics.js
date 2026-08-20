@@ -5,6 +5,8 @@
 import { api } from "./api.js";
 import {
   bindChartExpand,
+  CARD_CHART_HEIGHT,
+  CARD_CHART_WIDTH,
   lineChartHtml,
   refreshOpenChartModal,
   seriesHasSamples,
@@ -35,7 +37,7 @@ import {
  * Chart opts that force X-axis to the selected range window (relative or absolute).
  * Prefer series fromUtc/toUtc when the API returns them.
  * @param {string} range
- * @param {{ height?: number, width?: number, unit?: string, queriedAtUtc?: string|null, fromUtc?: string|null, toUtc?: string|null, step?: string|null }} [extra]
+ * @param {{ height?: number, width?: number, unit?: string, queriedAtUtc?: string|null, fromUtc?: string|null, toUtc?: string|null, step?: string|null, lookbackMarkerSec?: number|null }} [extra]
  */
 function chartOptsForRange(range, extra = {}) {
   const step = extra.step || null;
@@ -51,6 +53,7 @@ function chartOptsForRange(range, extra = {}) {
         tMin,
         tMax,
         step,
+        lookbackMarkerSec: extra.lookbackMarkerSec,
       };
     }
   }
@@ -66,6 +69,7 @@ function chartOptsForRange(range, extra = {}) {
     tMin: win.tMin,
     tMax: win.tMax,
     step,
+    lookbackMarkerSec: extra.lookbackMarkerSec,
   };
 }
 
@@ -234,6 +238,7 @@ function ensureChartExpandBound() {
         fromUtc: data.fromUtc,
         toUtc: data.toUtc,
         step: data.step,
+        lookbackMarkerSec: data.lookbackMarkerSec,
       });
       map.set(id, { ...data, ...win, panelId: id });
     }
@@ -287,8 +292,8 @@ function softUpdateMetricsGrid(series) {
   }
 
   const baseOpts = chartOptsForRange(series.range || "1h", {
-    height: 200,
-    width: 640,
+    height: CARD_CHART_HEIGHT,
+    width: CARD_CHART_WIDTH,
     queriedAtUtc: series.queriedAtUtc,
     fromUtc: series.fromUtc,
     toUtc: series.toUtc,
@@ -347,8 +352,8 @@ function metricsKpiHtml(summary, series) {
 function metricsPanelsHtml(series) {
   const panelCards = (series.panels || []).map((p) =>
     panelCardHtml(p, series.range, {
-      height: 200,
-      width: 640,
+      height: CARD_CHART_HEIGHT,
+      width: CARD_CHART_WIDTH,
       queriedAtUtc: series.queriedAtUtc,
       fromUtc: series.fromUtc,
       toUtc: series.toUtc,
@@ -368,6 +373,7 @@ function panelCardHtml(p, range, chartOpts = {}) {
     fromUtc: chartOpts.fromUtc,
     toUtc: chartOpts.toUtc,
     step: chartOpts.step,
+    lookbackMarkerSec: chartOpts.lookbackMarkerSec,
   });
   const hasSamples = seriesHasSamples(p.series);
   // Query warnings that only mean “empty matrix” are replaced by the no-samples badge.
@@ -392,9 +398,16 @@ function panelCardHtml(p, range, chartOpts = {}) {
       </div>`;
 }
 
-function buildPanelMap(series) {
+function buildPanelMap(series, extra = {}) {
   /** @type {Map<string, object>} */
   const map = new Map();
+  const win = chartOptsForRange(series?.range || "1h", {
+    queriedAtUtc: series?.queriedAtUtc,
+    fromUtc: series?.fromUtc,
+    toUtc: series?.toUtc,
+    step: series?.step,
+    lookbackMarkerSec: extra.lookbackMarkerSec,
+  });
   for (const p of series?.panels || []) {
     map.set(p.id, {
       title: p.title,
@@ -406,6 +419,9 @@ function buildPanelMap(series) {
       fromUtc: series?.fromUtc,
       toUtc: series?.toUtc,
       step: series?.step,
+      tMin: win.tMin,
+      tMax: win.tMax,
+      lookbackMarkerSec: extra.lookbackMarkerSec,
     });
   }
   return map;
@@ -528,8 +544,8 @@ export async function mountDetailMetrics(mountId, opts) {
     const grid = el.querySelector(".metrics-grid");
     if (grid) {
       const baseOpts = chartOptsForRange(resolvedRange, {
-        height: 200,
-        width: 640,
+        height: CARD_CHART_HEIGHT,
+        width: CARD_CHART_WIDTH,
         queriedAtUtc: series.queriedAtUtc,
         fromUtc: series.fromUtc,
         toUtc: series.toUtc,
@@ -543,8 +559,8 @@ export async function mountDetailMetrics(mountId, opts) {
   }
 
   const cards = list.map((p) => panelCardHtml(p, resolvedRange, {
-    height: 200,
-    width: 640,
+    height: CARD_CHART_HEIGHT,
+    width: CARD_CHART_WIDTH,
     queriedAtUtc: series.queriedAtUtc,
     fromUtc: series.fromUtc,
     toUtc: series.toUtc,
@@ -561,8 +577,9 @@ export async function mountDetailMetrics(mountId, opts) {
 
 /**
  * Compact Overview/Live chart strip (RPS, OC hit share, Invalidations).
- * @param {{ soft?: boolean, mountEl?: HTMLElement, range?: string }} [opts]
+ * @param {{ soft?: boolean, mountEl?: HTMLElement, range?: string, lookbackMarkerSec?: number }} [opts]
  *   range: relative token (e.g. 15m) — skips the global Range picker (Live).
+ *   lookbackMarkerSec: dashed vertical line this many seconds before tMax (Live 1m KPI window).
  */
 export async function metricsOverviewSectionHtml(opts = {}) {
   try {
@@ -589,7 +606,7 @@ export async function metricsOverviewSectionHtml(opts = {}) {
     const list = series.panels || [];
 
     // Same chart cards as Metrics / detail (expand, axes, no-samples badge).
-    const panelMap = buildPanelMap(series);
+    const panelMap = buildPanelMap(series, { lookbackMarkerSec: opts.lookbackMarkerSec });
     lastPanelMap = new Map([...lastPanelMap, ...panelMap]);
 
     // Soft path only when the same range is already shown.
@@ -599,12 +616,13 @@ export async function metricsOverviewSectionHtml(opts = {}) {
       const grid = mount.querySelector(".metrics-grid");
       if (root && root.dataset.metricsWindow === windowKey && grid?.querySelector(".chart-card")) {
         const baseOpts = chartOptsForRange(resolvedRange, {
-          height: 200,
-          width: 640,
+          height: CARD_CHART_HEIGHT,
+          width: CARD_CHART_WIDTH,
           queriedAtUtc: series.queriedAtUtc,
           fromUtc: series.fromUtc,
           toUtc: series.toUtc,
           step: series.step,
+          lookbackMarkerSec: opts.lookbackMarkerSec,
         });
         softUpdateChartCards(grid, list, baseOpts);
         ensureChartExpandBound();
@@ -614,12 +632,13 @@ export async function metricsOverviewSectionHtml(opts = {}) {
     }
 
     const cards = list.map((p) => panelCardHtml(p, resolvedRange, {
-      height: 200,
-      width: 640,
+      height: CARD_CHART_HEIGHT,
+      width: CARD_CHART_WIDTH,
       queriedAtUtc: series.queriedAtUtc,
       fromUtc: series.fromUtc,
       toUtc: series.toUtc,
       step: series.step,
+      lookbackMarkerSec: opts.lookbackMarkerSec,
     })).join("");
 
     // Defer expand bind to caller after mount is in DOM (overview paints then).

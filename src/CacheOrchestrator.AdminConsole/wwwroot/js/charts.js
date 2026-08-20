@@ -28,16 +28,20 @@ export function seriesHasSamples(series) {
   return (series || []).some((s) => (s.points || []).length > 0);
 }
 
+/** Card-chart viewBox. CSS `aspect-ratio` on `.chart-svg` must match (no JS resize). */
+export const CARD_CHART_WIDTH = 640;
+export const CARD_CHART_HEIGHT = 240;
+
 /**
  * Render a multi-series line chart as SVG HTML.
  * When the selected time window is known (tMin/tMax) but there are no points,
  * draws empty axes for that window (zero baseline) instead of a "No samples" box.
  * @param {Array<{ name: string, points: Array<{ t: number, v: number }> }>} series
- * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean, tMin?: number, tMax?: number, range?: string, step?: string|null, stepSec?: number|null }} [opts]
+ * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean, tMin?: number, tMax?: number, range?: string, step?: string|null, stepSec?: number|null, lookbackMarkerSec?: number|null }} [opts]
  */
 export function lineChartHtml(series, opts = {}) {
-  const height = opts.height || 200;
-  const width = opts.width || 640;
+  const height = opts.height || CARD_CHART_HEIGHT;
+  const width = opts.width || CARD_CHART_WIDTH;
   const built = buildChartModel(series, opts, width, height);
   if (!built) {
     return `<div class="chart-empty muted">No time window</div>`;
@@ -50,12 +54,12 @@ export function lineChartHtml(series, opts = {}) {
  * and structure is unchanged (same series count/names). Returns true if updated in place.
  * @param {HTMLElement} host element that currently contains `.chart-wrap` or empty
  * @param {Array} series
- * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean, tMin?: number, tMax?: number, range?: string, step?: string|null, stepSec?: number|null }} [opts]
+ * @param {{ unit?: string, height?: number, width?: number, yTicks?: number, interactive?: boolean, tMin?: number, tMax?: number, range?: string, step?: string|null, stepSec?: number|null, lookbackMarkerSec?: number|null }} [opts]
  */
 export function updateChartInPlace(host, series, opts = {}) {
   if (!host) return false;
-  const height = opts.height || 200;
-  const width = opts.width || 640;
+  const height = opts.height || CARD_CHART_HEIGHT;
+  const width = opts.width || CARD_CHART_WIDTH;
   const built = buildChartModel(series, opts, width, height);
   const fp = chartFingerprint(series, opts);
 
@@ -86,7 +90,8 @@ export function updateChartInPlace(host, series, opts = {}) {
     && prevNames === nextNames
     && host.dataset.chartUnit === (opts.unit || "")
     && Number(host.dataset.chartYTicks || 3) === built.yTickCount
-    && Number(host.dataset.chartXTicks || 0) === built.xTickCount;
+    && Number(host.dataset.chartXTicks || 0) === built.xTickCount
+    && Number(host.dataset.chartMarker || 0) === Number(opts.lookbackMarkerSec || 0);
 
   if (sameLayout) {
     // Same series layout: only mutate path `d` and axis labels (no SVG remount).
@@ -119,6 +124,7 @@ export function updateChartInPlace(host, series, opts = {}) {
   host.dataset.chartTMin = String(opts.tMin ?? "");
   host.dataset.chartTMax = String(opts.tMax ?? "");
   host.dataset.chartEmpty = built.empty ? "1" : "0";
+  host.dataset.chartMarker = String(opts.lookbackMarkerSec || 0);
   host.innerHTML = chartMarkup(built, opts);
   const newWrap = host.querySelector(":scope > .chart-wrap");
   if (newWrap) storeInteractionData(newWrap, built, series, opts);
@@ -151,6 +157,7 @@ export function openChartModal(opts, ctx = {}) {
     tMin: opts.tMin,
     tMax: opts.tMax,
     step: opts.step,
+    lookbackMarkerSec: opts.lookbackMarkerSec,
   };
   const desc = opts.description && String(opts.description).trim();
   backdrop.innerHTML = `
@@ -230,6 +237,7 @@ export function refreshOpenChartModal() {
     tMin: data.tMin,
     tMax: data.tMax,
     step: data.step,
+    lookbackMarkerSec: data.lookbackMarkerSec,
   };
   // Remount interactive chart (hover bindings need a fresh wrap).
   host.innerHTML = lineChartHtml(series, chartOpts);
@@ -281,9 +289,9 @@ function buildChartModel(series, opts, width, height) {
   const yTickCount = Math.max(2, Math.min(12, opts.yTicks || (interactive ? 8 : 3)));
   const padL = interactive ? 56 : 48;
   const padR = interactive ? 20 : 16;
-  const padT = 14;
-  // Extra bottom room for X-axis time labels (selected range window).
-  const padB = interactive ? 38 : 32;
+  // Small cards: tight vertical padding so the plot fills the square.
+  const padT = interactive ? 14 : 10;
+  const padB = interactive ? 38 : 20;
   const plotW = width - padL - padR;
   const plotH = height - padT - padB;
 
@@ -373,6 +381,18 @@ function buildChartModel(series, opts, width, height) {
     return `<text class="chart-axis chart-axis-x" x="${x.toFixed(1)}" y="${height - 8}" text-anchor="${anchor}">${esc(formatAxisTime(t, span))}</text>`;
   }).join("");
 
+  const markerSec = Number(opts.lookbackMarkerSec);
+  let markerSvg = "";
+  if (Number.isFinite(markerSec) && markerSec > 0) {
+    const tMark = tMax - markerSec;
+    if (tMark > tMin && tMark < tMax) {
+      const x = xOf(tMark);
+      markerSvg = `<line class="chart-lookback-mark" x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${height}" pointer-events="none">
+        <title>Live values use the last minute; the chart shows a longer window</title>
+      </line>`;
+    }
+  }
+
   // Break the polyline when samples are farther apart than ~1.5× step (missing data),
   // instead of drawing a misleading continuous segment across the gap.
   const gapSec = resolveGapThresholdSec(opts, series);
@@ -414,6 +434,7 @@ function buildChartModel(series, opts, width, height) {
     vMin,
     vMax,
     gridSvg: hGridSvg + vGridSvg,
+    markerSvg,
     xAxisSvg,
     pathSvg,
     legend,
@@ -467,6 +488,7 @@ function chartMarkup(built, opts) {
     <div class="chart-wrap${interactive ? " chart-wrap-interactive" : ""}${emptyCls}">
       <svg class="chart-svg" viewBox="0 0 ${built.width} ${built.height}" role="img" aria-label="Time series chart" preserveAspectRatio="xMidYMid meet">
         ${built.gridSvg}
+        ${built.markerSvg || ""}
         ${built.xAxisSvg || ""}
         ${built.pathSvg}
         ${overlay}
@@ -700,6 +722,7 @@ function chartFingerprint(series, opts) {
     String(opts.tMin ?? ""),
     String(opts.tMax ?? ""),
     String(opts.step || opts.stepSec || ""),
+    String(opts.lookbackMarkerSec || ""),
   ];
   for (const s of series || []) {
     parts.push(s.name || "");

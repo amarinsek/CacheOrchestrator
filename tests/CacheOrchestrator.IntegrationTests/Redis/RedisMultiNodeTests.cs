@@ -123,7 +123,7 @@ public class RedisMultiNodeTests
             string x2 = r2.Headers.TryGetValues("X-Cache", out IEnumerable<string>? xv)
                 ? string.Join(",", xv)
                 : "";
-            x2.Should().Contain("output=hit");
+            x2.Should().Contain("oc=hit");
         }
         finally
         {

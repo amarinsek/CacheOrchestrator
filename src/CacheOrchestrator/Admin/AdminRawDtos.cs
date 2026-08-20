@@ -52,8 +52,11 @@ public sealed class AdminDomainCountersDto
     /// <summary>Output Cache misses.</summary>
     public long OcMisses { get; init; }
 
-    /// <summary>Output Cache bypasses.</summary>
+    /// <summary>Output Cache bypasses (auth / no-store).</summary>
     public long OcBypass { get; init; }
+
+    /// <summary>Output Cache disabled for the domain.</summary>
+    public long OcOff { get; init; }
 
     /// <summary>Fusion hits.</summary>
     public long FcHits { get; init; }
@@ -112,8 +115,11 @@ public sealed class AdminEndpointCountersDto
     /// <summary>Output Cache misses.</summary>
     public long OcMisses { get; init; }
 
-    /// <summary>Output Cache bypasses.</summary>
+    /// <summary>Output Cache bypasses (auth / no-store).</summary>
     public long OcBypass { get; init; }
+
+    /// <summary>Output Cache disabled for the domain.</summary>
+    public long OcOff { get; init; }
 
     /// <summary>Fusion hits.</summary>
     public long FcHits { get; init; }

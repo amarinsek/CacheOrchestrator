@@ -15,6 +15,8 @@ public static class MetricsPanelCatalog
     /// <summary>Default OTel/Prometheus counter names (dots → underscores, <c>_total</c>).</summary>
     public const string OcRequests = "cache_orchestrator_oc_requests_total";
     public const string FcRequests = "cache_orchestrator_fc_requests_total";
+    /// <summary>PromQL matcher for Fusion factory invocations (not fresh hits).</summary>
+    public const string FactoryResultMatcher = "result=~\"miss|stale|fail|off|unresolved|bypass\"";
     public const string Invalidations = "cache_orchestrator_invalidate_total";
     public const string ClientSchedule = "cache_orchestrator_client_schedule_total";
     public const string ClusterPublishFailures = "cache_orchestrator_cluster_publish_failures_total";
@@ -111,7 +113,7 @@ public static class MetricsPanelCatalog
             Id = "factory_p95_ms",
             Title = "Factory duration p95",
             Description =
-                "95th percentile value-factory wall time (milliseconds) in this window (miss/stale path only). Requires scrape of cache_orchestrator.factory.duration.",
+                "95th percentile value-factory wall time (milliseconds) in this window. Requires scrape of cache_orchestrator.factory.duration.",
             Unit = "ms",
         },
         new()
@@ -119,7 +121,7 @@ public static class MetricsPanelCatalog
             Id = "factory_run_rate",
             Title = "Factory run rate",
             Description =
-                "How often the Fusion factory runs per second (FC result=miss). Rising values mean more origin/DB work.",
+                "How often the Fusion factory callback runs per second (miss, stale, fail, off, unresolved, or bypass). Rising values mean more origin/DB work.",
             Unit = "rate",
         },
         new()
@@ -127,7 +129,7 @@ public static class MetricsPanelCatalog
             Id = "factory_share",
             Title = "FA run % (window)",
             Description =
-                "Approximate FA run share over the metrics window: FC miss rate / OC request rate (same window).",
+                "Factory callback share of Output Cache-accounted requests in this window (includes Fusion disabled).",
             Unit = "percent",
         },
         new()
@@ -223,8 +225,8 @@ public static class MetricsPanelCatalog
 
         string selector = BuildLabelSelector(domains, instanceIds, routes);
         string selectorHit = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"hit\"");
-        string selectorMiss = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"miss\"");
         string selectorStale = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"stale\"");
+        string selectorFactory = BuildLabelSelector(domains, instanceIds, routes, extra: FactoryResultMatcher);
         string rw = SanitizeDuration(rateWindow);
         string by = ChooseByClause(panel.Id, domains, routes);
         string leBy = routes is { Count: > 0 }
@@ -271,10 +273,10 @@ public static class MetricsPanelCatalog
                 $"(rate({FactoryDurationBucket}{selector}[{rw}])))",
 
             "factory_run_rate" =>
-                $"{by} (rate({FcRequests}{selectorMiss}[{rw}]))",
+                $"{by} (rate({FcRequests}{selectorFactory}[{rw}]))",
 
             "factory_share" =>
-                $"{by} (rate({FcRequests}{selectorMiss}[{rw}]))" +
+                $"{by} (rate({FcRequests}{selectorFactory}[{rw}]))" +
                 $" / clamp_min({by} (rate({OcRequests}{selector}[{rw}])), 1e-9)",
 
             "factory_size_p95" =>
@@ -300,9 +302,9 @@ public static class MetricsPanelCatalog
                 $"sum(rate({FcRequests}{{result=\"hit\"}}[{rw}]))" +
                 $" / clamp_min(sum(rate({FcRequests}[{rw}])), 1e-9)",
             "invalidation_rate" => $"sum(rate({Invalidations}[{rw}]))",
-            "factory_run_rate" => $"sum(rate({FcRequests}{{result=\"miss\"}}[{rw}]))",
+            "factory_run_rate" => $"sum(rate({FcRequests}{{{FactoryResultMatcher}}}[{rw}]))",
             "factory_share" =>
-                $"sum(rate({FcRequests}{{result=\"miss\"}}[{rw}]))" +
+                $"sum(rate({FcRequests}{{{FactoryResultMatcher}}}[{rw}]))" +
                 $" / clamp_min(sum(rate({OcRequests}[{rw}])), 1e-9)",
             _ => throw new ArgumentException($"No summary query for panel '{panelId}'.", nameof(panelId)),
         };

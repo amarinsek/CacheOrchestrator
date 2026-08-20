@@ -42,45 +42,67 @@ public class AdminStatsMathTests
     }
 
     [Fact]
-    public void Pipeline_includes_stale_share_and_excludes_it_from_other()
+    public void Pipeline_stale_is_overlay_inside_factory_share()
     {
         (_, _, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
                 ocHits: 80, ocMisses: 20, ocBypass: 0,
                 fcHits: 10, fcMisses: 5, fcStale: 5, fcBypass: 0,
-                factoryRuns: 5, factoryFailures: 5);
+                factoryRuns: 10, factoryFailures: 5);
 
         fc.StaleShare.Should().BeApproximately(0.05, 0.0001);
         pipe.StaleShare.Should().BeApproximately(0.05, 0.0001);
-        pipe.FactoryShare.Should().BeApproximately(0.05, 0.0001);
-        // 100 - 80 ocHit - 10 fcHit - 5 stale - 5 factory = 0 other
+        pipe.FactoryShare.Should().BeApproximately(0.10, 0.0001);
+        pipe.OcHitShare.Should().BeApproximately(0.80, 0.0001);
+        pipe.FcHitShare.Should().BeApproximately(0.10, 0.0001);
+        // Exclusive: 80 OC hit + 10 FC hit + 10 FA run = 100
         (pipe.OtherShare ?? 0).Should().BeApproximately(0, 0.0001);
     }
 
     [Fact]
-    public void AuthBypassOnBothLayers_PipelineBypassShareIsNotDoubleCounted()
+    public void BothLayersOff_WithFactoryRuns_IsAllFaRun()
+    {
+        (long requests, AdminLayerDto oc, _, AdminPipelineDto pipe) =
+            AdminStatsMath.BuildAll(
+                ocHits: 0, ocMisses: 0, ocBypass: 0,
+                fcHits: 0, fcMisses: 0, fcStale: 0, fcBypass: 0,
+                factoryRuns: 50, factoryFailures: 0,
+                ocOff: 50);
+
+        requests.Should().Be(50);
+        oc.Off.Should().Be(50);
+        oc.OffShare.Should().BeApproximately(1.0, 0.0001);
+        pipe.OcHitShare.Should().BeApproximately(0, 0.0001);
+        pipe.FcHitShare.Should().BeApproximately(0, 0.0001);
+        pipe.FactoryShare.Should().BeApproximately(1.0, 0.0001);
+        (pipe.OtherShare ?? 0).Should().BeApproximately(0, 0.0001);
+    }
+
+    [Fact]
+    public void AuthBypass_WithFactoryRuns_IsFaRunNotMixBypass()
     {
         (long requests, _, _, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
                 ocHits: 0, ocMisses: 0, ocBypass: 100,
                 fcHits: 0, fcMisses: 0, fcStale: 0, fcBypass: 100,
-                factoryRuns: 0, factoryFailures: 0);
+                factoryRuns: 100, factoryFailures: 0);
 
         requests.Should().Be(100);
+        pipe.FactoryShare.Should().BeApproximately(1.0, 0.0001);
         pipe.BypassShare.Should().BeApproximately(1.0, 0.0001);
         (pipe.OtherShare ?? 0).Should().BeApproximately(0, 0.0001);
     }
 
     [Fact]
-    public void FusionOnlyBypass_UsesFusionBypassAsPipelineShare()
+    public void FusionOnly_FactoryRunsWhenFcOff_UseFactoryAsDenominator()
     {
         (long requests, _, _, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
                 ocHits: 0, ocMisses: 0, ocBypass: 0,
-                fcHits: 90, fcMisses: 0, fcStale: 0, fcBypass: 10,
-                factoryRuns: 0, factoryFailures: 0);
+                fcHits: 0, fcMisses: 0, fcStale: 0, fcBypass: 0,
+                factoryRuns: 25, factoryFailures: 0);
 
-        requests.Should().Be(100);
-        pipe.BypassShare.Should().BeApproximately(0.10, 0.0001);
+        requests.Should().Be(25);
+        pipe.FactoryShare.Should().BeApproximately(1.0, 0.0001);
     }
 }

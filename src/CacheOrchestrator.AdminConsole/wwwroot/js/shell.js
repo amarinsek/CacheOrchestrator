@@ -4,7 +4,7 @@
  * Layout (see index.html):
  * 1) brand / logo
  * 2) header metrics strip (`#headerMetrics`):
- *    instances + metrics status · gap · Req / Inv / pipeline / hit shares · right-aligned N dom N ep
+ *    instances + metrics status · gap · Req / Inv / pipeline / OC / FC / FA run / FAFC / FAD / FC stale / EFTS · right-aligned N dom N ep
  * 3) menu strip
  *
  * Soft refresh (route({ soft: true })) repaints without a full "Loading…" flash.
@@ -245,12 +245,11 @@ export function renderHeader(o, windowStats = null) {
   const pipe = promOk && !noData ? windowStats.pipeline : null;
   const dashTip = promOk ? "No samples yet" : "Metrics offline";
   const share = (v) => (promOk && !noData && v != null ? pct(v) : noDataHtml(dashTip));
-  // Same fields as pipelineBar (OC hit · FC hit · FC stale · FA run · Bypass).
+  // Exclusive mix: OC hit · FC hit · FA run. FC stale is an overlay.
   const oc = share(pipe?.ocHitShare ?? windowStats.ocHitShare);
   const fc = share(pipe?.fcHitShare ?? windowStats.fcHitShare);
   const stale = share(pipe?.staleShare);
   const fac = share(pipe?.factoryShare ?? pipe?.originShare ?? windowStats.factoryShare);
-  const bypass = share(pipe?.bypassShare);
   const fafcFails = promOk && !noData
     ? (windowStats.domains || []).reduce((s, d) => s + Number(d.fc?.factoryFailures || 0), 0)
     : null;
@@ -267,6 +266,10 @@ export function renderHeader(o, windowStats = null) {
   const imp = promOk ? (windowStats.impact || {}) : {};
   const req = promOk && !noData ? num(windowStats.totalRequests) : noDataHtml();
   const inv = promOk && !noData ? num(windowStats.totalInvalidations) : noDataHtml();
+  const fadMs = Number(imp.avgFactoryDurationMs);
+  const fad = promOk && (imp.factoryDurationCount || 0) > 0 && Number.isFinite(fadMs)
+    ? `${Math.round(fadMs * 10) / 10} ms`
+    : noDataHtml(dashTip);
   const timeSaved = promOk
     ? fmtDurationMs(imp.estFactoryTimeSavedMs)
     : noDataHtml(dashTip);
@@ -291,10 +294,10 @@ export function renderHeader(o, windowStats = null) {
       <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(pipe, false, { title: false })}</span>
       <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit % <strong>${oc}</strong></span>
       <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${fc}</strong></span>
-      <span class="hm" title="${esc(METRIC_TITLES.staleShare)}">FC stale % <strong>${stale}</strong></span>
       <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">FA run % <strong>${fac}</strong></span>
-      <span class="hm" title="${esc(METRIC_TITLES.bypassShare)}">Bypass % <strong>${bypass}</strong></span>
       <span class="hm" title="${esc(METRIC_TITLES.factoryFailures)}">FAFC ${fafc}</span>
+      <span class="hm" title="${esc(METRIC_TITLES.avgFactoryDuration)}">FAD <strong>${fad}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.staleShare)}">FC stale % <strong>${stale}</strong></span>
       <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">EFTS <strong>${timeSaved}</strong></span>
       ${alerts}
     </div>

@@ -159,7 +159,7 @@ public class MiscHttpAndDiTests
             Volatile.Read(ref hits).Should().Be(1, "attribute + CacheOutputWithDomainAttribute must enable OC");
 
             string x2 = r2.Headers.TryGetValues("X-Cache", out IEnumerable<string>? v) ? string.Join(",", v) : "";
-            x2.Should().Contain("output=hit");
+            x2.Should().Contain("oc=hit");
             x2.Should().Contain($"domain={domain}");
         }
         finally

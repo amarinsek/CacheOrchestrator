@@ -342,6 +342,7 @@ function mountLiveCharts(metricsOk) {
     soft,
     mountEl: mount,
     range: LIVE_CHART_RANGE,
+    lookbackMarkerSec: 60,
   }).then((html) => {
     const m = $("#liveMetricsMount");
     if (!m) return;
