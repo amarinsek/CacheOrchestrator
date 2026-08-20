@@ -5,12 +5,13 @@
 [![NuGet](https://img.shields.io/nuget/v/CacheOrchestrator.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/amarinsek/CacheOrchestrator/build.yml?branch=main&style=flat-square)](https://github.com/amarinsek/CacheOrchestrator/actions)
+[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2010.0-blueviolet.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/)
 
 **CacheOrchestrator** is domain-based caching for ASP.NET Core: define rules once per domain in configuration, then apply them on endpoints with a single attribute or extension. It orchestrates Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) under the same model.
 
 The library targets **.NET 8** and **.NET 10**.
 
-![Cache topology](docs/assets/drawing01.png)
+<img src="docs/assets/drawing-01.svg" height="250" />
 
 The picture is the path a request can take:
 
@@ -141,7 +142,7 @@ The endpoint code is the same shape in every case. The domain is what differs.
 
 ## Also included
 
-- **Coordinated policies.** One domain owns all client and backend cache policies. [Output Cache](docs/output-cache.md) · [FusionCache](docs/fusion-cache.md)·
+- **Coordinated policies.** One domain owns all client and backend cache policies. [Output Cache](docs/output-cache.md) · [FusionCache](docs/fusion-cache.md)
 
 - **Coordinated invalidation.** Domain, kind, or a single id invalidation is coordinated across Output Cache and FusionCache. [Invalidation](docs/invalidation.md)
 
@@ -192,6 +193,7 @@ The endpoint code is the same shape in every case. The domain is what differs.
 ## Documentation
 
 - [Getting started](docs/getting-started.md) — first endpoint, `X-Cache`, what to read next
+- [Guide](docs/guide/README.md) — concepts, topologies, operations
 - [Documentation index](docs/README.md) — configuration, keys, deployment, architecture
 - [FAQ](docs/faq.md) — common mistakes and limits
 - [Comparison](docs/comparison.md) — the usual stack versus CacheOrchestrator

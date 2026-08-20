@@ -1,5 +1,7 @@
 # Releasing CacheOrchestrator
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md). Contributor procedure.
+
 How versions, NuGet packages, and GitHub Releases fit together.
 
 ## Versioning (MinVer)
@@ -32,6 +34,7 @@ dotnet build src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -v:m
 | Surface | File |
 |---------|------|
 | GitHub (full story, logo) | Root [README.md](../README.md) |
+| Guide (orientation) | [docs/guide/README.md](guide/README.md) |
 | NuGet `CacheOrchestrator` | [src/CacheOrchestrator/README.md](../src/CacheOrchestrator/README.md) |
 | NuGet `CacheOrchestrator.Redis` | [src/CacheOrchestrator.Redis/README.md](../src/CacheOrchestrator.Redis/README.md) |
 | NuGet `CacheOrchestrator.Bus` | [src/CacheOrchestrator.Bus/README.md](../src/CacheOrchestrator.Bus/README.md) |

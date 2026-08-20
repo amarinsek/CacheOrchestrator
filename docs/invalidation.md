@@ -1,5 +1,7 @@
 # Invalidation
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md).
+
 How to drop cached data so the next request loads it again. Snapshot versus changing records: [domain-profiles.md](domain-profiles.md).
 
 1. **Version stamp** — change `Version` so new keys never match old ones (a bulk cutover).
@@ -47,8 +49,16 @@ CacheInvalidationResult r2 = await invalidator.InvalidateDomainsAsync(
 CacheInvalidationResult r3 = await invalidator.InvalidateEntityAsync(
     "store", "products", "42", cancellationToken);
 
+// Several ids of one kind (one local apply + one Bus publish)
+CacheInvalidationResult r4 = await invalidator.InvalidateEntitiesAsync(
+    "store", "products", ["42", "43"], cancellationToken);
+
+// Every entry tagged entitykind:store:products
+CacheInvalidationResult r5 = await invalidator.InvalidateEntityKindAsync(
+    "store", "products", cancellationToken);
+
 // Custom or multiple tags (all FusionCache instances + Output Cache)
-CacheInvalidationResult r4 = await invalidator.InvalidateTagsAsync(
+CacheInvalidationResult r6 = await invalidator.InvalidateTagsAsync(
     ["domain:store", "entity:store:products:42", "custom:batch-7"],
     cancellationToken);
 ```
@@ -63,6 +73,7 @@ CacheInvalidationResult r4 = await invalidator.InvalidateTagsAsync(
 | `OutputSucceeded` | All Output Cache evictions succeeded |
 | `IsSkipped` | No-op (empty domain/tags); nothing was evicted |
 | `Succeeded` | Both layers succeeded **and** the call was not skipped. Cluster publish failures do not flip this. |
+| `ClusterPublish` | Per-peer bus outcomes when the bus ran; `null` when publish was skipped. `InvalidateDomainsAsync` **drops** this on the aggregate (`null`); inspect `Errors` for peer failures on a batch. |
 | `Errors` | Non-fatal messages (partial failure or skip reason) |
 
 Empty input (null domain, no tags) → `CacheInvalidationResult.Skipped(...)` with `IsSkipped == true`, `Succeeded == false`, and no store calls.
@@ -101,7 +112,7 @@ Simple audit hook:
 ```csharp
 public sealed class AuditInvalidationObserver : ICacheInvalidationObserver
 {
-    public ValueTask OnBeforeInvalidateAsync(CacheInvalidationContext context, CancellationToken ct)
+    public ValueTask OnBeforeInvalidateAsync(CacheInvalidationContext context, CancellationToken cancellationToken)
     {
         // context.Kind, context.Scope, context.Tags
         return ValueTask.CompletedTask;
@@ -110,7 +121,7 @@ public sealed class AuditInvalidationObserver : ICacheInvalidationObserver
     public ValueTask OnAfterInvalidateAsync(
         CacheInvalidationContext context,
         CacheInvalidationResult result,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         // result.Succeeded, result.Errors
         return ValueTask.CompletedTask;
@@ -121,7 +132,7 @@ public sealed class AuditInvalidationObserver : ICacheInvalidationObserver
 builder.Services.AddSingleton<ICacheInvalidationObserver, AuditInvalidationObserver>();
 ```
 
-For **multi-instance fan-out** (publish to a bus so other nodes invalidate locally), see [Multi-instance invalidation](#multi-instance-invalidation) below — full sample using `ICacheInvalidationObserver`.
+Observers are **audit/webhooks on this process only**. Cross-instance purge is the [cluster bus](cluster-bus.md) or Redis Fusion backplane — see [Multi-instance invalidation](#multi-instance-invalidation).
 
 ### Implementation notes
 
@@ -275,6 +286,7 @@ Prefer Redis L2 and the backplane when instances share Fusion data. Use the Bus 
 
 ## Related
 
+- [Guide — topologies](guide/topologies.md) — which approach across instances  
 - [cache-keys.md](cache-keys.md) — keys vs tags, Version in key material  
 - [domain-profiles.md](domain-profiles.md) — Snapshot vs Dynamic + config recipes  
 - [deployment.md](deployment.md) — multi-instance topologies + shared configuration  

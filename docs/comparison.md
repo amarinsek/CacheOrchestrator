@@ -1,5 +1,7 @@
 # Comparison
 
+> **Guide.** Product overview: [root README](../README.md). Orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md).
+
 This page compares the usual way of wiring ASP.NET Core Output Cache and FusionCache yourself with the same work done through CacheOrchestrator.
 
 The same endpoint is written both ways, without and with CacheOrchestrator.
@@ -150,6 +152,7 @@ If you are working on a smaller app — one or two endpoints, or Output Cache al
 
 ## Related
 
+- [Guide](guide/README.md)
 - [getting-started.md](getting-started.md)
 - [faq.md](faq.md)
 - [architecture.md](architecture.md)

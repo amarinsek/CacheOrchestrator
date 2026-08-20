@@ -65,6 +65,7 @@ On a controller, use `[CacheDomain("catalog")]` and inject `IDomainFusionCache` 
 
 - [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)
 - [Getting started](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/getting-started.md)
+- [Guide](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/README.md)
 - [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
 - [Minimal sample](https://github.com/amarinsek/CacheOrchestrator/tree/main/samples/CacheOrchestrator.Minimal)
 

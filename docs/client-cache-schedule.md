@@ -1,5 +1,7 @@
 # Client Cache Schedule
 
+> **Guide.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Canonical algorithm and settings are on this page.
+
 Browsers and CDNs keep a **long `max-age`** for most of the life of a dataset, then that lifetime **falls toward a floor** as a planned cutover (`ScheduledUpdateUtc`) approaches. After the cutover they stay on the floor until you open the next window. Clients revalidate in time for the new generation, without a tiny `max-age` all month.
 
 This changes only the **client** `Cache-Control` header. Output Cache and FusionCache keep their own TTLs (`OutputCacheTtlSeconds`, `FusionCacheSoftTtlSeconds`, …).
@@ -147,6 +149,8 @@ So:
 Phase `Approaching`.  
 If `ClientMustRevalidateNearUpdate` and `maxAge <= min` → append `must-revalidate`.
 
+**Hold also appends `must-revalidate`** when that flag is on (not only the Approaching floor). Tests: after `ScheduledUpdateUtc` with the flag, the header includes `must-revalidate`.
+
 ---
 
 ## Safety valves
@@ -215,6 +219,7 @@ A common pattern: **server TTL short**, **client TTL long but scheduled**—orig
 
 ## Related
 
+- [Guide — concepts](guide/concepts.md)  
 - [configuration.md](configuration.md) — full property list  
 - [output-cache.md](output-cache.md) — where headers are applied  
 - [invalidation.md](invalidation.md) — `Version` for server keys vs client schedule  

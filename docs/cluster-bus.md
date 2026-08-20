@@ -1,5 +1,7 @@
 # Cluster command bus (`CacheOrchestrator.Bus`)
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md). Canonical detail for membership, commands, and peer HTTP.
+
 When several instances must apply the same invalidate, Version, or TTL change, this package delivers those **commands** over HTTP. It does not move cache payloads. Peers run the same local purge or overlay they would have run if the call had been made on that process.
 
 Package README: [src/CacheOrchestrator.Bus/README.md](../src/CacheOrchestrator.Bus/README.md). See also [invalidation.md](invalidation.md), [deployment.md](deployment.md), [admin.md](admin.md), [configuration.md](configuration.md).
@@ -129,7 +131,7 @@ When empty, the machine name is used. Process identity lives at `Cache:InstanceI
 
 ### `Cache:Namespace`
 
-Isolation boundary for keys **and** cluster commands. Peers reject commands whose `Namespace` ≠ local namespace.  
+Isolation boundary for keys **and** cluster commands. Namespace mismatch → **409**. Origin-is-self (anti-echo) → **200** `{ applied: false, reason: "origin-is-self" }`.  
 Namespace is **not** membership discovery — do not mix app1 and app2 peers in one Static list.
 
 ---
@@ -181,7 +183,8 @@ Wire type is polymorphic JSON (`commandType` discriminator):
 |---------------|------|-------------------|
 | `invalidate` | `InvalidateCommand` | Domain / entity / tags via invalidator |
 | `versionBump` | `VersionBumpCommand` | Runtime Version overlay |
-| `ttlPatch` | `TtlPatchCommand` | Runtime TTL overlay |
+| `ttlPatch` | `TtlPatchCommand` | Runtime TTL overlay (legacy TTL-only patch) |
+| `settingsPatch` | `SettingsPatchCommand` | Sparse runtime overlay (same shape as Admin `PATCH …/domains/{d}/settings`) |
 
 Never carries response bodies or cache entries.
 
@@ -191,7 +194,9 @@ Never carries response bodies or cache entries.
 |-------------|----------|
 | `ICacheOrchestratorInvalidator.Invalidate*` | **Yes** when bus enabled (unless remote/local-only scope) |
 | Admin `POST …/invalidate` | Only if body `distribute: true` |
-| Admin version / TTL | Only if body `distribute: true` |
+| Admin `POST …/domains/{d}/version` | Only if body `distribute: true` |
+| Admin `PATCH …/domains/{d}/settings` | `distribute: true` → `settingsPatch`, **except** TTL-only patches (`IsTtlOnly`) which still send **`ttlPatch`** so older peers apply |
+| Admin `PATCH …/domains/{d}/ttl` | Obsolete TTL-only; `distribute: true` → `ttlPatch` |
 | Peer `POST …/cluster/apply` | **Never** (ApplyLocal only) |
 
 `ClusterCommandScope`:
@@ -208,7 +213,7 @@ Base path = `Cache:Admin:RoutePrefix` (default `/cache-admin/local`), **even if 
 | Method | Path | Role |
 |--------|------|------|
 | `POST` | `…/cluster/apply` | ApplyLocal command body |
-| `GET` | `…/cluster/info` | instance id, namespace, bus enabled, membership, peer count |
+| `GET` | `…/cluster/info` | instance id, namespace, bus enabled, membership, peer count. When **Admin is enabled**, Local Admin maps this route (Bus does not duplicate it). When Admin is off, Bus maps it. |
 
 ### Auth
 
@@ -252,7 +257,7 @@ Details: [admin.md](admin.md#cluster-distribute-with-cacheorchestratorbus).
 | Runtime Version/TTL overlay cluster-wide | Not covered | Yes |
 | Hot-path read latency | L2 cost | No read path cost |
 
-Using **both** for tag invalidation is safe (idempotent double purge) but often unnecessary for Fusion when Redis backplane is already on. Bus remains useful for OC InMemory + Version/TTL commands.
+Using **both** for tag invalidation is safe (idempotent double purge) but often unnecessary for Fusion when Redis backplane is already on. Bus remains useful for OC InMemory + Version / TTL / **settings** overlays. The Redis backplane does **not** distribute runtime overlays.
 
 ---
 
@@ -262,7 +267,7 @@ Meter: **`CacheOrchestrator`**
 
 | Instrument | Description |
 |------------|-------------|
-| `cache_orchestrator.cluster.commands_published` | Origin publish attempts (`command_type`) |
+| `cache_orchestrator.cluster.commands_published` | Origin publish attempts (`command_type` is the **CLR name**: `InvalidateCommand`, `VersionBumpCommand`, `TtlPatchCommand`, `SettingsPatchCommand`) |
 | `cache_orchestrator.cluster.commands_received` | Receive path entered |
 | `cache_orchestrator.cluster.commands_applied` | ApplyLocal success |
 | `cache_orchestrator.cluster.publish_failures` | Per-peer failure (`reason`: `http_status` / `timeout` / `transport` / `exception`) |
@@ -298,6 +303,7 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 
 ## Related
 
+- [Guide — topologies](guide/topologies.md) — Bus vs Redis backplane  
 - [invalidation.md](invalidation.md) — multi-instance strategies  
 - [deployment.md](deployment.md) — topologies  
 - [admin.md](admin.md) — Admin API + Admin Console App  

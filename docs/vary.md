@@ -1,5 +1,7 @@
 # Domain vary dimensions
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Canonical detail for Accept / auth / contributors.
+
 CacheOrchestrator shares one **vary model** between **Output Cache** and **FusionCache** (where it makes sense). Built-in toggles and allowlists live on the domain; apps can add small custom dimensions via `ICacheVaryContributor` without replacing `IDomainKeyGenerator`.
 
 See also: [cache-keys.md](cache-keys.md), [output-cache.md](output-cache.md), [configuration.md](configuration.md).
@@ -53,6 +55,8 @@ Existing flags stay: `FusionCacheVaryOnEncoding`, `EncodingNormalizationList`, `
 | `ClientForcePrivateWhenAuthenticated` | `true` | Public → private clamp for signed-in Identity |
 
 There is no separate “OC respect Fusion” flag: Output Cache already owns bypass via `AuthBypassMode`. `FusionRespectAuthBypass` only answers whether Fusion follows that same signal.
+
+Fusion includes **auth-user** in the key only when `AuthBypassMode` is `Never` **or** `VaryByAuthClaims` is set (`ShouldIncludeAuthUserVary`). Output Cache still varies by `auth-user` whenever authenticated traffic is cached and `VaryOutputCacheByUser` is true.
 
 ### `AuthBypassMode`
 
@@ -136,3 +140,11 @@ services.AddSingleton<ICacheVaryContributor, TenantVaryContributor>();
 - Cookie vary is opt-in only; document CSRF/session fixation risks.
 - Response `Vary` omits secrets-bearing headers; per-user OC still needs `private` client/CDN policy.
 - Startup validation rejects empty allowlist entries and caps sizes (e.g. max 8 headers / cookies).
+
+## Related
+
+- [Guide — concepts](guide/concepts.md)
+- [output-cache.md](output-cache.md) — auth bypass on the policy
+- [cache-keys.md](cache-keys.md) — how vary material enters Fusion keys
+- [configuration.md](configuration.md) — domain flags
+- [faq.md](faq.md) — authenticated requests and JSON vs XML

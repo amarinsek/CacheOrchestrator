@@ -1,5 +1,7 @@
 # Benchmark results
 
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide](../guide/README.md). Catalog: [documentation index](../README.md).
+
 How to run the micro-benchmarks in `tests/CacheOrchestrator.Benchmarks`, and what they measure.
 
 Absolute times depend on CPU, runtime, and load. Compare **ratios**, **Allocated**, and before/after on the **same** machine.

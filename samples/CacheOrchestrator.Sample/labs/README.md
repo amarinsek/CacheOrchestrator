@@ -1,5 +1,7 @@
 # Playground topology labs (Docker Compose)
 
+> **Guide (learn by running).** Orientation: [Guide — topologies](../../../docs/guide/topologies.md). Product overview: [root README](../../../README.md). Production wiring: [deployment.md](../../../docs/deployment.md).
+
 These numbered **Compose stacks** run the **Playground sample** together with Prometheus, Admin Console, Redis, single or multiple app instances, and the cluster bus. Use them to learn how cache layers fit together and how CacheOrchestrator ties them to domain model using simple configuration.
 
 For a single process on your machine without Docker, use the [Playground sample](../README.md) alone.
@@ -444,10 +446,11 @@ Labs stay short on purpose: stages cover **topology**; use the sample README and
 | Topic | Start here |
 |-------|------------|
 | Playground UI, badges, CRUD, Client Cache Schedule, host `dotnet run` | [Sample README](../README.md) |
+| Which layout / package | [Guide — topologies](../../../docs/guide/topologies.md) |
 | Docs index (getting started, config, OC/FC, invalidation, ops) | [docs/README.md](../../../docs/README.md) |
 | Product overview | [root README](../../../README.md) |
 | Deployment / multi-instance / Redis / bus | [deployment.md](../../../docs/deployment.md), [cluster-bus.md](../../../docs/cluster-bus.md) |
-| Admin API + Admin Console | [admin.md](../../../docs/admin.md) |
+| Admin API + Admin Console | [admin.md](../../../docs/admin.md) · [Guide — operations](../../../docs/guide/operations.md) |
 | Observability (`X-Cache`, metrics) | [observability.md](../../../docs/observability.md) |
 | Cache keys (host/port vary, query params) | [cache-keys.md](../../../docs/cache-keys.md) |
 

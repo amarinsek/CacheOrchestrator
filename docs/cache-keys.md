@@ -1,5 +1,7 @@
 # Cache keys
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Canonical detail for Namespace and key composition.
+
 How FusionCache and Output Cache decide that two requests are the **same** resource. That is lookup identity. Eviction — tags and Version — is [invalidation.md](invalidation.md).
 
 - **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` and `my-app-fc`.
@@ -152,7 +154,7 @@ The library does **not** emit a single custom string of the form `{domain}:{vers
 | Method + path | Framework Output Cache |
 | Host | `VaryByHost` from domain `OutputCacheVaryByHost` (default `true`) |
 | `Accept` / language / headers / cookies / query allowlists | Domain vary settings | Shared materializer — [vary.md](vary.md) |
-| Query | `QueryKeys` = non-tracking query keys on the request |
+| Query | `CollectQueryKeysForOutputCache` — `VaryByQueryKeys` / `IgnoreQueryKeys` plus tracking prefixes stripped |
 | Version | `VaryByValues["data-version"]` = `VersionHex` |
 | Encoding | `Accept-Encoding` in header vary when present |
 | Auth user | `VaryByValues["auth-user"]` when authenticated traffic is cached and `VaryOutputCacheByUser` is true |
@@ -162,7 +164,10 @@ The library does **not** emit a single custom string of the form `{domain}:{vers
 | Tag | When |
 |-----|------|
 | `domain:{name}` | Every cached OC entry for that domain |
-| `entity:{domain}:{entityKind}:{id}` | When `resourceRouteKey` and `entityKind` resolve (or `GetOrSetEntityAsync` set them) |
+| `entity:{domain}:{entityKind}:{id}` | When **both** `resourceRouteKey` and `entityKind` are set on the policy/attribute **and** the route value resolves |
+| `entitykind:{domain}:{entityKind}` | Same writes as the entity tag |
+
+`GetOrSetEntityAsync` does **not** tag Output Cache. It sets `HttpContext.Items` only for that Fusion call (and restores them afterwards). OC tagging runs in `CacheRequestAsync` **before** the handler, so entity OC purge needs `resourceRouteKey` + `entityKind` on `.CacheOutputWithDomain` / `[CacheDomain]`.
 
 ---
 
@@ -190,9 +195,9 @@ Version: v1
 | Layer | Identity (conceptually) |
 |-------|-------------------------|
 | FC (URL-shaped) | `product-detail:{versionHex}:{hash(route id=42, query page=1)}` — `utm_source` ignored |
-| FC (entity overload with id `42`) | `product-detail:{versionHex}:id:42:{hash}` |
+| FC (entity overload, kind `products`, id `42`) | `product-detail:{versionHex}:id:products:42:{hash}` |
 | OC | prefix `…-oc` + path `/api/products/42` + query `page` + host + `data-version` — `utm_source` ignored |
-| Tags | `domain:product-detail`, optionally `entity:product-detail:42` |
+| Tags | `domain:product-detail`; with OC `resourceRouteKey` + `entityKind`: also `entity:product-detail:products:42` and `entitykind:product-detail:products` |
 
 ---
 
@@ -229,6 +234,7 @@ See [fusion-cache.md](fusion-cache.md#custom-key-generator).
 
 ## Related
 
+- [Guide — concepts](guide/concepts.md)  
 - [fusion-cache.md](fusion-cache.md) — `GetOrSetAsync`, domain resolution, custom generator  
 - [output-cache.md](output-cache.md) — policy, auth vary, `resourceRouteKey`  
 - [invalidation.md](invalidation.md) — Version, domain/entity tags  

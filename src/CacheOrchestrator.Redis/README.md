@@ -39,7 +39,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 
 A connection under `Cache:Redis` is the default. Output Cache may use `Cache:OutputCache:Redis`; a named Fusion instance may use `Cache:FusionCacheInstances:{name}:Redis`.
 
-Guide: [backends.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/backends.md). Overview: [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme).
+Orientation: [Guide — topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md). Reference: [backends.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/backends.md). Overview: [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme).
 
 ## License
 

@@ -1,5 +1,18 @@
 # CacheOrchestrator Admin
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — operations](guide/operations.md). Catalog: [documentation index](README.md).
+
+**Read order**
+
+| Document | Audience |
+|----------|----------|
+| [Guide — operations](guide/operations.md) | Which document to open |
+| **This page** | Architecture, Admin API, Console, security |
+| [admin-hints.md](admin-hints.md) | How hints work in the repo |
+| [Admin Console README](../src/CacheOrchestrator.AdminConsole/README.md) | `dotnet run` / host config |
+| [deploy/admin/README.md](../deploy/admin/README.md) | Docker / GHCR / volumes |
+| [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md) | Writing JSON rules |
+
 Two pieces work together:
 
 - **Admin API** — opt-in HTTP on each application process (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`). Stats, health, invalidate, Version and TTL overlays. Ships in the core NuGet package; off by default.
@@ -65,7 +78,8 @@ Run the Admin Console App as an internal ops service (Docker or Helm, VPN only).
     "ApiKey": "use-a-strong-secret-in-production",
     "RoutePrefix": "/cache-admin/local",
     "TrackEndpoints": true,
-    "TrackLatency": false
+    "TrackLatency": false,
+    "TrackResultSize": false
   }
 }
 ```
@@ -83,7 +97,8 @@ app.MapCacheOrchestratorAdmin(); // after routing is available; safe no-op when 
 | `Admin:ApiKey` | empty | Empty + Enabled ⇒ **open** endpoints (dev only; logs a warning) |
 | `Admin:RoutePrefix` | `/cache-admin/local` | Must match Admin Console App `LocalPathPrefix` |
 | `Admin:TrackEndpoints` | `true` | Per-route counters |
-| `Admin:TrackLatency` | `false` | Extra cost if true |
+| `Admin:TrackLatency` | `false` | Extra cost if true (Admin `/stats` factory duration sums) |
+| `Admin:TrackResultSize` | `false` | Extra cost if true (Admin `/stats` factory size sums). Does not gate OTEL `factory.result_size`. |
 
 Process identity is **`Cache:InstanceId`** (not under Admin). Same id is used by the optional cluster bus.
 
@@ -95,7 +110,8 @@ When the HTTP bus is enabled, Admin API mutation bodies accept **`distribute`** 
 |----------|---------------------|--------------------|
 | `POST …/invalidate` | This process only | Local + peers via bus |
 | `POST …/domains/{d}/version` | Local Version overlay | Local + `VersionBumpCommand` |
-| `PATCH …/domains/{d}/settings` (and obsolete TTL) | Local overlay | Local + bus command |
+| `PATCH …/domains/{d}/settings` | Local overlay | Local + `SettingsPatchCommand` (TTL-only patches still send `TtlPatchCommand` for older peers) |
+| `PATCH …/domains/{d}/ttl` (obsolete) | Local TTL overlay | Local + `TtlPatchCommand` |
 
 With **`distribute: true`**, Local Admin applies the change on the origin first, then publishes to peers. If **any peer fails**, the HTTP response is **409 Conflict** with `localApplied: true` and `peerFailures[]` (cluster may already be inconsistent — no automatic rollback).
 
@@ -131,12 +147,16 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | `Healthy` (probes + counters), `InstanceId`, `StartedAtUtc`, `UptimeSeconds`, `Requests` |
+| GET | `/cluster/info` | Bus/membership snapshot (mapped even **without** the Bus package) |
 | GET | `/stats` | **Obsolete** process-lifetime fat DTO (shares + rates) — diagnostics / external tools only; Admin Console does **not** use this for the stats UI |
 | GET | `/endpoints` | Discovered + counted routes |
 | GET | `/domains` | Effective domain options snapshot |
+| GET | `/domains/{name}` | One domain; **404** if unknown |
+| GET | `/domain-settings/catalog` | Overlay field catalog for PATCH settings |
 | POST | `/invalidate` | Domain / entity invalidation |
 | POST | `/domains/{name}/version` | Runtime version overlay |
-| PATCH | `/domains/{name}/ttl` | Runtime TTL overlay |
+| PATCH | `/domains/{name}/settings` | **Primary** runtime overlay (TTLs, vary, flags, …) |
+| PATCH | `/domains/{name}/ttl` | **Obsolete** TTL-only wrapper (still applied; prefer settings) |
 
 Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
@@ -164,7 +184,7 @@ factoryShare = factoryRuns / requests
 
 | Metric type | Question it answers |
 |-------------|---------------------|
-| **Request share** (`hitShare`, `originShare` / factory share, …) | Of **all** requests, what fraction? |
+| **Request share** (`hitShare`, `factoryShare`, …) | Of **all** requests, what fraction? (`originShare` is an obsolete JSON synonym for `factoryShare`) |
 | **Layer rate** (`hitRate`, …) | Of traffic that **reached that layer**, what fraction? |
 
 #### Factory share (also known as origin)
@@ -306,7 +326,9 @@ Quick operator steps: [Admin Console App README](../src/CacheOrchestrator.AdminC
 - Overview: instances (Admin health); **top 5 domains/endpoints** from Prometheus window; charts when Metrics connected  
 - Lists: filters, search, sort; detail pages; Hints page (same rules on Prometheus window rows)  
 - **Metrics** (`#/metrics`): window charts from Prometheus; multi-select domains; global Range (relative + absolute from/to)  
-- **Operations** (`#/operations`): invalidate / version / TTL; banner **HTTP fan-out** vs **Cluster bus (distribute)**; cluster probe table; last-run mode in result  
+- **Live** (`#/live`): near-real-time health/performance; fixed **1m** Prometheus lookback and **5s** refresh (not Range-scoped). `HintEngine` also runs on this snapshot.  
+- **Operations** (`#/operations`): invalidate / version / **Patch settings**; banner **HTTP fan-out** vs **Cluster bus (distribute)**; cluster probe table; last-run mode in result  
+- **Settings** (`#/settings`): hint rule catalog, enable/disable, reload  
 - Auto-refresh interval in `localStorage`  
 
 ### Recommendation hints
@@ -326,14 +348,20 @@ Repo overview: [admin-hints.md](admin-hints.md).
 | GET | `/api/distribution` | Probe `…/cluster/info`; recommended write mode (fan-out vs bus-distribute) |
 | GET | `/api/live` | **Live** snapshot: fixed 1m rates + instance health (not Range-scoped) |
 | GET | `/api/stats/window?range=&from=&to=&domains=` | **Traffic stats** (Prometheus): domains/endpoints + impact + Peak RPS + hints |
+| GET | `/api/about` | Console host version (UI pill) |
 | GET | `/api/domains` | Domain config fan-out |
+| GET | `/api/domain-settings/catalog` | Overlay field catalog |
 | GET | `/api/metrics/status` | Metrics store probe (`NotConfigured` / `Disconnected` / `Connected`) |
 | GET | `/api/metrics/catalog` | Allowlisted chart panels |
 | GET | `/api/metrics/series?range=&panels=&domains=` | Range series for panels |
 | GET | `/api/metrics/summary?range=` | Window KPI snapshot |
+| GET | `/api/hints/rules` | Hint catalog (also [admin-hints.md](admin-hints.md)) |
+| POST | `/api/hints/reload` | Reload hint packs |
+| PUT | `/api/hints/rules/{code}/enabled` | Enable/disable a code |
 | POST | `/api/invalidate` | Invalidate (auto fan-out or bus-distribute) |
 | POST | `/api/domains/{domain}/version` | Version overlay write |
-| PATCH | `/api/domains/{domain}/ttl` | TTL overlay write |
+| PATCH | `/api/domains/{domain}/settings` | **Primary** overlay write (Operations “Patch settings”) |
+| PATCH | `/api/domains/{domain}/ttl` | **Obsolete** TTL-only write |
 
 Write responses include `distributionMode`, `distribute`, `distributionSummary`, optional `busOriginInstanceId`, and per-instance `results[]`.
 
@@ -398,7 +426,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
 | Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
 | High FC miss rate, everything “fine” | Prefer **factory share** (also known as origin) / OC hit share — see shares vs rates |
-| Scalar OpenAPI missing | Only mapped in **Development** on Admin Console App (`MapOpenApi` + Scalar; requires net10 runtime for the Admin host) |
+| Scalar OpenAPI missing | OpenAPI + Scalar are mapped in **all** environments on the Admin Console App (`/scalar`; requires net10 runtime for the Admin host) |
 | CORS issues calling Admin API from a browser | Prefer Admin Console App fan-out; Admin API is for server-side callers |
 
 ---
@@ -415,6 +443,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 
 ## Related docs
 
+- [Guide — operations](guide/operations.md)  
 - [admin-hints.md](admin-hints.md) — recommendation hints + customization  
 - [observability.md](observability.md) — metrics / `X-Cache` / health checks  
 - [invalidation.md](invalidation.md) — domain/entity invalidation model  

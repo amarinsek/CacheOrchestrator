@@ -1,5 +1,7 @@
 # CacheOrchestrator.AdminConsole
 
+> **Runbook (local).** Orientation: [Guide — operations](../../docs/guide/operations.md). Architecture/security: [docs/admin.md](../../docs/admin.md). Docker: [deploy/admin/README.md](../../deploy/admin/README.md). Writing rules: [hints/README.md](hints/README.md).
+
 Admin Console App for multi-instance CacheOrchestrator: live stats, domain settings, invalidation, Version/TTL, **time-series Metrics**, and **recommendation Hints**.
 
 <img src="../../docs/assets/admin-overview.png" width="800" />
@@ -15,6 +17,7 @@ Monitored app instances may still run on **.NET 8** or **.NET 10** — Admin tal
 
 | Guide | |
 |-------|--|
+| [Guide — operations](../../docs/guide/operations.md) | Which document to open |
 | This README | Run / configure this host |
 | **[deploy/admin/README.md](../../deploy/admin/README.md)** | **Docker image, volumes, custom hints, logs** |
 | **[hints/README.md](hints/README.md)** | **How to write and add custom hint rules** (ships next to the rule packs) |
@@ -216,6 +219,7 @@ Guide: [Playground topology labs](../../samples/CacheOrchestrator.Sample/labs/RE
 
 ## Further reading
 
+- [Guide — operations](../../docs/guide/operations.md)  
 - **[deploy/admin/README.md](../../deploy/admin/README.md)** — Docker / GHCR  
 - [docs/admin.md](../../docs/admin.md) — fan-out, security, Metrics store  
 - [docs/admin-hints.md](../../docs/admin-hints.md) — hints feature in the monorepo  

@@ -1,5 +1,7 @@
 # Getting started
 
+> **Guide.** Product overview: [root README](../README.md). Next orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md).
+
 This page takes you from an empty project to a working domain endpoint, then points to the rest of the documentation.
 
 If you have not run anything yet:
@@ -125,6 +127,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 
 ## Next
 
+- [Guide](guide/README.md) — concepts, topologies, operations
 - [Playground sample](../samples/CacheOrchestrator.Sample) — TTLs and schedule in a UI
 - [Domain profiles](domain-profiles.md) — published datasets versus changing records
 - [Client Cache Schedule](client-cache-schedule.md) — client `max-age` before a cutover

@@ -57,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- [CONTRIBUTING.md](CONTRIBUTING.md) — worklog process ([template](docs/templates/worklog-template.md)); playground topology labs (Docker Compose stages 01–05)
+- Three-tier docs: product (`README.md`), [guide](docs/guide/README.md) (concepts, topologies, operations), reference (`docs/*.md`); hub rewrite in `docs/README.md`
+- Reference pages revised against current code: missing Admin/Console routes (`PATCH …/settings`, Live, catalog, `cluster/info`), `TrackResultSize`, `OutputCacheVaryByHost`, `SettingsPatchCommand`, entity key/tag shape, Fusion `data=` vs meter `result=fail`, `[CacheEntity]` inheritance, backplane namespace path
+- Accuracy: `configuration.md` / `observability.md` Markdown tables; domain-profiles auth table uses `AuthBypassMode` (fixed heading anchor); `SECURITY.md` default auth mode; architecture `Vary/` + public types; Admin hints Settings path `views-settings.js`; CONTRIBUTING layout lists all four packages
 - `docs/admin.md`, Console README, labs, `docs/observability.md` — Prom-only Console stats, Live, Peak RPS, Local Admin `/stats` obsolete for analytics, `result=fail`, `factory.duration`
 
 ## [2.1.0] - 2026-08-15

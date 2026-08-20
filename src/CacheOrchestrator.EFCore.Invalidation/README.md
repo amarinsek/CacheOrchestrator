@@ -52,7 +52,7 @@ app.MapGet("/api/products/{id}", async (HttpContext http, int id, IDomainFusionC
 
 A tracked `SaveChanges` then purges that product. `ExecuteUpdate` / `ExecuteDelete` skip the change tracker; call `InvalidateEntitiesAsync` yourself in those handlers.
 
-Attribute and `Map<T>` registration, bulk options, and further examples: [ef-core-invalidation.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/ef-core-invalidation.md).
+Attribute and `Map<T>` registration, bulk options, and further examples: [ef-core-invalidation.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/ef-core-invalidation.md). Orientation: [Guide — topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md).
 
 ## License
 
