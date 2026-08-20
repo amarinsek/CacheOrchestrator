@@ -560,8 +560,9 @@ export async function mountDetailMetrics(mountId, opts) {
 }
 
 /**
- * Compact Overview card when metrics are connected (or a one-line note when disconnected).
- * @param {{ soft?: boolean }} [opts]
+ * Compact Overview/Live chart strip (RPS, OC hit share, Invalidations).
+ * @param {{ soft?: boolean, mountEl?: HTMLElement, range?: string }} [opts]
+ *   range: relative token (e.g. 15m) — skips the global Range picker (Live).
  */
 export async function metricsOverviewSectionHtml(opts = {}) {
   try {
@@ -577,11 +578,13 @@ export async function metricsOverviewSectionHtml(opts = {}) {
       </div>`;
     }
 
-    const q = appendMetricsRangeParams(new URLSearchParams({
+    const q = new URLSearchParams({
       panels: "request_rate,oc_hit_share,invalidation_rate",
-    }));
+    });
+    if (opts.range) q.set("range", opts.range);
+    else appendMetricsRangeParams(q);
     const series = await api(`/api/metrics/series?${q.toString()}`);
-    const resolvedRange = series.range || getMetricsQueryArgs().range || "1h";
+    const resolvedRange = series.range || opts.range || getMetricsQueryArgs().range || "1h";
     const windowKey = metricsWindowKey(series);
     const list = series.panels || [];
 
@@ -593,7 +596,7 @@ export async function metricsOverviewSectionHtml(opts = {}) {
     if (opts.soft && opts.mountEl) {
       const mount = opts.mountEl;
       const root = mount.querySelector("[data-ov-metrics-card]");
-      const grid = mount.querySelector("#ovMetricsGrid");
+      const grid = mount.querySelector(".metrics-grid");
       if (root && root.dataset.metricsWindow === windowKey && grid?.querySelector(".chart-card")) {
         const baseOpts = chartOptsForRange(resolvedRange, {
           height: 200,

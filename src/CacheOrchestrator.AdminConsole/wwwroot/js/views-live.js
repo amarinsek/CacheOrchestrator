@@ -42,6 +42,10 @@ import {
 } from "./tables.js";
 import * as shell from "./shell.js";
 import { bindGotoHints, instancesUpClass } from "./views-shared.js";
+import { metricsOverviewSectionHtml } from "./views-metrics.js";
+
+/** Live charts: shortest allowlisted window (Range picker is locked on this page). */
+const LIVE_CHART_RANGE = "15m";
 
 function shareOrDash(v) {
   if (v == null) return noDataHtml("No samples yet");
@@ -256,6 +260,7 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
     bindEmptyStateActions(main());
     bindEntityTableClicks(main());
     bindGotoHints(main());
+    mountLiveCharts(metricsOk);
     return;
   }
 
@@ -299,6 +304,8 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
       <div id="liveEpTable">${epHtml}</div>
     </div>
 
+    <div id="liveMetricsMount">${metricsOk ? `<p class="muted small">Loading charts…</p>` : ""}</div>
+
     <div class="card">
       <div class="card-head">
         <h2>Quiet domains <span class="badge muted">RPS ≈ 0</span></h2>
@@ -312,8 +319,6 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
       </form>` : ""}
       <div id="liveQuietTable">${quietHtml || emptyStateHtml("metrics-config", { detail: snap.error })}</div>
     </div>
-
-    <p class="muted small"><a href="#/metrics">Metrics</a> for history · <a href="#/overview">Overview</a> for the selected time range</p>
     </div>
   `, soft);
 
@@ -321,4 +326,35 @@ export async function renderLive(params = new URLSearchParams(), opts = {}) {
   bindEntityTableClicks(main());
   bindGotoHints(main());
   bindLiveForms();
+  mountLiveCharts(metricsOk);
+}
+
+function mountLiveCharts(metricsOk) {
+  const mount = $("#liveMetricsMount");
+  if (!mount) return;
+  if (!metricsOk) {
+    mount.innerHTML = "";
+    delete mount.dataset.ready;
+    return;
+  }
+  const soft = mount.dataset.ready === "1";
+  metricsOverviewSectionHtml({
+    soft,
+    mountEl: mount,
+    range: LIVE_CHART_RANGE,
+  }).then((html) => {
+    const m = $("#liveMetricsMount");
+    if (!m) return;
+    if (html === null) {
+      m.dataset.ready = "1";
+      return;
+    }
+    if (html) {
+      m.innerHTML = html;
+      m.dataset.ready = "1";
+    } else {
+      m.innerHTML = "";
+      delete m.dataset.ready;
+    }
+  });
 }
