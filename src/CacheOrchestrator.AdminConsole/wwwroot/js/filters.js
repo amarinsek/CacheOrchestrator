@@ -188,10 +188,10 @@ export const EP_SORT_OPTS = [
   ["peakRequestRate", "PRPS"],
   ["ocHitShare", "OC hit %"],
   ["fcHitShare", "FC hit %"],
-  ["staleShare", "FC stale %"],
   ["factoryShare", "FA run %"],
   ["factoryFailures", "FAFC"],
   ["avgFactoryDuration", "FAD"],
+  ["staleShare", "FC stale %"],
   ["estTimeSaved", "EFTS"],
   ["route", "Route"],
 ];
@@ -203,10 +203,10 @@ export const DOMAIN_SORT_OPTS = [
   ["name", "Name"],
   ["ocHitShare", "OC hit %"],
   ["fcHitShare", "FC hit %"],
-  ["staleShare", "FC stale %"],
   ["factoryShare", "FA run %"],
   ["factoryFailures", "FAFC"],
   ["avgFactoryDuration", "FAD"],
+  ["staleShare", "FC stale %"],
   ["estTimeSaved", "EFTS"],
   ["invalidations", "Invalidations"],
 ];

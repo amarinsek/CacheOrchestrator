@@ -9,8 +9,11 @@ public sealed class AdminLayerDto
     /// <summary>Cache misses.</summary>
     public long Misses { get; init; }
 
-    /// <summary>Bypassed requests (not counted in layer hit rate).</summary>
+    /// <summary>Bypassed requests (auth / no-store; not counted in layer hit rate).</summary>
     public long Bypass { get; init; }
+
+    /// <summary>Output Cache disabled for the domain (not a request-level bypass).</summary>
+    public long Off { get; init; }
 
     /// <summary><c>hits + misses</c> — sample size for layer rates.</summary>
     public long LayerSampleSize { get; init; }
@@ -27,8 +30,11 @@ public sealed class AdminLayerDto
     /// <summary>Request share: <c>misses / requests</c>.</summary>
     public double? MissShare { get; init; }
 
-    /// <summary>Request share: <c>bypass / requests</c>.</summary>
+    /// <summary>Request share: <c>bypass / requests</c> (auth / no-store).</summary>
     public double? BypassShare { get; init; }
+
+    /// <summary>Request share: <c>off / requests</c> (layer disabled).</summary>
+    public double? OffShare { get; init; }
 
     /// <summary>
     /// True when the <strong>layer</strong> sample (hits+misses) is positive but below
@@ -128,23 +134,29 @@ public sealed class AdminFusionLayerDto
 
 /// <summary>
 /// Approximate pipeline breakdown of requests (shares of the same denominator).
-/// OC hit and FC paths are mutually exclusive for a given request when OC serves first.
+/// Exclusive serving mix: OC hit + FC fresh hit + factory invocations (FA run).
+/// FC stale is an overlay (subset of factory runs), not a fourth exclusive segment.
+/// Bypass is a layer skip reason (auth / no-store), not a mix bucket.
 /// </summary>
 public sealed class AdminPipelineDto
 {
     /// <summary>Served entirely from Output Cache.</summary>
     public double? OcHitShare { get; init; }
 
-    /// <summary>Served from Fusion without factory.</summary>
+    /// <summary>Served from Fusion without factory (fresh hit).</summary>
     public double? FcHitShare { get; init; }
 
-    /// <summary>Fail-safe stale serve share of requests (<c>stale / requests</c>).</summary>
+    /// <summary>
+    /// Fail-safe stale serve share of requests (<c>stale / requests</c>).
+    /// Overlay only — stale is also counted in <see cref="FactoryShare"/>.
+    /// </summary>
     public double? StaleShare { get; init; }
 
     private double? _factoryShare;
 
     /// <summary>
-    /// Factory run share of requests (factoryRuns / requests). Also known as origin share.
+    /// Factory callback share of requests (factoryRuns / requests), including Fusion disabled.
+    /// Also known as origin share. Exclusive mix sibling of OC hit and FC hit.
     /// </summary>
     public double? FactoryShare
     {
@@ -163,10 +175,14 @@ public sealed class AdminPipelineDto
         init => _factoryShare = value;
     }
 
-    /// <summary>OC or FC bypass share (combined).</summary>
+    /// <summary>
+    /// Auth / no-store bypass share (layer skip overlay; not part of the exclusive mix).
+    /// </summary>
     public double? BypassShare { get; init; }
 
-    /// <summary>Remainder after OC hit, FC hit, stale, factory, and bypass.</summary>
+    /// <summary>
+    /// Residual after OC hit + FC hit + factory runs (should be ~0 when factory is counted on off/bypass).
+    /// </summary>
     public double? OtherShare { get; init; }
 }
 

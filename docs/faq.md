@@ -50,7 +50,7 @@ On the unresolved path the library:
 
 - Logs a **Warning** (`FusionCache skipped: no domain resolved…`)
 - Records metric `result=unresolved` with `domain=_`
-- Sets disposition `data=unresolved` when headers are still written
+- Sets disposition `fc=unresolved` (`fa=run`) when headers are still written
 
 **Fix:** put domain on the endpoint, or use the domain overload / `EnsureDomainOptions`.  
 Details: [fusion-cache.md](fusion-cache.md).

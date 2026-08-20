@@ -134,13 +134,14 @@ public class FusionHttpAndDiTests
             r1.IsSuccessStatusCode.Should().BeTrue();
             b1.Should().Be("happy-payload");
             x1.Should().Contain($"domain={domain}");
-            x1.Should().Contain("output=miss");
-            x1.Should().Contain("data=miss");
+            x1.Should().Contain("oc=miss");
+            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("happy-payload");
-            x2.Should().Contain("output=hit");
+            x2.Should().Contain("oc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1,
                 "second request must be served from Output Cache without re-running Fusion factory");
         }
@@ -178,13 +179,15 @@ public class FusionHttpAndDiTests
         {
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("from-meta");
-            x1.Should().Contain("output=bypass");
-            x1.Should().Contain("data=miss");
+            x1.Should().Contain("oc=off");
+            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("from-meta");
-            x2.Should().Contain("data=hit");
+            x2.Should().Contain("fc=hit");
+            x2.Should().NotContain("fa=");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
         }
         finally
@@ -343,13 +346,14 @@ public class FusionHttpAndDiTests
         {
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("gen-1");
-            x1.Should().Contain("data=miss");
+            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("fa=run");
             x1.Should().Contain("version=v1");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("gen-1");
-            x2.Should().Contain("data=hit");
+            x2.Should().Contain("fc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             reloadSource.Provider.Should().NotBeNull();
@@ -358,13 +362,14 @@ public class FusionHttpAndDiTests
 
             (HttpResponseMessage r3, string x3, string b3) = await GetAsync(client, "/x");
             b3.Should().Be("gen-2");
-            x3.Should().Contain("data=miss", "Version bump must change Fusion key space");
+            x3.Should().Contain("fc=miss", "Version bump must change Fusion key space");
+            x3.Should().Contain("fa=run");
             x3.Should().Contain("version=v2");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
 
             (HttpResponseMessage r4, string x4, string b4) = await GetAsync(client, "/x");
             b4.Should().Be("gen-2");
-            x4.Should().Contain("data=hit");
+            x4.Should().Contain("fc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
         }
         finally
@@ -397,7 +402,7 @@ public class FusionHttpAndDiTests
     }
 
     // =========================================================================
-    // B18 — Fail-safe stale over HTTP + X-Cache data=stale
+    // B18 — Fail-safe stale over HTTP + X-Cache fc=stale
     // =========================================================================
 
     [Fact]
@@ -438,14 +443,16 @@ public class FusionHttpAndDiTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             r1.IsSuccessStatusCode.Should().BeTrue();
             b1.Should().Be("good");
-            x1.Should().Contain("data=miss");
+            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("fa=run");
 
             await Task.Delay(TimeSpan.FromMilliseconds(1200), TestContext.Current.CancellationToken);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             r2.IsSuccessStatusCode.Should().BeTrue();
             b2.Should().Be("good", "fail-safe must return last good value");
-            x2.Should().Contain("data=stale");
+            x2.Should().Contain("fc=stale");
+            x2.Should().Contain("fa=run");
             Volatile.Read(ref phase[0]).Should().Be(2, "factory must re-run after soft expiry");
         }
         finally
@@ -554,12 +561,14 @@ public class FusionHttpAndDiTests
         {
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("n1");
-            x1.Should().Contain("data=off");
+            x1.Should().Contain("fc=off");
+            x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("n2");
-            x2.Should().Contain("data=off");
+            x2.Should().Contain("fc=off");
+            x2.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
         }
         finally

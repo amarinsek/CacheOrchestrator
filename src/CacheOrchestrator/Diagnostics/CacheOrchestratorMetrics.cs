@@ -166,20 +166,24 @@ public static class CacheOrchestratorMetrics
             // Legacy: all timed GetOrSet outcomes (dashboards may still use this).
             FcDurationMs.Record(ms, tags);
 
-            // Canonical factory cost: factory ran (miss, fail-safe stale, or hard fail).
-            if (result is "miss" or "stale" or "fail")
+            // Canonical factory cost: factory callback ran (including Fusion disabled / unresolved / bypass).
+            if (IsFactoryInvocation(result))
                 FactoryDurationMs.Record(ms, tags);
         }
 
-        if (resultSizeBytes is long size && size >= 0 && result is "miss")
+        if (resultSizeBytes is long size && size >= 0 && result is "miss" or "off" or "unresolved" or "bypass")
             FactoryResultSizeBytes.Record(size, tags);
     }
+
+    /// <summary>True when the Fusion factory callback ran (including Fusion disabled).</summary>
+    internal static bool IsFactoryInvocation(string result) =>
+        result is "miss" or "stale" or "fail" or "off" or "unresolved" or "bypass";
 
     /// <summary>
     /// Records an Output Cache outcome.
     /// </summary>
     /// <param name="domain">Domain name.</param>
-    /// <param name="result">Result code: hit, miss, bypass.</param>
+    /// <param name="result">Result code: hit, miss, bypass, off.</param>
     /// <param name="route">Optional stable endpoint key when IncludeEndpointLabel is enabled.</param>
     internal static void RecordOutput(string domain, string result, string? route = null) =>
         OcRequests.Add(1, BuildDomainResultTags(domain, result, route));

@@ -8,6 +8,7 @@ internal sealed class AdminCounterSet
     public long OcHits;
     public long OcMisses;
     public long OcBypass;
+    public long OcOff;
 
     public long FcHits;
     public long FcMisses;
@@ -47,6 +48,7 @@ internal sealed class AdminCounterSet
             OcHits: Interlocked.Read(ref OcHits),
             OcMisses: Interlocked.Read(ref OcMisses),
             OcBypass: Interlocked.Read(ref OcBypass),
+            OcOff: Interlocked.Read(ref OcOff),
             FcHits: Interlocked.Read(ref FcHits),
             FcMisses: Interlocked.Read(ref FcMisses),
             FcStale: Interlocked.Read(ref FcStale),
@@ -67,6 +69,7 @@ internal readonly record struct AdminCounterSnapshot(
     long OcHits,
     long OcMisses,
     long OcBypass,
+    long OcOff,
     long FcHits,
     long FcMisses,
     long FcStale,

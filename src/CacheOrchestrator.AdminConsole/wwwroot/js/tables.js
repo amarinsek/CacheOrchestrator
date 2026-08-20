@@ -2,8 +2,8 @@
  * Shared entity list tables and empty / connectivity chrome.
  *
  * Column contracts (list surfaces — keep stable across pages):
- * - Endpoints: Route | Domain | Req | PRPS | Pipeline | … | FAFC | FAD | EFTS | …
- * - Domains:   Domain | Req | PRPS | Inv | Pipeline | … | FAFC | FAD | EFTS | … | Ops
+ * - Endpoints: Route | Domain | Req | PRPS | Pipeline | OC hit | FC hit | FA run | FAFC | FAD | FC stale | EFTS | …
+ * - Domains:   Domain | Req | PRPS | Inv | Pipeline | OC hit | FC hit | FA run | FAFC | FAD | FC stale | EFTS | … | Ops
  * - Instances: Id | Status | URL | Req | Uptime | Latency | Error | Hints
  * Layer rates (e.g. FC miss rate) stay on detail views only.
  */
@@ -47,10 +47,10 @@ export function endpointRowHtml(e) {
     <td class="col-pipe">${pipelineBar(e.pipeline, false, { title: false, segmentTips: false })}</td>
     <td class="col-metric">${pct(e.oc?.hitShare, e.oc?.lowRequestSample, "request")}</td>
     <td class="col-metric">${pct(e.fc?.hitShare, e.fc?.lowRequestSample, "request")}</td>
-    ${staleShareHtml(e.fc)}
     <td class="col-metric">${pct(factoryShareOf(e.fc), e.fc?.lowRequestSample, "request")}</td>
     ${fafcHtml(e.fc)}
     <td class="col-metric">${fadCell(e.impact)}</td>
+    ${staleShareHtml(e.fc)}
     <td class="col-metric">${fmtDurationMs(e.impact?.estFactoryTimeSavedMs)}</td>
     <td class="col-metric">${impactBandLabel(e.impact?.benefit, { html: true })}</td>
     <td class="col-metric">${impactBandLabel(e.impact?.candidate, { html: true })}</td>
@@ -73,10 +73,10 @@ export function endpointTableHtml(list, emptyCtx = {}) {
           ${thMetric("Pipeline", "pipeline", { fromKey: true })}
           ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
           ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
-          ${thMetric("FC stale %", "staleShare", { fromKey: true })}
           ${thMetric("FA run %", "factoryShare", { fromKey: true })}
           ${thMetric("FAFC", "factoryFailures", { fromKey: true, className: "col-num" })}
           ${thMetric("FAD", "avgFactoryDuration", { fromKey: true })}
+          ${thMetric("FC stale %", "staleShare", { fromKey: true })}
           ${thMetric("EFTS", "estTimeSaved", { fromKey: true })}
           ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
           ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
@@ -101,10 +101,10 @@ export function domainRowHtml(d) {
     <td class="col-pipe">${pipelineBar(d.pipeline, false, { title: false, segmentTips: false })}</td>
     <td class="col-metric">${pct(d.oc?.hitShare, d.oc?.lowRequestSample, "request")}</td>
     <td class="col-metric">${pct(d.fc?.hitShare, d.fc?.lowRequestSample, "request")}</td>
-    ${staleShareHtml(d.fc)}
     <td class="col-metric">${pct(factoryShareOf(d.fc), d.fc?.lowRequestSample, "request")}</td>
     ${fafcHtml(d.fc)}
     <td class="col-metric">${fadCell(d.impact)}</td>
+    ${staleShareHtml(d.fc)}
     <td class="col-metric">${fmtDurationMs(d.impact?.estFactoryTimeSavedMs)}</td>
     <td class="col-metric">${impactBandLabel(d.impact?.benefit, { html: true })}</td>
     <td class="col-metric">${impactBandLabel(d.impact?.candidate, { html: true })}</td>
@@ -128,10 +128,10 @@ export function domainTableHtml(list, emptyCtx = {}) {
           ${thMetric("Pipeline", "pipeline", { fromKey: true })}
           ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
           ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
-          ${thMetric("FC stale %", "staleShare", { fromKey: true })}
           ${thMetric("FA run %", "factoryShare", { fromKey: true })}
           ${thMetric("FAFC", "factoryFailures", { fromKey: true, className: "col-num" })}
           ${thMetric("FAD", "avgFactoryDuration", { fromKey: true })}
+          ${thMetric("FC stale %", "staleShare", { fromKey: true })}
           ${thMetric("EFTS", "estTimeSaved", { fromKey: true })}
           ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
           ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
@@ -353,10 +353,12 @@ export function layerDetailOc(oc) {
         <span title="${esc(METRIC_TITLES.ocHits)}">Hits</span><span>${num(oc.hits)}</span>
         <span title="${esc(METRIC_TITLES.ocMisses)}">Misses</span><span>${num(oc.misses)}</span>
         <span title="${esc(METRIC_TITLES.ocBypass)}">Bypass</span><span>${num(oc.bypass)}</span>
+        <span title="${esc(METRIC_TITLES.ocOff)}">Off</span><span>${num(oc.off)}</span>
         <span title="${esc(METRIC_TITLES.ocLayerN)}">Layer n</span><span>${num(oc.layerSampleSize)}</span>
         <span title="${esc(METRIC_TITLES.ocHitShare)}">OC hit %</span><span>${pct(oc.hitShare, oc.lowRequestSample, "request")}</span>
         <span title="${esc(METRIC_TITLES.ocMissShare)}">OC miss %</span><span>${pct(oc.missShare, oc.lowRequestSample, "request")}</span>
         <span title="${esc(METRIC_TITLES.ocBypassShare)}">OC bypass %</span><span>${pct(oc.bypassShare, oc.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.ocOffShare)}">OC off %</span><span>${pct(oc.offShare, oc.lowRequestSample, "request")}</span>
         <span title="${esc(METRIC_TITLES.ocHitRate)}">OC hit rate</span><span>${pct(oc.hitRate, oc.lowSample, "layer")}</span>
         <span title="${esc(METRIC_TITLES.ocMissRate)}">OC miss rate</span><span>${pct(oc.missRate, oc.lowSample, "layer")}</span>
       </div>
@@ -378,8 +380,8 @@ export function layerDetailFc(fc) {
         <span title="${esc(METRIC_TITLES.fcLayerN)}">Layer n</span><span>${num(fc.layerSampleSize)}</span>
         <span title="${esc(METRIC_TITLES.fcHitShare)}">FC hit %</span><span>${pct(fc.hitShare, fc.lowRequestSample, "request")}</span>
         <span title="${esc(METRIC_TITLES.fcMissShare)}">FC miss %</span><span>${pct(fc.missShare, fc.lowRequestSample, "request")}</span>
-        <span title="${esc(METRIC_TITLES.staleShare)}">FC stale %</span><span>${pct(fc.staleShare, fc.lowRequestSample, "request")}</span>
         <span title="${esc(METRIC_TITLES.factoryShare)}">FA run %</span><span>${pct(factoryShareOf(fc), fc.lowRequestSample, "request")}</span>
+        <span title="${esc(METRIC_TITLES.staleShare)}">FC stale %</span><span>${pct(fc.staleShare, fc.lowRequestSample, "request")}</span>
         <span title="${esc(METRIC_TITLES.fcHitRate)}">FC hit rate</span><span>${pct(fc.hitRate, fc.lowSample, "layer")}</span>
         <span title="${esc(METRIC_TITLES.fcMissRate)}">FC miss rate</span><span>${pct(fc.missRate, fc.lowSample, "layer")}</span>
         <span title="${esc(METRIC_TITLES.staleRate)}">Stale rate</span><span>${pct(fc.staleRate, fc.lowSample, "layer")}</span>

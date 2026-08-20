@@ -218,7 +218,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
 
         if (!opts.OutputCacheEnabled)
         {
-            RegisterResponseHeaders(http, opts, OutputCacheResult.Bypass);
+            RegisterResponseHeaders(http, opts, OutputCacheResult.Off);
             return ValueTask.CompletedTask;
         }
 
@@ -465,6 +465,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         {
             OutputCacheResult.Hit => "hit",
             OutputCacheResult.Bypass => "bypass",
+            OutputCacheResult.Off => "off",
             OutputCacheResult.Miss => "miss",
             _ => "miss"
         };

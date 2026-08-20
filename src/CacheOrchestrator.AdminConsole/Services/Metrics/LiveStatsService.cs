@@ -87,7 +87,7 @@ public sealed class LiveStatsService
             Task<IReadOnlyList<PrometheusInstantSample>> clusterFcHit =
                 Q($"sum(rate({fc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> clusterFac =
-                Q($"sum(rate({fc}{{result=\"miss\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum(rate({fc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> clusterFail =
                 Q($"sum(rate({fc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> clusterInv =
@@ -100,7 +100,7 @@ public sealed class LiveStatsService
             Task<IReadOnlyList<PrometheusInstantSample>> domFcHit =
                 Q($"sum by (domain) (rate({fc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> domFac =
-                Q($"sum by (domain) (rate({fc}{{result=\"miss\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (domain) (rate({fc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> domFail =
                 Q($"sum by (domain) (rate({fc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
 
@@ -111,7 +111,7 @@ public sealed class LiveStatsService
             Task<IReadOnlyList<PrometheusInstantSample>> epFcHit =
                 Q($"sum by (route,domain) (rate({fc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> epFac =
-                Q($"sum by (route,domain) (rate({fc}{{result=\"miss\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (route,domain) (rate({fc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> epFail =
                 Q($"sum by (route,domain) (rate({fc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
 

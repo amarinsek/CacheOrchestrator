@@ -157,26 +157,43 @@ function phaseTag(phase) {
     return `<span class="tag ${cls}">${phase}</span>`;
 }
 
+function xcacheToken(xcache, name) {
+    const m = xcache.match(new RegExp('(?:^|[;\\s])' + name + '=([^;\\s]+)', 'i'));
+    return m ? m[1].trim().toLowerCase() : '';
+}
+
 function cacheTag(xcache) {
     if (!xcache) return '';
 
-    const isOcHit = /output=hit/i.test(xcache);
-    const isFcHit = /data=hit/i.test(xcache);
-    const isFcStale = /data=stale/i.test(xcache);
+    const oc = xcacheToken(xcache, 'oc') || xcacheToken(xcache, 'output');
+    const fc = xcacheToken(xcache, 'fc') || xcacheToken(xcache, 'data');
+    const faRun = xcacheToken(xcache, 'fa') === 'run'
+        || (!!fc && fc !== 'hit');
 
-    if (isOcHit) return `<span class="tag hit">OC-HIT</span>`;
-    if (isFcHit) {
-        return `<span class="tag miss">OC-MISS</span>`
-            + `<span class="tag hit" style="margin-left:4px">FC-HIT</span>`;
+    if (oc === 'hit') return `<span class="tag hit">OC-HIT</span>`;
+
+    const ocLabel = oc === 'off' ? 'OC-OFF' : oc === 'bypass' ? 'OC-BYPASS' : 'OC-MISS';
+    const ocCls = oc === 'off' || oc === 'bypass' ? 'phase-apr' : 'miss';
+    let html = `<span class="tag ${ocCls}">${ocLabel}</span>`;
+
+    if (fc === 'hit') {
+        html += `<span class="tag hit" style="margin-left:4px">FC-HIT</span>`;
+    } else if (fc === 'stale') {
+        html += `<span class="tag phase-hold" style="margin-left:4px">FC-STALE</span>`;
+    } else if (fc === 'off') {
+        html += `<span class="tag phase-apr" style="margin-left:4px">FC-OFF</span>`;
+    } else if (fc === 'bypass') {
+        html += `<span class="tag phase-apr" style="margin-left:4px">FC-BYPASS</span>`;
+    } else if (fc === 'unresolved') {
+        html += `<span class="tag miss" style="margin-left:4px">FC-UNRESOLVED</span>`;
+    } else if (fc) {
+        html += `<span class="tag miss" style="margin-left:4px">FC-MISS</span>`;
     }
-    if (isFcStale) {
-        return `<span class="tag miss">OC-MISS</span>`
-            + `<span class="tag phase-hold" style="margin-left:4px">FC-STALE</span>`;
+
+    if (faRun) {
+        html += `<span class="tag factory" style="margin-left:4px" title="Fusion factory callback ran">FACTORY</span>`;
     }
-    // Both layers missed — factory path (not a “hit”; avoid FACTORY-HIT wording).
-    return `<span class="tag miss">OC-MISS</span>`
-        + `<span class="tag miss" style="margin-left:4px">FC-MISS</span>`
-        + `<span class="tag factory" style="margin-left:4px" title="Fusion factory ran (GetOrSet miss path)">FACTORY</span>`;
+    return html;
 }
 
 function escHtml(s) {

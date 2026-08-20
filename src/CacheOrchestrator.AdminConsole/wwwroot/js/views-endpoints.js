@@ -14,6 +14,7 @@ import {
   METRIC_TITLES,
   num,
   pct,
+  pipelineBar,
   pipelinePanelHtml,
   staleShareHtml,
   thMetric,
@@ -256,16 +257,17 @@ export function endpointDetailHeadHtml(ep) {
     ${ep.byInstance?.length ? `
     <div class="card">
       <h2>By instance</h2>
-      <table class="dense">
+      <table class="dense entity-table">
         <thead><tr>
           ${thMetric("Instance", "instance", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
+          ${thMetric("Pipeline", "pipeline", { fromKey: true })}
           ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
           ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
-          ${thMetric("FC stale %", "staleShare", { fromKey: true })}
           ${thMetric("FA run %", "factoryShare", { fromKey: true })}
           ${thMetric("FAFC", "factoryFailures", { fromKey: true, className: "col-num" })}
           ${thMetric("FAD", "avgFactoryDuration", { fromKey: true })}
+          ${thMetric("FC stale %", "staleShare", { fromKey: true })}
           ${thMetric("EFTS", "estTimeSaved", { fromKey: true })}
           ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
           ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
@@ -275,12 +277,13 @@ export function endpointDetailHeadHtml(ep) {
             <tr class="clickable" data-id="${esc(bi.instanceId)}">
               <td><code>${esc(bi.instanceId)}</code></td>
               <td>${num(bi.requests)}</td>
+              <td class="col-pipe">${pipelineBar(bi.pipeline, false, { title: false, segmentTips: false })}</td>
               <td>${pct(bi.oc?.hitShare, bi.oc?.lowRequestSample, "request")}</td>
               <td>${pct(bi.fc?.hitShare, bi.fc?.lowRequestSample, "request")}</td>
-              ${staleShareHtml(bi.fc)}
               <td>${pct(factoryShareOf(bi.fc), bi.fc?.lowRequestSample, "request")}</td>
               ${fafcHtml(bi.fc)}
               <td>${fadCell(bi.impact)}</td>
+              ${staleShareHtml(bi.fc)}
               <td>${fmtDurationMs(bi.impact?.estFactoryTimeSavedMs)}</td>
               <td>${impactBandLabel(bi.impact?.benefit, { html: true })}</td>
               <td>${impactBandLabel(bi.impact?.candidate, { html: true })}</td>

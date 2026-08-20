@@ -286,6 +286,7 @@ internal sealed class AdminQueryService
         long ocH = counters?.OcHits ?? 0;
         long ocM = counters?.OcMisses ?? 0;
         long ocB = counters?.OcBypass ?? 0;
+        long ocOff = counters?.OcOff ?? 0;
         long fcH = counters?.FcHits ?? 0;
         long fcM = counters?.FcMisses ?? 0;
         long fcS = counters?.FcStale ?? 0;
@@ -297,12 +298,12 @@ internal sealed class AdminQueryService
         long? sizeSum = counters?.FactoryResultSizeSumBytes;
         long sizeCount = counters?.FactoryResultSizeCount ?? 0;
 
-        long domainRequests = AdminStatsMath.Requests(ocH, ocM, ocB, fcH, fcM, fcS, fcB);
+        long domainRequests = AdminStatsMath.Requests(ocH, ocM, ocB, fcH, fcM, fcS, fcB, ocOff, runs);
 
         // If domain counters empty but endpoints have traffic, rebuild from endpoint sums.
         if (domainRequests == 0 && epList.Count > 0)
         {
-            ocH = ocM = ocB = fcH = fcM = fcS = fcB = runs = fails = 0;
+            ocH = ocM = ocB = ocOff = fcH = fcM = fcS = fcB = runs = fails = 0;
             durationSum = null;
             durationCount = 0;
             sizeSum = null;
@@ -316,6 +317,7 @@ internal sealed class AdminQueryService
                 ocH += e.OcHits;
                 ocM += e.OcMisses;
                 ocB += e.OcBypass;
+                ocOff += e.OcOff;
                 fcH += e.FcHits;
                 fcM += e.FcMisses;
                 fcS += e.FcStale;
@@ -360,6 +362,7 @@ internal sealed class AdminQueryService
             OcHits = ocH,
             OcMisses = ocM,
             OcBypass = ocB,
+            OcOff = ocOff,
             FcHits = fcH,
             FcMisses = fcM,
             FcStale = fcS,
@@ -396,6 +399,7 @@ internal sealed class AdminQueryService
             OcHits = ep.OcHits,
             OcMisses = ep.OcMisses,
             OcBypass = ep.OcBypass,
+            OcOff = ep.OcOff,
             FcHits = ep.FcHits,
             FcMisses = ep.FcMisses,
             FcStale = ep.FcStale,
@@ -419,10 +423,12 @@ internal sealed class AdminQueryService
     private static long RequestDenominator(AdminDomainCountersDto d) =>
         AdminStatsMath.Requests(
             d.OcHits, d.OcMisses, d.OcBypass,
-            d.FcHits, d.FcMisses, d.FcStale, d.FcBypass);
+            d.FcHits, d.FcMisses, d.FcStale, d.FcBypass,
+            d.OcOff, d.FactoryRuns);
 
     private static long RequestDenominator(AdminEndpointCountersDto e) =>
         AdminStatsMath.Requests(
             e.OcHits, e.OcMisses, e.OcBypass,
-            e.FcHits, e.FcMisses, e.FcStale, e.FcBypass);
+            e.FcHits, e.FcMisses, e.FcStale, e.FcBypass,
+            e.OcOff, e.FactoryRuns);
 }

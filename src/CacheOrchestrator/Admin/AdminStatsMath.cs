@@ -16,7 +16,7 @@ public static class AdminStatsMath
 
     /// <summary>
     /// Request denominator: prefer Output Cache outcomes (one per OC-managed request);
-    /// fall back to Fusion outcomes for Fusion-only traffic.
+    /// fall back to Fusion outcomes for Fusion-only traffic, then factory runs (Fusion off).
     /// </summary>
     public static long Requests(
         long ocHits,
@@ -25,13 +25,19 @@ public static class AdminStatsMath
         long fcHits,
         long fcMisses,
         long fcStale,
-        long fcBypass)
+        long fcBypass,
+        long ocOff = 0,
+        long factoryRuns = 0)
     {
-        long oc = ocHits + ocMisses + ocBypass;
+        long oc = ocHits + ocMisses + ocBypass + ocOff;
         if (oc > 0)
             return oc;
 
-        return fcHits + fcMisses + fcStale + fcBypass;
+        long fc = fcHits + fcMisses + fcStale + fcBypass;
+        if (fc > 0)
+            return fc;
+
+        return factoryRuns;
     }
 
     /// <summary>Layer hit rate: hits / (hits + misses); null when no layer traffic.</summary>
@@ -56,7 +62,8 @@ public static class AdminStatsMath
         long hits,
         long misses,
         long bypass,
-        long requests)
+        long requests,
+        long off = 0)
     {
         long layerSample = hits + misses;
         return new AdminLayerDto
@@ -64,12 +71,14 @@ public static class AdminStatsMath
             Hits = hits,
             Misses = misses,
             Bypass = bypass,
+            Off = off,
             LayerSampleSize = layerSample,
             HitRate = LayerHitRate(hits, misses),
             MissRate = LayerMissRate(hits, misses),
             HitShare = Share(hits, requests),
             MissShare = Share(misses, requests),
             BypassShare = Share(bypass, requests),
+            OffShare = Share(off, requests),
             // Rates need enough layer events; shares need enough total requests.
             LowSample = layerSample is > 0 and < LowSampleThreshold,
             LowRequestSample = requests is > 0 and < LowSampleThreshold
@@ -125,20 +134,20 @@ public static class AdminStatsMath
         long fcStale,
         long fcBypass,
         long factoryRuns,
-        long factoryFailures)
+        long factoryFailures,
+        long ocOff = 0)
     {
-        long requests = Requests(ocHits, ocMisses, ocBypass, fcHits, fcMisses, fcStale, fcBypass);
-        AdminLayerDto oc = BuildOc(ocHits, ocMisses, ocBypass, requests);
+        long requests = Requests(
+            ocHits, ocMisses, ocBypass, fcHits, fcMisses, fcStale, fcBypass, ocOff, factoryRuns);
+        AdminLayerDto oc = BuildOc(ocHits, ocMisses, ocBypass, requests, ocOff);
         AdminFusionLayerDto fc = BuildFc(
             fcHits, fcMisses, fcStale, fcBypass, factoryRuns, factoryFailures, requests);
 
-        // Pipeline bypass is one column per request. Auth bypass records OC and FC on the same
-        // request; the request denominator already prefers OC, so do not sum both layers.
-        long ocTraffic = ocHits + ocMisses + ocBypass;
+        // Auth / no-store bypass is a layer skip reason, not an exclusive serving-mix bucket.
+        // Exclusive mix: OC hit + FC fresh hit + factory invocations (FA run includes stale).
+        long ocTraffic = ocHits + ocMisses + ocBypass + ocOff;
         long pipelineBypass = ocTraffic > 0 ? ocBypass : fcBypass;
 
-        // Pipeline: OC hit | FC hit | FC stale | factory run | bypass | other
-        // OC miss typically continues to FC — do not put OC miss in the bar separately.
         AdminPipelineDto pipeline = new()
         {
             OcHitShare = oc.HitShare,
@@ -148,9 +157,7 @@ public static class AdminStatsMath
             BypassShare = Share(pipelineBypass, requests),
             OtherShare = requests <= 0
                 ? null
-                : Share(
-                    Math.Max(0, requests - ocHits - fcHits - fcStale - factoryRuns - pipelineBypass),
-                    requests)
+                : Share(Math.Max(0, requests - ocHits - fcHits - factoryRuns), requests)
         };
 
         return (requests, oc, fc, pipeline);

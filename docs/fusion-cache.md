@@ -58,7 +58,7 @@ If you omit the domain:
 
 - a Warning is logged (`FusionCache skipped: no domain resolved…`)
 - metric `cache_orchestrator.fc.requests` is recorded with `domain=_`, `result=unresolved`
-- `X-Cache` may show `data=unresolved` when Output Cache still writes headers
+- `X-Cache` may show `fc=unresolved; fa=run` when Output Cache still writes headers
 
 ### Entity identity
 
@@ -153,7 +153,7 @@ Keys must be deterministic, must not contain secrets (they land in Redis and in 
 
 Stampede protection and fail-safe stale serve come from FusionCache itself.
 
-## Results (`X-Cache` `data=` and `DataCacheResult`)
+## Results (`X-Cache` `fc=` and `DataCacheResult`)
 
 | Result | Meaning |
 |--------|---------|
@@ -161,10 +161,14 @@ Stampede protection and fail-safe stale serve come from FusionCache itself.
 | `Miss` | Factory ran; value stored |
 | `Stale` | Factory failed; fail-safe may serve stale |
 | `Bypass` | Skipped (for example `no-store`, or auth bypass when `FusionRespectAuthBypass`) |
-| `Off` | Fusion disabled for the domain |
-| `Unresolved` | No domain resolved; factory ran uncached |
+| `Off` | Fusion disabled for the domain. The factory still runs and counts as a factory invocation (FA run). |
+| `Unresolved` | No domain resolved; factory ran uncached (also a factory invocation). |
 
-There is **no** `DataCacheResult.Fail` and **no** `data=fail` on `X-Cache`. A hard factory throw with no fail-safe value is recorded on the meter as `cache_orchestrator.fc.requests` `result=fail` (and `factory.duration`), then the exception propagates.
+There is **no** `DataCacheResult.Fail` and **no** `fc=fail` on `X-Cache`. A hard factory throw with no fail-safe value is recorded on the meter as `cache_orchestrator.fc.requests` `result=fail` (and `factory.duration`), then the exception propagates.
+
+When `fc` is present and is not `hit`, `X-Cache` also includes `fa=run`. That is the same factory-invocation set as Admin FA run (`miss` / `stale` / `bypass` / `off` / `unresolved`). OC `hit` omits `fc` and `fa`.
+
+Admin Console exclusive pipeline mix is **OC hit + FC hit (fresh) + FA run**. FA run is factory-callback share of requests (including `off` / `unresolved` / bypass-with-factory / miss / stale). **FC stale %** is an overlay on requests, not a fourth mix segment. Layer `bypass` remains auth / no-store skip, not “caching disabled”.
 
 ## Related
 

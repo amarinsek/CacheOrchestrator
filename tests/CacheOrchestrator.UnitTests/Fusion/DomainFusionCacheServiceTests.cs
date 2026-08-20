@@ -1,3 +1,4 @@
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.OutputCache;
@@ -49,7 +50,7 @@ public class DomainFusionCacheServiceTests
         factoryCalled.Should().BeTrue();
         _domainConfig.DidNotReceive().EnsureDomainOptions(Arg.Any<HttpContext>(), Arg.Any<string>());
 
-        // Disposition records unresolved so X-Cache can show data=unresolved
+        // Disposition records unresolved so X-Cache can show fc=unresolved
         http.Items[CacheOrchestratorKeys.DispositionKey].Should().BeOfType<CacheDisposition>()
             .Which.Data.Should().Be(DataCacheResult.Unresolved);
     }
@@ -161,6 +162,30 @@ public class DomainFusionCacheServiceTests
         factoryCalled.Should().BeTrue();
         http.Items[CacheOrchestratorKeys.DispositionKey].Should().BeOfType<CacheDisposition>()
             .Which.Data.Should().Be(DataCacheResult.Off);
+    }
+
+    [Fact]
+    public async Task GetOrSetAsync_WhenFusionCacheDisabled_RecordsFactoryRunOnAdmin()
+    {
+        var admin = Substitute.For<IAdminStatsCollector>();
+        admin.IsEnabled.Returns(true);
+        var sut = new DomainFusionCacheService(
+            _fusionProvider,
+            _domainConfig,
+            _keyGenerator,
+            NullLogger<DomainFusionCacheService>.Instance,
+            admin);
+        var http = new DefaultHttpContext();
+        _domainConfig.GetDomainOptions(http).Returns(CreateConfig(enabled: false));
+
+        await sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
+
+        admin.Received().RecordFusion(
+            Arg.Any<string?>(),
+            "products",
+            "off",
+            Arg.Any<long?>(),
+            Arg.Any<long?>());
     }
 
     [Fact]

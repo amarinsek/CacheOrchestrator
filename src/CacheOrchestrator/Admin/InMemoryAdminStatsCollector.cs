@@ -157,6 +157,9 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
             case "bypass":
                 Interlocked.Increment(ref set.OcBypass);
                 break;
+            case "off":
+                Interlocked.Increment(ref set.OcOff);
+                break;
             default:
                 break;
         }
@@ -189,9 +192,13 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
                 break;
             case "bypass":
                 Interlocked.Increment(ref set.FcBypass);
+                Interlocked.Increment(ref set.FcFactoryRuns);
+                break;
+            case "off":
+            case "unresolved":
+                Interlocked.Increment(ref set.FcFactoryRuns);
                 break;
             default:
-                // off / unresolved etc. — not counted as FC hit/miss traffic
                 break;
         }
 
@@ -208,16 +215,16 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
         if (TrackResultSize
             && resultSizeBytes is long size
             && size >= 0
-            && result is "miss")
+            && result is "miss" or "off" or "unresolved" or "bypass")
         {
             Interlocked.Add(ref set.FactoryResultSizeSumBytes, size);
             Interlocked.Increment(ref set.FactoryResultSizeCount);
         }
     }
 
-    /// <summary>Results where the value factory ran (success, fail-safe stale, or hard fail).</summary>
+    /// <summary>Results where the value factory ran (including Fusion disabled / unresolved / bypass).</summary>
     internal static bool IsFactoryPathResult(string result) =>
-        result is "miss" or "stale" or "fail";
+        result is "miss" or "stale" or "fail" or "off" or "unresolved" or "bypass";
 
     private static AdminDomainCountersDto ToDomainCounters(
         string name,
@@ -238,6 +245,7 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
             OcHits = c.OcHits,
             OcMisses = c.OcMisses,
             OcBypass = c.OcBypass,
+            OcOff = c.OcOff,
             FcHits = c.FcHits,
             FcMisses = c.FcMisses,
             FcStale = c.FcStale,
@@ -265,6 +273,7 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
             OcHits = c.OcHits,
             OcMisses = c.OcMisses,
             OcBypass = c.OcBypass,
+            OcOff = c.OcOff,
             FcHits = c.FcHits,
             FcMisses = c.FcMisses,
             FcStale = c.FcStale,

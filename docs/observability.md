@@ -29,7 +29,7 @@ Use `false` in production if you prefer not to expose domain names, hit/miss sta
 Example when enabled:
 
 ```http
-X-Cache: domain=products; client=public; phase=approaching; output=miss; data=hit; ms=12
+X-Cache: domain=products; client=public; phase=approaching; oc=miss; fc=hit; ms=12
 ```
 
 | Token | Meaning |
@@ -37,11 +37,12 @@ X-Cache: domain=products; client=public; phase=approaching; output=miss; data=hi
 | `domain` | Normalized domain |
 | `client` | `public` / `private` / `no-store` / `blocked` |
 | `phase` | Client Cache Schedule: `calm` / `approaching` / `hold` / `n/a` |
-| `output` | Output Cache: `hit` / `miss` / `bypass` |
-| `data` | Fusion result (omitted on output `hit`) |
-| `ms` | Fusion elapsed ms (omitted on output `hit`) |
+| `oc` | Output Cache: `hit` / `miss` / `bypass` / `off` |
+| `fc` | Fusion result (omitted on OC `hit`) |
+| `fa` | `run` when `fc` is present and is not a fresh hit (factory callback ran). Omitted on OC `hit` and on `fc=hit`. |
+| `ms` | Fusion elapsed ms (omitted on OC `hit`) |
 
-When the header is emitted, `phase` is always present on responses that go through the policy header path (same wire values as metrics tags).
+When the header is emitted, `phase` is always present on responses that go through the policy header path (same wire values as metrics tags). `fa=run` matches Admin FA run: every non-hit Fusion disposition still invokes the factory (`miss` / `stale` / `bypass` / `off` / `unresolved`). There is no `fc=fail` on the header — a hard factory throw is meter `result=fail` only.
 
 ## Metrics
 
@@ -50,10 +51,10 @@ Meter name: **`CacheOrchestrator`**
 | Instrument | Description |
 |------------|-------------|
 | `cache_orchestrator.fc.requests` | Fusion ops by `domain`, `result` (`hit`/`miss`/`stale`/`fail`/`bypass`/`off`/`unresolved`; domain `_` when unresolved); optional `route` |
-| `cache_orchestrator.factory.duration` | **Canonical** factory wall time (ms) on miss/stale/**fail**; optional `route` |
-| `cache_orchestrator.factory.result_size` | Factory result size (bytes) when cheaply measurable on miss; optional `route`. Independent of `Cache:Admin:TrackResultSize` (that flag only fills Admin `/stats` sums). |
+| `cache_orchestrator.factory.duration` | **Canonical** factory wall time (ms) whenever the factory callback ran (`miss` / `stale` / `fail` / `off` / `unresolved` / `bypass`); optional `route` |
+| `cache_orchestrator.factory.result_size` | Factory result size (bytes) when cheaply measurable on a successful factory (`miss` / `off` / `unresolved` / `bypass`); optional `route`. Independent of `Cache:Admin:TrackResultSize` (that flag only fills Admin `/stats` sums). |
 | `cache_orchestrator.fc.duration` | Legacy Fusion GetOrSet duration (ms) for any timed result; prefer `factory.duration` for factory cost |
-| `cache_orchestrator.oc.requests` | Output outcomes by `domain`, `result`; optional `route` |
+| `cache_orchestrator.oc.requests` | Output outcomes by `domain`, `result` (`hit`/`miss`/`bypass`/`off`); optional `route` |
 | `cache_orchestrator.client.schedule` | Client Cache Schedule by `domain`, `phase` |
 | `cache_orchestrator.invalidate` | Successful full invalidations by `domain` (domain-only label). Optional low-cardinality `kind` tag: `Domain` / `Entity` / `EntityKind`. Not recorded for raw `InvalidateTagsAsync`. |
 | `cache_orchestrator.cluster.commands_published` | Cluster bus origin publish (`command_type`) — [cluster-bus.md](cluster-bus.md) |

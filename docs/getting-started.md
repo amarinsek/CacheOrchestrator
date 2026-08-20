@@ -99,11 +99,12 @@ If the endpoint has no domain, pass the name: `GetOrSetAsync(http, "catalog", fa
 On domain endpoints, with `EmitDiagnosticsHeaders` at its default of `true`:
 
 ```http
-X-Cache: domain=catalog; version=1; client=public; phase=n/a; output=miss; data=miss; ms=12
+X-Cache: domain=catalog; version=1; client=public; phase=n/a; oc=miss; fc=miss; fa=run; ms=12
 ```
 
-- **output** — `miss`, `hit`, or `bypass` for Output Cache.
-- **data** — Fusion (`hit`, `miss`, …). Omitted when Output Cache already hit.
+- **oc** — Output Cache `miss`, `hit`, `bypass`, or `off`.
+- **fc** — Fusion (`hit`, `miss`, …). Omitted when Output Cache already hit.
+- **fa** — `run` when `fc` is present and is not `hit` (factory callback ran).
 - **phase** — Client Cache Schedule, or `n/a`.
 
 To hide this header from clients, set `"EmitDiagnosticsHeaders": false`. Metrics continue. See [observability.md](observability.md).

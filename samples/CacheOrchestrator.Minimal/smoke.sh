@@ -59,7 +59,7 @@ echo "${H1}" | tr -d '\r' | grep -i '^x-cache:' || {
   echo "${H1}"
   exit 1
 }
-echo "${H1}" | tr -d '\r' | grep -iE 'x-cache:.*(output=miss|data=miss)' || {
+echo "${H1}" | tr -d '\r' | grep -iE 'x-cache:.*(oc=miss|fc=miss)' || {
   echo "First response should be a cache miss. Headers:"
   echo "${H1}"
   exit 1
@@ -72,8 +72,8 @@ echo "${H2}" | tr -d '\r' | grep -i '^x-cache:' || {
   echo "${H2}"
   exit 1
 }
-echo "${H2}" | tr -d '\r' | grep -iE 'x-cache:.*output=hit' || {
-  echo "Second response should be output=hit. Headers:"
+echo "${H2}" | tr -d '\r' | grep -iE 'x-cache:.*oc=hit' || {
+  echo "Second response should be oc=hit. Headers:"
   echo "${H2}"
   exit 1
 }

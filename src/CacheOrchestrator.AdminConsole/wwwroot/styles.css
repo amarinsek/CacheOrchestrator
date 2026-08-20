@@ -1157,13 +1157,12 @@ button.secondary {
 
 .chart-wrap {
   width: 100%;
-  min-height: 12rem;
 }
 
 .chart-svg {
   width: 100%;
   height: auto;
-  min-height: 11rem;
+  aspect-ratio: 640 / 240;
   display: block;
   background: #121820;
   border-radius: 8px;
@@ -1241,7 +1240,11 @@ body.chart-modal-open { overflow: hidden; }
 }
 
 .chart-modal-body .chart-wrap { min-height: 22rem; }
-.chart-modal-body .chart-svg { min-height: 20rem; }
+.chart-modal-body .chart-svg {
+  height: auto;
+  aspect-ratio: 960 / 420;
+  min-height: 20rem;
+}
 
 /* Grafana-style series stats under enlarge modal (replaces horizontal legend). */
 .chart-series-stats {
@@ -1459,6 +1462,12 @@ body.chart-modal-open { overflow: hidden; }
 .chart-grid-v {
   stroke: color-mix(in srgb, var(--border) 85%, transparent);
   stroke-dasharray: 2 4;
+}
+
+.chart-lookback-mark {
+  stroke: var(--muted);
+  stroke-width: 1.25;
+  stroke-dasharray: 4 3;
 }
 
 .chart-axis {
@@ -1705,7 +1714,7 @@ tr.child td { background: #151c24; }
 .pipe .seg.bypass { background: #7a8490; }
 .pipe .seg.other { background: #4a5562; }
 
-/* Overview / detail: pipeline bar + share % in one aligned row */
+/* Overview / detail: pipeline bar + exclusive mix shares in one aligned row */
 .pipeline-panel {
   margin: 0;
 }

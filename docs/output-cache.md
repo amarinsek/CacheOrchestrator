@@ -115,7 +115,7 @@ app.MapGet(...).CacheOutputWithDomainAttribute();
 | Request `Cache-Control: no-store` | Bypass; client `no-store` |
 | Auth signal matches `AuthBypassMode` (default `AuthenticatedOrAuthorization`) | Bypass; client blocked |
 | `AuthBypassMode: Never` (or legacy `BypassWhenAuthenticated: false`) | Cache allowed; optional `auth-user` vary |
-| `OutputCacheEnabled: false` | Bypass; client headers still applied |
+| `OutputCacheEnabled: false` | Off (`oc=off`); client headers still applied. Not the same as request-level bypass (auth / no-store). |
 | Enabled | Lookup and store, locking, TTL from the domain |
 | Status not in `CacheableStatusCodes` | No store |
 | `Set-Cookie` or response `Authorization` | No store; client blocked |

@@ -153,6 +153,30 @@ public class InMemoryAdminStatsCollectorTests
     }
 
     [Fact]
+    public void OffAndBypassAndUnresolved_CountAsFactoryRuns()
+    {
+        InMemoryAdminStatsCollector collector = new(
+            new CacheOrchestratorOptions.AdminOptions
+            {
+                Enabled = true,
+                TrackEndpoints = true
+            },
+            instanceId: "off");
+
+        collector.RecordOutput("GET /x", "d", "off");
+        collector.RecordFusion("GET /x", "d", "off");
+        collector.RecordFusion("GET /x", "d", "unresolved");
+        collector.RecordFusion("GET /x", "d", "bypass");
+
+        AdminDomainCountersDto d = collector.GetRawSnapshot().Domains.Single();
+        d.OcOff.Should().Be(1);
+        d.OcBypass.Should().Be(0);
+        d.FcBypass.Should().Be(1);
+        d.FactoryRuns.Should().Be(3);
+        d.FactoryFailures.Should().Be(0);
+    }
+
+    [Fact]
     public void StaleAndFail_CountAsFactoryRunsAndFailures()
     {
         InMemoryAdminStatsCollector collector = new(

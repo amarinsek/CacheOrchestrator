@@ -17,7 +17,8 @@ public static class AdminStatsV1Mapper
             AdminStatsMath.BuildAll(
                 raw.OcHits, raw.OcMisses, raw.OcBypass,
                 raw.FcHits, raw.FcMisses, raw.FcStale, raw.FcBypass,
-                raw.FactoryRuns, raw.FactoryFailures);
+                raw.FactoryRuns, raw.FactoryFailures,
+                raw.OcOff);
 
         return new AdminDomainStatsDto
         {
@@ -45,7 +46,8 @@ public static class AdminStatsV1Mapper
             AdminStatsMath.BuildAll(
                 raw.OcHits, raw.OcMisses, raw.OcBypass,
                 raw.FcHits, raw.FcMisses, raw.FcStale, raw.FcBypass,
-                raw.FactoryRuns, raw.FactoryFailures);
+                raw.FactoryRuns, raw.FactoryFailures,
+                raw.OcOff);
 
         return new AdminEndpointStatsDto
         {
@@ -107,5 +109,6 @@ public static class AdminStatsV1Mapper
         AdminStatsMath.BuildAll(
             c.OcHits, c.OcMisses, c.OcBypass,
             c.FcHits, c.FcMisses, c.FcStale, c.FcBypass,
-            c.FactoryRuns, c.FactoryFailures);
+            c.FactoryRuns, c.FactoryFailures,
+            c.OcOff);
 }

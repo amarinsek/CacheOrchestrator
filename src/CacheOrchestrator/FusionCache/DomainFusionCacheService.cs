@@ -114,15 +114,20 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
                     http.Request.Path.Value);
             }
 
-            SetData(http, DataCacheResult.Unresolved);
-            RecordFusionAndAdmin(http, metricsDomain: "_", adminDomain: null, result: "unresolved", durationMs: null, elapsedTicks: null);
-
             using Activity? unresolvedActivity =
                 CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
             unresolvedActivity?.SetTag("domain", "_");
             unresolvedActivity?.SetTag("cache.result", "unresolved");
 
-            return await factory(cancellationToken).ConfigureAwait(false);
+            return await InvokeFactoryUncachedAsync(
+                    http,
+                    DataCacheResult.Unresolved,
+                    "unresolved",
+                    metricsDomain: "_",
+                    adminDomain: null,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         string? normalizedEntityKind = null;
@@ -178,13 +183,18 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
     {
         if (!opts.FusionCacheEnabled)
         {
-            SetData(http, DataCacheResult.Off);
-            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "off", durationMs: null, elapsedTicks: null);
-
             using Activity? offActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
             offActivity?.SetTag("domain", opts.Domain);
             offActivity?.SetTag("cache.result", "off");
-            return await factory(cancellationToken).ConfigureAwait(false);
+            return await InvokeFactoryUncachedAsync(
+                    http,
+                    DataCacheResult.Off,
+                    "off",
+                    opts.Domain,
+                    opts.Domain,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         // Parity with Output Cache auth bypass (default true). Set FusionRespectAuthBypass=false for 2.1-like Fusion-under-Authorization.
@@ -193,13 +203,18 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             if (_logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug("FusionCache skipped due to auth bypass (FusionRespectAuthBypass)");
 
-            SetData(http, DataCacheResult.Bypass);
-            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "bypass", durationMs: null, elapsedTicks: null);
-
             using Activity? authBypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
             authBypassActivity?.SetTag("domain", opts.Domain);
             authBypassActivity?.SetTag("cache.result", "bypass");
-            return await factory(cancellationToken).ConfigureAwait(false);
+            return await InvokeFactoryUncachedAsync(
+                    http,
+                    DataCacheResult.Bypass,
+                    "bypass",
+                    opts.Domain,
+                    opts.Domain,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         // Respect Cache-Control: no-store (avoid Header.ToString() allocation on the hot path)
@@ -209,13 +224,18 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             if (_logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug("FusionCache skipped due to Cache-Control: no-store");
 
-            SetData(http, DataCacheResult.Bypass);
-            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "bypass", durationMs: null, elapsedTicks: null);
-
             using Activity? bypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
             bypassActivity?.SetTag("domain", opts.Domain);
             bypassActivity?.SetTag("cache.result", "bypass");
-            return await factory(cancellationToken).ConfigureAwait(false);
+            return await InvokeFactoryUncachedAsync(
+                    http,
+                    DataCacheResult.Bypass,
+                    "bypass",
+                    opts.Domain,
+                    opts.Domain,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         string key = _keyGenerator.Generate(opts, http);
@@ -419,6 +439,51 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             CacheTags.Entity(domain, normalizedEntityKind, normalizedResourceId),
             CacheTags.EntityKind(domain, normalizedEntityKind)
         ];
+    }
+
+    private async Task<T> InvokeFactoryUncachedAsync<T>(
+        HttpContext http,
+        DataCacheResult dataResult,
+        string metricResult,
+        string metricsDomain,
+        string? adminDomain,
+        Func<CancellationToken, Task<T>> factory,
+        CancellationToken cancellationToken)
+    {
+        Stopwatch sw = Stopwatch.StartNew();
+        T result;
+        try
+        {
+            result = await factory(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            sw.Stop();
+            RecordFusionAndAdmin(
+                http,
+                metricsDomain,
+                adminDomain,
+                "fail",
+                sw.ElapsedMilliseconds,
+                sw.ElapsedTicks);
+            throw;
+        }
+
+        sw.Stop();
+        SetData(http, dataResult, sw.ElapsedMilliseconds);
+        RecordFusionAndAdmin(
+            http,
+            metricsDomain,
+            adminDomain,
+            metricResult,
+            sw.ElapsedMilliseconds,
+            sw.ElapsedTicks,
+            FactoryResultSize.TryEstimateBytes(result));
+        return result;
     }
 
     private static void SetData(HttpContext http, DataCacheResult data, long? ms = null)

@@ -68,7 +68,7 @@ export function num(n) {
 export const METRIC_TITLES = {
   req: "Req - Number of cache-accounted requests in the selected time range.",
   pipeline:
-    "Pipeline - How requests were served in the selected time range: OC hit, FC hit, FC stale, FA run, bypass, or other.",
+    "Pipeline - Exclusive mix of requests: OC hit, FC hit (fresh), or FA run (factory invoked). FC stale is an overlay, not a mix segment.",
   oc: "OC - Output Cache (full HTTP response cache).",
   fc: "FC - FusionCache (application data cache; in-process memory, optional distributed L2).",
   ocHitShare:
@@ -76,7 +76,7 @@ export const METRIC_TITLES = {
   fcHitShare:
     "FC hit % - Share of requests served from FusionCache without running the factory in the selected time range.",
   factoryShare:
-    "FA run % - Share of requests where the value factory ran (origin / miss path) in the selected time range.",
+    "FA run % - Share of requests where the value factory ran (including Fusion disabled, unresolved, bypass, miss, and stale).",
   factoryAvoidance:
     "Factory avoidance - Share of requests that did not run the factory in the selected time range.",
   estTimeSaved:
@@ -97,7 +97,7 @@ export const METRIC_TITLES = {
   fcMissShare: "FC miss % - FusionCache misses as a share of all requests in the selected time range.",
   fcHitRate: "FC hit rate - Hit rate among requests that reached FusionCache (layer rate).",
   stale: "Stale - Fail-safe stale serves (an older value was returned after factory or timeout issues).",
-  staleShare: "FC stale % - Fail-safe stale serves as a share of all requests in the selected time range.",
+  staleShare: "FC stale % - Fail-safe stale serves as a share of all requests (overlay; also counted in FA run %).",
   staleRate: "Stale rate - Stale rate among traffic that reached FusionCache (layer rate).",
   inv: "Inv - Successful invalidations in the selected time range.",
   invShare: "Inv share - Invalidations relative to request volume in the selected time range.",
@@ -137,19 +137,21 @@ export const METRIC_TITLES = {
   sizeSamples: "Size samples - Factory result size samples (0 if TrackResultSize is off).",
   ocHits: "Hits - Output Cache hits in the selected time range.",
   ocMisses: "Misses - Output Cache misses in the selected time range.",
-  ocBypass: "Bypass - Output Cache bypass (not eligible / skipped).",
+  ocBypass: "Bypass - Output Cache skipped this request (auth / no-store).",
+  ocOff: "Off - Output Cache disabled for the domain.",
+  ocOffShare: "OC off % - Share of requests while Output Cache was disabled.",
   ocLayerN: "Layer n - Samples that reached the Output Cache layer.",
   ocMissShare: "OC miss % - Output Cache miss share of all requests.",
-  ocBypassShare: "OC bypass % - Output Cache bypass share of all requests.",
+  ocBypassShare: "OC bypass % - Auth / no-store skip share of all requests.",
   ocHitRate: "OC hit rate - Hit rate of traffic that reached Output Cache (layer rate).",
   ocMissRate: "OC miss rate - Miss rate of traffic that reached Output Cache (layer rate).",
   fcHits: "Hits - FusionCache hits in the selected time range.",
   fcMisses: "Misses - FusionCache misses in the selected time range.",
   fcBypass: "Bypass - FusionCache bypass in the selected time range.",
   fcLayerN: "Layer n - Samples that reached the Fusion layer.",
-  factoryRate: "Factory / s - Factory (FC miss) run rate over the lookback window.",
+  factoryRate: "Factory / s - Factory callback rate over the lookback window (including Fusion disabled).",
   factoryFailShare: "Fail % - FC fail + stale share of requests over the lookback window.",
-  bypassShare: "Bypass % - Share of requests that bypassed Output Cache or FusionCache in the selected time range.",
+  bypassShare: "Bypass % - Auth / no-store skip at a cache layer (not an exclusive pipeline mix bucket).",
 };
 
 /**
@@ -263,8 +265,7 @@ export function thMetric(label, title, opts = {}) {
 }
 
 /**
- * Horizontal request-pipeline share bar
- * (OC hit · FC hit · FC stale · FA run · Bypass · Other).
+ * Horizontal request-pipeline share bar (exclusive mix: OC hit · FC hit · FA run).
  * @param {object|null} p Pipeline DTO with *Share fields
  * @param {boolean} [large] Wider/taller bar for detail pages
  * @param {{ title?: boolean, segmentTips?: boolean }} [opts]
@@ -279,10 +280,7 @@ export function pipelineBar(p, large, opts = {}) {
   const parts = [
     ["oc", p.ocHitShare, "OC hit"],
     ["fc", p.fcHitShare, "FC hit"],
-    ["stale", p.staleShare, "FC stale"],
     ["origin", factoryShare, "FA run"],
-    ["bypass", p.bypassShare, "Bypass"],
-    ["other", p.otherShare, "Other"],
   ].filter(([, v]) => v != null && v > 0.0005);
   if (!parts.length) return `<div class="pipe empty${large ? " lg" : ""}"></div>`;
   const wrapTip = showTitle ? ` title="${esc(METRIC_TITLES.pipeline)}"` : "";
@@ -297,19 +295,12 @@ export function pipelineBar(p, large, opts = {}) {
 }
 
 /**
- * Unified Pipeline panel for Overview / domain detail / endpoint detail:
- * one-row table (Pipeline bar | OC hit % | FC hit % | FC stale % | FA run % | Bypass %).
+ * Pipeline panel: exclusive mix only (OC hit · FC hit · FA run).
  * No separate heading — "Pipeline" is the first column header.
- * Pipeline bar keeps wrap + segment tooltips (same as detail bars today).
  * @param {object|null|undefined} p Pipeline DTO
  */
 export function pipelinePanelHtml(p) {
   const bar = pipelineBar(p, true, { title: true, segmentTips: true });
-  const oc = pct(p?.ocHitShare);
-  const fc = pct(p?.fcHitShare);
-  const stale = pct(p?.staleShare);
-  const fa = pct(factoryShareOf(p));
-  const bypass = pct(p?.bypassShare);
   return `
     <div class="pipeline-panel">
       <table class="pipeline-share-table">
@@ -318,19 +309,15 @@ export function pipelinePanelHtml(p) {
             ${thMetric("Pipeline", "pipeline", { fromKey: true, className: "col-pipe" })}
             ${thMetric("OC hit %", "ocHitShare", { fromKey: true, className: "col-num" })}
             ${thMetric("FC hit %", "fcHitShare", { fromKey: true, className: "col-num" })}
-            ${thMetric("FC stale %", "staleShare", { fromKey: true, className: "col-num" })}
             ${thMetric("FA run %", "factoryShare", { fromKey: true, className: "col-num" })}
-            ${thMetric("Bypass %", "bypassShare", { fromKey: true, className: "col-num" })}
           </tr>
         </thead>
         <tbody>
           <tr>
             <td class="col-pipe">${bar}</td>
-            <td class="col-num">${oc}</td>
-            <td class="col-num">${fc}</td>
-            <td class="col-num">${stale}</td>
-            <td class="col-num">${fa}</td>
-            <td class="col-num">${bypass}</td>
+            <td class="col-num">${pct(p?.ocHitShare)}</td>
+            <td class="col-num">${pct(p?.fcHitShare)}</td>
+            <td class="col-num">${pct(factoryShareOf(p))}</td>
           </tr>
         </tbody>
       </table>
