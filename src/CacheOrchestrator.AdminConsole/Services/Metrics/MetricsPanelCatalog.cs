@@ -68,6 +68,14 @@ public static class MetricsPanelCatalog
         },
         new()
         {
+            Id = "fc_stale_share",
+            Title = "FC stale share",
+            Description =
+                "Fail-safe stale serves as a share of Output Cache-accounted requests in this window (FC stale / OC request rate). Rising values mean fail-safe is covering factory or timeout issues.",
+            Unit = "percent",
+        },
+        new()
+        {
             Id = "invalidation_rate",
             Title = "Invalidations",
             Description =
@@ -138,6 +146,7 @@ public static class MetricsPanelCatalog
         "request_rate",
         "oc_hit_share",
         "fc_hit_rate",
+        "fc_stale_share",
         "factory_share",
         "factory_run_rate",
         "factory_p95_ms",
@@ -183,7 +192,6 @@ public static class MetricsPanelCatalog
         "oc_hit_share",
         "fc_hit_rate",
         "factory_share",
-        "factory_run_rate",
         "factory_p95_ms",
         "fc_p95_ms",
     ];
@@ -216,6 +224,7 @@ public static class MetricsPanelCatalog
         string selector = BuildLabelSelector(domains, instanceIds, routes);
         string selectorHit = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"hit\"");
         string selectorMiss = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"miss\"");
+        string selectorStale = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"stale\"");
         string rw = SanitizeDuration(rateWindow);
         string by = ChooseByClause(panel.Id, domains, routes);
         string leBy = routes is { Count: > 0 }
@@ -236,6 +245,10 @@ public static class MetricsPanelCatalog
             "fc_hit_rate" =>
                 $"{by} (rate({FcRequests}{selectorHit}[{rw}]))" +
                 $" / clamp_min({by} (rate({FcRequests}{selector}[{rw}])), 1e-9)",
+
+            "fc_stale_share" =>
+                $"{by} (rate({FcRequests}{selectorStale}[{rw}]))" +
+                $" / clamp_min({by} (rate({OcRequests}{selector}[{rw}])), 1e-9)",
 
             "invalidation_rate" =>
                 $"{by} (rate({Invalidations}{selector}[{rw}]))",

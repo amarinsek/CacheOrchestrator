@@ -5,6 +5,10 @@
 
 import { esc } from "./format.js";
 
+/** Tooltip when a panel has no Prometheus samples in the window. */
+const NO_SAMPLES_TIP =
+  "No data in this time range. Often the event rate was simply zero.";
+
 const SERIES_COLORS = [
   "#3d9cf0",
   "#3ecf8e",
@@ -390,7 +394,7 @@ function buildChartModel(series, opts, width, height) {
     }).join("");
 
   const legend = empty
-    ? ""
+    ? `<span class="chart-legend-item chart-no-samples" title="${esc(NO_SAMPLES_TIP)}">no samples</span>`
     : (series || []).map((s, i) => {
       const color = SERIES_COLORS[i % SERIES_COLORS.length];
       return `<span class="chart-legend-item"><span class="chart-swatch" style="background:${color}"></span>${esc(s.name)}</span>`;

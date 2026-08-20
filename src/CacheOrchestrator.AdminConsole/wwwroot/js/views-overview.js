@@ -162,8 +162,11 @@ export async function paintOverviewBody(o, params, soft) {
   paintPage(`
     <div id="ovRoot">
     <div id="ovBannerHost">${connectivityBanner(o.instances)}</div>
-    <div class="kpi-row" id="ovKpis">${overviewKpiHtml(o, windowStats)}</div>
-    <div class="card" id="ovPipeline">${pipelinePanelHtml(windowed ? windowStats.pipeline : o.pipeline)}</div>
+    <div class="card" id="ovCluster">
+      <h2>Cluster</h2>
+      <div class="kpi-row" id="ovKpis">${overviewKpiHtml(o, windowStats)}</div>
+      <div id="ovPipeline">${pipelinePanelHtml(windowed ? windowStats.pipeline : o.pipeline)}</div>
+    </div>
     <div id="ovAlerts">${o.alerts?.length ? `<div class="card"><h2>Alerts</h2><ul class="alert-list">${o.alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}</div>
     <div class="card">
       <div class="card-head">

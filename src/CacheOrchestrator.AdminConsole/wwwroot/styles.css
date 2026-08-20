@@ -26,27 +26,6 @@ html {
   overflow: hidden;
 }
 
-/* Soft refresh indicator (background fetch — page content stays visible). */
-html.is-refreshing .chrome-metrics {
-  position: relative;
-}
-html.is-refreshing .chrome-metrics::after {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-left: 0.35rem;
-  border-radius: 50%;
-  background: var(--accent);
-  vertical-align: middle;
-  animation: soft-refresh-pulse 0.9s ease-in-out infinite;
-  flex-shrink: 0;
-}
-@keyframes soft-refresh-pulse {
-  0%, 100% { opacity: 0.35; transform: scale(0.85); }
-  50% { opacity: 1; transform: scale(1); }
-}
-
 body {
   margin: 0;
   font-family: var(--font);
@@ -511,14 +490,41 @@ h1.brand-title,
   min-height: 2.5rem;
 }
 
-/* 2) Header metrics strip */
+/* 2) Header metrics strip: status cluster · KPIs · right-aligned entity counts */
 .chrome-metrics,
 .header-metrics {
   font-size: 0.85rem;
+  flex-wrap: nowrap;
+}
+
+.hm-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.85rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.hm-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  /* extra pause after instance + metrics status, before Req / Inv / … */
+  margin-right: 0.7rem;
+}
+
+[data-metrics-pill-slot] {
+  display: contents;
 }
 
 .hm { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
 .hm strong { font-weight: 650; }
+
+.hm-entities {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
 
 .link-quiet { color: var(--muted); font-size: 0.85rem; }
 
@@ -623,7 +629,12 @@ h1.brand-title,
 
 html.is-refreshing .nav-refresh-icon,
 .nav-refresh-btn.is-loading .nav-refresh-icon {
-  animation: nav-refresh-spin 0.85s linear infinite;
+  animation: nav-refresh-spin 1s linear infinite;
+}
+
+html.is-refreshing .nav-refresh-label,
+.nav-refresh-btn.is-loading .nav-refresh-label {
+  color: var(--accent);
 }
 
 @keyframes nav-refresh-spin {
@@ -631,7 +642,7 @@ html.is-refreshing .nav-refresh-icon,
 }
 
 .nav-refresh-label {
-  min-width: 3.4rem; /* Reload / Loading — avoid layout jump */
+  min-width: 3.5rem; /* Reload / Loading — avoid layout jump */
   text-align: left;
 }
 
@@ -785,12 +796,11 @@ a.btn-secondary:hover {
 .app-main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0.75rem 1.25rem 2.5rem;
+  padding: 0.75rem 1.25rem 1.25rem;
 }
 
 .app-footer {
   text-align: center;
-  padding: 1.25rem 1.25rem 2rem;
   font-size: 0.85rem;
   display: flex;
   flex-direction: column;
@@ -862,7 +872,7 @@ a.btn-secondary:hover {
 .grid-2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
+  gap: 0 1rem;
 }
 
 .kpi-row {
@@ -1117,10 +1127,6 @@ button.secondary {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 1rem;
-}
-
-.chart-card-title .badge {
-  flex: 0 0 auto;
 }
 
 .chart-card-actions {
@@ -1748,9 +1754,10 @@ tr.child td { background: #151c24; }
 }
 
 .detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
 }
 
 .detail-block {
@@ -1949,7 +1956,10 @@ code { color: #cde; font-size: 0.9em; }
 }
 
 .entity-table .col-name { min-width: 10rem; }
-.entity-table .col-pipe { min-width: 5rem; }
+.entity-table .col-pipe {
+  min-width: 5rem;
+  vertical-align: middle;
+}
 .entity-table .col-rate {
   width: 4.5rem;
   min-width: 4.5rem;
@@ -2009,6 +2019,9 @@ th[title],
   .brand-title { font-size: 1.3rem; }
   .brand-subtitle { white-space: normal; }
   .chrome-strip { padding: 0.35rem 0.85rem; }
+  .chrome-metrics { flex-wrap: wrap; }
+  .hm-cluster { margin-right: 0.5rem; }
+  .hm-entities { margin-left: auto; }
   .app-nav { flex-wrap: wrap; }
   .nav-left, .nav-right { flex-wrap: wrap; width: 100%; }
   .nav-right { justify-content: flex-end; }

@@ -11,6 +11,7 @@ import {
   METRIC_TITLES,
   noDataHtml,
   num,
+  pipelinePanelHtml,
   tipAttr,
 } from "./format.js";
 import {
@@ -145,10 +146,7 @@ export async function renderInstanceDetail(id, params = new URLSearchParams(), o
   const soft = !!opts.soft;
   const domSort = params.get("domSort") || "requests";
   const epSort = params.get("epSort") || "requests";
-  setBreadcrumb([
-    { label: "Instances", href: "#/instances" },
-    { label: id },
-  ]);
+  setBreadcrumb([]);
   beginPageLoad(soft, `<p class="muted">Loading instance ${esc(id)}…</p>`);
 
   const [instances, windowStats] = await Promise.all([
@@ -209,9 +207,7 @@ export async function renderInstanceDetail(id, params = new URLSearchParams(), o
       </div>
       <div id="instEpTable">${promOk ? endpointTableHtml(endpointsSorted) : metricsRequiredEmpty()}</div>
     </div>
-    <div id="instMetricsMount"></div>
-    <p><a href="#/instances">← Instances</a>
-      · <a href="#/operations">Operations</a></p>`, soft);
+    <div id="instMetricsMount"></div>`, soft);
 
   bindEntityTableClicks(main());
   $("#instDomSort")?.addEventListener("change", (ev) => {
@@ -247,5 +243,6 @@ export function instanceDetailHeadHtml(id, inst, stats, st, startedTitle, promOk
         <div class="kpi"${tipAttr("latency")}><div class="label">Latency</div><div class="value" style="font-size:1.05rem">${formatLatencyMs(inst?.latencyMs)}</div></div>
         <div class="kpi"${tipAttr("req")}><div class="label">Req</div><div class="value">${promOk ? num(reqFromDomains) : noDataHtml()}</div></div>
       </div>
+      ${pipelinePanelHtml(promOk ? stats.pipeline : null)}
     </div>`;
 }

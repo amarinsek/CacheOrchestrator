@@ -142,10 +142,7 @@ export async function renderDomainsList(params, opts = {}) {
 export async function renderDomainDetail(name, params = new URLSearchParams(), opts = {}) {
   const soft = !!opts.soft;
   const epSort = params.get("epSort") || "requests";
-  setBreadcrumb([
-    { label: "Domains", href: "#/domains" },
-    { label: name },
-  ]);
+  setBreadcrumb([]);
   beginPageLoad(soft, `<p class="muted">Loading domain ${esc(name)}…</p>`);
 
   const [cfgFan, windowStats] = await Promise.all([
@@ -192,8 +189,7 @@ export async function renderDomainDetail(name, params = new URLSearchParams(), o
       </div>
       <div id="domEpTable">${endpointTableHtml(endpointsSorted)}</div>
     </div>
-    <div id="domMetricsMount"></div>
-    <p><a href="#/domains">← Domains</a> · <a href="#/operations?domain=${encodeURIComponent(name)}">Operations</a></p>`, soft);
+    <div id="domMetricsMount"></div>`, soft);
 
   main().querySelectorAll("tr.clickable[data-id]").forEach((tr) => {
     tr.addEventListener("click", () => navigate("instances", { id: tr.dataset.id }));
@@ -212,7 +208,7 @@ export function domainDetailHeadHtml(name, domain, cfg) {
   const verRt = !!(domain.versionIsRuntimeOverride || cfg?.versionIsRuntimeOverride);
   return `
     <div class="card">
-      <h2><code>${esc(name)}</code>
+      <h2>Domain <code>${esc(name)}</code>
         ${verRt ? '<span class="badge">runtime version</span>' : ""}
         ${hintBadges(domain.hints)}
         <a class="badge" href="#/operations?domain=${encodeURIComponent(name)}">Operations</a>
