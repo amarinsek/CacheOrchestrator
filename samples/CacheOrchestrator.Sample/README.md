@@ -68,6 +68,7 @@ curl -i http://localhost:5289/api/crud/products/42
 ## Next
 
 - [labs/README.md](labs/README.md) — topology labs 01–05 (main learning path for multi-instance cache)
+- [Guide](../../docs/guide/README.md) — concepts, topologies, operations
 - [Getting started](../../docs/getting-started.md)
 - [Client Cache Schedule](../../docs/client-cache-schedule.md)
 - [Deployment](../../docs/deployment.md) · [Cluster bus](../../docs/cluster-bus.md)

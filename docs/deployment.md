@@ -1,5 +1,7 @@
 # Deployment
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md).
+
 How to run CacheOrchestrator on one process or on several: in-memory stores, Redis, the backplane, and the cluster bus.
 
 **Redis package:** any topology below that uses `"Provider": "Redis"` requires:
@@ -98,8 +100,9 @@ Instance B's L1 memory would still hold stale data until its TTL expired. The Re
 (pub/sub) delivers the invalidation signal so L1 is cleared immediately on all nodes.
 
 **Backplane channel:** `{FusionNamespace}:backplane` (e.g. `my-app-fc:backplane`).
-Each `Namespace` / `FusionCache.Namespace` gets its own channel, so multiple apps on the same
-Redis cluster do not interfere.
+Effective Fusion namespace is `Cache:FusionCacheInstances:{name}:Namespace` if set, else `{Cache:Namespace}-fc` for instance `default`, else `{Cache:Namespace}-fc-{instanceName}`. There is **no** `Cache:FusionCache:Namespace`. Multiple apps on the same Redis cluster stay isolated when those prefixes differ.
+
+Runtime Version / TTL / **settings** overlays are **not** carried by the Fusion backplane. Use the [cluster bus](cluster-bus.md) or Admin Console fan-out for those.
 
 ---
 
@@ -329,6 +332,7 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 
 ## Related
 
+- [Guide — topologies](guide/topologies.md) — which layout to pick  
 - [configuration.md](configuration.md) — namespaces, providers, full schema  
 - [backends.md](backends.md) — Redis package and custom registrars  
 - [fusion-cache.md](fusion-cache.md)  

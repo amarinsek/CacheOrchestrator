@@ -4,7 +4,7 @@ Context for AI coding agents working in this repository.
 
 ## What this project is
 
-**CacheOrchestrator** is domain-based caching for ASP.NET Core: define rules once per domain in configuration, then apply them on endpoints with a single attribute or extension. It orchestrates Output Cache, FusionCache, and client Cache-Control under the same model.
+**CacheOrchestrator** configures and coordinates three existing layers in ASP.NET Core — Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, FusionCache still holds the object, and the browser or CDN still honours `Cache-Control`.
 
 Internally it wires:
 
@@ -141,10 +141,18 @@ docs/                human technical docs
 
 ## Docs for humans
 
-- Quick start: `README.md` + `docs/getting-started.md` + Minimal sample
-- Doc index (paths): `docs/README.md`; FAQ: `docs/faq.md`
-- Contributor / security: `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`
-- Keep docs in sync when renaming public types or config keys
+Three tiers (do not put reference into the root README):
+
+- **Product:** `README.md` — overview and quick start only
+- **Guide:** `docs/guide/` (concepts, topologies, operations) + `docs/getting-started.md` + FAQ + Minimal sample
+- **Reference:** topic pages under `docs/` (configuration, keys, deployment, …); hub: `docs/README.md`
+
+Contributor / security: `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`.  
+Keep docs in sync when renaming public types or config keys. Put a change in the matching tier.
+
+Branch worklog: copy `docs/templates/worklog-template.md` (do not commit the filled copy). Summary → PR title and description; the rest is the PR appendix. Record **net outcomes** only — no chat, no rejected alternatives, no draft paths. A work item must still make sense a month later without the conversation.
+
+Do **not** edit `CHANGELOG.md` unless the user asks. User-facing notes go in the worklog Changelog. The maintainer updates `CHANGELOG.md` from merged PR worklogs.
 
 ## Safe change checklist
 

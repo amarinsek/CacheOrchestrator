@@ -34,5 +34,6 @@ For a multi-instance UI, run [CacheOrchestrator.AdminConsole](../../src/CacheOrc
 ## Next
 
 - [Getting started](../../docs/getting-started.md)
+- [Guide](../../docs/guide/README.md) — concepts, topologies, operations
 - [Playground sample](../CacheOrchestrator.Sample) — TTLs, schedule, Redis, CRUD, Prometheus `/metrics`
 - [Documentation index](../../docs/README.md)

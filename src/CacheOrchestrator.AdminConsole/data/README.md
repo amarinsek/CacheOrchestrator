@@ -9,4 +9,4 @@ Used when `AdminConsole:Hints` points at `data/` (default in **Production** / Do
 
 **Development** (`dotnet run` with `ASPNETCORE_ENVIRONMENT=Development`) still uses `hints/*.json` and `hints/disabled.local.json` — see [hints/README.md](../hints/README.md).
 
-**Docker:** mount a host folder over `/app/data` so custom rules and disabled state survive restarts. Full guide: [deploy/admin/README.md](../../../deploy/admin/README.md).
+**Docker:** mount a host folder over `/app/data` so custom rules and disabled state survive restarts. Full guide: [deploy/admin/README.md](../../../deploy/admin/README.md). Orientation: [Guide — operations](../../../docs/guide/operations.md).

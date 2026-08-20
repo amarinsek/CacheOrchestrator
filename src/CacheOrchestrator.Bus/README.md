@@ -48,7 +48,7 @@ app.MapCacheOrchestratorHttpBus();
 
 `Membership` may also be `ServiceDiscovery` (`Microsoft.Extensions.ServiceDiscovery`). Peers authenticate `POST …/cluster/apply` with `X-Cache-Admin-Key` (`Cache:Cluster:Bus:ApiKey`, or `Cache:Admin:ApiKey` if the bus key is empty).
 
-Guide: [cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md). Overview: [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme).
+Orientation: [Guide — topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md). Reference: [cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md). Overview: [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme).
 
 ## License
 

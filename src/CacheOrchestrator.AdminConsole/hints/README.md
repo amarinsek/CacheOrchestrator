@@ -1,5 +1,7 @@
 # Writing Admin hint rules
 
+> **Operator handbook.** Orientation: [Guide — operations](../../../docs/guide/operations.md). Repo overview: [docs/admin-hints.md](../../../docs/admin-hints.md). Host run: [Admin Console README](../README.md). Docker: [deploy/admin/README.md](../../../deploy/admin/README.md).
+
 This folder ships with the **CacheOrchestrator Admin Console App**. It holds:
 
 | File | Role |
@@ -254,5 +256,6 @@ Full list: Admin **Settings → Known paths**, or `GET /api/hints/rules` → `kn
 
 ## Related
 
+- [Guide — operations](../../../docs/guide/operations.md)  
 - Admin Console App overview: `../README.md`  
 - Repository architecture notes: monorepo `docs/admin-hints.md` and `docs/admin.md` (source checkout; may not ship with a standalone Admin publish)

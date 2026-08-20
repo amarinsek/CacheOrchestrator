@@ -1,6 +1,8 @@
 # Architecture
 
-How the library is put together. Product overview: [root README](../README.md).
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md).
+
+How the library is put together.
 
 A **domain** is a named group of data (`products`, `reports`, …) with its own TTLs, flags, and Version. Output Cache, FusionCache, and client headers all resolve the same `DomainCacheOptions`.
 
@@ -45,7 +47,8 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 | `Configuration/` | Options, domain resolution, client headers, `X-Cache` |
 | `OutputCache/` | Policy, `[CacheDomain]`, Minimal API extensions, MVC convention |
 | `FusionCache/` | `IDomainFusionCache`, key generator, service |
-| `Backends/` | InMemory / Redis registration strategy (`ICacheBackendRegistrar`) |
+| `Vary/` | Shared OC↔Fusion vary materializer, `ICacheVaryContributor` |
+| `Backends/` | `ICacheBackendRegistrar` contracts + **InMemory** registrar (Redis lives in `CacheOrchestrator.Redis`) |
 | `Invalidation/` | Tag-based eviction across OC + FC |
 | `Cluster/` | Command bus contracts, Null bus/membership, InstanceId, handler (HTTP in Bus package) |
 | `Admin/` | Admin API (feature-flagged) |
@@ -72,12 +75,15 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | `IDomainFusionCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainFusionCacheService` |
 | `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainName`, options types | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator` |
 | `ICacheOrchestratorInvalidator`, `CacheInvalidationResult`, `ICacheInvalidationObserver`, `CacheTags` | `CacheOrchestratorInvalidator` |
-| `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records | Null implementations / `DefaultClusterCommandHandler` |
+| `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records (`InvalidateCommand`, `VersionBumpCommand`, `TtlPatchCommand`, `SettingsPatchCommand`, …) | `DefaultClusterCommandHandler` |
+| `NullClusterCommandBus`, `NullClusterMembership` | — |
 | `ICacheBackendRegistrar`, `InMemoryCacheBackendRegistrar` | — |
 | Redis: `AddRedisBackend` / `RedisCacheBackendRegistrar` (**CacheOrchestrator.Redis**) | `RedisCacheHealthProbe` |
 | Bus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` / `HttpClusterCommandBus` (**CacheOrchestrator.Bus**) | `ClusterEndpointAuth` |
-| `MapCacheOrchestratorAdmin` / Admin API DTOs (when Admin is enabled) | `InMemoryAdminStatsCollector`, `AdminLocalApi`, … |
-| `DomainOutputCachePolicy`, `[CacheDomain]`, endpoint extensions | `CacheDomainConvention` |
+| `MapCacheOrchestratorAdmin`, `AdminLocalApi`, Admin API DTOs | `InMemoryAdminStatsCollector` |
+| `AuthBypassMode`, `DomainAuthEvaluator` | — |
+| `ICacheVaryContributor`, `CacheVaryMaterializer`, `ICacheVaryBuilder` | — |
+| `DomainOutputCachePolicy`, `[CacheDomain]`, `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheDomainConvention` |
 | Health: `AddCacheOrchestrator()`, `ICacheOrchestratorHealthProbe` | `CacheOrchestratorHealthCheck` |
 | Meter/activity **names** (`CacheOrchestrator`) | `CacheOrchestratorMetrics.Record*` |
 
@@ -123,9 +129,11 @@ Output and Fusion providers can differ (e.g. OC in-memory, FC Redis).
 
 ## Related
 
+- [Guide — concepts](guide/concepts.md)  
 - [cluster-bus.md](cluster-bus.md)  
 - [cache-keys.md](cache-keys.md)  
 - [configuration.md](configuration.md)  
 - [output-cache.md](output-cache.md)  
 - [fusion-cache.md](fusion-cache.md)  
+- [vary.md](vary.md)  
 - [deployment.md](deployment.md)  

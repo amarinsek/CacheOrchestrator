@@ -2,15 +2,13 @@
 
 # CacheOrchestrator
 
-[![NuGet](https://img.shields.io/nuget/v/CacheOrchestrator.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/amarinsek/CacheOrchestrator/build.yml?branch=main&style=flat-square)](https://github.com/amarinsek/CacheOrchestrator/actions)
+[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2010.0-blueviolet.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/)
 
-**CacheOrchestrator** is domain-based caching for ASP.NET Core: define rules once per domain in configuration, then apply them on endpoints with a single attribute or extension. It orchestrates Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) under the same model.
+**CacheOrchestrator** configures and coordinates three existing layers in ASP.NET Core — Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, FusionCache still holds the object, and the browser or CDN still honours `Cache-Control`.
 
-The library targets **.NET 8** and **.NET 10**.
-
-![Cache topology](docs/assets/drawing01.png)
+<img src="docs/assets/drawing-01.svg" height="350" />
 
 The picture is the path a request can take:
 
@@ -128,12 +126,12 @@ Stages climb from a single InMemory playground to dual Redis + HTTP bus. Full gu
 
 ## Why domains
 
-A domain is a named set of cache rules. Different data wants different rules. For example:
+A domain is a named set of cache rules: lifetimes, which layers to use, and where those layers live. Different data wants a different mix. For example:
 
-- **Satellite imagery** changes perhaps once a year. Long server and client lifetimes are appropriate.
-- **Map tiles** change on a published schedule. Lifetimes stay long, then client `max-age` is shortened as the cutover approaches.
-- **Floating car data** ages in minutes. A short lifetime, a memory cache, and a shared Redis store with a backplane keep several instances consistent.
-- **Live vehicle positions** age in seconds. FusionCache locking and fail-safe stop a stampede when many callers miss at once.
+- **Satellite imagery** changes perhaps once a year. Long Output Cache and client lifetimes are enough; FusionCache is optional.
+- **Map tiles** change on a published schedule. Lifetimes stay long, then client `max-age` is shortened as the cutover approaches. Output Cache can stay in-process.
+- **Floating car data** ages in minutes. A short lifetime, in-memory Output Cache, and FusionCache on shared Redis with a backplane keep several instances consistent.
+- **Live vehicle positions** age in seconds. FusionCache locking and fail-safe stop a stampede when many callers miss at once; Output Cache stays off or very short.
 
 The endpoint code is the same shape in every case. The domain is what differs.
 
@@ -141,7 +139,7 @@ The endpoint code is the same shape in every case. The domain is what differs.
 
 ## Also included
 
-- **Coordinated policies.** One domain owns all client and backend cache policies. [Output Cache](docs/output-cache.md) · [FusionCache](docs/fusion-cache.md)·
+- **Coordinated policies.** One domain owns all client and backend cache policies. [Output Cache](docs/output-cache.md) · [FusionCache](docs/fusion-cache.md)
 
 - **Coordinated invalidation.** Domain, kind, or a single id invalidation is coordinated across Output Cache and FusionCache. [Invalidation](docs/invalidation.md)
 
@@ -192,6 +190,7 @@ The endpoint code is the same shape in every case. The domain is what differs.
 ## Documentation
 
 - [Getting started](docs/getting-started.md) — first endpoint, `X-Cache`, what to read next
+- [Guide](docs/guide/README.md) — concepts, topologies, operations
 - [Documentation index](docs/README.md) — configuration, keys, deployment, architecture
 - [FAQ](docs/faq.md) — common mistakes and limits
 - [Comparison](docs/comparison.md) — the usual stack versus CacheOrchestrator

@@ -1,5 +1,7 @@
 # EF Core SaveChanges invalidation
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md).
+
 Package **`CacheOrchestrator.EFCore.Invalidation`**. After a successful `SaveChanges` / `SaveChangesAsync`, the cache for the rows that changed is purged through `ICacheOrchestratorInvalidator`.
 
 Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../src/CacheOrchestrator.EFCore.Invalidation/README.md). See also [invalidation.md](invalidation.md), [domain-profiles.md](domain-profiles.md), [fusion-cache.md](fusion-cache.md), [configuration.md](configuration.md).
@@ -123,7 +125,7 @@ await cache.GetOrSetEntityAsync(http, "store", "products", id.ToString(), factor
 
 Primary keys: stringify each PK part with invariant culture, join composite keys with `:`, then `DomainName.NormalizeResourceId`. Route `resourceRouteKey` must produce the same string. Entity kinds use `DomainName.NormalizeEntityKind` (garbage such as `!!!` is empty, not `default`).
 
-TPH: map the **concrete** `ClrType`. Mapping only the base type does not cover derived types.
+TPH: Fluent `CacheInvalidate` and `Map<T>` match the **exact** `ClrType` — map each concrete type (a base-type Fluent/`Map` entry does not cover derived types). **`[CacheEntity]` is inherited** (`Inherited = true`); an attribute on the base type **does** apply to derived CLR types.
 
 ---
 
@@ -217,11 +219,13 @@ Operational flags only. Bound from the same root section as `AddCacheOrchestrato
 - Reads still go through `GetOrSetEntityAsync` and Output Cache as usual.
 - List and index entries tagged only `domain:{name}` stay until TTL, Version, or `InvalidateDomainAsync`.
 - `Execute*` and raw SQL need a manual `Invalidate*` call.
-- Composite and binary primary keys must match the HTTP resource id convention.
+- Composite primary keys are joined with `:`, then normalized. Binary keys are **hex** (`Convert.ToHexString`) — the HTTP `resourceId` must use the same convention.
+- `BulkThreshold <= 0` disables the bulk path (always `InvalidateEntitiesAsync`).
 - There is no ambient `Suppress()` yet; turn the feature off with `Enabled: false` or omit the interceptor on that context.
 
 ## Related
 
+- [Guide — topologies](guide/topologies.md)  
 - [invalidation.md](invalidation.md) — tags, invalidator, multi-instance strategies  
 - [fusion-cache.md](fusion-cache.md) — `GetOrSetEntityAsync`  
 - [output-cache.md](output-cache.md) — `resourceRouteKey` + `entityKind`  

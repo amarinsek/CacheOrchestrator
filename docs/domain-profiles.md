@@ -1,5 +1,7 @@
 # Domain profiles: snapshot and dynamic
 
+> **Guide.** Product overview: [root README](../README.md). Orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md).
+
 How fresh data enters the cache, and how to configure two common worlds:
 
 1. **Snapshot** (map tiles, a monthly extract) — content is frozen until a planned cutover.
@@ -89,7 +91,7 @@ No per-tile invalidation is required.
 
 ```json
 "Domains": {
-  "product-detail": {
+  "store": {
     "Version": "1",
     "ETagMode": "Resource",
     "ClientCacheability": "Public",
@@ -139,12 +141,12 @@ t2  GET /products/42  → MISS → DB (price 12)
 
 | Mode | Header | Use when |
 |------|--------|----------|
-| `Version` (default) | One weak ETag from domain `Version` for all URLs | Snapshot / tiles |
-| `Resource` | Weak ETag from `Version` + resource id (or path) | CRUD with distinct validators per URL |
-| `None` | No `ETag` | Short TTL APIs; avoid client revalidation surprises |
+| `Version` (default) | One weak ETag from a hash of domain `Version` (`W/"{hex}"`) for all URLs | Snapshot / tiles |
+| `Resource` | Weak ETag from Version + a resource key: `entityKind:resourceId` if both set, else `resourceId`, else **path + query** | CRUD with distinct validators per URL |
+| `None` | Removes `ETag` if already present | Short TTL APIs; avoid client revalidation surprises |
 
 ETag does **not** drive server Output Cache lookup. OC keys are per URL + vary + `data-version`.  
-ETag is for **browser/CDN** conditional requests after client `max-age` expires.
+ETag is for **browser/CDN** conditional requests after client `max-age` expires. Wire for Resource is `W/"{versionHex}-{hash(versionHex + resourceKey)}"`, not the raw Version string.
 
 ---
 
@@ -169,16 +171,17 @@ Safe default for mixed public/private APIs.
 
 | Goal | Settings |
 |------|----------|
-| Keep default safety | omit flags (`BypassWhenAuthenticated: true`) |
-| Cache private per-user pages | `BypassWhenAuthenticated: false`, `VaryOutputCacheByUser: true`, `ClientCacheability: Private` |
-| Public assets with API key | `BypassWhenAuthenticated: false`, `VaryOutputCacheByUser: false`, `ClientCacheability: Public` |
+| Keep default safety | omit flags (`AuthBypassMode` defaults to `AuthenticatedOrAuthorization`) |
+| Cache private per-user pages | `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, `ClientCacheability: Private` |
+| Public assets with API key | `AuthBypassMode: Never`, `VaryOutputCacheByUser: false`, `ClientCacheability: Public` |
 
-Full examples: [output-cache.md](output-cache.md#authenticated-caching-optional).
+Canonical detail and full examples: [output-cache.md](output-cache.md#authenticated-traffic), [vary.md](vary.md). The obsolete `BypassWhenAuthenticated` bool still binds when `AuthBypassMode` is unset — see [configuration.md](configuration.md).
 
 ---
 
 ## Related
 
+- [Guide — concepts](guide/concepts.md)  
 - [invalidation.md](invalidation.md) — Version, domain, entity, custom tags  
 - [configuration.md](configuration.md) — full property list  
 - [client-cache-schedule.md](client-cache-schedule.md) — cutover-friendly client max-age  

@@ -1,5 +1,7 @@
 # FAQ
 
+> **Guide.** Product overview: [root README](../README.md). Orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md).
+
 Short answers. The topic pages hold the full story.
 
 ## Scope
@@ -168,10 +170,10 @@ Without the EF package, `SaveChanges` does not purge cache; call the invalidator
 
 ## Admin API vs Admin Console App
 
-- **Admin API** — opt-in HTTP on **each** process (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`). Stats, health, invalidate, runtime Version and TTL. Ships in the core package; off by default.
-- **Admin Console App** — a separate process (`src/CacheOrchestrator.AdminConsole`) that fans out to those APIs. It is not a NuGet package.
+- **Admin API** — opt-in HTTP on **each** process (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`). Health, config, invalidate, runtime Version and settings overlays. Process-lifetime `GET …/stats` is **obsolete for analytics**. Ships in the core package; off by default.
+- **Admin Console App** — a separate process (`src/CacheOrchestrator.AdminConsole`) that fans out to those APIs. Traffic UI is **Prometheus-only** (`GET /api/stats/window`); Live (`#/live`) is a fixed 1m lookback. It is not a NuGet package. The Console `/api/*` routes have **no application-level login** — protect the host.
 
-These surfaces are for operators. Protect them with an API key and a private network. Guide: [admin.md](admin.md).
+These surfaces are for operators. Protect them with an API key and a private network. Details: [admin.md](admin.md). Orientation: [Guide — operations](guide/operations.md).
 
 ---
 
@@ -223,6 +225,7 @@ See [observability.md](observability.md).
 
 ## Related
 
+- [Guide](guide/README.md) — concepts, topologies, operations  
 - [cache-keys.md](cache-keys.md) — FC/OC keys, Namespace, domain in key  
 - [comparison.md](comparison.md) — when to use this vs hand-rolled cache  
 - [architecture.md](architecture.md) — layers and public API surface  

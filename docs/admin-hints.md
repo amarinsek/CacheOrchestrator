@@ -1,5 +1,7 @@
 # Admin recommendation hints
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — operations](guide/operations.md). Catalog: [documentation index](README.md). Repo architecture for hints; **how to write rules:** [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md).
+
 How the Admin Console App turns **live counters** (and domain config) into **read-only recommendations**.  
 Hints never change cache behaviour, TTLs, or invalidation.
 
@@ -7,9 +9,11 @@ Hints never change cache behaviour, TTLs, or invalidation.
 
 | Document | Audience |
 |----------|----------|
+| [Guide — operations](guide/operations.md) | Which document to open |
 | **[Operator guide: writing rules](../src/CacheOrchestrator.AdminConsole/hints/README.md)** | Full how-to, JSON format, paths, step-by-step new rule (**ships with the Admin Console App** next to the packs) |
 | [Admin Console App README](../src/CacheOrchestrator.AdminConsole/README.md) | Run/configure the host + feature overview |
 | [admin.md](admin.md) | Admin architecture / security |
+| [deploy/admin/README.md](../deploy/admin/README.md) | Docker / GHCR / volumes |
 
 ---
 
@@ -24,10 +28,11 @@ Hints never change cache behaviour, TTLs, or invalidation.
 ## Architecture (repository)
 
 ```
-Prometheus (OTEL meter)  →  Admin Console /api/stats/window
+Prometheus (OTEL meter)  →  Admin Console /api/stats/window  (Range)
+                         →  Admin Console /api/live          (fixed 1m)
                          →  HintEngine (JSON rules)
                          →  entity.Hints[] + HintSummary
-                         →  SPA (badges, Hints page, Settings)
+                         →  SPA (badges, Hints page, Live, Settings)
 
 Domain config (optional) →  Admin fan-out /api/domains  →  config-only rules
 ```
@@ -94,6 +99,8 @@ Shipped in `core-hints.json` (domain and/or endpoint scope as applicable):
 | Codes | Theme |
 |-------|--------|
 | `high-factory-share`, `critical-factory-share` | Factory share (API: `factoryShare`) |
+| `impact-poor-candidate`, `impact-at-risk`, `impact-strong` | Domain impact (`domain.impact.*`) |
+| `endpoint-impact-poor-candidate` | Endpoint impact (`endpoint.impact.*`) |
 | `elevated-stale` | Fail-safe stale share |
 | `factory-failures`, `critical-factory-failures` | Factory error rate |
 | `frequent-invalidations` | Invalidation vs traffic |
@@ -126,13 +133,14 @@ Exact thresholds and messages: open **`core-hints.json`** or Settings → click 
 | Disable store | `Services/Hints/HintRuleDisableStore.cs` |
 | Product + operator packs | `hints/` |
 | Console DTOs (SPA / fan-out) | `Models/` (`OverviewDtos`, `FanOutDtos`, `WriteRequestDtos`, …) |
-| Settings UI | `wwwroot/js/views.js` (`renderSettingsPage`) |
+| Settings UI | `wwwroot/js/views-settings.js` (`renderSettingsPage`; routed from thin `views.js`) |
 | Attachment on window stats | `Services/Metrics/MetricsWindowStatsService.cs` (`HintEngine`) |
 
 ---
 
 ## See also
 
+- [Guide — operations](guide/operations.md)  
 - **[Writing rules (distributed with Admin)](../src/CacheOrchestrator.AdminConsole/hints/README.md)**  
 - [Admin Console App README](../src/CacheOrchestrator.AdminConsole/README.md)  
 - [admin.md](admin.md)  

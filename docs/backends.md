@@ -1,5 +1,7 @@
 # Cache backends
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md). Canonical detail for Redis and custom registrars.
+
 Policy (domains, TTLs, invalidation, client headers) is separate from **storage**. InMemory ships in the core package. Redis is `CacheOrchestrator.Redis`. Any other provider name is a registrar you implement and pass to `AddBackend`. See [comparison.md](comparison.md) and [faq.md](faq.md).
 
 ## First-party backends
@@ -54,7 +56,7 @@ Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
 |----------------|-----------|-----|
 | **Output Cache store** | Only if used as `OutputCache.Provider` | `SupportsOutputCacheStore = true`, implement `RegisterOutputCache` |
 | **FusionCache L2** | Only if used under `FusionCacheInstances` | `RegisterFusionCache` — **keyed** `IDistributedCache` per instance name |
-| **Health probes** | Optional | `RegisterHealthProbes` → `ICacheOrchestratorHealthProbe` |
+| **Health probes** | Optional on the interface | `RegisterHealthProbes` → `ICacheOrchestratorHealthProbe`. The **Redis** package always registers probes (Fusion instance names plus Output Cache key `oc`). |
 
 ### Output Cache registration rules
 
@@ -192,6 +194,7 @@ Config:
 
 ## Related
 
+- [Guide — topologies](guide/topologies.md)  
 - [configuration.md](configuration.md) — `Distributed`, Redis, providers  
 - [deployment.md](deployment.md) — multi-instance Redis  
 - [architecture.md](architecture.md) — public API surface  

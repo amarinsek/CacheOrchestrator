@@ -1,5 +1,7 @@
 # Output Cache
 
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md).
+
 Output Cache stores the **full HTTP response** for GET and HEAD. CacheOrchestrator applies ASP.NET Core Output Caching per **domain**: TTL, tags, vary rules, `Cache-Control`, and ETag all come from that domain.
 
 ## Register
@@ -58,11 +60,19 @@ app.MapGet("/api/products/{id}", () => /* ... */)
 app.MapGet("/api/t/{tenant}/items", (string tenant) => /* ... */)
    .CacheOutputWithDomain(http => $"tenant-{http.Request.RouteValues["tenant"]}");
 
+app.MapGet("/api/t/{tenant}/items/{id}", (string tenant, string id) => /* ... */)
+   .CacheOutputWithDomain(
+       http => $"tenant-{http.Request.RouteValues["tenant"]}",
+       resourceRouteKey: "id",
+       entityKind: "items");
+
 app.MapGet("/tiles/{z}/{x}/{y}", () => /* ... */)
    .CacheOutputWithDomainTemplate("maps-{host}-{route:z}");
 ```
 
-`resourceRouteKey` and `entityKind` tag the entry so `InvalidateEntityAsync` can purge that row. Templates expand these tokens:
+`resourceRouteKey` and `entityKind` tag the OC entry so `InvalidateEntityAsync` can purge that row. The func overload also accepts those two arguments (dynamic domain + entity tags). `CacheOutputWithDomainTemplate` has **no** entity overload — it only resolves the domain string.
+
+Templates expand these tokens:
 
 - `{host}` — host without port
 - `{route:name}` — route value
@@ -166,6 +176,8 @@ On response start the policy sets:
 
 ## Related
 
+- [Guide — concepts](guide/concepts.md)
+- [vary.md](vary.md)
 - [cache-keys.md](cache-keys.md)
 - [configuration.md](configuration.md)
 - [invalidation.md](invalidation.md)
