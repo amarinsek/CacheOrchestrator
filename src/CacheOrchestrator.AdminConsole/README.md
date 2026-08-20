@@ -156,6 +156,7 @@ The Admin Console App evaluates **read-only rules** against aggregated live stat
 | Disable codes | Settings checkboxes, or `DisabledCodes` in config |
 | Inspect a rule | Settings → click a row → JSON definition |
 | Compile errors | Settings shows an **ERROR** card with rule code + path inside the rule |
+| Compile warnings | Settings **WARN** card (`badge` longer than 3 characters, or duplicate `badge`) — rules still load |
 
 **Customization is the normal path** for team thresholds and extra checks—prefer a pack such as `team-ops.json` over editing `core-hints.json` (cleaner product upgrades).
 
@@ -167,6 +168,7 @@ The Admin Console App evaluates **read-only rules** against aggregated live stat
   "rules": [
     {
       "code": "team-high-factory",
+      "badge": "FA+",
       "severity": "Warning",
       "category": "Factory",
       "scope": "domain",

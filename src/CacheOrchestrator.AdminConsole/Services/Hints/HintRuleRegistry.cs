@@ -108,10 +108,12 @@ public sealed class HintRuleRegistry
                 }
             }
 
+            WarnDuplicateBadges(rules, errors);
+
             _rules = rules;
             _status = new HintRuleLoadStatus
             {
-                Ok = errors.Count == 0,
+                Ok = !errors.Exists(e => e.Level != "warning"),
                 RuleCount = rules.Count,
                 FileCount = files,
                 Errors = errors,
@@ -164,6 +166,32 @@ public sealed class HintRuleRegistry
             if (r is DeclarativeHintRule d && !d.DefinitionEnabled)
                 continue;
             rules.Add(r);
+        }
+    }
+
+    private static void WarnDuplicateBadges(List<IHintRule> rules, List<HintRuleCompileError> errors)
+    {
+        Dictionary<string, IHintRule> first = new(StringComparer.OrdinalIgnoreCase);
+        foreach (IHintRule r in rules)
+        {
+            if (string.IsNullOrEmpty(r.Badge))
+                continue;
+            if (first.TryGetValue(r.Badge, out IHintRule? existing)
+                && !existing.Code.Equals(r.Code, StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add(new HintRuleCompileError
+                {
+                    File = r.Source,
+                    RuleCode = r.Code,
+                    Path = "badge",
+                    Message = $"\"badge\" \"{r.Badge}\" is already used by \"{existing.Code}\".",
+                    Level = "warning"
+                });
+            }
+            else
+            {
+                first.TryAdd(r.Badge, r);
+            }
         }
     }
 

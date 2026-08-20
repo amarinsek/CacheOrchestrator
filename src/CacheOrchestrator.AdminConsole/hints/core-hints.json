@@ -3,6 +3,7 @@
   "rules": [
     {
       "code": "high-factory-share",
+      "badge": "FA↑",
       "severity": "Warning",
       "category": "Factory",
       "scope": "domain",
@@ -18,6 +19,7 @@
     },
     {
       "code": "critical-factory-share",
+      "badge": "FA!",
       "severity": "Critical",
       "category": "Factory",
       "scope": "domain",
@@ -32,6 +34,7 @@
     },
     {
       "code": "elevated-stale",
+      "badge": "STL",
       "severity": "Warning",
       "category": "Factory",
       "scope": "domain",
@@ -46,6 +49,7 @@
     },
     {
       "code": "frequent-invalidations",
+      "badge": "IN↑",
       "severity": "Info",
       "category": "Invalidation",
       "scope": "domain",
@@ -61,6 +65,7 @@
     },
     {
       "code": "factory-failures",
+      "badge": "FAF",
       "severity": "Warning",
       "category": "Factory",
       "scope": "domain",
@@ -76,6 +81,7 @@
     },
     {
       "code": "critical-factory-failures",
+      "badge": "FF!",
       "severity": "Critical",
       "category": "Factory",
       "scope": "domain",
@@ -90,6 +96,7 @@
     },
     {
       "code": "schedule-approaching",
+      "badge": "RMP",
       "severity": "Info",
       "category": "Schedule",
       "scope": "domain",
@@ -104,6 +111,7 @@
     },
     {
       "code": "schedule-hold-lingering",
+      "badge": "HL!",
       "severity": "Warning",
       "category": "Schedule",
       "scope": "domain",
@@ -123,6 +131,7 @@
     },
     {
       "code": "schedule-phase",
+      "badge": "HLD",
       "severity": "Info",
       "category": "Schedule",
       "scope": "domain",
@@ -147,6 +156,7 @@
     },
     {
       "code": "client-ttl-gt-output",
+      "badge": "CTT",
       "severity": "Info",
       "category": "TTL",
       "scope": "domain",
@@ -163,6 +173,7 @@
     },
     {
       "code": "schedule-flat",
+      "badge": "FLT",
       "severity": "Info",
       "category": "Schedule",
       "scope": "domain",
@@ -177,6 +188,7 @@
     },
     {
       "code": "fusion-hard-lt-soft",
+      "badge": "TTL",
       "severity": "Warning",
       "category": "TTL",
       "scope": "domain",
@@ -190,6 +202,7 @@
     },
     {
       "code": "runtime-override",
+      "badge": "OVR",
       "severity": "Info",
       "category": "Config",
       "scope": "domain",
@@ -204,6 +217,7 @@
     },
     {
       "code": "instance-oc-hit-spread",
+      "badge": "OCD",
       "severity": "Warning",
       "category": "Cluster",
       "scope": "domain",
@@ -218,6 +232,7 @@
     },
     {
       "code": "high-factory-share",
+      "badge": "FA↑",
       "severity": "Warning",
       "category": "Factory",
       "scope": "endpoint",
@@ -233,6 +248,7 @@
     },
     {
       "code": "critical-factory-share",
+      "badge": "FA!",
       "severity": "Critical",
       "category": "Factory",
       "scope": "endpoint",
@@ -247,6 +263,7 @@
     },
     {
       "code": "elevated-stale",
+      "badge": "STL",
       "severity": "Warning",
       "category": "Factory",
       "scope": "endpoint",
@@ -262,6 +279,7 @@
     },
     {
       "code": "factory-failures",
+      "badge": "FAF",
       "severity": "Warning",
       "category": "Factory",
       "scope": "endpoint",
@@ -277,6 +295,7 @@
     },
     {
       "code": "critical-factory-failures",
+      "badge": "FF!",
       "severity": "Critical",
       "category": "Factory",
       "scope": "endpoint",
@@ -291,6 +310,7 @@
     },
     {
       "code": "instance-factory-spread",
+      "badge": "FCD",
       "severity": "Warning",
       "category": "Cluster",
       "scope": "endpoint",

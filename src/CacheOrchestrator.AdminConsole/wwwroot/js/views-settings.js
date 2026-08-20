@@ -26,25 +26,20 @@ export async function renderSettingsPage() {
   const rules = payload.rules || [];
   /** @type {Map<string, any>} id -> rule */
   const ruleById = new Map((rules || []).map((r) => [r.id, r]));
-  const errors = load.errors || [];
-  const loadBadge = load.ok
-    ? `<span class="badge ok">OK</span>`
-    : `<span class="badge bad">ERROR</span>`;
+  const issues = load.errors || [];
+  const hard = issues.filter((e) => e.level !== "warning");
+  const warns = issues.filter((e) => e.level === "warning");
+  const loadBadge = hard.length
+    ? `<span class="badge bad">ERROR</span>`
+    : warns.length
+      ? `<span class="badge warn">WARN</span>`
+      : `<span class="badge ok">OK</span>`;
 
-  const errBlock = errors.length
-    ? `<div class="card hint-compile-error-card">
-        <div class="card-head">
-          <h2><span class="badge bad">ERROR</span> Rule compile issues
-            <span class="badge bad">${errors.length}</span></h2>
-        </div>
-        <p class="hint-compile-error-lead">
-          ${errors.length} problem(s) in rule files — rules with errors were not loaded.
-          Fix JSON, then <strong>Reload</strong>. <strong>Rule</strong> names the entry; <strong>Path</strong> is inside that rule.
-        </p>
+  const issueTable = (list) => `
         <table class="dense hint-compile-error-table">
           <thead><tr><th>File</th><th>Rule</th><th>Path</th><th>Message</th></tr></thead>
           <tbody>
-            ${errors.map((e) => `
+            ${list.map((e) => `
               <tr>
                 <td><code>${esc(e.file || "")}</code></td>
                 <td>${e.ruleCode ? `<code>${esc(e.ruleCode)}</code>` : `<span class="muted">—</span>`}</td>
@@ -52,7 +47,31 @@ export async function renderSettingsPage() {
                 <td>${esc(e.message || "")}</td>
               </tr>`).join("")}
           </tbody>
-        </table>
+        </table>`;
+
+  const errBlock = hard.length
+    ? `<div class="card hint-compile-error-card">
+        <div class="card-head">
+          <h2><span class="badge bad">ERROR</span> Rule compile issues
+            <span class="badge bad">${hard.length}</span></h2>
+        </div>
+        <p class="hint-compile-error-lead">
+          ${hard.length} problem(s) in rule files — rules with errors were not loaded.
+          Fix JSON, then <strong>Reload</strong>. <strong>Rule</strong> names the entry; <strong>Path</strong> is inside that rule.
+        </p>
+        ${issueTable(hard)}
+      </div>`
+    : "";
+  const warnBlock = warns.length
+    ? `<div class="card">
+        <div class="card-head">
+          <h2><span class="badge warn">WARN</span> Rule compile warnings
+            <span class="badge warn">${warns.length}</span></h2>
+        </div>
+        <p class="muted" style="margin:0 0 0.75rem">
+          Rules still loaded. Badge longer than 3 characters or a duplicate <code>badge</code> among different codes.
+        </p>
+        ${issueTable(warns)}
       </div>`
     : "";
 
@@ -73,7 +92,7 @@ export async function renderSettingsPage() {
             <table class="dense entity-table">
               <thead>
                 <tr>
-                  <th>Enabled</th><th>Code</th><th>Severity</th><th>Scope</th>
+                  <th>Enabled</th><th>Code</th><th>Badge</th><th>Severity</th><th>Scope</th>
                   <th>Category</th><th>Description</th>
                 </tr>
               </thead>
@@ -85,6 +104,7 @@ export async function renderSettingsPage() {
                         ${r.enabled ? "checked" : ""} title="Enable / disable ${esc(r.code)}" />
                     </td>
                     <td><code class="hint-rule-code-link">${esc(r.code)}</code></td>
+                    <td>${r.badge ? `<code>${esc(r.badge)}</code>` : `<span class="muted">—</span>`}</td>
                     <td>${severityCell(r.defaultSeverity)}</td>
                     <td>${esc(r.scope || "")}</td>
                     <td>${esc(r.category || "—")}</td>
@@ -120,6 +140,7 @@ export async function renderSettingsPage() {
       </p>
     </div>
     ${errBlock}
+    ${warnBlock}
     <div class="card">
       <h2>Catalog <span class="badge">${rules.length}</span></h2>
       <p class="muted small">Groups are one per rule file. Click the header to collapse / expand.</p>

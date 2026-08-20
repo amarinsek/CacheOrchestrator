@@ -794,7 +794,7 @@ a.btn-secondary:hover {
 .breadcrumb[hidden] { display: none !important; }
 
 .app-main {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0.75rem 1.25rem 1.25rem;
 }
@@ -958,9 +958,35 @@ th, td {
 
 th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
 
+table.dense,
+table.data {
+  table-layout: fixed;
+}
+
+table.dense th,
+table.dense td,
+table.data th,
+table.data td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 table.dense th, table.dense td {
   font-size: 0.82rem;
   padding: 0.35rem 0.4rem;
+}
+
+table.dense td code,
+table.dense th code,
+table.data td code,
+table.data th code {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 th.secondary, td.secondary {
@@ -1858,7 +1884,7 @@ code { color: #cde; font-size: 0.9em; }
 
 .hint-badges {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.25rem;
   margin-left: 0.25rem;
   vertical-align: middle;

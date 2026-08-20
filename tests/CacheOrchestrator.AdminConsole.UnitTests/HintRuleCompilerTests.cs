@@ -37,6 +37,54 @@ public class HintRuleCompilerTests
     }
 
     [Fact]
+    public void Compile_BadgeLongerThan3_WarnsAndKeepsFirstThree()
+    {
+        const string json = """
+            {
+              "rules": [
+                {
+                  "code": "long-badge",
+                  "badge": "TOOLONG",
+                  "severity": "Info",
+                  "scope": "domain",
+                  "when": { "path": "domain.requests", "op": ">=", "value": 0 },
+                  "message": "x"
+                }
+              ]
+            }
+            """;
+
+        HintRuleCompileBatchResult result = _compiler.CompileFile("t.json", json);
+        result.Success.Should().BeTrue();
+        result.Errors.Should().ContainSingle(e => e.Level == "warning" && e.Path == "badge");
+        result.Rules[0].Badge.Should().Be("TOO");
+    }
+
+    [Fact]
+    public void Compile_BadgeThreeRunes_IncludingArrow_IsOk()
+    {
+        const string json = """
+            {
+              "rules": [
+                {
+                  "code": "fa-up",
+                  "badge": "FA↑",
+                  "severity": "Warning",
+                  "scope": "domain",
+                  "when": { "path": "domain.requests", "op": ">=", "value": 0 },
+                  "message": "x"
+                }
+              ]
+            }
+            """;
+
+        HintRuleCompileBatchResult result = _compiler.CompileFile("t.json", json);
+        result.Success.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
+        result.Rules[0].Badge.Should().Be("FA↑");
+    }
+
+    [Fact]
     public void Compile_UnknownPath_ReportsError()
     {
         const string json = """

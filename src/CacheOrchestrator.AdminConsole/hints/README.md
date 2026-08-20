@@ -91,6 +91,7 @@ Example: `hints/team-ops.json`
   "rules": [
     {
       "code": "team-high-factory",
+      "badge": "FA+",
       "severity": "Warning",
       "category": "Factory",
       "scope": "domain",
@@ -116,16 +117,18 @@ With `"RuleFiles": [ "hints/*.json" ]`, any non-sample `hints/*.json` is loaded 
 
 1. Open Admin UI → **Settings**.  
 2. Find group `file:hints/team-ops.json`.  
-3. If something is wrong, the red **ERROR** card lists **Rule** + **Path** (path is *inside* the rule, e.g. `when.all[0].op`).  
-4. Click a catalog row to open the rule JSON (readable operators like `>=`).
+3. If something is wrong, the red **ERROR** card lists **Rule** + **Path** (path is *inside* the rule, e.g. `when.all[0].op`). A yellow **WARN** card is for `badge` length or duplicate badges — those rules still load.  
+4. Click a catalog row to open the rule JSON (readable operators like `>=`). Confirm **Badge** on the catalog row.
 
 ### 4. Verify with traffic
 
 Generate load on the monitored apps, then open **Hints** or a domain detail page. The hint appears only when `when` matches.
 
-### 5. Optional short badge label
+### 5. Optional table badge
 
-List badges use `wwwroot/js/hints.js` → `shortHint()`. Unknown codes still show; add a short map entry if you want a custom abbreviation.
+Set `"badge": "FA↑"` on the rule (at most **3 characters**, including symbols). The compiler **warns** if it is longer (first 3 runes are used) or if a different `code` already uses the same badge. Same `code` on domain and endpoint may share a badge. Omit `badge` to show **ERR** / **WRN** / **INF** from severity.
+
+List rows show at most **two** chips; three or more hints collapse to the nav-style severity stack.
 
 ---
 
@@ -137,6 +140,7 @@ List badges use `wwwroot/js/hints.js` → `shortHint()`. Unknown codes still sho
   "rules": [
     {
       "code": "stable-kebab-id",
+      "badge": "XYZ",
       "severity": "Warning",
       "category": "Factory",
       "scope": "domain",
@@ -152,6 +156,7 @@ List badges use `wwwroot/js/hints.js` → `shortHint()`. Unknown codes still sho
 | Field | Required | Notes |
 |-------|----------|--------|
 | `code` | yes | Stable id: letters, digits, `-`, `_`, `.` (max 80) |
+| `badge` | no | Table chip, max 3 characters. Duplicate among different codes, or longer than 3, is a **warning**. |
 | `severity` | no | `Info` (default), `Warning`, `Critical` |
 | `scope` | no | `domain` (default), `endpoint`, or `any` |
 | `category` | no | Grouping label in Settings |

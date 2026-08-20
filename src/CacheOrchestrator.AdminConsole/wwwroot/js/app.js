@@ -17,7 +17,10 @@ import {
   setMetricsCapability,
   subscribe as subscribeTimeRange,
 } from "./time-range.js";
+import { bindTableOverflowTips } from "./tables.js";
 import { route } from "./views.js";
+
+bindTableOverflowTips();
 
 setRouteHandler(route);
 
