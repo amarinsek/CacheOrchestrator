@@ -194,8 +194,8 @@ Not enabled by default (no cert in repo). When you have a code-signing certifica
 
 | | Text |
 |--|------|
-| **Short** (NuGet / `.csproj` / GitHub About) | Domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model. |
-| **Lead** (README intro) | **CacheOrchestrator** is domain-based caching for ASP.NET Core: define rules once per domain in configuration, then apply them on endpoints with a single attribute or extension. It orchestrates Output Cache, FusionCache, and client Cache-Control under the same model. |
+| **Short** (NuGet / `.csproj` / GitHub About) | Domain-based configuration and coordination for ASP.NET Core Output Cache, FusionCache, and client Cache-Control — not a cache of its own. |
+| **Lead** (README intro) | **CacheOrchestrator** configures and coordinates three existing layers in ASP.NET Core — Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, FusionCache still holds the object, and the browser or CDN still honours `Cache-Control`. |
 
 Core package `Description` may append: `Redis backends: install CacheOrchestrator.Redis.`
 

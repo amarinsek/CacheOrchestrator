@@ -6,7 +6,7 @@
 		<LangVersion>latest</LangVersion>
 		<PackageId>CacheOrchestrator</PackageId>
 		<!-- Canonical short description — keep in sync with root README / NuGet / GitHub About -->
-		<Description>Domain-based caching for ASP.NET Core that orchestrates Output Cache, FusionCache, and client Cache-Control under the same model. Redis backends: install CacheOrchestrator.Redis.</Description>
+		<Description>Domain-based configuration and coordination for ASP.NET Core Output Cache, FusionCache, and client Cache-Control — not a cache of its own. Redis backends: install CacheOrchestrator.Redis.</Description>
 		<PackageTags>cache;caching;domain;outputcache;fusioncache;httpcache;aspnetcore;performance</PackageTags>
 		<!-- NuGet.org shows this file (not the root GitHub README — HTML/logo-friendly for GitHub only). -->
 		<PackageReadmeFile>README.md</PackageReadmeFile>

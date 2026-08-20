@@ -2,7 +2,7 @@
 
 > **Guide.** Product overview: [root README](../../README.md). Catalog: [documentation index](../README.md).
 
-This layer sits between the product README and the technical reference. It answers how to think about domains, which package and topology to use, and how to operate the cache — without the full `appsettings` schema.
+This layer sits between the product README and the technical reference. It answers how to think about domains, which package and topology to use, and how to operate the three layers CacheOrchestrator coordinates — without the full `appsettings` schema.
 
 You do not need every reference page to ship a first domain.
 

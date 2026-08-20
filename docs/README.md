@@ -1,6 +1,8 @@
 # CacheOrchestrator documentation
 
-Human docs in three layers. The [root README](../README.md) is the product overview. You do not need every page below.
+CacheOrchestrator is a configuration and coordination layer over ASP.NET Output Cache, FusionCache, and client Cache-Control. It is not a cache of its own. The [root README](../README.md) is the product overview.
+
+Human docs in three layers. You do not need every page below.
 
 ## Three layers
 

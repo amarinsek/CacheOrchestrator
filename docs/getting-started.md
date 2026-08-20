@@ -16,7 +16,7 @@ See [samples/CacheOrchestrator.Minimal](../samples/CacheOrchestrator.Minimal).
 
 ## How the pieces fit
 
-A **domain** is a name in configuration (`catalog`, `osm-tiles`, …). It holds TTLs, Version, client headers, and which Fusion instance to use. You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. `IDomainFusionCache.GetOrSetAsync` uses the same options.
+A **domain** is a named policy, not a store. Output Cache, FusionCache, and client `Cache-Control` remain the three caches; CacheOrchestrator applies the same options to all three. In configuration it is a name (`catalog`, `osm-tiles`, …). It holds TTLs, Version, client headers, and which Fusion instance to use. You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. `IDomainFusionCache.GetOrSetAsync` uses the same options.
 
 - **Output Cache** stores the full HTTP response. You enable it by putting the domain on the endpoint.
 - **FusionCache** stores the object your factory produced. You call `IDomainFusionCache`.
