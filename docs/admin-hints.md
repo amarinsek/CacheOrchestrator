@@ -19,9 +19,9 @@ Hints never change cache behaviour, TTLs, or invalidation.
 
 ## What operators need
 
-1. Open Admin → **Settings** for the rule catalog, compile errors, enable/disable, and “view rule JSON”.  
+1. Open Admin → **Settings** for the rule catalog, compile errors/warnings, enable/disable, and “view rule JSON”.  
 2. Open **Hints** / domain / endpoint pages for live recommendations.  
-3. To **add a rule**: write a JSON pack (`hints/` in Development, or `data/rules/` in Docker/Production), load it via `AdminConsole:Hints:RuleFiles`, Reload — details in the **[operator guide](../src/CacheOrchestrator.AdminConsole/hints/README.md)**. Docker volume layout: [deploy/admin/README.md](../deploy/admin/README.md).
+3. To **add a rule**: write a JSON pack (`hints/` in Development, or `data/rules/` in Docker/Production), load it via `AdminConsole:Hints:RuleFiles`, Reload — details in the **[operator guide](../src/CacheOrchestrator.AdminConsole/hints/README.md)** (include optional `"badge"` for table chips). Docker volume layout: [deploy/admin/README.md](../deploy/admin/README.md).
 
 ---
 
@@ -43,9 +43,9 @@ Domain config (optional) →  Admin fan-out /api/domains  →  config-only rules
 | `AdminConsole:Hints:RuleFiles` | Extra operator packs (globs) |
 | `HintEngine` / `IHintRule` | Evaluation |
 | `HintEvaluationContext` | Read-only facts + computed fields |
-| Compiler | Validate packs; errors include **rule code** + path *inside* the rule |
-| Settings UI (`#/settings`) | Catalog by file, disable, inspect JSON, reload |
-| `wwwroot/js/hints.js` | Presentation only |
+| Compiler | Validate packs; **errors** fail the rule, **warnings** (e.g. `badge` longer than 3 characters or a duplicate badge) still load |
+| Settings UI (`#/settings`) | Catalog by file (includes **Badge**), disable, inspect JSON, reload |
+| `wwwroot/js/hints.js` | Presentation only (table chips use `hint.badge` from the rule) |
 
 Rules run **only in the Admin Console App**, not on each instance’s caching hot path.
 
@@ -75,6 +75,8 @@ Production / Docker defaults: `data/rules/*.json` and `data/disabled.local.json`
 
 Load order: **core pack**, then `RuleFiles` (skip `disabled.local.json`, `*.sample.json`, duplicates).  
 Uniqueness: **`(code, scope)`** — same code may exist for domain and endpoint.
+
+Optional **`badge`** on each rule is the 3-character table chip. The same `code` on domain and endpoint may share a badge; two different codes with the same badge is a **warning**. Omit `badge` to show **ERR** / **WRN** / **INF** from severity. A list row shows at most two chips; more hints collapse to the Hints nav severity stack.
 
 Full disable options and pack examples: [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md).
 
@@ -110,7 +112,7 @@ Shipped in `core-hints.json` (domain and/or endpoint scope as applicable):
 | `runtime-override` | Runtime Version/TTL overlay |
 | `instance-oc-hit-spread`, `instance-factory-spread` | Cross-instance OC / factory share drift |
 
-Exact thresholds and messages: open **`core-hints.json`** or Settings → click a row.
+Exact thresholds, messages, and `badge` labels: open **`core-hints.json`** or Settings → click a row.
 
 ---
 

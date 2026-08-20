@@ -5,6 +5,7 @@ public sealed class HintRuleCatalogEntry
 {
     public required string Id { get; init; }
     public required string Code { get; init; }
+    public string? Badge { get; init; }
     public string? Category { get; init; }
     public required string Scope { get; init; }
     public required string Source { get; init; }
@@ -43,4 +44,7 @@ public sealed record HintRuleCompileError
     public required string Path { get; init; }
 
     public required string Message { get; init; }
+
+    /// <summary><c>error</c> (default) or <c>warning</c>. Warnings do not fail the load.</summary>
+    public string Level { get; init; } = "error";
 }

@@ -32,6 +32,7 @@ public sealed class HintEngine
             {
                 Id = rule.Id + ":" + rule.Scope,
                 Code = rule.Code,
+                Badge = rule.Badge,
                 Category = rule.Category,
                 Scope = rule.Scope,
                 Source = rule.Source,

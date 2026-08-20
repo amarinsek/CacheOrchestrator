@@ -323,8 +323,29 @@ export function noInstancesConfigured(instances) {
   return !instances || instances.length === 0;
 }
 
+/**
+ * Truncated dense-table cells: native title with the full text, only when clipped.
+ * Bound once on the document (or a long-lived root).
+ */
+export function bindTableOverflowTips(root = document) {
+  if (!root || root._tableOverflowTips) return;
+  root._tableOverflowTips = true;
+  root.addEventListener("pointerover", (ev) => {
+    const td = ev.target?.closest?.("table.dense td, table.data td");
+    if (!td || td.dataset.overflowReady) return;
+    td.dataset.overflowReady = "1";
+    if (td.querySelector(".pipe")) return;
+    const clipped = td.scrollWidth > td.clientWidth + 1
+      || [...td.querySelectorAll("code, .cell-ellipsis")].some((el) => el.scrollWidth > el.clientWidth + 1);
+    if (!clipped || td.hasAttribute("title")) return;
+    const text = td.innerText.replace(/\s+/g, " ").trim();
+    if (text && text !== "—") td.title = text;
+  }, true);
+}
+
 /** Row click → detail hash routes. */
 export function bindEntityTableClicks(root) {
+  bindTableOverflowTips(root);
   root.querySelectorAll("tr.entity-row[data-entity=endpoint]").forEach((tr) => {
     tr.addEventListener("click", (ev) => {
       if (ev.target.closest("a")) return;

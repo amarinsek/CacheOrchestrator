@@ -195,6 +195,9 @@ public sealed class AdminHintDto
     /// <summary>Stable machine-readable code (e.g. <c>low-fc-hit-rate</c>).</summary>
     public required string Code { get; init; }
 
+    /// <summary>Optional table-chip label (at most 3 characters) from the rule definition.</summary>
+    public string? Badge { get; init; }
+
     /// <summary>Human-readable suggestion.</summary>
     public required string Message { get; init; }
 }

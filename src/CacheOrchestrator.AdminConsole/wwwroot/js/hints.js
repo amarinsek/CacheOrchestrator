@@ -28,52 +28,44 @@ export function severityStack(summary) {
   return `<span class="sev-stack max-${esc(max)}" title="${c} critical · ${w} warning · ${i} info">${parts.join("")}</span>`;
 }
 
+const SEV_RANK = { Critical: 0, Warning: 1, Info: 2 };
+
 /**
- * Compact code badges on entity list rows. Empty → ○.
- * 1–2 hints: short labels (e.g. Inv↑). More than 2: severity counts [c1][w2][i3].
+ * Compact code badges on entity list rows and detail titles. Empty → ○.
+ * 1–2 hints: 3-character labels (Critical, then Warning, then Info).
+ * More than 2: same severity stack as the Hints nav badge.
  */
 export function hintBadges(hints) {
   if (!hints || !hints.length) {
     return `<span class="hint-badges"><span class="hint empty" title="No recommendations">○</span></span>`;
   }
+  const tip = hints.map((h) => `${shortHint(h)}: ${h.message || h.code || ""}`).join(" · ");
   if (hints.length > 2) {
-    const s = summarizeHints(hints);
-    const parts = [];
-    if (s.critical) parts.push(`<span class="hint Critical">[c${s.critical}]</span>`);
-    if (s.warning) parts.push(`<span class="hint Warning">[w${s.warning}]</span>`);
-    if (s.info) parts.push(`<span class="hint Info">[i${s.info}]</span>`);
-    const tip = hints.map((h) => `${shortHint(h)}: ${h.message || h.code || ""}`).join(" · ");
-    return `<span class="hint-badges hint-badges-compact" title="${esc(tip)}">${parts.join("")}</span>`;
+    return `<span class="hint-badges hint-badges-compact" title="${esc(tip)}">${severityStack(summarizeHints(hints))}</span>`;
   }
-  return `<span class="hint-badges">${hints.map((h) =>
+  const ordered = [...hints].sort((a, b) => {
+    const ra = SEV_RANK[a.severity] ?? 2;
+    const rb = SEV_RANK[b.severity] ?? 2;
+    if (ra !== rb) return ra - rb;
+    return String(a.code || "").localeCompare(String(b.code || ""));
+  });
+  return `<span class="hint-badges">${ordered.map((h) =>
     `<span class="hint ${esc(h.severity || "Info")}" title="${esc(h.message)}">${esc(shortHint(h))}</span>`
   ).join("")}</span>`;
 }
 
-/** Map rule codes to short row labels. Unknown codes use severity prefix. */
+/**
+ * Table chip: rule <c>badge</c> (max 3 runes), else ERR / WRN / INF from severity.
+ */
 export function shortHint(h) {
-  const map = {
-    "high-factory-share": "Factory↑",
-    "critical-factory-share": "Factory‼",
-    // Obsolete codes (pre-rename) still map if disabled.local or custom packs use them
-    "high-origin-share": "Factory↑",
-    "critical-origin-share": "Factory‼",
-    "elevated-stale": "Stale",
-    "frequent-invalidations": "Inv↑",
-    "client-ttl-gt-output": "ClientTTL",
-    "schedule-phase": "Hold",
-    "schedule-approaching": "Ramp",
-    "schedule-hold-lingering": "Hold!",
-    "schedule-flat": "Flat",
-    "factory-failures": "Factory",
-    "critical-factory-failures": "Factory‼",
-    "runtime-override": "Overlay",
-    "fusion-hard-lt-soft": "TTL",
-    "instance-oc-hit-spread": "Drift",
-    "instance-factory-spread": "Drift",
-    "instance-origin-spread": "Drift",
-  };
-  return map[h.code] || (h.severity || "Hint").slice(0, 4);
+  const raw = String(h?.badge || "").trim();
+  if (raw) {
+    const chars = [...raw];
+    return chars.length <= 3 ? raw : chars.slice(0, 3).join("");
+  }
+  if (h?.severity === "Critical") return "ERR";
+  if (h?.severity === "Warning") return "WRN";
+  return "INF";
 }
 
 /** Full severity + code + message blocks (assumes non-empty). */

@@ -16,6 +16,8 @@ public sealed class DeclarativeHintDocument
 public sealed class DeclarativeHintRuleDefinition
 {
     public string? Code { get; set; }
+    /// <summary>Optional table-chip label, at most 3 characters.</summary>
+    public string? Badge { get; set; }
     public string? Severity { get; set; }
     public string? Category { get; set; }
     /// <summary><c>domain</c>, <c>endpoint</c>, or <c>any</c>.</summary>

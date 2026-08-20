@@ -11,6 +11,9 @@ public interface IHintRule
     /// <summary>Primary machine-readable code emitted by this rule (catalog / disable key).</summary>
     string Code { get; }
 
+    /// <summary>Optional 3-character table chip; null means the UI uses ERR/WRN/INF.</summary>
+    string? Badge { get; }
+
     /// <summary>Optional grouping (Origin, Schedule, TTL, …).</summary>
     string? Category { get; }
 

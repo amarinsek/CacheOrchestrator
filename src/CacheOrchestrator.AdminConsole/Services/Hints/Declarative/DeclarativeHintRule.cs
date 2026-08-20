@@ -23,10 +23,12 @@ public sealed partial class DeclarativeHintRule : IHintRule
         string messageTemplate,
         HintCondition when,
         bool definitionEnabled,
-        string? definitionJson = null)
+        string? definitionJson = null,
+        string? badge = null)
     {
         Id = id;
         Code = code;
+        Badge = badge;
         Category = category;
         Scope = scope;
         Source = source;
@@ -42,6 +44,7 @@ public sealed partial class DeclarativeHintRule : IHintRule
 
     public string Id { get; }
     public string Code { get; }
+    public string? Badge { get; }
     public string? Category { get; }
     public string Scope { get; }
     public string Source { get; }
@@ -73,6 +76,7 @@ public sealed partial class DeclarativeHintRule : IHintRule
         {
             Severity = _severity,
             Code = Code,
+            Badge = Badge,
             Message = FormatMessage(_messageTemplate, context)
         };
     }

@@ -71,10 +71,13 @@ public sealed partial class HintRuleCompiler
                 continue;
             }
 
+            foreach (HintRuleCompileError e in ruleErrors)
+                errors.Add(e);
             rules.Add(rule!);
         }
 
-        return new HintRuleCompileBatchResult(errors.Count == 0, rules, errors);
+        bool ok = !errors.Exists(e => e.Level != "warning");
+        return new HintRuleCompileBatchResult(ok, rules, errors);
     }
 
     private static bool TryCompileRule(
@@ -132,7 +135,9 @@ public sealed partial class HintRuleCompiler
         }
 
         HintCondition? when = ParseCondition(file, basePath + ".when", def.When.Value, errors, code);
-        if (errors.Count > 0 || when is null)
+        string? badge = NormalizeBadge(def.Badge, file, basePath, code, errors);
+
+        if (errors.Exists(e => e.Level != "warning") || when is null)
             return false;
 
         string? definitionJson = null;
@@ -157,9 +162,31 @@ public sealed partial class HintRuleCompiler
             messageTemplate: def.Message!.Trim(),
             when: when,
             definitionEnabled: def.Enabled,
-            definitionJson: definitionJson);
+            definitionJson: definitionJson,
+            badge: badge);
 
         return true;
+    }
+
+    /// <summary>Trim; warn and keep the first 3 runes when longer than 3.</summary>
+    private static string? NormalizeBadge(
+        string? raw,
+        string file,
+        string basePath,
+        string code,
+        List<HintRuleCompileError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        string trimmed = raw.Trim();
+        int runes = trimmed.EnumerateRunes().Count();
+        if (runes <= 3)
+            return trimmed;
+
+        errors.Add(Warn(file, basePath + ".badge",
+            "\"badge\" is longer than 3 characters; table chips use the first 3.", code));
+        return string.Concat(trimmed.EnumerateRunes().Take(3));
     }
 
     private static HintCondition? ParseCondition(
@@ -278,7 +305,18 @@ public sealed partial class HintRuleCompiler
             File = file,
             Path = ToRuleRelativePath(path, ruleCode),
             Message = message,
-            RuleCode = ruleCode
+            RuleCode = ruleCode,
+            Level = "error"
+        };
+
+    private static HintRuleCompileError Warn(string file, string path, string message, string? ruleCode = null) =>
+        new()
+        {
+            File = file,
+            Path = ToRuleRelativePath(path, ruleCode),
+            Message = message,
+            RuleCode = ruleCode,
+            Level = "warning"
         };
 
     /// <summary>
