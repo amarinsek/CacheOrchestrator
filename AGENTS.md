@@ -36,8 +36,8 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 Domain (config name)
   → DomainCacheOptions (resolved snapshot)
       → DomainOutputCachePolicy (HTTP)
-      → IDomainFusionCache.GetOrSetAsync / GetOrSetEntityAsync (data)
-      → tags domain:{name} for invalidation
+      → IDomainFusionCache.GetOrSetAsync / GetOrSetEntityAsync / GetOrSetEntitySetAsync (data)
+      → EntityFootprint tags (domain + entity / entitykind; optional members / dependsOn / aliases)
 ```
 
 **Domain for FusionCache** (`IDomainFusionCache.GetOrSetAsync`):
@@ -49,6 +49,8 @@ Domain (config name)
 
 Happy path: **no** manual `EnsureDomainOptions` when OC domain is on the endpoint.  
 **Fusion-only** endpoints: use domain overload or `EnsureDomainOptions`.
+
+**Entity identity:** declare once on `.CacheOutputWithDomain` / `[CacheDomain]` (`resourceRouteKey` + `entityKind` for detail, or `entityKind` alone for collections). `GetOrSetEntityAsync(http, factory)` / `GetOrSetEntitySetAsync` consume it. Extend tags with `EntityCache` / `EntitySet`. Fusion-only: `SetEntityIdentity`. Explicit kind/id overloads are obsolete.
 
 ### Client Cache Schedule (important product feature)
 
@@ -69,7 +71,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `AddRedisBackend` / `RedisCacheBackendRegistrar` | `CacheOrchestrator.Redis` |
 | `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheOrchestrator.OutputCache` |
 | `[CacheDomain("…")]` | `CacheOrchestrator.OutputCache` |
-| `IDomainFusionCache` | `CacheOrchestrator.FusionCache` |
+| `IDomainFusionCache` / `EntityCache` / `EntitySet` / `EntityFootprint` | `CacheOrchestrator.FusionCache` |
 | `ICacheVaryContributor` / `CacheVaryMaterializer` / `ICacheVaryBuilder` | `CacheOrchestrator.Vary` |
 | `AuthBypassMode` / `DomainAuthEvaluator` | `CacheOrchestrator.Configuration` |
 | `IDomainCacheOptionsProvider` / `DomainCacheOptions` / `DomainName` | `CacheOrchestrator.Configuration` |

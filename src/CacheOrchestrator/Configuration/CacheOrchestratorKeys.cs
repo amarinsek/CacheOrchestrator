@@ -27,4 +27,10 @@ public static class CacheOrchestratorKeys
     /// (and by Output Cache when <c>entityKind</c> is configured).
     /// </summary>
     public static readonly object EntityKindKey = new();
+
+    /// <summary>
+    /// Key for a staged <c>EntityFootprint</c> merged into Output Cache tags in
+    /// <c>ServeResponseAsync</c> (members / dependsOn / aliases discovered in Fusion factories).
+    /// </summary>
+    public static readonly object PendingEntityFootprintKey = new();
 }

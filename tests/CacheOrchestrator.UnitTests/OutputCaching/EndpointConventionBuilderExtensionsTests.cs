@@ -38,6 +38,19 @@ public class EndpointConventionBuilderExtensionsTests
         act.Should().Throw<ArgumentException>();
     }
 
+    [Fact]
+    public void CacheOutputWithDomain_WithDomainAndEntityKind_AddsKindScopedPolicy()
+    {
+        using var app = CreateApp();
+        var builder = app.MapGet("/products", () => Results.Ok());
+
+        builder.CacheOutputWithDomain("store", "products");
+
+        DomainOutputCachePolicy policy = GetEndpoint(app, builder).Metadata.OfType<DomainOutputCachePolicy>().Single();
+        policy.EntityKind.Should().Be("products");
+        policy.ResourceRouteKey.Should().BeNull();
+    }
+
     // =========================
     // CacheOutputWithDomain(Func)
     // =========================

@@ -60,23 +60,85 @@ If you omit the domain:
 - metric `cache_orchestrator.fc.requests` is recorded with `domain=_`, `result=unresolved`
 - `X-Cache` may show `fc=unresolved; fa=run` when Output Cache still writes headers
 
-### Entity identity
+### Entity identity (EntityFootprint)
+
+Endpoint metadata owns domain + primary kind/id. Fusion consumes that identity (no repeated strings on the happy path).
 
 ```csharp
-var product = await cache.GetOrSetEntityAsync(http, "store", "products", productId,
-    ct => LoadProductAsync(productId, ct), cancellationToken);
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, CancellationToken cancellationToken) =>
+{
+    var product = await cache.GetOrSetEntityAsync(
+        http,
+        ct => LoadProductAsync(id, ct),
+        cancellationToken);
+    return product is null ? Results.NotFound() : Results.Ok(product);
+})
+.CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
 
 await invalidator.InvalidateEntityAsync("store", "products", productId, cancellationToken);
 ```
 
-The key includes kind and id. Tags are `domain:store`, `entity:store:products:42`, and `entitykind:store:products`. A domain is a policy group; `entityKind` is required because ids are not unique inside a domain.
+Tags for a detail entry: `domain:store`, `entity:store:products:42`, `entitykind:store:products`. Extend with `EntityCache` / `EntitySet` for members, `DependsOn`, and aliases (same tag prefixes).
 
-- List or snapshot with `.CacheOutputWithDomain("x")` — `GetOrSetAsync(http, factory)`.
-- Fusion only — `GetOrSetAsync(http, "x", factory)`.
-- One row — `GetOrSetEntityAsync(http, domain, entityKind, resourceId, factory)`.
-- One row when Output Cache already set the domain — `GetOrSetEntityAsync(http, entityKind, resourceId, factory)`.
+| Scenario | API |
+|----------|-----|
+| Snapshot / URL list without member tags | `.CacheOutputWithDomain("x")` + `GetOrSetAsync(http, factory)` |
+| Fusion-only domain | `GetOrSetAsync(http, "x", factory)` |
+| Detail / projection | `[CacheDomain(..., resourceRouteKey, entityKind)]` + `GetOrSetEntityAsync(http, factory)` |
+| Detail + references / aggregate | same + factory returns `EntityCache.Create(...).DependsOn(...).Members(...)` |
+| Collection with member tags | `[CacheDomain(domain, entityKind)]` + `GetOrSetEntitySetAsync(http, ct => EntitySet.Create(...))` |
+| Fusion-only entity | `SetEntityIdentity(http, kind, id)` then `GetOrSetEntityAsync(http, factory)` |
 
 See [domain-profiles.md](domain-profiles.md) and [invalidation.md](invalidation.md).
+
+#### Footprint examples
+
+**List + filter dependency**
+
+```csharp
+[CacheDomain("store", entityKind: "products")]
+[HttpGet]
+public async Task<ActionResult<IReadOnlyList<Product>>> List(int? categoryId, IDomainFusionCache cache, ...)
+{
+    var products = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
+    {
+        var rows = await QueryAsync(categoryId, ct);
+        var set = EntitySet.Create(rows, p => p.Id.ToString());
+        return categoryId is int cid ? set.DependsOn("categories", cid.ToString()) : set;
+    }, ct);
+    return Ok(products);
+}
+```
+
+**References**
+
+```csharp
+return await cache.GetOrSetEntityAsync(HttpContext, async ct =>
+{
+    var row = await LoadAsync(ct);
+    if (row is null) return EntityCache.Miss<ProductDetailsDto>();
+    return EntityCache.Create(row)
+        .DependsOn("categories", row.CategoryId.ToString())
+        .DependsOn("brands", row.BrandId.ToString());
+}, ct);
+```
+
+**Aggregate**
+
+```csharp
+return await cache.GetOrSetEntityAsync(HttpContext, async ct =>
+{
+    var order = await LoadOrderAsync(ct);
+    if (order is null) return EntityCache.Miss<OrderDto>();
+    return EntityCache.Create(OrderDto.From(order))
+        .Members("order-lines", order.Lines.Select(l => l.Id.ToString()))
+        .DependsOn("customers", order.CustomerId.ToString());
+}, ct);
+```
+
+#### Migration (obsolete overloads)
+
+`GetOrSetEntityAsync(http, entityKind, resourceId, …)` and `GetOrSetEntityAsync(http, domain, entityKind, resourceId, …)` are obsolete. Prefer endpoint identity or `SetEntityIdentity`. They remain as thin wrappers until the next major.
 
 ## When the factory runs uncached
 

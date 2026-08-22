@@ -85,9 +85,6 @@ public class EfSaveChangesInvalidationHttpTests
         {
             Product? product = await cache.GetOrSetEntityAsync(
                 http,
-                domain,
-                "products",
-                id.ToString(),
                 async ct =>
                 {
                     factories.Increment();
@@ -174,8 +171,6 @@ public class EfSaveChangesInvalidationHttpTests
                 {
                     Product? product = await cache.GetOrSetEntityAsync(
                         http,
-                        "products",
-                        id.ToString(),
                         async ct =>
                         {
                             factories.Increment();
@@ -237,9 +232,6 @@ public class EfSaveChangesInvalidationHttpTests
         {
             GuidProduct? product = await cache.GetOrSetEntityAsync(
                 http,
-                domain,
-                "products",
-                id.ToString(),
                 async ct =>
                 {
                     factories.Increment();
@@ -327,9 +319,6 @@ public class EfSaveChangesInvalidationHttpTests
         {
             Product? product = await cache.GetOrSetEntityAsync(
                 http,
-                domain,
-                "products",
-                id.ToString(),
                 async ct =>
                 {
                     factories.Increment();
@@ -412,9 +401,6 @@ public class EfSaveChangesInvalidationHttpTests
         {
             AttrProduct? product = await cache.GetOrSetEntityAsync(
                 http,
-                domain,
-                "products",
-                id.ToString(),
                 async ct =>
                 {
                     factories.Increment();

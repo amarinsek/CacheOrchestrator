@@ -24,6 +24,22 @@ public static class EndpointConventionBuilderExtensions
     }
 
     /// <summary>
+    /// Binds a fixed cache domain and entity kind for collection / kind-scoped endpoints (no resource route key).
+    /// </summary>
+    /// <param name="builder">The route handler builder.</param>
+    /// <param name="domain">Cache domain name from configuration.</param>
+    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
+    /// <returns>The same <paramref name="builder"/> for chaining.</returns>
+    public static RouteHandlerBuilder CacheOutputWithDomain(
+        this RouteHandlerBuilder builder,
+        string domain,
+        string entityKind)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.WithMetadata(new DomainOutputCachePolicy(domain, entityKind));
+    }
+
+    /// <summary>
     /// Binds a fixed cache domain and entity identity (route value + entity kind).
     /// </summary>
     /// <param name="builder">The route handler builder.</param>
@@ -53,6 +69,22 @@ public static class EndpointConventionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
         return builder.WithMetadata(new DomainOutputCachePolicy(domainResolver));
+    }
+
+    /// <summary>
+    /// Binds a per-request domain resolver with entity kind for collection / kind-scoped endpoints.
+    /// </summary>
+    /// <param name="builder">The route handler builder.</param>
+    /// <param name="domainResolver">Delegate that returns the domain for the current request.</param>
+    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
+    /// <returns>The same <paramref name="builder"/> for chaining.</returns>
+    public static RouteHandlerBuilder CacheOutputWithDomain(
+        this RouteHandlerBuilder builder,
+        Func<HttpContext, string> domainResolver,
+        string entityKind)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.WithMetadata(new DomainOutputCachePolicy(domainResolver, entityKind));
     }
 
     /// <summary>
@@ -120,6 +152,9 @@ public static class EndpointConventionBuilderExtensions
     {
         if (attribute.ResourceRouteKey is not null && attribute.EntityKind is not null)
             return new DomainOutputCachePolicy(attribute.Domain, attribute.ResourceRouteKey, attribute.EntityKind);
+
+        if (attribute.EntityKind is not null)
+            return new DomainOutputCachePolicy(attribute.Domain, attribute.EntityKind);
 
         return new DomainOutputCachePolicy(attribute.Domain);
     }

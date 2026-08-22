@@ -57,19 +57,66 @@ public interface IDomainFusionCache
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets or sets one entity using primary identity already on the request
+    /// (<c>[CacheDomain]</c> / <c>CacheOutputWithDomain</c> with <c>resourceRouteKey</c>, or <see cref="SetEntityIdentity"/>).
+    /// </summary>
+    /// <typeparam name="T">Cached value type.</typeparam>
+    /// <param name="http">Current HTTP context.</param>
+    /// <param name="factory">Value factory; may return <see langword="null"/> for negative caching.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The cached value, or <see langword="null"/> when the factory produced a miss.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when entity kind/id are not on the request.</exception>
+    Task<T?> GetOrSetEntityAsync<T>(
+        HttpContext http,
+        Func<CancellationToken, Task<T?>> factory,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets or sets one entity with an <see cref="EntityCache{T}"/> factory (dependsOn / members / aliases).
+    /// Primary identity comes from the request.
+    /// </summary>
+    /// <typeparam name="T">Cached value type.</typeparam>
+    /// <param name="http">Current HTTP context.</param>
+    /// <param name="factory">Factory returning value or <see cref="EntityCache.Miss{T}"/> plus footprint extensions.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The cached value, or <see langword="null"/> when the result is a miss.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when entity kind/id are not on the request.</exception>
+    Task<T?> GetOrSetEntityAsync<T>(
+        HttpContext http,
+        Func<CancellationToken, Task<EntityCache<T>>> factory,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets or sets a collection (URL-shaped key) tagged with member / dependency entity refs from
+    /// <see cref="EntitySet{T}"/>. Requires entity kind on the request (kind-scoped endpoint metadata).
+    /// </summary>
+    /// <typeparam name="T">Element type.</typeparam>
+    /// <param name="http">Current HTTP context.</param>
+    /// <param name="factory">Factory that builds the set and footprint.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The cached collection.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when entity kind is not on the request.</exception>
+    Task<IReadOnlyList<T>> GetOrSetEntitySetAsync<T>(
+        HttpContext http,
+        Func<CancellationToken, Task<EntitySet<T>>> factory,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets entity identity on the request for Fusion-only endpoints (no Output Cache entity metadata).
+    /// </summary>
+    /// <param name="http">Current HTTP context.</param>
+    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
+    /// <param name="resourceId">Stable business id.</param>
+    void SetEntityIdentity(HttpContext http, string entityKind, string resourceId);
+
+    /// <summary>
     /// Gets or sets one entity (row) using the domain already on the request / endpoint.
     /// </summary>
     /// <remarks>
-    /// Happy path when <c>.CacheOutputWithDomain</c> / <c>[CacheDomain]</c> already set the domain.
-    /// <paramref name="entityKind"/> is required — a domain is a policy group, not an id namespace.
+    /// Obsolete: prefer <see cref="GetOrSetEntityAsync{T}(HttpContext, Func{CancellationToken, Task{T?}}, CancellationToken)"/>
+    /// with identity from endpoint metadata or <see cref="SetEntityIdentity"/>.
     /// </remarks>
-    /// <typeparam name="T">Cached value type.</typeparam>
-    /// <param name="http">Current HTTP context.</param>
-    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
-    /// <param name="resourceId">Stable business id. Must not be null or whitespace.</param>
-    /// <param name="factory">Value factory invoked on cache miss.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The cached or freshly produced value.</returns>
+    [Obsolete("Use GetOrSetEntityAsync(http, factory). Identity comes from CacheOutputWithDomain / [CacheDomain] or SetEntityIdentity.")]
     Task<T> GetOrSetEntityAsync<T>(
         HttpContext http,
         string entityKind,
@@ -81,21 +128,10 @@ public interface IDomainFusionCache
     /// Gets or sets one entity (row) for a specific <paramref name="domain"/>.
     /// </summary>
     /// <remarks>
-    /// Ensures domain options, includes kind and resource id in the Fusion key for this call
-    /// (request Items are restored afterwards so a later URL-shaped GetOrSet is not forced
-    /// into the entity key shape), and tags the entry with <c>domain:{domain}</c>,
-    /// <c>entity:{domain}:{entityKind}:{resourceId}</c>, and <c>entitykind:{domain}:{entityKind}</c>.
-    /// After an update, call <see cref="Invalidation.ICacheOrchestratorInvalidator.InvalidateEntityAsync"/>
-    /// with the same domain, kind, and id.
+    /// Obsolete: prefer endpoint metadata (or <see cref="SetEntityIdentity"/>) with
+    /// <see cref="GetOrSetEntityAsync{T}(HttpContext, Func{CancellationToken, Task{T?}}, CancellationToken)"/>.
     /// </remarks>
-    /// <typeparam name="T">Cached value type.</typeparam>
-    /// <param name="http">Current HTTP context.</param>
-    /// <param name="domain">Cache domain name.</param>
-    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
-    /// <param name="resourceId">Stable business id. Must not be null or whitespace.</param>
-    /// <param name="factory">Value factory invoked on cache miss.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The cached or freshly produced value.</returns>
+    [Obsolete("Use GetOrSetEntityAsync(http, factory). Identity comes from CacheOutputWithDomain / [CacheDomain] or SetEntityIdentity.")]
     Task<T> GetOrSetEntityAsync<T>(
         HttpContext http,
         string domain,

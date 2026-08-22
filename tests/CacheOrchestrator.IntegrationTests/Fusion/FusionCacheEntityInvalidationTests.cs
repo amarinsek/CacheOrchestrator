@@ -1,3 +1,4 @@
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.Invalidation;
@@ -32,6 +33,7 @@ public class FusionCacheEntityInvalidationTests
     {
         await using ServiceProvider sp = BuildProvider();
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
         ICacheOrchestratorInvalidator inv = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
 
         DefaultHttpContext http1 = new();
@@ -39,53 +41,94 @@ public class FusionCacheEntityInvalidationTests
         DefaultHttpContext http2 = new();
         http2.Request.Path = "/api/products/2";
 
+        domains.EnsureDomainOptions(http1, "products");
+        domains.EnsureDomainOptions(http2, "products");
+        cache.SetEntityIdentity(http1, "items", "1");
+        cache.SetEntityIdentity(http2, "items", "2");
+
         int calls1 = 0;
         int calls2 = 0;
 
-        await cache.GetOrSetEntityAsync(http1, "products", "items", "1", _ =>
+        await cache.GetOrSetEntityAsync(http1, _ =>
         {
             calls1++;
-            return Task.FromResult("p1-v1");
+            return Task.FromResult<string?>("p1-v1");
         }, TestContext.Current.CancellationToken);
 
-        await cache.GetOrSetEntityAsync(http2, "products", "items", "2", _ =>
+        await cache.GetOrSetEntityAsync(http2, _ =>
         {
             calls2++;
-            return Task.FromResult("p2-v1");
+            return Task.FromResult<string?>("p2-v1");
         }, TestContext.Current.CancellationToken);
 
         calls1.Should().Be(1);
         calls2.Should().Be(1);
 
-        // Hits
-        await cache.GetOrSetEntityAsync(http1, "products", "items", "1", _ =>
+        await cache.GetOrSetEntityAsync(http1, _ =>
         {
             calls1++;
-            return Task.FromResult("x");
+            return Task.FromResult<string?>("x");
         }, TestContext.Current.CancellationToken);
-        await cache.GetOrSetEntityAsync(http2, "products", "items", "2", _ =>
+        await cache.GetOrSetEntityAsync(http2, _ =>
         {
             calls2++;
-            return Task.FromResult("y");
+            return Task.FromResult<string?>("y");
         }, TestContext.Current.CancellationToken);
         calls1.Should().Be(1);
         calls2.Should().Be(1);
 
-        // Invalidate only product 1 under same Version
         await inv.InvalidateEntityAsync("products", "items", "1", TestContext.Current.CancellationToken);
 
-        await cache.GetOrSetEntityAsync(http1, "products", "items", "1", _ =>
+        await cache.GetOrSetEntityAsync(http1, _ =>
         {
             calls1++;
-            return Task.FromResult("p1-v2");
+            return Task.FromResult<string?>("p1-v2");
         }, TestContext.Current.CancellationToken);
-        await cache.GetOrSetEntityAsync(http2, "products", "items", "2", _ =>
+        await cache.GetOrSetEntityAsync(http2, _ =>
         {
             calls2++;
-            return Task.FromResult("p2-v2");
+            return Task.FromResult<string?>("p2-v2");
         }, TestContext.Current.CancellationToken);
 
-        calls1.Should().Be(2); // miss after entity invalidate
-        calls2.Should().Be(1); // still hit
+        calls1.Should().Be(2);
+        calls2.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task DependsOn_InvalidationPurgesDependentEntry()
+    {
+        await using ServiceProvider sp = BuildProvider();
+        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        ICacheOrchestratorInvalidator inv = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
+
+        DefaultHttpContext http = new();
+        http.Request.Path = "/api/products/42";
+        domains.EnsureDomainOptions(http, "products");
+        cache.SetEntityIdentity(http, "items", "42");
+
+        int calls = 0;
+        await cache.GetOrSetEntityAsync(http, _ =>
+        {
+            calls++;
+            return Task.FromResult(EntityCache.Create("dto").DependsOn("categories", "7"));
+        }, TestContext.Current.CancellationToken);
+        calls.Should().Be(1);
+
+        await cache.GetOrSetEntityAsync(http, _ =>
+        {
+            calls++;
+            return Task.FromResult(EntityCache.Create("dto2").DependsOn("categories", "7"));
+        }, TestContext.Current.CancellationToken);
+        calls.Should().Be(1);
+
+        await inv.InvalidateEntityAsync("products", "categories", "7", TestContext.Current.CancellationToken);
+
+        await cache.GetOrSetEntityAsync(http, _ =>
+        {
+            calls++;
+            return Task.FromResult(EntityCache.Create("dto3").DependsOn("categories", "7"));
+        }, TestContext.Current.CancellationToken);
+        calls.Should().Be(2);
     }
 }

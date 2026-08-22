@@ -106,7 +106,7 @@ Order of query keys does not matter: `?a=1&b=2` and `?b=2&a=1` produce the same 
 
 #### Entity keys (`GetOrSetEntityAsync`)
 
-Kind and resource id are set on `HttpContext.Items` **only for that call**, then restored, so a later URL-shaped `GetOrSetAsync` on the same request is not forced into `:id:` keys.
+Primary kind and resource id come from the request (`[CacheDomain]` / `CacheOutputWithDomain` with `resourceRouteKey`, or `SetEntityIdentity`). Obsolete explicit overloads still set Items for the duration of the call and restore afterwards.
 
 | Input | Included |
 |-------|----------|
@@ -114,9 +114,11 @@ Kind and resource id are set on `HttpContext.Items` **only for that call**, then
 | Accept-Encoding / scheme+host | Same flags as above |
 | Path / query / route | **Not** used for the key |
 
-Unusable kind or id (whitespace, or only punctuation such as `!!!`) does **not** become `default`. `GetOrSetEntityAsync` throws; invalidators skip those values.
+`GetOrSetEntitySetAsync` and URL-shaped `GetOrSetAsync` temporarily ignore stamped entity identity while building the key so a request that also has primary kind/id (from Output Cache or `SetEntityIdentity`) still gets a path/query key. Entity tags for collections come from `EntitySet`, not from the lookup key.
 
-Use this for CRUD-style resources so invalidation can target `entity:{domain}:{entityKind}:{id}` without depending on the full URL shape. Wire the matching Output Cache route with `resourceRouteKey` **and** `entityKind` ([invalidation.md](invalidation.md#wiring-entity-tags)).
+Unusable kind or id (whitespace, or only punctuation such as `!!!`) does **not** become `default`. Explicit overloads throw; invalidators skip those values. Happy-path `GetOrSetEntityAsync(http, factory)` throws if identity is missing on the request.
+
+Use entity keys for CRUD-style resources so invalidation can target `entity:{domain}:{entityKind}:{id}` without depending on the full URL shape. Wire the matching Output Cache route with `resourceRouteKey` **and** `entityKind`, or kind-only for collections ([invalidation.md](invalidation.md#wiring-entity-tags)).
 
 ### Why domain is in the Fusion key
 
@@ -167,7 +169,7 @@ The library does **not** emit a single custom string of the form `{domain}:{vers
 | `entity:{domain}:{entityKind}:{id}` | When **both** `resourceRouteKey` and `entityKind` are set on the policy/attribute **and** the route value resolves |
 | `entitykind:{domain}:{entityKind}` | Same writes as the entity tag |
 
-`GetOrSetEntityAsync` does **not** tag Output Cache. It sets `HttpContext.Items` only for that Fusion call (and restores them afterwards). OC tagging runs in `CacheRequestAsync` **before** the handler, so entity OC purge needs `resourceRouteKey` + `entityKind` on `.CacheOutputWithDomain` / `[CacheDomain]`.
+Output Cache stamps early tags in `CacheRequestAsync` (domain; primary entity when route id resolves; `entitykind` when kind is set without an id). Fusion stages an `EntityFootprint` on the request; `ServeResponseAsync` merges members / dependsOn / aliases into OC tags before storage.
 
 ---
 
