@@ -135,6 +135,8 @@ A domain is a named set of cache rules: lifetimes, which layers to use, and wher
 
 The endpoint code is the same shape in every case. The domain is what differs.
 
+Domains are the unit of configuration. Within a domain you can optionally use **entity identity** (`entityKind` + id, and related footprints) so per-row keys and invalidation stay precise. That refines caching **inside** a domain; it is not a second configuration root. ORM packages such as EF Core invalidation only map writes onto the same entity tags.
+
 ---
 
 ## Also included

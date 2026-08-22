@@ -10,7 +10,11 @@ A **domain** is a name in configuration (`catalog`, `osm-tiles`, `product-detail
 
 Different data wants different rules. The handler stays the same shape; the domain is what differs.
 
-Details: [domain-profiles.md](../domain-profiles.md), [configuration.md](../configuration.md).
+CacheOrchestrator stays **domain-based**: domains are the unit of configuration. **Entity identity** (`entityKind` + resource id, plus optional members / dependsOn / aliases) is optional and lives **inside** a domain. It shapes per-row Fusion keys and `entity:` / `entitykind:` tags so CRUD invalidation can target one row (or a related set) without bumping the whole domain `Version`. It is not a second settings root next to `Cache:Domains`.
+
+EF Core invalidation (and any future ORM hook) only maps successful writes onto those same tags. The read-side entity APIs stay in the core library because they are generic, not ORM-specific.
+
+Details: [domain-profiles.md](../domain-profiles.md), [configuration.md](../configuration.md), [fusion-cache.md](../fusion-cache.md#entity-identity-entityfootprint).
 
 ## Three layers, one snapshot
 
