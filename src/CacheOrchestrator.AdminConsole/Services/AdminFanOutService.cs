@@ -455,16 +455,20 @@ public sealed class AdminFanOutService
         if (capability.BusAvailable
             && !string.IsNullOrWhiteSpace(capability.PreferredBusOriginId))
         {
-            AdminInstanceOptions origin = all.First(t =>
+            AdminInstanceOptions? origin = all.FirstOrDefault(t =>
                 string.Equals(t.Id, capability.PreferredBusOriginId, StringComparison.OrdinalIgnoreCase));
 
-            return new WriteDistributionPlan(
-                Targets: [origin],
-                Distribute: true,
-                Mode: DistributionModes.BusDistribute,
-                BusOriginInstanceId: origin.Id,
-                Summary:
-                    $"bus-distribute via origin '{origin.Id}' (Admin Console App → 1 HTTP call with distribute:true; peers apply via cluster bus).");
+            // Preferred id can theoretically diverge from configured instances; never throw here (would 500 the Console).
+            if (origin is not null)
+            {
+                return new WriteDistributionPlan(
+                    Targets: [origin],
+                    Distribute: true,
+                    Mode: DistributionModes.BusDistribute,
+                    BusOriginInstanceId: origin.Id,
+                    Summary:
+                        $"bus-distribute via origin '{origin.Id}' (Admin Console App → 1 HTTP call with distribute:true; peers apply via cluster bus).");
+            }
         }
 
         string ids = string.Join(", ", all.Select(t => t.Id));

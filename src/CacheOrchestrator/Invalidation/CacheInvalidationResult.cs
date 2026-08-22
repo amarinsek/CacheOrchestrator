@@ -17,7 +17,7 @@ public sealed class CacheInvalidationResult
         bool outputSucceeded,
         IReadOnlyList<string>? errors = null,
         ClusterPublishResult? clusterPublish = null,
-        bool skipped = false)
+        bool isSkipped = false)
     {
         Scope = scope ?? string.Empty;
         Tags = tags ?? [];
@@ -25,7 +25,7 @@ public sealed class CacheInvalidationResult
         OutputSucceeded = outputSucceeded;
         Errors = errors ?? [];
         ClusterPublish = clusterPublish;
-        IsSkipped = skipped;
+        IsSkipped = isSkipped;
     }
 
     /// <summary>Human-readable scope label (domain, domain/id, or joined tags).</summary>
@@ -70,7 +70,7 @@ public sealed class CacheInvalidationResult
             fusionSucceeded: true,
             outputSucceeded: true,
             errors: string.IsNullOrWhiteSpace(reason) ? [] : [reason],
-            skipped: true);
+            isSkipped: true);
 
     /// <summary>
     /// Aggregates multiple domain results (for <see cref="ICacheOrchestratorInvalidator.InvalidateDomainsAsync"/>).
@@ -105,6 +105,6 @@ public sealed class CacheInvalidationResult
             fusionSucceeded: fusionOk,
             outputSucceeded: outputOk,
             errors: errors,
-            skipped: !anyWork);
+            isSkipped: !anyWork);
     }
 }
