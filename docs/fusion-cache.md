@@ -80,14 +80,23 @@ await invalidator.InvalidateEntityAsync("store", "products", productId, cancella
 
 Tags for a detail entry: `domain:store`, `entity:store:products:42`, `entitykind:store:products`. Extend with `EntityCache` / `EntitySet` for members, `DependsOn`, and aliases (same tag prefixes).
 
-| Scenario | API |
-|----------|-----|
-| Snapshot / URL list without member tags | `.CacheOutputWithDomain("x")` + `GetOrSetAsync(http, factory)` |
-| Fusion-only domain | `GetOrSetAsync(http, "x", factory)` |
-| Detail / projection | `[CacheDomain(..., resourceRouteKey, entityKind)]` + `GetOrSetEntityAsync(http, factory)` |
-| Detail + references / aggregate | same + factory returns `EntityCache.Create(...).DependsOn(...).Members(...)` |
-| Collection with member tags | `[CacheDomain(domain, entityKind)]` + `GetOrSetEntitySetAsync(http, ct => EntitySet.Create(...))` |
-| Fusion-only entity | `SetEntityIdentity(http, kind, id)` then `GetOrSetEntityAsync(http, factory)` |
+All of the following use the same footprint model (no separate subsystems). Lookup key is either entity-shaped (detail) or URL-shaped (collections / composites).
+
+| Scenario | Lookup | Footprint |
+|----------|--------|-----------|
+| Detail / projection | entity | primary |
+| Negative cache (null / 404) | entity | primary (`EntityCache.Miss` or null) |
+| References / `$expand` | entity | primary + `DependsOn` |
+| Aggregate (order + lines) | entity | primary + `Members` + `DependsOn` |
+| Nested (`/products/{id}/reviews`) | URL | members + `DependsOn` parent |
+| List / search / page | URL | `entitykind` + members |
+| Filtered view | URL | members + `DependsOn` filter |
+| Batch `?ids=` | URL | members from result (or from the id list) |
+| Derived / computed | entity or URL | `DependsOn` inputs |
+| Alternate key (SKU ↔ id) | entity | primary + `Alias` |
+| Dashboard / composite widget | URL | mixed members / `DependsOn` |
+| Snapshot without member tags | URL | domain only (`GetOrSetAsync`) |
+| Fusion-only entity | entity | `SetEntityIdentity` then `GetOrSetEntityAsync` |
 
 See [domain-profiles.md](domain-profiles.md) and [invalidation.md](invalidation.md).
 
@@ -134,6 +143,104 @@ return await cache.GetOrSetEntityAsync(HttpContext, async ct =>
         .Members("order-lines", order.Lines.Select(l => l.Id.ToString()))
         .DependsOn("customers", order.CustomerId.ToString());
 }, ct);
+```
+
+**Negative cache** (miss still tagged with primary so a later create can purge it)
+
+```csharp
+return await cache.GetOrSetEntityAsync(HttpContext, async ct =>
+{
+    var row = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
+    return row is null ? EntityCache.Miss<Product>() : EntityCache.Create(row);
+}, ct);
+// plain null from Func<Task<T?>> is equivalent for primary-only footprints
+```
+
+**Nested resource** (`GET /products/{id}/reviews`)
+
+```csharp
+[CacheDomain("store", resourceRouteKey: "id", entityKind: "products")]
+[HttpGet("{id:int}/reviews")]
+public async Task<ActionResult<IReadOnlyList<Review>>> Reviews(int id, IDomainFusionCache cache, ...)
+{
+    var reviews = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
+    {
+        var rows = await db.Reviews.AsNoTracking().Where(r => r.ProductId == id).ToListAsync(ct);
+        return EntitySet.Create(rows, "reviews", r => r.Id.ToString())
+            .DependsOn("products", id.ToString());
+    }, ct);
+    return Ok(reviews);
+}
+```
+
+**Batch `?ids=`**
+
+```csharp
+[CacheDomain("store", entityKind: "products")]
+[HttpGet("batch")]
+public async Task<ActionResult<IReadOnlyList<Product>>> Batch([FromQuery] string[] ids, IDomainFusionCache cache, ...)
+{
+    var products = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
+    {
+        var rows = await LoadManyAsync(ids, ct);
+        return EntitySet.Create(rows, p => p.Id.ToString());
+        // members come from the result; unknown ids simply omit a member tag
+    }, ct);
+    return Ok(products);
+}
+```
+
+**Derived / computed** (availability from stock + warehouse)
+
+```csharp
+[CacheDomain("store", resourceRouteKey: "id", entityKind: "products")]
+public async Task<ActionResult<AvailabilityDto>> Availability(int id, IDomainFusionCache cache, ...)
+{
+    var dto = await cache.GetOrSetEntityAsync(HttpContext, async ct =>
+    {
+        var a = await LoadAvailabilityAsync(id, ct);
+        if (a is null) return EntityCache.Miss<AvailabilityDto>();
+        return EntityCache.Create(a)
+            .DependsOn("stock", a.StockId.ToString())
+            .DependsOn("warehouses", a.WarehouseId.ToString());
+    }, ct);
+    return dto is null ? NotFound() : Ok(dto);
+}
+```
+
+**Alternate key (alias)**
+
+```csharp
+return await cache.GetOrSetEntityAsync(HttpContext, async ct =>
+{
+    var product = await LoadByIdAsync(ct);
+    if (product is null) return EntityCache.Miss<Product>();
+    return EntityCache.Create(product)
+        .Alias("products-by-sku", product.Sku);
+}, ct);
+// InvalidateEntityAsync("store", "products-by-sku", sku) also purges this entry
+```
+
+**Dashboard / composite widget**
+
+Use a stable synthetic identity (or a route id) plus `DependsOn` / `Members` for everything the widget embeds:
+
+```csharp
+[CacheDomain("store")]
+[HttpGet("/api/home/widgets/storefront")]
+public async Task<ActionResult<StorefrontWidget>> Storefront(HttpContext http, IDomainFusionCache cache, ...)
+{
+    cache.SetEntityIdentity(http, "dashboard", "storefront");
+    var widget = await cache.GetOrSetEntityAsync(http, async ct =>
+    {
+        var w = await BuildWidgetAsync(ct);
+        return EntityCache.Create(w)
+            .Members("products", w.FeaturedProductIds.Select(id => id.ToString()))
+            .DependsOn("categories", w.HeroCategoryId.ToString())
+            .DependsOn("promotions", w.PromotionIds.Select(id => id.ToString()));
+    }, ct);
+    return Ok(widget);
+}
 ```
 
 #### Migration (obsolete overloads)
