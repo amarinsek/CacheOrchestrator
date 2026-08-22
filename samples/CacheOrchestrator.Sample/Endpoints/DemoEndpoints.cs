@@ -252,7 +252,7 @@ public static class DemoEndpoints
 
         app.MapGet("/api/crud/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache) =>
         {
-            var product = await cache.GetOrSetEntityAsync(http, "product-crud", "products", id, async ct =>
+            var product = await cache.GetOrSetEntityAsync(http, async ct =>
             {
                 await Task.Delay(40, ct);
                 if (!productStore.TryGetValue(id, out var row))

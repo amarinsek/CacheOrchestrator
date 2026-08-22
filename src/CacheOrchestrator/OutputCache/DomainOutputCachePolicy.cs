@@ -1,6 +1,7 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.Utilities;
 using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
@@ -42,6 +43,19 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     }
 
     /// <summary>
+    /// Creates a policy bound to a fixed cache domain with kind-scoped tagging (lists / collections).
+    /// </summary>
+    /// <param name="domain">Non-empty domain name (normalized on construction).</param>
+    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
+    public DomainOutputCachePolicy(string domain, string entityKind)
+        : this(domain, resourceRouteKey: null, entityKind, requireEntity: false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
+        if (EntityKind is null)
+            throw new ArgumentException("Entity kind must contain usable characters.", nameof(entityKind));
+    }
+
+    /// <summary>
     /// Creates a policy bound to a fixed cache domain with entity tagging from a route value.
     /// </summary>
     /// <param name="domain">Non-empty domain name (normalized on construction).</param>
@@ -77,6 +91,19 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     public DomainOutputCachePolicy(Func<HttpContext, string> domainResolver)
         : this(domainResolver, resourceRouteKey: null, entityKind: null, requireEntity: false)
     {
+    }
+
+    /// <summary>
+    /// Creates a policy that resolves the cache domain per request, with kind-scoped tagging.
+    /// </summary>
+    /// <param name="domainResolver">Delegate that returns the domain for the current <see cref="HttpContext"/>.</param>
+    /// <param name="entityKind">Resource type within the domain (e.g. <c>products</c>).</param>
+    public DomainOutputCachePolicy(Func<HttpContext, string> domainResolver, string entityKind)
+        : this(domainResolver, resourceRouteKey: null, entityKind, requireEntity: false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
+        if (EntityKind is null)
+            throw new ArgumentException("Entity kind must contain usable characters.", nameof(entityKind));
     }
 
     /// <summary>
@@ -277,6 +304,11 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             context.Tags.Add(CacheTags.Entity(opts.Domain, entityKind, resourceId));
             context.Tags.Add(CacheTags.EntityKind(opts.Domain, entityKind));
         }
+        else if (!string.IsNullOrEmpty(entityKind))
+        {
+            // Kind-scoped list / collection endpoints: no single resource id yet.
+            context.Tags.Add(CacheTags.EntityKind(opts.Domain, entityKind));
+        }
 
         RegisterResponseHeaders(http, opts, OutputCacheResult.Miss);
         return ValueTask.CompletedTask;
@@ -415,9 +447,35 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             {
                 context.AllowCacheStorage = false;
             }
+            else
+            {
+                MergePendingFootprintTags(context, opts.Domain);
+            }
         }
 
         return ValueTask.CompletedTask;
+    }
+
+    private static void MergePendingFootprintTags(OutputCacheContext context, string domain)
+    {
+        HttpContext http = context.HttpContext;
+        if (!http.Items.TryGetValue(CacheOrchestratorKeys.PendingEntityFootprintKey, out object? raw)
+            || raw is not EntityFootprint footprint
+            || ReferenceEquals(footprint, EntityFootprint.Empty))
+        {
+            return;
+        }
+
+        IReadOnlyList<string> tags = footprint.ToTags(domain);
+        // Skip domain tag (already added in CacheRequestAsync); add the rest with dedupe.
+        for (int i = 0; i < tags.Count; i++)
+        {
+            string tag = tags[i];
+            if (tag.StartsWith(CacheTags.DomainPrefix, StringComparison.Ordinal))
+                continue;
+            if (!context.Tags.Contains(tag))
+                context.Tags.Add(tag);
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

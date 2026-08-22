@@ -280,9 +280,9 @@ public class ClusterBusMultiHostTests
             app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, HitCounter h) =>
             {
                 h.Increment();
-                string v = await cache.GetOrSetEntityAsync(
-                    http, domain, "products", id, _ => Task.FromResult("p-" + id), http.RequestAborted);
-                return Results.Text(v);
+                string? v = await cache.GetOrSetEntityAsync(
+                    http, _ => Task.FromResult<string?>("p-" + id), http.RequestAborted);
+                return Results.Text(v ?? string.Empty);
             }).CacheOutputWithDomain(domain, resourceRouteKey: "id", entityKind: "products");
             await app.StartAsync(Ct);
             HttpClient client = new() { BaseAddress = new Uri($"http://127.0.0.1:{port}") };

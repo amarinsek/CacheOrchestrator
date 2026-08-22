@@ -62,6 +62,110 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
     }
 
     /// <inheritdoc />
+    public Task<T?> GetOrSetEntityAsync<T>(
+        HttpContext http,
+        Func<CancellationToken, Task<T?>> factory,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(http);
+        ArgumentNullException.ThrowIfNull(factory);
+        EnsureRequestHasPrimaryIdentity(http);
+
+        return GetOrSetFootprintAsync(
+            http,
+            domain: null,
+            useEntityKey: true,
+            async token =>
+            {
+                T? value = await factory(token).ConfigureAwait(false);
+                return new FootprintCacheBox<T?>
+                {
+                    Value = value,
+                    IsMiss = value is null,
+                    Footprint = EntityFootprint.Empty
+                };
+            },
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<T?> GetOrSetEntityAsync<T>(
+        HttpContext http,
+        Func<CancellationToken, Task<EntityCache<T>>> factory,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(http);
+        ArgumentNullException.ThrowIfNull(factory);
+        EnsureRequestHasPrimaryIdentity(http);
+
+        return GetOrSetFootprintAsync(
+            http,
+            domain: null,
+            useEntityKey: true,
+            async token =>
+            {
+                EntityCache<T> produced = await factory(token).ConfigureAwait(false);
+                ArgumentNullException.ThrowIfNull(produced);
+                return new FootprintCacheBox<T?>
+                {
+                    Value = produced.IsMiss ? default : produced.Value,
+                    IsMiss = produced.IsMiss,
+                    Footprint = produced.Footprint
+                };
+            },
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<T>> GetOrSetEntitySetAsync<T>(
+        HttpContext http,
+        Func<CancellationToken, Task<EntitySet<T>>> factory,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(http);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        string? kind = TryGetRequestEntityKind(http);
+        if (string.IsNullOrEmpty(kind))
+        {
+            throw new InvalidOperationException(
+                "Entity kind is not on the request. Use [CacheDomain(domain, entityKind)] / " +
+                "CacheOutputWithDomain(domain, entityKind), or SetEntityIdentity before GetOrSetEntitySetAsync.");
+        }
+
+        IReadOnlyList<T>? list = await GetOrSetFootprintAsync(
+                http,
+                domain: null,
+                useEntityKey: false,
+                async token =>
+                {
+                    EntitySet<T> produced = await factory(token).ConfigureAwait(false);
+                    ArgumentNullException.ThrowIfNull(produced);
+                    EntityFootprint footprint = produced.BuildFootprint(kind);
+                    return new FootprintCacheBox<IReadOnlyList<T>?>
+                    {
+                        Value = produced.Value,
+                        IsMiss = false,
+                        Footprint = footprint
+                    };
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return list ?? [];
+    }
+
+    /// <inheritdoc />
+    public void SetEntityIdentity(HttpContext http, string entityKind, string resourceId)
+    {
+        ArgumentNullException.ThrowIfNull(http);
+        EnsureUsableEntityIdentity(entityKind, resourceId);
+        http.Items[CacheOrchestratorKeys.EntityKindKey] = DomainName.NormalizeEntityKind(entityKind);
+        http.Items[CacheOrchestratorKeys.ResourceIdKey] = DomainName.NormalizeResourceId(resourceId);
+    }
+
+    /// <inheritdoc />
+    [Obsolete("Use GetOrSetEntityAsync(http, factory). Identity comes from CacheOutputWithDomain / [CacheDomain] or SetEntityIdentity.")]
     public Task<T> GetOrSetEntityAsync<T>(
         HttpContext http,
         string entityKind,
@@ -74,6 +178,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
     }
 
     /// <inheritdoc />
+    [Obsolete("Use GetOrSetEntityAsync(http, factory). Identity comes from CacheOutputWithDomain / [CacheDomain] or SetEntityIdentity.")]
     public Task<T> GetOrSetEntityAsync<T>(
         HttpContext http,
         string domain,
@@ -85,6 +190,234 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
         EnsureUsableEntityIdentity(entityKind, resourceId);
         return GetOrSetCoreAsync(http, domain, entityKind, resourceId, factory, cancellationToken);
+    }
+
+    private async Task<T?> GetOrSetFootprintAsync<T>(
+        HttpContext http,
+        string? domain,
+        bool useEntityKey,
+        Func<CancellationToken, Task<FootprintCacheBox<T?>>> factory,
+        CancellationToken cancellationToken)
+    {
+        DomainCacheOptions? opts = ResolveDomainOptions(http, domain);
+        if (opts is null)
+        {
+            if (_logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning(
+                    "FusionCache skipped: no domain resolved for {Method} {Path}. " +
+                    "Factory runs uncached. Use .CacheOutputWithDomain / [CacheDomain], " +
+                    "GetOrSetAsync(http, domain, factory), or EnsureDomainOptions.",
+                    http.Request.Method,
+                    http.Request.Path.Value);
+            }
+
+            FootprintCacheBox<T?> unresolved = await factory(cancellationToken).ConfigureAwait(false);
+            EntityFootprint staged = WithRequestPrimary(http, unresolved.Footprint);
+            EntityFootprintStaging.Stage(http, staged);
+            SetData(http, DataCacheResult.Unresolved);
+            CacheOrchestratorMetrics.RecordFusion("_", "unresolved", durationMs: null, null, resultSizeBytes: null);
+            return unresolved.IsMiss ? default : unresolved.Value;
+        }
+
+        if (!opts.FusionCacheEnabled)
+        {
+            FootprintCacheBox<T?> off = await factory(cancellationToken).ConfigureAwait(false);
+            EntityFootprint staged = WithRequestPrimary(http, off.Footprint);
+            EntityFootprintStaging.Stage(http, staged);
+            SetData(http, DataCacheResult.Off);
+            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "off", null, null);
+            return off.IsMiss ? default : off.Value;
+        }
+
+        if (opts.FusionRespectAuthBypass && DomainAuthEvaluator.ShouldBypassForAuth(http, opts))
+        {
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("FusionCache skipped due to auth bypass (FusionRespectAuthBypass)");
+
+            FootprintCacheBox<T?> bypass = await factory(cancellationToken).ConfigureAwait(false);
+            EntityFootprint staged = WithRequestPrimary(http, bypass.Footprint);
+            EntityFootprintStaging.Stage(http, staged);
+            SetData(http, DataCacheResult.Bypass);
+            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "bypass", null, null);
+            return bypass.IsMiss ? default : bypass.Value;
+        }
+
+        if (opts.FusionCacheRespectNoStore
+            && HttpHelper.ContainsCacheDirective(http.Request.Headers.CacheControl, "no-store"))
+        {
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("FusionCache skipped due to Cache-Control: no-store");
+
+            FootprintCacheBox<T?> bypass = await factory(cancellationToken).ConfigureAwait(false);
+            EntityFootprint staged = WithRequestPrimary(http, bypass.Footprint);
+            EntityFootprintStaging.Stage(http, staged);
+            SetData(http, DataCacheResult.Bypass);
+            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "bypass", null, null);
+            return bypass.IsMiss ? default : bypass.Value;
+        }
+
+        object? previousId = null;
+        bool hadId = http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out previousId);
+        if (!useEntityKey && hadId)
+            http.Items.Remove(CacheOrchestratorKeys.ResourceIdKey);
+
+        string key;
+        try
+        {
+            key = _keyGenerator.Generate(opts, http);
+        }
+        finally
+        {
+            if (!useEntityKey && hadId)
+                http.Items[CacheOrchestratorKeys.ResourceIdKey] = previousId!;
+        }
+
+        FusionCacheEntryOptions options = opts.GetFusionEntryOptions();
+        IFusionCache fusion = _fusionProvider.GetCache(opts.FusionCacheInstanceName);
+        // Early tags (mutable — factory may append before Fusion Set reads them).
+        List<string> tags = [CacheTags.Domain(opts.Domain)];
+        EntityRef? primary = TryGetRequestPrimary(http);
+        if (useEntityKey && primary is { } p)
+        {
+            tags.Add(CacheTags.Entity(opts.Domain, p.EntityKind, p.ResourceId));
+            tags.Add(CacheTags.EntityKind(opts.Domain, p.EntityKind));
+        }
+        else if (!useEntityKey)
+        {
+            string? kind = TryGetRequestEntityKind(http);
+            if (!string.IsNullOrEmpty(kind))
+                tags.Add(CacheTags.EntityKind(opts.Domain, kind));
+        }
+
+        bool materialized = false;
+        bool factoryFailed = false;
+        Stopwatch sw = Stopwatch.StartNew();
+
+        using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+        activity?.SetTag("domain", opts.Domain);
+        if (primary is { } prim)
+        {
+            activity?.SetTag("entity_kind", prim.EntityKind);
+            activity?.SetTag("resource_id", prim.ResourceId);
+        }
+
+        FootprintCacheBox<T?> box;
+        try
+        {
+            box = await fusion.GetOrSetAsync<FootprintCacheBox<T?>>(
+                    key,
+                    async (_, token) =>
+                    {
+                        materialized = true;
+                        try
+                        {
+                            FootprintCacheBox<T?> produced = await factory(token).ConfigureAwait(false);
+                            EntityFootprint full = WithRequestPrimary(http, produced.Footprint);
+                            tags.Clear();
+                            foreach (string tag in full.ToTags(opts.Domain))
+                                tags.Add(tag);
+
+                            return new FootprintCacheBox<T?>
+                            {
+                                Value = produced.Value,
+                                IsMiss = produced.IsMiss,
+                                Footprint = full
+                            };
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            factoryFailed = true;
+                            throw;
+                        }
+                        catch
+                        {
+                            factoryFailed = true;
+                            throw;
+                        }
+                    },
+                    options,
+                    tags: tags,
+                    token: cancellationToken)
+                .ConfigureAwait(false);
+
+            // Ensure Fusion entry has the full tag set (in case tags were snapshotted early).
+            if (materialized && !factoryFailed)
+            {
+                await fusion.SetAsync(
+                        key,
+                        box,
+                        options,
+                        tags: box.Footprint.ToTags(opts.Domain),
+                        token: cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, "canceled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            if (factoryFailed)
+            {
+                sw.Stop();
+                RecordFusionAndAdmin(
+                    http,
+                    opts.Domain,
+                    opts.Domain,
+                    "fail",
+                    sw.ElapsedMilliseconds,
+                    sw.ElapsedTicks);
+                if (_logger.IsEnabled(LogLevel.Warning))
+                    _logger.LogWarning(ex, "FusionCache ERROR Key={Key}, Error={Error}", key, ex.Message);
+            }
+
+            throw;
+        }
+
+        EntityFootprintStaging.Stage(http, box.Footprint);
+
+        sw.Stop();
+        DataCacheResult dataResult = factoryFailed
+            ? DataCacheResult.Stale
+            : materialized
+                ? DataCacheResult.Miss
+                : DataCacheResult.Hit;
+
+        SetData(http, dataResult, sw.ElapsedMilliseconds);
+        string resultCode = DataToMetric(dataResult);
+        activity?.SetTag("cache.result", resultCode);
+
+        long? resultSizeBytes = materialized && !factoryFailed
+            ? FactoryResultSize.TryEstimateBytes(box.Value)
+            : null;
+
+        RecordFusionAndAdmin(
+            http,
+            opts.Domain,
+            opts.Domain,
+            resultCode,
+            sw.ElapsedMilliseconds,
+            sw.ElapsedTicks,
+            resultSizeBytes);
+
+        if (dataResult == DataCacheResult.Stale)
+        {
+            if (_logger.IsEnabled(LogLevel.Information))
+                _logger.LogInformation("FusionCache STALE Key={Key}, Elapsed={ElapsedMs} ms", key, sw.ElapsedMilliseconds);
+        }
+        else if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            if (dataResult == DataCacheResult.Miss)
+                _logger.LogDebug("FusionCache MISS Key={Key}, Elapsed={ElapsedMs} ms", key, sw.ElapsedMilliseconds);
+            else
+                _logger.LogDebug("FusionCache HIT Key={Key}, Elapsed={ElapsedMs} ms", key, sw.ElapsedMilliseconds);
+        }
+
+        return box.IsMiss ? default : box.Value;
     }
 
     private async Task<T> GetOrSetCoreAsync<T>(
@@ -102,8 +435,6 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         if (opts is null)
         {
-            // No domain on the request and none on endpoint metadata — factory runs uncached.
-            // This is intentional for some callers, but easy to misconfigure; always surface it.
             if (_logger.IsEnabled(LogLevel.Warning))
             {
                 _logger.LogWarning(
@@ -197,7 +528,6 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
                 .ConfigureAwait(false);
         }
 
-        // Parity with Output Cache auth bypass (default true). Set FusionRespectAuthBypass=false for 2.1-like Fusion-under-Authorization.
         if (opts.FusionRespectAuthBypass && DomainAuthEvaluator.ShouldBypassForAuth(http, opts))
         {
             if (_logger.IsEnabled(LogLevel.Debug))
@@ -217,7 +547,6 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
                 .ConfigureAwait(false);
         }
 
-        // Respect Cache-Control: no-store (avoid Header.ToString() allocation on the hot path)
         if (opts.FusionCacheRespectNoStore
             && HttpHelper.ContainsCacheDirective(http.Request.Headers.CacheControl, "no-store"))
         {
@@ -238,13 +567,34 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
                 .ConfigureAwait(false);
         }
 
-        string key = _keyGenerator.Generate(opts, http);
-        // Shared per domain snapshot — not allocated on every GetOrSet.
+        // URL-shaped GetOrSet must not pick up request entity identity stamped by OC / SetEntityIdentity.
+        bool clearIdentityForKey = string.IsNullOrEmpty(normalizedEntityKind) || string.IsNullOrEmpty(normalizedResourceId);
+        bool hadKindForKey = http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? kindForKey);
+        bool hadIdForKey = http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out object? idForKey);
+        if (clearIdentityForKey)
+        {
+            if (hadKindForKey)
+                http.Items.Remove(CacheOrchestratorKeys.EntityKindKey);
+            if (hadIdForKey)
+                http.Items.Remove(CacheOrchestratorKeys.ResourceIdKey);
+        }
+
+        string key;
+        try
+        {
+            key = _keyGenerator.Generate(opts, http);
+        }
+        finally
+        {
+            if (clearIdentityForKey)
+            {
+                RestoreItem(http, CacheOrchestratorKeys.EntityKindKey, hadKindForKey, kindForKey);
+                RestoreItem(http, CacheOrchestratorKeys.ResourceIdKey, hadIdForKey, idForKey);
+            }
+        }
+
         FusionCacheEntryOptions options = opts.GetFusionEntryOptions();
-
-        // Resolve the named FusionCache instance for this domain.
         IFusionCache fusion = _fusionProvider.GetCache(opts.FusionCacheInstanceName);
-
         string[] tags = BuildTags(opts.Domain, normalizedEntityKind, normalizedResourceId);
 
         bool materialized = false;
@@ -263,7 +613,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         {
             result = await fusion.GetOrSetAsync<T>(
                 key,
-                async (ctx, token) =>
+                async (_, token) =>
                 {
                     materialized = true;
                     try
@@ -299,7 +649,6 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             if (factoryFailed)
             {
-                // Hard factory failure (no fail-safe stale returned) — OTEL result=fail for analytics.
                 sw.Stop();
                 RecordFusionAndAdmin(
                     http,
@@ -330,8 +679,6 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         string resultCode = DataToMetric(dataResult);
         activity?.SetTag("cache.result", resultCode);
 
-        // Size only for successful factory materialization (miss), when cheap to measure.
-        // OTel records when non-null; Admin stores only if TrackResultSize.
         long? resultSizeBytes = materialized && !factoryFailed
             ? FactoryResultSize.TryEstimateBytes(result)
             : null;
@@ -359,6 +706,58 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         }
 
         return result;
+    }
+
+    private static EntityFootprint WithRequestPrimary(HttpContext http, EntityFootprint extra)
+    {
+        EntityRef? primary = TryGetRequestPrimary(http);
+        if (primary is null)
+            return extra ?? EntityFootprint.Empty;
+
+        return (extra ?? EntityFootprint.Empty).WithPrimary(primary.Value);
+    }
+
+    private static EntityRef? TryGetRequestPrimary(HttpContext http)
+    {
+        string? kind = TryGetRequestEntityKind(http);
+        string? id = TryGetRequestResourceId(http);
+        if (string.IsNullOrEmpty(kind) || string.IsNullOrEmpty(id))
+            return null;
+        return new EntityRef(kind, id);
+    }
+
+    private static string? TryGetRequestEntityKind(HttpContext http)
+    {
+        if (http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? kindObj)
+            && kindObj is string kind
+            && kind.Length > 0)
+        {
+            return kind;
+        }
+
+        return null;
+    }
+
+    private static string? TryGetRequestResourceId(HttpContext http)
+    {
+        if (http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out object? idObj)
+            && idObj is string id
+            && id.Length > 0)
+        {
+            return id;
+        }
+
+        return null;
+    }
+
+    private static void EnsureRequestHasPrimaryIdentity(HttpContext http)
+    {
+        if (TryGetRequestPrimary(http) is not null)
+            return;
+
+        throw new InvalidOperationException(
+            "Entity identity is not on the request. Use [CacheDomain(domain, resourceRouteKey, entityKind)] / " +
+            "CacheOutputWithDomain(domain, resourceRouteKey, entityKind), or SetEntityIdentity.");
     }
 
     private static void RestoreItem(HttpContext http, object key, bool hadPrevious, object? previous)
@@ -405,7 +804,6 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         if (endpoint is null)
             return null;
 
-        // Prefer output-cache policy metadata (fixed, func, or template).
         DomainOutputCachePolicy? policy = endpoint.Metadata.OfType<DomainOutputCachePolicy>().LastOrDefault();
         if (policy is not null)
         {
@@ -514,9 +912,6 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         _ => "miss"
     };
 
-    /// <summary>
-    /// Single endpoint-key resolution for meter + Local Admin Fusion counters.
-    /// </summary>
     private void RecordFusionAndAdmin(
         HttpContext http,
         string metricsDomain,

@@ -135,6 +135,8 @@ A domain is a named set of cache rules: lifetimes, which layers to use, and wher
 
 The endpoint code is the same shape in every case. The domain is what differs.
 
+Domains are the unit of configuration. Within a domain you can optionally use **entity identity** (`entityKind` + id, and related footprints) so per-row keys and invalidation are possible.
+
 ---
 
 ## Also included

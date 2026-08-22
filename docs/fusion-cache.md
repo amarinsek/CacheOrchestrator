@@ -62,21 +62,31 @@ If you omit the domain:
 
 ### Entity identity
 
+Entity identity is optional and lives **inside** a domain (domains stay the configuration unit). Endpoint metadata owns domain + primary kind/id; Fusion consumes that identity on the happy path.
+
 ```csharp
-var product = await cache.GetOrSetEntityAsync(http, "store", "products", productId,
-    ct => LoadProductAsync(productId, ct), cancellationToken);
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, CancellationToken cancellationToken) =>
+{
+    var product = await cache.GetOrSetEntityAsync(
+        http,
+        ct => LoadProductAsync(id, ct),
+        cancellationToken);
+    return product is null ? Results.NotFound() : Results.Ok(product);
+})
+.CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
 
 await invalidator.InvalidateEntityAsync("store", "products", productId, cancellationToken);
 ```
 
-The key includes kind and id. Tags are `domain:store`, `entity:store:products:42`, and `entitykind:store:products`. A domain is a policy group; `entityKind` is required because ids are not unique inside a domain.
+Tags for that detail entry: `domain:store`, `entity:store:products:42`, `entitykind:store:products`.
 
-- List or snapshot with `.CacheOutputWithDomain("x")` — `GetOrSetAsync(http, factory)`.
-- Fusion only — `GetOrSetAsync(http, "x", factory)`.
-- One row — `GetOrSetEntityAsync(http, domain, entityKind, resourceId, factory)`.
-- One row when Output Cache already set the domain — `GetOrSetEntityAsync(http, entityKind, resourceId, factory)`.
+The same footprint model also covers lists, references, aggregates, nested collections, batch ids, aliases, derived data, and composites — via `EntityCache` / `EntitySet` (`Members`, `DependsOn`, `Alias`, `Miss`) and `GetOrSetEntitySetAsync`. Cookbook with use cases: **[entity-footprint.md](entity-footprint.md)**.
 
-See [domain-profiles.md](domain-profiles.md) and [invalidation.md](invalidation.md).
+Also: [domain-profiles.md](domain-profiles.md), [invalidation.md](invalidation.md), [cache-keys.md](cache-keys.md).
+
+#### Migration (obsolete overloads)
+
+`GetOrSetEntityAsync(http, entityKind, resourceId, …)` and `GetOrSetEntityAsync(http, domain, entityKind, resourceId, …)` are obsolete. Prefer endpoint identity or `SetEntityIdentity`. They remain as thin wrappers until the next major.
 
 ## When the factory runs uncached
 

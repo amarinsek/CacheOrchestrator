@@ -82,7 +82,7 @@ No per-tile invalidation is required.
 
 - `Version` stays stable (`"1"`) most of the time.  
 - Individual rows change → **short TTLs** and/or **entity invalidation**.  
-- Use `GetOrSetEntityAsync(http, domain, entityKind, resourceId, factory)` so entries are tagged `entity:{domain}:{entityKind}:{id}`.  
+- Use `.CacheOutputWithDomain(domain, resourceRouteKey, entityKind)` (or `[CacheDomain]`) and `GetOrSetEntityAsync(http, factory)` so entries are tagged `entity:{domain}:{entityKind}:{id}`.  
 - On admin save: `InvalidateEntityAsync(domain, entityKind, id)` — **same Version**, new body on next request.  
 - Prefer shorter client cache (or `Private` / low max-age).  
 - `ETagMode: Resource` gives a distinct ETag per product URL/id (still generation-bound; for very short client TTL, `None` is fine).
@@ -111,9 +111,9 @@ No per-tile invalidation is required.
 // GET — cache per product id
 app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache) =>
 {
-    var product = await cache.GetOrSetEntityAsync(http, "store", "products", id, async ct =>
+    var product = await cache.GetOrSetEntityAsync(http, async ct =>
         await db.Products.FindAsync([id], ct));
-    return Results.Json(product);
+    return product is null ? Results.NotFound() : Results.Json(product);
 })
 .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
 

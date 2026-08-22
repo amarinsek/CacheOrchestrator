@@ -41,7 +41,7 @@ Use the same domain and kind on the HTTP path:
 app.MapGet("/api/products/{id}", async (HttpContext http, int id, IDomainFusionCache cache, AppDbContext db, CancellationToken cancellationToken) =>
 {
     var product = await cache.GetOrSetEntityAsync(
-        http, "store", "products", id.ToString(),
+        http,
         ct => db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct),
         cancellationToken);
 

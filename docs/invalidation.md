@@ -91,16 +91,24 @@ Empty input (null domain, no tags) → `CacheInvalidationResult.Skipped(...)` wi
 
 ### Wiring entity tags
 
-```csharp
-// Fusion
-await cache.GetOrSetEntityAsync(http, "store", "products", productId, factory, cancellationToken);
+Identity is declared once on the endpoint. Fusion and Output Cache share it; factories may add members / dependsOn / aliases via `EntityCache` / `EntitySet`.
 
-// Output Cache — tag entity from route value "id"
-app.MapGet("/api/products/{id}", ...).CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
+```csharp
+// Minimal API — detail
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, CancellationToken ct) =>
+{
+    var product = await cache.GetOrSetEntityAsync(http, token => factory(token), ct);
+    return product is null ? Results.NotFound() : Results.Ok(product);
+})
+.CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
 
 // MVC
 [CacheDomain("store", resourceRouteKey: "id", entityKind: "products")]
 public class ProductsController : ControllerBase { }
+
+// Collection (kind-scoped)
+[CacheDomain("store", entityKind: "products")]
+public async Task<ActionResult<IReadOnlyList<Product>>> List(...) { /* GetOrSetEntitySetAsync */ }
 ```
 
 ### Observers (audit / webhooks)

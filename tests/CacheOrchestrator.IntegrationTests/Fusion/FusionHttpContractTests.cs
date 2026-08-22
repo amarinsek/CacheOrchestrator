@@ -108,14 +108,13 @@ public class FusionHttpContractTests
         {
             a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache) =>
             {
-                string entity = await cache.GetOrSetEntityAsync(
+                cache.SetEntityIdentity(http, "items", "1");
+                string? entity = await cache.GetOrSetEntityAsync(
                     http,
-                    "items",
-                    "1",
                     _ =>
                     {
                         Interlocked.Increment(ref entityCalls);
-                        return Task.FromResult("e1");
+                        return Task.FromResult<string?>("e1");
                     },
                     http.RequestAborted);
                 string list = await cache.GetOrSetAsync(

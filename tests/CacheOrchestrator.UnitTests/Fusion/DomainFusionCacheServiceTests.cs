@@ -360,6 +360,7 @@ public class DomainFusionCacheServiceTests
         capture1.Options.Should().BeSameAs(cfg.GetFusionEntryOptions());
     }
 
+#pragma warning disable CS0618 // Obsolete GetOrSetEntityAsync overloads — retained until next major
     [Fact]
     public async Task GetOrSetEntityAsync_SetsIdentityOnlyForTheCall_ThenRestores()
     {
@@ -550,6 +551,109 @@ public class DomainFusionCacheServiceTests
         keys[0].Should().Contain(":id:items:42:");
         keys[1].Should().NotContain(":id:items:42:");
     }
+#pragma warning restore CS0618
+
+    [Fact]
+    public async Task GetOrSetEntityAsync_FromRequestIdentity_UsesPrimaryTags()
+    {
+        var http = new DefaultHttpContext();
+        http.Items[CacheOrchestratorKeys.EntityKindKey] = "items";
+        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
+        DomainCacheOptions cfg = CreateConfig(domain: "store");
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
+        _keyGenerator.Generate(cfg, Arg.Any<HttpContext>()).Returns("entity-key");
+
+        FootprintCapture capture = StubFootprintGetOrSet();
+
+        string? result = await _sut.GetOrSetEntityAsync(
+            http,
+            _ => Task.FromResult<string?>("ok"),
+            TestContext.Current.CancellationToken);
+
+        result.Should().Be("ok");
+        capture.SetTags.Should().Contain("entity:store:items:42");
+        capture.SetTags.Should().Contain("entitykind:store:items");
+        http.Items[CacheOrchestratorKeys.PendingEntityFootprintKey].Should().BeOfType<EntityFootprint>();
+    }
+
+    [Fact]
+    public async Task GetOrSetEntityAsync_WithEntityCache_AddsDependsOnTags()
+    {
+        var http = new DefaultHttpContext();
+        http.Items[CacheOrchestratorKeys.EntityKindKey] = "products";
+        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
+        DomainCacheOptions cfg = CreateConfig(domain: "store");
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
+        _keyGenerator.Generate(cfg, Arg.Any<HttpContext>()).Returns("entity-key");
+
+        FootprintCapture capture = StubFootprintGetOrSet();
+
+        string? result = await _sut.GetOrSetEntityAsync(
+            http,
+            _ => Task.FromResult(EntityCache.Create("dto").DependsOn("categories", "7")),
+            TestContext.Current.CancellationToken);
+
+        result.Should().Be("dto");
+        capture.SetTags.Should().Contain("entity:store:products:42");
+        capture.SetTags.Should().Contain("entity:store:categories:7");
+    }
+
+    [Fact]
+    public async Task GetOrSetEntityAsync_WhenIdentityMissing_Throws()
+    {
+        var http = new DefaultHttpContext();
+        _domainConfig.GetDomainOptions(http).Returns(CreateConfig());
+
+        var act = () => _sut.GetOrSetEntityAsync(
+            http,
+            _ => Task.FromResult<string?>("x"),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task GetOrSetEntitySetAsync_UsesUrlKeyAndMemberTags()
+    {
+        var http = new DefaultHttpContext();
+        http.Items[CacheOrchestratorKeys.EntityKindKey] = "products";
+        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "should-not-shape-key";
+        DomainCacheOptions cfg = CreateConfig(domain: "store");
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
+
+        bool sawResourceId = false;
+        _keyGenerator
+            .Generate(cfg, Arg.Any<HttpContext>())
+            .Returns(ci =>
+            {
+                HttpContext ctx = ci.Arg<HttpContext>();
+                sawResourceId = ctx.Items.ContainsKey(CacheOrchestratorKeys.ResourceIdKey);
+                return "url-key";
+            });
+
+        FootprintCapture capture = StubFootprintGetOrSetForList();
+
+        IReadOnlyList<string> result = await _sut.GetOrSetEntitySetAsync(
+            http,
+            _ => Task.FromResult(EntitySet.Create(["a", "b"], x => x).DependsOn("categories", "9")),
+            TestContext.Current.CancellationToken);
+
+        result.Should().Equal("a", "b");
+        sawResourceId.Should().BeFalse();
+        http.Items.ContainsKey(CacheOrchestratorKeys.ResourceIdKey).Should().BeTrue();
+        capture.SetTags.Should().Contain("entity:store:products:a");
+        capture.SetTags.Should().Contain("entity:store:products:b");
+        capture.SetTags.Should().Contain("entity:store:categories:9");
+    }
+
+    [Fact]
+    public void SetEntityIdentity_StampsRequestItems()
+    {
+        var http = new DefaultHttpContext();
+        _sut.SetEntityIdentity(http, "Products", " 42 ");
+        http.Items[CacheOrchestratorKeys.EntityKindKey].Should().Be("products");
+        http.Items[CacheOrchestratorKeys.ResourceIdKey].Should().Be("42");
+    }
 
     /// <summary>
     /// Stubs the core <see cref="IFusionCache.GetOrSetAsync{T}"/> overload (with <see cref="MaybeValue{T}"/>)
@@ -576,6 +680,73 @@ public class DomainFusionCacheServiceTests
     {
         public FusionCacheEntryOptions? Options { get; set; }
         public string[]? Tags { get; set; }
+    }
+
+    private sealed class FootprintCapture
+    {
+        public string[] SetTags { get; set; } = [];
+    }
+
+    private FootprintCapture StubFootprintGetOrSet()
+    {
+        FootprintCapture capture = new();
+        _fusionCache
+            .GetOrSetAsync(
+                Arg.Any<string>(),
+                Arg.Any<Func<FusionCacheFactoryExecutionContext<FootprintCacheBox<string?>>, CancellationToken, Task<FootprintCacheBox<string?>>>>(),
+                Arg.Any<MaybeValue<FootprintCacheBox<string?>>>(),
+                Arg.Any<FusionCacheEntryOptions>(),
+                Arg.Any<IEnumerable<string>?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                Func<FusionCacheFactoryExecutionContext<FootprintCacheBox<string?>>, CancellationToken, Task<FootprintCacheBox<string?>>> factory =
+                    callInfo.ArgAt<Func<FusionCacheFactoryExecutionContext<FootprintCacheBox<string?>>, CancellationToken, Task<FootprintCacheBox<string?>>>>(1);
+                FootprintCacheBox<string?> box = factory(null!, CancellationToken.None).GetAwaiter().GetResult();
+                return ValueTask.FromResult(box);
+            });
+
+        _fusionCache
+            .SetAsync(
+                Arg.Any<string>(),
+                Arg.Any<FootprintCacheBox<string?>>(),
+                Arg.Any<FusionCacheEntryOptions?>(),
+                Arg.Do<IEnumerable<string>?>(t => capture.SetTags = t?.ToArray() ?? []),
+                Arg.Any<CancellationToken>())
+            .Returns(ValueTask.CompletedTask);
+
+        return capture;
+    }
+
+    private FootprintCapture StubFootprintGetOrSetForList()
+    {
+        FootprintCapture capture = new();
+        _fusionCache
+            .GetOrSetAsync(
+                Arg.Any<string>(),
+                Arg.Any<Func<FusionCacheFactoryExecutionContext<FootprintCacheBox<IReadOnlyList<string>?>>, CancellationToken, Task<FootprintCacheBox<IReadOnlyList<string>?>>>>(),
+                Arg.Any<MaybeValue<FootprintCacheBox<IReadOnlyList<string>?>>>(),
+                Arg.Any<FusionCacheEntryOptions>(),
+                Arg.Any<IEnumerable<string>?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                Func<FusionCacheFactoryExecutionContext<FootprintCacheBox<IReadOnlyList<string>?>>, CancellationToken, Task<FootprintCacheBox<IReadOnlyList<string>?>>> factory =
+                    callInfo.ArgAt<Func<FusionCacheFactoryExecutionContext<FootprintCacheBox<IReadOnlyList<string>?>>, CancellationToken, Task<FootprintCacheBox<IReadOnlyList<string>?>>>>(1);
+                FootprintCacheBox<IReadOnlyList<string>?> box = factory(null!, CancellationToken.None).GetAwaiter().GetResult();
+                return ValueTask.FromResult(box);
+            });
+
+        _fusionCache
+            .SetAsync(
+                Arg.Any<string>(),
+                Arg.Any<FootprintCacheBox<IReadOnlyList<string>?>>(),
+                Arg.Any<FusionCacheEntryOptions?>(),
+                Arg.Do<IEnumerable<string>?>(t => capture.SetTags = t?.ToArray() ?? []),
+                Arg.Any<CancellationToken>())
+            .Returns(ValueTask.CompletedTask);
+
+        return capture;
     }
 
     // =========================

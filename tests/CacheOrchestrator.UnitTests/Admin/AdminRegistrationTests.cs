@@ -1,5 +1,6 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -149,6 +150,14 @@ public class AdminRegistrationTests
         string json = await response.Content.ReadAsStringAsync(Ct);
         using JsonDocument doc = JsonDocument.Parse(json);
         doc.RootElement.TryGetProperty("succeeded", out _).Should().BeTrue();
+
+        // Admin Console LocalAdminClient deserializes this type with Web defaults — must round-trip.
+        CacheInvalidationResult? parsed = System.Text.Json.JsonSerializer.Deserialize<CacheInvalidationResult>(
+            json,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        parsed.Should().NotBeNull();
+        parsed!.Succeeded.Should().BeTrue();
+        parsed.IsSkipped.Should().BeFalse();
     }
 
     [Fact]

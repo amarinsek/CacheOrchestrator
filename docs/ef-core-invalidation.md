@@ -120,7 +120,8 @@ The HTTP cache path must use the **same** domain and `entityKind`:
 
 ```csharp
 .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products")
-await cache.GetOrSetEntityAsync(http, "store", "products", id.ToString(), factory, cancellationToken);
+await cache.GetOrSetEntityAsync(http, factory, cancellationToken);
+// with .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products")
 ```
 
 Primary keys: stringify each PK part with invariant culture, join composite keys with `:`, then `DomainName.NormalizeResourceId`. Route `resourceRouteKey` must produce the same string. Entity kinds use `DomainName.NormalizeEntityKind` (garbage such as `!!!` is empty, not `default`).
