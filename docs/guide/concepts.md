@@ -14,7 +14,7 @@ CacheOrchestrator stays **domain-based**: domains are the unit of configuration.
 
 EF Core invalidation (and any future ORM hook) only maps successful writes onto those same tags. The read-side entity APIs stay in the core library because they are generic, not ORM-specific.
 
-Details: [domain-profiles.md](../domain-profiles.md), [configuration.md](../configuration.md), [fusion-cache.md](../fusion-cache.md#entity-identity-entityfootprint).
+Details: [domain-profiles.md](../domain-profiles.md), [configuration.md](../configuration.md), [fusion-cache.md](../fusion-cache.md#entity-identity), [entity-footprint.md](../entity-footprint.md).
 
 ## Three layers, one snapshot
 
