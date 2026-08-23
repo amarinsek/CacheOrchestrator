@@ -26,6 +26,8 @@ All under `Cache:Domains:{name}:` (and `DomainDefaults`).
 
 Existing flags stay: `FusionCacheVaryOnEncoding`, `EncodingNormalizationList`, `FusionCacheVaryOnPublicAddress`, `OutputCacheVaryByHost`.
 
+> **Note on query parameters:** Unlike native ASP.NET Core Output Caching (which ignores query parameters by default), CacheOrchestrator's default (`"VaryByQueryKeys": null`) **varies by all query parameters** (except tracking parameters like `utm_*`). To ignore all query parameters like native ASP.NET Core does, explicitly set `"VaryByQueryKeys": []`.
+
 ### Query allowlist examples
 
 ```json

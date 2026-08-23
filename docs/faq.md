@@ -96,15 +96,20 @@ For **2.1-like** behaviour (Fusion still caches under Authorization while OC byp
 
 ## ETag = Version — is that a bug?
 
-No. Default `ETagMode: Version` means the HTTP `ETag` is a **domain generation stamp** (from `Version`), not a hash of the response body.
+No. CacheOrchestrator ETags are **generation-bound** (derived from the domain `Version`), not computed from the response body. 
+
+Default `ETagMode: Version` means the HTTP `ETag` is a shared domain generation stamp. Every URL in the domain gets the exact same ETag (e.g., `W/"hash_of_version"`). 
+
+Because the ETag does not hash the body, if you update an entity and purge the cache (`InvalidateEntityAsync`) without bumping the domain `Version`, the ETag will not change. Browsers revalidating with `If-None-Match` will continue to receive a `304 Not Modified` response. 
+
+If you are building a CRUD API where rows mutate under a stable version, use `ETagMode: None` to disable static ETags, ensuring clients fetch fresh data after their TTL expires.
 
 | Profile | Typical ETag mode |
 |---------|-------------------|
-| Snapshot datasets (OSM tiles, monthly maps) | `Version` — all tiles share one generation validator |
-| Dynamic CRUD under a stable Version | `Resource` (per URL/id) or `None` with short client TTL |
+| **Snapshot** (map tiles, datasets) | `Version` (shared stamp) or `Resource` (namespaced stamp) |
+| **Dynamic / CRUD** (mutating rows) | `None` (disables static ETags; forces fresh `GET` after TTL) |
 
-If product #42 changes and you only bump content under the same `Version` without invalidation, caches **correctly** keep serving the old body until TTL or tag purge.  
-See [domain-profiles.md](domain-profiles.md).
+For complete details on each mode, see [ETag modes in domain-profiles.md](domain-profiles.md#etag-modes).
 
 ---
 
