@@ -103,7 +103,7 @@ public class FusionHttpAndDiTests
     }
 
     private static CacheDisposition? Disposition(HttpContext http) =>
-        http.Items[CacheOrchestratorKeys.DispositionKey] as CacheDisposition;
+        http.Features.Get<ICacheOrchestratorFeature>()?.Disposition as CacheDisposition;
 
     // =========================================================================
     // B13 / B15 — Happy path: domain from OC policy metadata, no EnsureDomainOptions

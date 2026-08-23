@@ -68,6 +68,17 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 
         foreach ((string? domain, CacheOrchestratorOptions.DomainCacheSettings? settings) in options.Domains)
         {
+            if (string.IsNullOrWhiteSpace(domain))
+            {
+                failures.Add("Domain name cannot be null or whitespace.");
+            }
+            else if (!DomainName.IsNormalized(domain))
+            {
+                failures.Add(
+                    $"Domain name '{domain}' is invalid. Domain names must contain only lowercase letters, " +
+                    $"digits, and the characters '-', ':', '_', '@'. Consecutive or trailing dashes are not allowed.");
+            }
+
             ValidateDomainSettings($"Domain '{domain}'", settings, failures);
 
             if (!string.IsNullOrWhiteSpace(settings.FusionCacheInstance) &&

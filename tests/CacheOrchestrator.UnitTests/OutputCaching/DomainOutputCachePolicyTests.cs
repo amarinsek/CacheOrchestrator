@@ -342,7 +342,7 @@ public class DomainOutputCachePolicyTests
 
         // Simulate that EnsureConfig already ran
         var cfg = CreateEffectiveConfig();
-        http.Items[CacheOrchestratorKeys.DomainOptionsKey] = cfg;
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
         context.AllowCacheStorage = true;
 
         await policy.ServeResponseAsync(context, CancellationToken.None);
@@ -359,7 +359,7 @@ public class DomainOutputCachePolicyTests
         http.Response.Headers.SetCookie = "session=abc";
 
         var cfg = CreateEffectiveConfig();
-        http.Items[CacheOrchestratorKeys.DomainOptionsKey] = cfg;
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
         context.AllowCacheStorage = true;
 
         await policy.ServeResponseAsync(context, CancellationToken.None);
@@ -375,7 +375,7 @@ public class DomainOutputCachePolicyTests
         http.Response.StatusCode = 200;
 
         var cfg = CreateEffectiveConfig();
-        http.Items[CacheOrchestratorKeys.DomainOptionsKey] = cfg;
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
         context.AllowCacheStorage = true;
 
         await policy.ServeResponseAsync(context, CancellationToken.None);
@@ -538,7 +538,7 @@ public class DomainOutputCachePolicyTests
         var domainConfig = Substitute.For<IDomainCacheOptionsProvider>();
         domainConfig.EnsureDomainOptions(http, Arg.Any<string>()).Returns(call =>
         {
-            http.Items[CacheOrchestratorKeys.DomainOptionsKey] = cfg;
+            http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
             return cfg;
         });
 

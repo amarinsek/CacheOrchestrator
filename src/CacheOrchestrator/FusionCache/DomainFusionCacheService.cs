@@ -160,8 +160,16 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
     {
         ArgumentNullException.ThrowIfNull(http);
         EnsureUsableEntityIdentity(entityKind, resourceId);
-        http.Items[CacheOrchestratorKeys.EntityKindKey] = DomainName.NormalizeEntityKind(entityKind);
-        http.Items[CacheOrchestratorKeys.ResourceIdKey] = DomainName.NormalizeResourceId(resourceId);
+        
+        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+        if (feature is null)
+        {
+            feature = new CacheOrchestratorFeature();
+            http.Features.Set(feature);
+        }
+        
+        feature.EntityKind = DomainName.NormalizeEntityKind(entityKind);
+        feature.ResourceId = DomainName.NormalizeResourceId(resourceId);
     }
 
     /// <inheritdoc />
@@ -257,10 +265,14 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             return bypass.IsMiss ? default : bypass.Value;
         }
 
-        object? previousId = null;
-        bool hadId = http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out previousId);
-        if (!useEntityKey && hadId)
-            http.Items.Remove(CacheOrchestratorKeys.ResourceIdKey);
+        string? previousId = null;
+        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+        if (feature is not null)
+        {
+            previousId = feature.ResourceId;
+            if (!useEntityKey && previousId is not null)
+                feature.ResourceId = null;
+        }
 
         string key;
         try
@@ -269,8 +281,8 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         }
         finally
         {
-            if (!useEntityKey && hadId)
-                http.Items[CacheOrchestratorKeys.ResourceIdKey] = previousId!;
+            if (!useEntityKey && feature is not null && previousId is not null)
+                feature.ResourceId = previousId;
         }
 
         FusionCacheEntryOptions options = opts.GetFusionEntryOptions();
@@ -463,8 +475,9 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         string? normalizedEntityKind = null;
         string? normalizedResourceId = null;
-        bool hadPreviousKind = http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? previousKind);
-        bool hadPreviousId = http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out object? previousId);
+        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+        string? previousKind = feature?.EntityKind;
+        string? previousId = feature?.ResourceId;
         bool replacedIdentity = false;
         if (!string.IsNullOrWhiteSpace(entityKind) && !string.IsNullOrWhiteSpace(resourceId))
         {
@@ -472,8 +485,13 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             normalizedResourceId = DomainName.NormalizeResourceId(resourceId);
             if (!string.IsNullOrEmpty(normalizedEntityKind) && !string.IsNullOrEmpty(normalizedResourceId))
             {
-                http.Items[CacheOrchestratorKeys.EntityKindKey] = normalizedEntityKind;
-                http.Items[CacheOrchestratorKeys.ResourceIdKey] = normalizedResourceId;
+                if (feature is null)
+                {
+                    feature = new CacheOrchestratorFeature();
+                    http.Features.Set(feature);
+                }
+                feature.EntityKind = normalizedEntityKind;
+                feature.ResourceId = normalizedResourceId;
                 replacedIdentity = true;
             }
             else
@@ -496,10 +514,10 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         }
         finally
         {
-            if (replacedIdentity)
+            if (replacedIdentity && feature is not null)
             {
-                RestoreItem(http, CacheOrchestratorKeys.EntityKindKey, hadPreviousKind, previousKind);
-                RestoreItem(http, CacheOrchestratorKeys.ResourceIdKey, hadPreviousId, previousId);
+                feature.EntityKind = previousKind;
+                feature.ResourceId = previousId;
             }
         }
     }
@@ -569,14 +587,14 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         // URL-shaped GetOrSet must not pick up request entity identity stamped by OC / SetEntityIdentity.
         bool clearIdentityForKey = string.IsNullOrEmpty(normalizedEntityKind) || string.IsNullOrEmpty(normalizedResourceId);
-        bool hadKindForKey = http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? kindForKey);
-        bool hadIdForKey = http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out object? idForKey);
-        if (clearIdentityForKey)
+        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+        string? kindForKey = feature?.EntityKind;
+        string? idForKey = feature?.ResourceId;
+        
+        if (clearIdentityForKey && feature is not null)
         {
-            if (hadKindForKey)
-                http.Items.Remove(CacheOrchestratorKeys.EntityKindKey);
-            if (hadIdForKey)
-                http.Items.Remove(CacheOrchestratorKeys.ResourceIdKey);
+            feature.EntityKind = null;
+            feature.ResourceId = null;
         }
 
         string key;
@@ -586,10 +604,10 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         }
         finally
         {
-            if (clearIdentityForKey)
+            if (clearIdentityForKey && feature is not null)
             {
-                RestoreItem(http, CacheOrchestratorKeys.EntityKindKey, hadKindForKey, kindForKey);
-                RestoreItem(http, CacheOrchestratorKeys.ResourceIdKey, hadIdForKey, idForKey);
+                feature.EntityKind = kindForKey;
+                feature.ResourceId = idForKey;
             }
         }
 
@@ -726,29 +744,11 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         return new EntityRef(kind, id);
     }
 
-    private static string? TryGetRequestEntityKind(HttpContext http)
-    {
-        if (http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? kindObj)
-            && kindObj is string kind
-            && kind.Length > 0)
-        {
-            return kind;
-        }
+    private static string? TryGetRequestEntityKind(HttpContext http) =>
+        http.Features.Get<ICacheOrchestratorFeature>()?.EntityKind is { Length: > 0 } kind ? kind : null;
 
-        return null;
-    }
-
-    private static string? TryGetRequestResourceId(HttpContext http)
-    {
-        if (http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out object? idObj)
-            && idObj is string id
-            && id.Length > 0)
-        {
-            return id;
-        }
-
-        return null;
-    }
+    private static string? TryGetRequestResourceId(HttpContext http) =>
+        http.Features.Get<ICacheOrchestratorFeature>()?.ResourceId is { Length: > 0 } id ? id : null;
 
     private static void EnsureRequestHasPrimaryIdentity(HttpContext http)
     {
@@ -758,14 +758,6 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         throw new InvalidOperationException(
             "Entity identity is not on the request. Use [CacheDomain(domain, resourceRouteKey, entityKind)] / " +
             "CacheOutputWithDomain(domain, resourceRouteKey, entityKind), or SetEntityIdentity.");
-    }
-
-    private static void RestoreItem(HttpContext http, object key, bool hadPrevious, object? previous)
-    {
-        if (hadPrevious)
-            http.Items[key] = previous;
-        else
-            http.Items.Remove(key);
     }
 
     /// <summary>
@@ -886,19 +878,22 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
     private static void SetData(HttpContext http, DataCacheResult data, long? ms = null)
     {
-        if (http.Items.TryGetValue(CacheOrchestratorKeys.DispositionKey, out object? obj)
-            && obj is CacheDisposition existing)
+        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+        if (feature is null)
+        {
+            feature = new CacheOrchestratorFeature();
+            http.Features.Set(feature);
+        }
+
+        if (feature.Disposition is { } existing)
         {
             existing.Data = data;
             existing.ElapsedMs = ms;
-            return;
         }
-
-        http.Items[CacheOrchestratorKeys.DispositionKey] = new CacheDisposition
+        else
         {
-            Data = data,
-            ElapsedMs = ms
-        };
+            feature.Disposition = new CacheDisposition { Data = data, ElapsedMs = ms };
+        }
     }
 
     private static string DataToMetric(DataCacheResult d) => d switch

@@ -76,12 +76,9 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
             CacheVaryMaterial vary = _materializer.Build(http, opts, CacheVarySurface.Fusion);
 
             // 0. Entity identity (CRUD) — both kind and id are required; no id-only key shape.
-            if (http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? kindObj)
-                && kindObj is string entityKind
-                && entityKind.Length > 0
-                && http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out object? ridObj)
-                && ridObj is string resourceId
-                && resourceId.Length > 0)
+            ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+            if (feature?.EntityKind is { Length: > 0 } entityKind
+                && feature.ResourceId is { Length: > 0 } resourceId)
             {
                 AppendRaw(hasher, "id:"u8);
                 AppendString(hasher, entityKind, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);

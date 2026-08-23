@@ -51,7 +51,7 @@ public class DomainFusionCacheServiceTests
         _domainConfig.DidNotReceive().EnsureDomainOptions(Arg.Any<HttpContext>(), Arg.Any<string>());
 
         // Disposition records unresolved so X-Cache can show fc=unresolved
-        http.Items[CacheOrchestratorKeys.DispositionKey].Should().BeOfType<CacheDisposition>()
+        http.Features.Get<ICacheOrchestratorFeature>()?.Disposition.Should().BeOfType<CacheDisposition>()
             .Which.Data.Should().Be(DataCacheResult.Unresolved);
     }
 
@@ -160,7 +160,7 @@ public class DomainFusionCacheServiceTests
 
         result.Should().Be(99);
         factoryCalled.Should().BeTrue();
-        http.Items[CacheOrchestratorKeys.DispositionKey].Should().BeOfType<CacheDisposition>()
+        http.Features.Get<ICacheOrchestratorFeature>()?.Disposition.Should().BeOfType<CacheDisposition>()
             .Which.Data.Should().Be(DataCacheResult.Off);
     }
 
@@ -207,7 +207,7 @@ public class DomainFusionCacheServiceTests
         result.Should().Be(3);
         factoryCalled.Should().BeTrue();
         _keyGenerator.DidNotReceive().Generate(Arg.Any<DomainCacheOptions>(), Arg.Any<HttpContext>());
-        http.Items[CacheOrchestratorKeys.DispositionKey].Should().BeOfType<CacheDisposition>()
+        http.Features.Get<ICacheOrchestratorFeature>()?.Disposition.Should().BeOfType<CacheDisposition>()
             .Which.Data.Should().Be(DataCacheResult.Bypass);
     }
 
@@ -247,7 +247,7 @@ public class DomainFusionCacheServiceTests
 
         result.Should().Be(7);
         factoryCalled.Should().BeTrue();
-        http.Items[CacheOrchestratorKeys.DispositionKey].Should().BeOfType<CacheDisposition>()
+        http.Features.Get<ICacheOrchestratorFeature>()?.Disposition.Should().BeOfType<CacheDisposition>()
             .Which.Data.Should().Be(DataCacheResult.Bypass);
     }
 
@@ -372,8 +372,8 @@ public class DomainFusionCacheServiceTests
             .Returns(ci =>
             {
                 HttpContext ctx = ci.Arg<HttpContext>();
-                ctx.Items[CacheOrchestratorKeys.EntityKindKey].Should().Be("items");
-                ctx.Items[CacheOrchestratorKeys.ResourceIdKey].Should().Be("42");
+                ctx.Features.Get<ICacheOrchestratorFeature>()?.EntityKind.Should().Be("items");
+                ctx.Features.Get<ICacheOrchestratorFeature>()?.ResourceId.Should().Be("42");
                 return "entity-key";
             });
         StubGetOrSetAndCaptureOptions(returnValue: 1);
@@ -385,8 +385,8 @@ public class DomainFusionCacheServiceTests
             _ => Task.FromResult(1),
             TestContext.Current.CancellationToken);
 
-        http.Items.ContainsKey(CacheOrchestratorKeys.EntityKindKey).Should().BeFalse();
-        http.Items.ContainsKey(CacheOrchestratorKeys.ResourceIdKey).Should().BeFalse();
+        (http.Features.Get<ICacheOrchestratorFeature>()?.EntityKind).Should().BeNull();
+        (http.Features.Get<ICacheOrchestratorFeature>()?.ResourceId).Should().BeNull();
     }
 
     [Fact]
@@ -395,8 +395,7 @@ public class DomainFusionCacheServiceTests
         var http = new DefaultHttpContext();
         var cfg = CreateConfig();
         _domainConfig.GetDomainOptions(http).Returns(cfg);
-        http.Items[CacheOrchestratorKeys.EntityKindKey] = "products";
-        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "99";
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "products", ResourceId = "99" });
         _keyGenerator.Generate(cfg, Arg.Any<HttpContext>()).Returns("entity-key");
         StubGetOrSetAndCaptureOptions(returnValue: 1);
 
@@ -407,8 +406,8 @@ public class DomainFusionCacheServiceTests
             _ => Task.FromResult(1),
             TestContext.Current.CancellationToken);
 
-        http.Items[CacheOrchestratorKeys.EntityKindKey].Should().Be("products");
-        http.Items[CacheOrchestratorKeys.ResourceIdKey].Should().Be("99");
+        http.Features.Get<ICacheOrchestratorFeature>()?.EntityKind.Should().Be("products");
+        http.Features.Get<ICacheOrchestratorFeature>()?.ResourceId.Should().Be("99");
     }
 
     [Fact]
@@ -557,8 +556,7 @@ public class DomainFusionCacheServiceTests
     public async Task GetOrSetEntityAsync_FromRequestIdentity_UsesPrimaryTags()
     {
         var http = new DefaultHttpContext();
-        http.Items[CacheOrchestratorKeys.EntityKindKey] = "items";
-        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "items", ResourceId = "42" });
         DomainCacheOptions cfg = CreateConfig(domain: "store");
         _domainConfig.GetDomainOptions(http).Returns(cfg);
         _keyGenerator.Generate(cfg, Arg.Any<HttpContext>()).Returns("entity-key");
@@ -573,15 +571,14 @@ public class DomainFusionCacheServiceTests
         result.Should().Be("ok");
         capture.SetTags.Should().Contain("entity:store:items:42");
         capture.SetTags.Should().Contain("entitykind:store:items");
-        http.Items[CacheOrchestratorKeys.PendingEntityFootprintKey].Should().BeOfType<EntityFootprint>();
+        http.Features.Get<ICacheOrchestratorFeature>()?.PendingEntityFootprint.Should().BeOfType<EntityFootprint>();
     }
 
     [Fact]
     public async Task GetOrSetEntityAsync_WithEntityCache_AddsDependsOnTags()
     {
         var http = new DefaultHttpContext();
-        http.Items[CacheOrchestratorKeys.EntityKindKey] = "products";
-        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "products", ResourceId = "42" });
         DomainCacheOptions cfg = CreateConfig(domain: "store");
         _domainConfig.GetDomainOptions(http).Returns(cfg);
         _keyGenerator.Generate(cfg, Arg.Any<HttpContext>()).Returns("entity-key");
@@ -616,8 +613,7 @@ public class DomainFusionCacheServiceTests
     public async Task GetOrSetEntitySetAsync_UsesUrlKeyAndMemberTags()
     {
         var http = new DefaultHttpContext();
-        http.Items[CacheOrchestratorKeys.EntityKindKey] = "products";
-        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "should-not-shape-key";
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "products", ResourceId = "should-not-shape-key" });
         DomainCacheOptions cfg = CreateConfig(domain: "store");
         _domainConfig.GetDomainOptions(http).Returns(cfg);
 
@@ -627,7 +623,7 @@ public class DomainFusionCacheServiceTests
             .Returns(ci =>
             {
                 HttpContext ctx = ci.Arg<HttpContext>();
-                sawResourceId = ctx.Items.ContainsKey(CacheOrchestratorKeys.ResourceIdKey);
+                sawResourceId = ctx.Features.Get<ICacheOrchestratorFeature>()?.ResourceId != null;
                 return "url-key";
             });
 
@@ -640,7 +636,7 @@ public class DomainFusionCacheServiceTests
 
         result.Should().Equal("a", "b");
         sawResourceId.Should().BeFalse();
-        http.Items.ContainsKey(CacheOrchestratorKeys.ResourceIdKey).Should().BeTrue();
+        (http.Features.Get<ICacheOrchestratorFeature>()?.ResourceId).Should().NotBeNull();
         capture.SetTags.Should().Contain("entity:store:products:a");
         capture.SetTags.Should().Contain("entity:store:products:b");
         capture.SetTags.Should().Contain("entity:store:categories:9");
@@ -651,8 +647,8 @@ public class DomainFusionCacheServiceTests
     {
         var http = new DefaultHttpContext();
         _sut.SetEntityIdentity(http, "Products", " 42 ");
-        http.Items[CacheOrchestratorKeys.EntityKindKey].Should().Be("products");
-        http.Items[CacheOrchestratorKeys.ResourceIdKey].Should().Be("42");
+        http.Features.Get<ICacheOrchestratorFeature>()?.EntityKind.Should().Be("products");
+        http.Features.Get<ICacheOrchestratorFeature>()?.ResourceId.Should().Be("42");
     }
 
     /// <summary>

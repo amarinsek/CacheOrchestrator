@@ -14,13 +14,20 @@ internal static class EntityFootprintStaging
         if (footprint is null || ReferenceEquals(footprint, EntityFootprint.Empty))
             return;
 
-        if (http.Items.TryGetValue(CacheOrchestratorKeys.PendingEntityFootprintKey, out object? existing)
-            && existing is EntityFootprint previous)
+        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+        if (feature is null)
         {
-            http.Items[CacheOrchestratorKeys.PendingEntityFootprintKey] = previous.Merge(footprint);
-            return;
+            feature = new CacheOrchestratorFeature();
+            http.Features.Set(feature);
         }
 
-        http.Items[CacheOrchestratorKeys.PendingEntityFootprintKey] = footprint;
+        if (feature.PendingEntityFootprint is { } previous)
+        {
+            feature.PendingEntityFootprint = previous.Merge(footprint);
+        }
+        else
+        {
+            feature.PendingEntityFootprint = footprint;
+        }
     }
 }
