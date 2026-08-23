@@ -255,6 +255,10 @@ Client TTL, Fusion jitter, and factory timeouts stay **`int` seconds** on the sn
 - replaces other chars with `-`, collapses dashes  
 - empty → `default`  
 
+**Prefer already-normalized names** in `Domains` keys, `[CacheDomain("…")]`, and `.CacheOutputWithDomain("…")` (lowercase + allowed characters only). That hits the zero-allocation `IsNormalized` fast path on every request.
+
+Case-only variants such as `MyStore` / `Products` still work: `Domains` is `OrdinalIgnoreCase`, and startup validation does **not** fail the host. Options validation logs a **warning** once at startup (and on options reload) recommending the normalized form. Keys that change beyond case after normalization (spaces, invalid characters, collapsed dashes) **fail** validation, because runtime lookup uses the normalized name and would miss that dictionary entry. Keys that normalize to `default` unintentionally (for example `!!!`) also fail.
+
 Resource ids: `DomainName.NormalizeResourceId` (same character rules; null/whitespace or values with no usable characters such as `!!!` → empty string, **not** `default`).
 
 Entity kinds: `DomainName.NormalizeEntityKind` (same as resource ids). Unusable kinds do not share the domain name `default`.

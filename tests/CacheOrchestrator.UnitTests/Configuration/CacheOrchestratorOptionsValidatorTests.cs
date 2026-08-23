@@ -1,4 +1,5 @@
 using CacheOrchestrator.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace CacheOrchestrator.UnitTests.Configuration;
 
@@ -300,6 +301,101 @@ public class CacheOrchestratorOptionsValidatorTests
 
         result.Succeeded.Should().BeFalse();
         result.Failures.Should().Contain(f => f.Contains("VaryByHeaders[1]", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData("products")]
+    [InlineData("product-detail")]
+    [InlineData("reports:v1")]
+    [InlineData("user_profile")]
+    [InlineData("tenant@acme")]
+    public void Validate_NormalizedDomainKey_ReturnsSuccess(string domain)
+    {
+        var options = CreateValidOptions();
+        options.Domains[domain] = new CacheOrchestratorOptions.DomainCacheSettings();
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("Products")]
+    [InlineData("MyStore")]
+    [InlineData("PRODUCTS")]
+    public void Validate_CaseOnlyDomainKey_ReturnsSuccessAndLogsWarning(string domain)
+    {
+        ILogger logger = Substitute.For<ILogger>();
+        logger.IsEnabled(LogLevel.Warning).Returns(true);
+        var sut = new CacheOrchestratorOptionsValidator(["InMemory", "Redis", "SqlServer"], logger: logger);
+        var options = CreateValidOptions();
+        options.Domains[domain] = new CacheOrchestratorOptions.DomainCacheSettings();
+
+        var result = sut.Validate(null, options);
+
+        result.Succeeded.Should().BeTrue();
+        logger.Received().Log(
+            LogLevel.Warning,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(state => state.ToString()!.Contains(domain, StringComparison.Ordinal)),
+            Arg.Any<Exception?>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    [Theory]
+    [InlineData("My Store", "my-store")]
+    [InlineData("foo--bar", "foo-bar")]
+    [InlineData("products!", "products")]
+    public void Validate_DomainKeyThatChangesBeyondCase_Fails(string domain, string normalized)
+    {
+        var options = CreateValidOptions();
+        options.Domains[domain] = new CacheOrchestratorOptions.DomainCacheSettings();
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f =>
+            f.Contains(domain, StringComparison.Ordinal) &&
+            f.Contains(normalized, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("!!!")]
+    [InlineData("---")]
+    public void Validate_DomainKeyThatNormalizesToDefault_Fails(string domain)
+    {
+        var options = CreateValidOptions();
+        options.Domains[domain] = new CacheOrchestratorOptions.DomainCacheSettings();
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f =>
+            f.Contains(domain, StringComparison.Ordinal) &&
+            f.Contains("default", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validate_WhitespaceDomainKey_Fails()
+    {
+        var options = CreateValidOptions();
+        options.Domains["   "] = new CacheOrchestratorOptions.DomainCacheSettings();
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f => f.Contains("null or whitespace", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validate_DefaultDomainKey_ReturnsSuccess()
+    {
+        var options = CreateValidOptions();
+        options.Domains["default"] = new CacheOrchestratorOptions.DomainCacheSettings();
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeTrue();
     }
 
     [Fact]

@@ -91,7 +91,7 @@ public static class DomainName
             
             if (c == '-')
             {
-                // Consecutive dashes are not allowed in normalized strings
+                // Leading dash already rejected; i >= 1 here.
                 if (s[i - 1] == '-') return false;
                 continue;
             }

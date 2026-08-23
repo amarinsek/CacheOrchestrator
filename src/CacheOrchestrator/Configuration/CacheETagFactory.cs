@@ -42,6 +42,12 @@ public static class CacheETagFactory
         ReadOnlySpan<char> part3 = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(versionHex);
+        if (part1.IsEmpty && part2.IsEmpty && part3.IsEmpty)
+        {
+            throw new ArgumentException(
+                "At least one resource segment must be non-empty.",
+                nameof(part1));
+        }
 
         int len = Encoding.UTF8.GetByteCount(versionHex) + 1 
                   + Encoding.UTF8.GetByteCount(part1)

@@ -1,10 +1,19 @@
 using CacheOrchestrator.FusionCache;
+using Microsoft.AspNetCore.Http;
 
 namespace CacheOrchestrator.Configuration;
 
 /// <summary>
-/// Consolidates CacheOrchestrator request state into a single allocation-free feature collection lookup.
+/// Request-scoped CacheOrchestrator state on <see cref="HttpContext.Features"/>.
+/// Prefer one feature lookup over multiple <c>HttpContext.Items</c> entries.
 /// </summary>
+/// <remarks>
+/// Apps that previously read removed <c>CacheOrchestratorKeys</c> from <c>Items</c> should use
+/// <see cref="Microsoft.AspNetCore.Http.CacheOrchestratorHttpContextExtensions.GetDomainCacheOptions"/>
+/// or <c>http.Features.Get&lt;ICacheOrchestratorFeature&gt;()</c>. Mutate via
+/// <see cref="FusionCache.IDomainFusionCache.SetEntityIdentity"/> / domain resolution APIs when possible;
+/// installing a custom feature implementation is supported but uncommon.
+/// </remarks>
 public interface ICacheOrchestratorFeature
 {
     /// <summary>
@@ -43,4 +52,21 @@ internal sealed class CacheOrchestratorFeature : ICacheOrchestratorFeature
     public string? EntityKind { get; set; }
     public CacheDisposition? Disposition { get; set; }
     public EntityFootprint? PendingEntityFootprint { get; set; }
+}
+
+/// <summary>
+/// Gets or creates the request feature, always registered under <see cref="ICacheOrchestratorFeature"/>.
+/// </summary>
+internal static class CacheOrchestratorFeatureAccessor
+{
+    public static ICacheOrchestratorFeature GetOrCreate(HttpContext http)
+    {
+        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+        if (feature is not null)
+            return feature;
+
+        feature = new CacheOrchestratorFeature();
+        http.Features.Set<ICacheOrchestratorFeature>(feature);
+        return feature;
+    }
 }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.Configuration;
@@ -11,15 +12,18 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 {
     private readonly HashSet<string> _validProviders;
     private readonly IReadOnlyDictionary<string, bool> _supportsOutputCache;
+    private readonly ILogger? _logger;
 
     public CacheOrchestratorOptionsValidator(
         IEnumerable<string> validProviders,
-        IReadOnlyDictionary<string, bool>? supportsOutputCache = null)
+        IReadOnlyDictionary<string, bool>? supportsOutputCache = null,
+        ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(validProviders);
         _validProviders = new HashSet<string>(validProviders, StringComparer.OrdinalIgnoreCase);
         _supportsOutputCache = supportsOutputCache
             ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -68,16 +72,7 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 
         foreach ((string? domain, CacheOrchestratorOptions.DomainCacheSettings? settings) in options.Domains)
         {
-            if (string.IsNullOrWhiteSpace(domain))
-            {
-                failures.Add("Domain name cannot be null or whitespace.");
-            }
-            else if (!DomainName.IsNormalized(domain))
-            {
-                failures.Add(
-                    $"Domain name '{domain}' is invalid. Domain names must contain only lowercase letters, " +
-                    $"digits, and the characters '-', ':', '_', '@'. Consecutive or trailing dashes are not allowed.");
-            }
+            ValidateDomainKey(domain, failures);
 
             ValidateDomainSettings($"Domain '{domain}'", settings, failures);
 
@@ -101,6 +96,48 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
         return failures.Count > 0
             ? ValidateOptionsResult.Fail(failures)
             : ValidateOptionsResult.Success;
+    }
+
+    private void ValidateDomainKey(string? domain, List<string> failures)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            failures.Add("Domain name cannot be null or whitespace.");
+            return;
+        }
+
+        string normalized = DomainName.Normalize(domain);
+
+        // Unusable keys collapse to "default" and would collide with the real default domain.
+        if (normalized == DomainName.Default
+            && !string.Equals(domain.Trim(), DomainName.Default, StringComparison.OrdinalIgnoreCase))
+        {
+            failures.Add(
+                $"Domain name '{domain}' normalizes to '{DomainName.Default}' and cannot be used as a Domains key.");
+            return;
+        }
+
+        // Domains lookup is OrdinalIgnoreCase on the normalized name. Keys that change beyond
+        // case (spaces, invalid chars, collapsed dashes) would never match at runtime.
+        if (!string.Equals(domain, normalized, StringComparison.OrdinalIgnoreCase))
+        {
+            failures.Add(
+                $"Domain name '{domain}' is invalid. After normalization it becomes '{normalized}', " +
+                $"which would not match this Domains key under case-insensitive lookup. " +
+                $"Use '{normalized}' as the Domains key.");
+            return;
+        }
+
+        // Case-only differences (e.g. MyStore) still resolve, but miss the zero-alloc Normalize fast path.
+        if (!DomainName.IsNormalized(domain) && _logger is not null && _logger.IsEnabled(LogLevel.Warning))
+        {
+            _logger.LogWarning(
+                "Domains key '{Domain}' is not fully normalized (preferred form: '{Normalized}'). " +
+                "The domain still works, but DomainName.Normalize allocates on the hot path. " +
+                "Use lowercase letters, digits, and '-', ':', '_', '@' in appsettings and [CacheDomain] names.",
+                domain,
+                normalized);
+        }
     }
 
     private static void ValidateDomainSettings(

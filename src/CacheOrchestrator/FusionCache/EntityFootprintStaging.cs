@@ -14,12 +14,7 @@ internal static class EntityFootprintStaging
         if (footprint is null || ReferenceEquals(footprint, EntityFootprint.Empty))
             return;
 
-        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
-        if (feature is null)
-        {
-            feature = new CacheOrchestratorFeature();
-            http.Features.Set(feature);
-        }
+        ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
 
         if (feature.PendingEntityFootprint is { } previous)
         {

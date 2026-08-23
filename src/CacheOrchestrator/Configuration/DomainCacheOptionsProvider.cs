@@ -63,10 +63,10 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
         ArgumentNullException.ThrowIfNull(http);
 
         string normalized = DomainName.Normalize(domain);
-        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+        ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
 
         // L1: per-request feature — reuse only when the domain matches.
-        if (feature?.DomainOptions is { } cached)
+        if (feature.DomainOptions is { } cached)
         {
             if (string.Equals(cached.Domain, normalized, StringComparison.Ordinal))
                 return cached;
@@ -82,13 +82,6 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
 
         // L2: process-wide ConcurrentDictionary
         DomainCacheOptions resolved = GetOrCreateDomainOptions(normalized);
-        
-        if (feature is null)
-        {
-            feature = new CacheOrchestratorFeature();
-            http.Features.Set(feature);
-        }
-        
         feature.DomainOptions = resolved;
         return resolved;
     }

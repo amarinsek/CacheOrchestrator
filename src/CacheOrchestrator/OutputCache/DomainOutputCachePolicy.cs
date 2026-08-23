@@ -339,12 +339,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         if (EntityKind is null)
             return null;
 
-        if (feature is null)
-        {
-            feature = new CacheOrchestratorFeature();
-            http.Features.Set(feature);
-        }
-
+        feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
         feature.EntityKind = EntityKind;
         return EntityKind;
     }
@@ -367,12 +362,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         if (string.IsNullOrEmpty(normalized))
             return null;
 
-        if (feature is null)
-        {
-            feature = new CacheOrchestratorFeature();
-            http.Features.Set(feature);
-        }
-
+        feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
         feature.ResourceId = normalized;
         return normalized;
     }
@@ -425,12 +415,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         if (logger.IsEnabled(LogLevel.Debug))
             logger.LogDebug("OutputCache HIT: [{Method}] {Path}", http.Request.Method, http.Request.Path);
 
-        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
-        if (feature is null)
-        {
-            feature = new CacheOrchestratorFeature();
-            http.Features.Set(feature);
-        }
+        ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
 
         feature.Disposition = new CacheDisposition
         {
@@ -440,7 +425,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.output.hit");
         if (activity is not null)
         {
-            if (feature?.DomainOptions is { } opts)
+            if (feature.DomainOptions is { } opts)
             {
                 activity.SetTag("domain", opts.Domain);
             }
@@ -524,10 +509,9 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         HttpResponse response = httpContext.Response;
         int sc = response.StatusCode;
 
+        ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(httpContext);
         CacheDisposition disp;
-        ICacheOrchestratorFeature? feature = httpContext.Features.Get<ICacheOrchestratorFeature>();
-        
-        if (feature?.Disposition is { } existing)
+        if (feature.Disposition is { } existing)
         {
             disp = existing;
             disp.Output ??= defOutput;
@@ -537,12 +521,6 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             disp = new CacheDisposition { Output = defOutput };
         }
 
-        if (feature is null)
-        {
-            feature = new CacheOrchestratorFeature();
-            httpContext.Features.Set(feature);
-        }
-        
         feature.Disposition = disp;
 
         OutputCacheResult output = disp.Output ?? defOutput;

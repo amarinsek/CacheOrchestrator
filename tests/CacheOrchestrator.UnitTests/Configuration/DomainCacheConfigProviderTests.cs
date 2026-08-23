@@ -341,7 +341,7 @@ public class DomainCacheConfigProviderTests
     [Fact]
     public void OptionsMonitorChange_DoesNotReplaceSnapshotAlreadyPinnedOnHttpContext()
     {
-        // L1 (HttpContext.Items) is per-request: reload mid-request must not mutate the
+        // L1 (ICacheOrchestratorFeature) is per-request: reload mid-request must not mutate the
         // options already attached to that context (stable for the remainder of the request).
         var initial = new CacheOrchestratorOptions
         {

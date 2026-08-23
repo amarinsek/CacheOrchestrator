@@ -160,14 +160,8 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
     {
         ArgumentNullException.ThrowIfNull(http);
         EnsureUsableEntityIdentity(entityKind, resourceId);
-        
-        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
-        if (feature is null)
-        {
-            feature = new CacheOrchestratorFeature();
-            http.Features.Set(feature);
-        }
-        
+
+        ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
         feature.EntityKind = DomainName.NormalizeEntityKind(entityKind);
         feature.ResourceId = DomainName.NormalizeResourceId(resourceId);
     }
@@ -485,11 +479,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             normalizedResourceId = DomainName.NormalizeResourceId(resourceId);
             if (!string.IsNullOrEmpty(normalizedEntityKind) && !string.IsNullOrEmpty(normalizedResourceId))
             {
-                if (feature is null)
-                {
-                    feature = new CacheOrchestratorFeature();
-                    http.Features.Set(feature);
-                }
+                feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
                 feature.EntityKind = normalizedEntityKind;
                 feature.ResourceId = normalizedResourceId;
                 replacedIdentity = true;
@@ -878,12 +868,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
     private static void SetData(HttpContext http, DataCacheResult data, long? ms = null)
     {
-        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
-        if (feature is null)
-        {
-            feature = new CacheOrchestratorFeature();
-            http.Features.Set(feature);
-        }
+        ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
 
         if (feature.Disposition is { } existing)
         {
