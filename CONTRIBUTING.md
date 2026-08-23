@@ -200,19 +200,24 @@ Not enabled by default (no cert in repo). When you have a code-signing certifica
 Core package `Description` may append: `Redis backends: install CacheOrchestrator.Redis.`
 
 ## Worklog
+Use a worklog for any branch that is more than a one-line fix. It serves as the living record of the branch and becomes the final PR description.
 
-Use a **worklog** for any branch that is more than a one-line fix. It is a **PR appendix**, not a file in the repository: the living record of the branch, then the archive on the pull request.
+**How to use it:**
+1.  Copy `docs/templates/worklog-template.md` when you open a branch.
+2.  Save your working copy in a `_local/` folder at the project root (ignored by Git) or your personal notes. **Name the file after your branch** (e.g., `_local/fix-etag-resource.md`). **Do not commit this file.**
+3.  Update the document continuously as you work, following these rules:
+    *   **Title:** Write a short, imperative sentence (max ~70 characters). This will be your PR title.
+    *   **Summary:** Briefly explain the problem (Why) and the solution (What).
+    *   **Changelog:** Record **net changes only** (ignore intermediate/reverted attempts). Delete any subheadings (like `### Removed`) that have no entries.
+    *   **Breaking Changes:** List them explicitly, or leave as `None`.
+    *   **How to test:** Describe how a reviewer can verify your changes (e.g., specific unit tests to run, or local reproduction steps).
+    *   **Work Items:** Archive your work sequentially (**oldest first**). Document what landed and the architectural rules applied. Do not record chat, rejected alternatives, or draft locations.
 
-1. Copy [docs/templates/worklog-template.md](docs/templates/worklog-template.md) when you open the branch.
-2. Fill metadata immediately (date, author, branch, issues, optional plan).
-3. Update **Summary**, **Changelog**, and **Work items** as you work. Keep the filled copy outside the tree (draft, gist, or local notes) — do not add it to the commit.
-4. Changelog records **net** changes only (no intermediate attempts of the same feature). List breaking changes explicitly.
-5. Write **Work items** (and Changelog) for a future reader: what landed, and any rule that still applies. Do **not** record chat, rejected alternatives (“not X, because…”), or draft locations — those are meaningless outside the discussion.
-6. When you open the PR:
-   - **Summary** → GitHub title and the short description
-   - The rest of the worklog (Changelog, Breaking changes, Work items) → the PR body as the archive
+**When you open the Pull Request:**
+*   **PR Title:** Use the text from your `## Title` section.
+*   **PR Description:** Copy and paste the rest of the document (from `## Summary` downwards).
 
-Do **not** edit [CHANGELOG.md](CHANGELOG.md) in a contributor PR. The worklog Changelog is the input; the maintainer copies net entries into `CHANGELOG.md` after merge (and into `PACKAGE_RELEASE_NOTES.md` when cutting a release).
+*Note: Do not edit `CHANGELOG.md` directly in a PR. The maintainer will copy the net entries from your worklog after merging.*
 
 ## Community expectations
 
