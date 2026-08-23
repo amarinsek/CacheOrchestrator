@@ -50,7 +50,7 @@ A thin projection / DTO is the same pattern — still one primary identity.
 
 ```csharp
 // Admin saved product 42
-await inv.InvalidateEntityAsync("store", "products", "42", cancellationToken);
+await inv.InvalidateEntityAsync("store", "products", 42, cancellationToken);
 // → only this detail entry misses; product 99 stays cached
 ```
 
@@ -78,7 +78,7 @@ Equivalent primary-only form without `EntityCache`: `return await cache.GetOrSet
 
 ```csharp
 // Product 42 was created (or you know the negative entry is wrong)
-await inv.InvalidateEntityAsync("store", "products", "42", cancellationToken);
+await inv.InvalidateEntityAsync("store", "products", 42, cancellationToken);
 // → the cached "not found" for 42 is gone; other missing ids keep their negative entries
 ```
 
@@ -114,9 +114,9 @@ public async Task<ActionResult<ProductDetailsDto>> GetDetails(
             return EntityCache.Miss<ProductDetailsDto>(); // no DTO for this product id
 
         return EntityCache.Create(row)
-            .DependsOn("categories", row.CategoryId.ToString())
-            .DependsOn("brands", row.BrandId.ToString())
-            .DependsOn("tags", row.TagIds.Select(t => t.ToString()));
+            .DependsOn("categories", row.CategoryId)
+            .DependsOn("brands", row.BrandId)
+            .DependsOn("tags", row.TagIds);
     }, cancellationToken);
     return details is null ? NotFound() : Ok(details);
 }
@@ -126,13 +126,13 @@ public async Task<ActionResult<ProductDetailsDto>> GetDetails(
 
 ```csharp
 // Category 7 renamed → every product detail that DependsOn categories:7 misses
-await inv.InvalidateEntityAsync("store", "categories", "7", cancellationToken);
+await inv.InvalidateEntityAsync("store", "categories", 7, cancellationToken);
 
 // Tag 3 updated → product details that listed tag 3 miss (others unaffected)
-await inv.InvalidateEntityAsync("store", "tags", "3", cancellationToken);
+await inv.InvalidateEntityAsync("store", "tags", 3, cancellationToken);
 
 // Brand 9 updated
-await inv.InvalidateEntityAsync("store", "brands", "9", cancellationToken);
+await inv.InvalidateEntityAsync("store", "brands", 9, cancellationToken);
 ```
 
 ---
@@ -167,9 +167,9 @@ public async Task<ActionResult<OrderDto>> GetOrder(
             return EntityCache.Miss<OrderDto>(); // no order aggregate for this id
 
         return EntityCache.Create(OrderDto.From(entity))
-            .Members("order-lines", entity.Lines.Select(l => l.Id.ToString()))
-            .DependsOn("customers", entity.CustomerId.ToString())
-            .DependsOn("products", entity.Lines.Select(l => l.ProductId.ToString()).Distinct());
+            .Members("order-lines", entity.Lines.Select(l => l.Id))
+            .DependsOn("customers", entity.CustomerId)
+            .DependsOn("products", entity.Lines.Select(l => l.ProductId).Distinct());
     }, cancellationToken);
     return order is null ? NotFound() : Ok(order);
 }
@@ -181,13 +181,13 @@ public async Task<ActionResult<OrderDto>> GetOrder(
 
 ```csharp
 // Line 100 edited → order aggregates that Members order-lines:100 miss
-await inv.InvalidateEntityAsync("store", "order-lines", "100", cancellationToken);
+await inv.InvalidateEntityAsync("store", "order-lines", 100, cancellationToken);
 
 // Customer 9 renamed → orders that DependsOn customers:9 miss
-await inv.InvalidateEntityAsync("store", "customers", "9", cancellationToken);
+await inv.InvalidateEntityAsync("store", "customers", 9, cancellationToken);
 
 // Product 42 title changed → orders whose lines DependsOn products:42 miss
-await inv.InvalidateEntityAsync("store", "products", "42", cancellationToken);
+await inv.InvalidateEntityAsync("store", "products", 42, cancellationToken);
 ```
 
 ---
@@ -206,7 +206,7 @@ public async Task<ActionResult<IReadOnlyList<Product>>> List(IDomainFusionCache 
     var products = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
     {
         var rows = await QueryPageAsync(ct);
-        return EntitySet.Create(rows, p => p.Id.ToString());
+        return EntitySet.Create(rows, p => p.Id);
     }, ct);
     return Ok(products);
 }
@@ -218,7 +218,7 @@ Lookup key is URL/query-shaped. Tags include `entitykind:store:products` plus ea
 
 ```csharp
 // Product 15 on page 2 was updated → that page’s list entry misses
-await inv.InvalidateEntityAsync("store", "products", "15", cancellationToken);
+await inv.InvalidateEntityAsync("store", "products", 15, cancellationToken);
 // Product 99 (not on this page) does not evict this entry
 ```
 
@@ -241,8 +241,8 @@ public async Task<ActionResult<IReadOnlyList<Product>>> List(int? categoryId, ID
     var products = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
     {
         var rows = await QueryAsync(categoryId, ct);
-        var set = EntitySet.Create(rows, p => p.Id.ToString());
-        return categoryId is int cid ? set.DependsOn("categories", cid.ToString()) : set;
+        var set = EntitySet.Create(rows, p => p.Id);
+        return categoryId is int cid ? set.DependsOn("categories", cid) : set;
     }, ct);
     return Ok(products);
 }
@@ -252,10 +252,10 @@ public async Task<ActionResult<IReadOnlyList<Product>>> List(int? categoryId, ID
 
 ```csharp
 // Product on the page changed
-await inv.InvalidateEntityAsync("store", "products", "15", cancellationToken);
+await inv.InvalidateEntityAsync("store", "products", 15, cancellationToken);
 
 // Category 7 metadata / membership changed → filtered lists that DependsOn categories:7 miss
-await inv.InvalidateEntityAsync("store", "categories", "7", cancellationToken);
+await inv.InvalidateEntityAsync("store", "categories", 7, cancellationToken);
 ```
 
 ---
@@ -281,8 +281,8 @@ public async Task<ActionResult<IReadOnlyList<Review>>> Reviews(int id, IDomainFu
     var reviews = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
     {
         var rows = await db.Reviews.AsNoTracking().Where(r => r.ProductId == id).ToListAsync(ct);
-        return EntitySet.Create(rows, "reviews", r => r.Id.ToString())
-            .DependsOn("products", id.ToString());
+        return EntitySet.Create(rows, "reviews", r => r.Id)
+            .DependsOn("products", id);
     }, ct);
     return Ok(reviews);
 }
@@ -294,10 +294,10 @@ public async Task<ActionResult<IReadOnlyList<Review>>> Reviews(int id, IDomainFu
 
 ```csharp
 // Review 501 edited → nested lists that Members reviews:501 miss
-await inv.InvalidateEntityAsync("store", "reviews", "501", cancellationToken);
+await inv.InvalidateEntityAsync("store", "reviews", 501, cancellationToken);
 
 // Parent product 42 deleted/updated → lists that DependsOn products:42 miss
-await inv.InvalidateEntityAsync("store", "products", "42", cancellationToken);
+await inv.InvalidateEntityAsync("store", "products", 42, cancellationToken);
 ```
 
 ---
@@ -316,7 +316,7 @@ public async Task<ActionResult<IReadOnlyList<Product>>> Batch([FromQuery] string
     var products = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
     {
         var rows = await LoadManyAsync(ids, ct);
-        return EntitySet.Create(rows, p => p.Id.ToString());
+        return EntitySet.Create(rows, p => p.Id);
     }, ct);
     return Ok(products);
 }
@@ -328,7 +328,7 @@ Member tags come from the factory result. Unknown ids simply omit a member tag. 
 
 ```csharp
 // Product 2 in the batch changed → this batch response misses
-await inv.InvalidateEntityAsync("store", "products", "2", cancellationToken);
+await inv.InvalidateEntityAsync("store", "products", 2, cancellationToken);
 ```
 
 ---
@@ -362,8 +362,8 @@ public async Task<ActionResult<AvailabilityDto>> Availability(
             return EntityCache.Miss<AvailabilityDto>(); // no availability payload for this product id
 
         return EntityCache.Create(a)
-            .DependsOn("stock", a.StockId.ToString())
-            .DependsOn("warehouses", a.WarehouseId.ToString());
+            .DependsOn("stock", a.StockId)
+            .DependsOn("warehouses", a.WarehouseId);
     }, cancellationToken);
     return dto is null ? NotFound() : Ok(dto);
 }
@@ -412,7 +412,7 @@ public async Task<ActionResult<Product>> Get(
 
 ```csharp
 // By internal id (HTTP / admin UI)
-await inv.InvalidateEntityAsync("store", "products", "42", cancellationToken);
+await inv.InvalidateEntityAsync("store", "products", 42, cancellationToken);
 
 // By SKU (warehouse pipeline) — same cache entry, via Alias tag
 await inv.InvalidateEntityAsync("store", "products-by-sku", "ABC-42", cancellationToken);
@@ -444,9 +444,9 @@ public async Task<ActionResult<StorefrontWidget>> Storefront(HttpContext http, I
     {
         var w = await BuildWidgetAsync(ct);
         return EntityCache.Create(w)
-            .Members("products", w.FeaturedProductIds.Select(id => id.ToString()))
-            .DependsOn("categories", w.HeroCategoryId.ToString())
-            .DependsOn("promotions", w.PromotionIds.Select(id => id.ToString()));
+            .Members("products", w.FeaturedProductIds)
+            .DependsOn("categories", w.HeroCategoryId)
+            .DependsOn("promotions", w.PromotionIds);
     }, ct);
     return Ok(widget);
 }

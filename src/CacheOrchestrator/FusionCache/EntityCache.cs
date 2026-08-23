@@ -54,12 +54,27 @@ public sealed class EntityCache<T>
         return WithFootprint(Footprint.WithMembers(ToRefs(entityKind, resourceIds)));
     }
 
+    /// <summary>Adds member entity ids of the given kind.</summary>
+    public EntityCache<T> Members<TId>(string entityKind, IEnumerable<TId> resourceIds) where TId : notnull
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
+        ArgumentNullException.ThrowIfNull(resourceIds);
+        return WithFootprint(Footprint.WithMembers(ToRefs(entityKind, resourceIds.Select(FormatId))));
+    }
+
     /// <summary>Adds a single dependency.</summary>
     public EntityCache<T> DependsOn(string entityKind, string resourceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
         return WithFootprint(Footprint.WithDependsOn([new EntityRef(entityKind, resourceId)]));
+    }
+
+    /// <summary>Adds a single dependency.</summary>
+    public EntityCache<T> DependsOn<TId>(string entityKind, TId resourceId) where TId : notnull
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
+        return WithFootprint(Footprint.WithDependsOn([new EntityRef(entityKind, FormatId(resourceId))]));
     }
 
     /// <summary>Adds dependency ids of the given kind.</summary>
@@ -70,12 +85,27 @@ public sealed class EntityCache<T>
         return WithFootprint(Footprint.WithDependsOn(ToRefs(entityKind, resourceIds)));
     }
 
+    /// <summary>Adds dependency ids of the given kind.</summary>
+    public EntityCache<T> DependsOn<TId>(string entityKind, IEnumerable<TId> resourceIds) where TId : notnull
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
+        ArgumentNullException.ThrowIfNull(resourceIds);
+        return WithFootprint(Footprint.WithDependsOn(ToRefs(entityKind, resourceIds.Select(FormatId))));
+    }
+
     /// <summary>Adds an alternate identity tag (e.g. SKU).</summary>
     public EntityCache<T> Alias(string entityKind, string resourceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
         return WithFootprint(Footprint.WithAliases([new EntityRef(entityKind, resourceId)]));
+    }
+
+    /// <summary>Adds an alternate identity tag (e.g. SKU).</summary>
+    public EntityCache<T> Alias<TId>(string entityKind, TId resourceId) where TId : notnull
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
+        return WithFootprint(Footprint.WithAliases([new EntityRef(entityKind, FormatId(resourceId))]));
     }
 
     private EntityCache<T> WithFootprint(EntityFootprint footprint)
@@ -88,5 +118,14 @@ public sealed class EntityCache<T>
             if (!string.IsNullOrWhiteSpace(id))
                 yield return new EntityRef(entityKind, id);
         }
+    }
+
+    private static string FormatId<TId>(TId id) where TId : notnull
+    {
+        return id switch
+        {
+            IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+            _ => id.ToString() ?? string.Empty
+        };
     }
 }

@@ -50,7 +50,11 @@ app.MapGet("/api/products/{id}", async (HttpContext http, int id, IDomainFusionC
 .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
 ```
 
-A tracked `SaveChanges` then purges that product. `ExecuteUpdate` / `ExecuteDelete` skip the change tracker; call `InvalidateEntitiesAsync` yourself in those handlers.
+The interceptor relies on the **EF Core Change Tracker**. When you call `SaveChanges` or `SaveChangesAsync`, it automatically finds any mapped entities in the `Added`, `Modified`, or `Deleted` state and invalidates them from the cache upon a successful save.
+
+> [!WARNING]
+> **Bulk operations skip the Change Tracker!**
+> If you use `ExecuteUpdateAsync()` or `ExecuteDeleteAsync()`, the interceptor will **not** detect those changes because the entities are never loaded into memory. In these cases, you must manually trigger the cache invalidation by calling `ICacheOrchestratorInvalidator.InvalidateEntitiesAsync()` yourself.
 
 Attribute and `Map<T>` registration, bulk options, and further examples: [ef-core-invalidation.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/ef-core-invalidation.md). Orientation: [Guide — topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md).
 
