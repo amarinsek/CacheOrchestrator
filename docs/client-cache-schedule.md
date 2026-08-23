@@ -2,40 +2,30 @@
 
 > **Guide.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Canonical algorithm and settings are on this page.
 
-Browsers and CDNs keep a **long `max-age`** for most of the life of a dataset, then that lifetime **falls toward a floor** as a planned cutover (`ScheduledUpdateUtc`) approaches. After the cutover they stay on the floor until you open the next window. Clients revalidate in time for the new generation, without a tiny `max-age` all month.
+In systems where large datasets are updated in scheduled batches (e.g., mapping applications where the entire set of aerial/satellite imagery is replaced once a year, or monthly catalog extracts), you face a classic caching dilemma.
 
-This changes only the **client** `Cache-Control` header. Output Cache and FusionCache keep their own TTLs (`OutputCacheTtlSeconds`, `FusionCacheSoftTtlSeconds`, …).
+To minimize server load and maximize performance, you want clients (browsers and CDNs) to have a very long `max-age`. However, if clients cache the data for a month right before your scheduled update, they will continue seeing the outdated satellite imagery long after the origin has been refreshed. 
+
+**Client Cache Schedule** solves this by adjusting the allowed cache lifetime based on the time remaining until the next planned update (`ScheduledUpdateUtc`). For most of the dataset's life, it keeps a **very long `max-age`**, but as the scheduled update approaches, the lifetime **gradually ramps down toward a short floor** (e.g., 15 minutes). This ensures that clients are perfectly primed to fetch the new generation of data exactly when it lands, without forcing you to use a tiny `max-age` for the entire year.
+
+This changes only the **client** `Cache-Control` header. Output Cache and FusionCache keep their own independent TTLs (`OutputCacheTtlSeconds`, `FusionCacheSoftTtlSeconds`, …).
 
 The playground sample shows the phases live. Implementation: `ClientCacheHeaderGenerator`, `ClientCacheSchedulePhase`.
 
 ---
 
-## Why it exists
+## How it works
 
-Classic problem with long-lived client caches:
+CacheOrchestrator calculates the optimal `max-age` dynamically for every client request on the fly. By observing the distance to the `ScheduledUpdateUtc`, it guarantees that no client receives a `max-age` that would outlive the planned cutover.
 
-- You want `max-age` of hours/days for performance and cost.  
-- You also have a **known go-live** (map tile batch, catalog cutover, CMS publish).  
-- If clients still hold a 7-day `max-age` at cutover, they stay on **stale content** until that window expires—even if the origin is already updated.
+<img src="../docs/assets/scheduled-update.svg" height="350" />
 
-Client Cache Schedule solves that by **aligning client revalidation with the cutover clock**, without forcing a tiny `max-age` all month long.
+<br>
 
-```text
-max-age
-    ▲
-max │─── CALM ───●                                        ┌─── CALM ───
-    │             \                                       │
-    │          APPROACHING                                │
-    │               \                                     │
-min │                ●────────────── HOLD ────────────────┘
-    └────────────────┬────────────────┬───────────────────┬──────────► time
-            ScheduledUpdateUtc     Version             New ScheduledUpdateUtc 
-                                   Changed             Defined or Omitted
-```
-
-1. **SU (ScheduledUpdateUtc)**: The target time when the schedule is reached. The cache `max-age` drops to `ClientTtlMinSeconds`.
-2. **Version Changed**: The actual deployment happens (e.g. `Version` string is updated). The `max-age` remains at `ClientTtlMinSeconds` because `ScheduledUpdateUtc` is still in the past. This gives you a safe "hold" period to monitor the release with a short cache TTL.
-3. **New SU Defined or Omitted**: When you are satisfied with the release, you either remove `ScheduledUpdateUtc` (set to `null`) or set it to a future date. The `max-age` immediately jumps back up to the long `ClientTtlSeconds` (CALM phase).
+1. **Calm Phase (Long TTL):** Far away from the cutover, clients receive the full `ClientTtlSeconds`. This maximizes cache hits and minimizes server load.
+2. **Approaching Phase (Ramp-down):** As the cutover time draws near, the `max-age` is dynamically shortened for each incoming request until it hits the floor (`ClientTtlMinSeconds`).
+3. **Hold Phase (Operator Verification):** After the scheduled time passes, the system enters the Hold phase. Clients continue to receive the short `ClientTtlMinSeconds`. This gives operators a safe window to perform the deployment, verify the new data in production, and catch any issues—all while clients are recovering quickly due to the short TTL.
+4. **Reset:** Once the operator confirms the update is successful, they set a new `ScheduledUpdateUtc` for the next batch (or remove it entirely). The system immediately returns to the Calm phase, restoring the long `max-age` for all clients.
 
 ---
 
@@ -62,7 +52,7 @@ All under `Cache:DomainDefaults` / `Cache:Domains:{name}`:
 ### Example (map tiles / periodic dataset)
 
 ```json
-"maps-osm": {
+"maps-satellite": {
   "Version": "v1",
   "ScheduledUpdateUtc": "2026-12-01T00:00:00Z",
   "ClientCacheability": "Public",
