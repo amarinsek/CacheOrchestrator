@@ -59,7 +59,7 @@ Details: [fusion-cache.md](../fusion-cache.md), [FAQ](../faq.md#fusion-runs-unca
 
 ## Client Cache Schedule
 
-`ScheduledUpdateUtc` plus client TTL fields change only **browser/CDN** `Cache-Control` (`max-age` ramp: Calm → Approaching → Hold). They do **not** change Output Cache or Fusion TTLs.
+For datasets that update on a known schedule (like monthly map exports), `ScheduledUpdateUtc` automatically ramps down the **browser/CDN** `Cache-Control` `max-age` as the cutover approaches (Calm → Approaching → Hold). This guarantees timely client refreshes without sacrificing months of cache hits. It does **not** change Output Cache or Fusion TTLs.
 
 Phase is on `X-Cache` as `phase=calm|approaching|hold|n/a`.
 
