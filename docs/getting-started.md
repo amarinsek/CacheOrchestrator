@@ -94,6 +94,8 @@ public sealed class ProductsController : ControllerBase
 
 If the endpoint has no domain, pass the name: `GetOrSetAsync(http, "catalog", factory, cancellationToken)`. Without a domain the factory runs uncached. Details: [fusion-cache.md](fusion-cache.md).
 
+> **Note:** Unlike native ASP.NET Core Output Caching which ignores query parameters by default, CacheOrchestrator domains **vary by all non-tracking query parameters** by default. `?id=1` and `?id=2` will automatically be cached separately.
+
 ## Reading `X-Cache`
 
 On domain endpoints, with `EmitDiagnosticsHeaders` at its default of `true`:
