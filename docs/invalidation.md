@@ -47,11 +47,11 @@ CacheInvalidationResult r2 = await invalidator.InvalidateDomainsAsync(
 
 // Single entity — requires entries stored with entityKind + resource id / resourceRouteKey
 CacheInvalidationResult r3 = await invalidator.InvalidateEntityAsync(
-    "store", "products", "42", cancellationToken);
+    "store", "products", 42, cancellationToken);
 
 // Several ids of one kind (one local apply + one Bus publish)
 CacheInvalidationResult r4 = await invalidator.InvalidateEntitiesAsync(
-    "store", "products", ["42", "43"], cancellationToken);
+    "store", "products", new[] { 42, 43 }, cancellationToken);
 
 // Every entry tagged entitykind:store:products
 CacheInvalidationResult r5 = await invalidator.InvalidateEntityKindAsync(

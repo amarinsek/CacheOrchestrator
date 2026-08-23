@@ -130,7 +130,7 @@ Flow:
 
 ```text
 t0  GET /products/42  → MISS → DB (price 10) → store OC+FC, tags domain + entity:store:products:42
-t1  Admin sets price 12, calls InvalidateEntityAsync("store", "products", "42")
+t1  Admin sets price 12, calls InvalidateEntityAsync("store", "products", 42)
 t2  GET /products/42  → MISS → DB (price 12)
     GET /products/99  → still HIT (other entity)
 ```

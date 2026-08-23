@@ -179,7 +179,7 @@ await db.Products
     .ExecuteUpdateAsync(s => s.SetProperty(p => p.Price, p => p.Price * 0.8m), cancellationToken);
 
 await invalidator.InvalidateEntitiesAsync(
-    "store", "products", ids.Select(id => id.ToString()), cancellationToken);
+    "store", "products", ids, cancellationToken);
 ```
 
 Unknown / too many ids: `InvalidateEntityKindAsync("store", "products")`.
