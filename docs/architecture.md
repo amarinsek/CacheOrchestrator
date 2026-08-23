@@ -34,7 +34,7 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
                 └──────────┬───────────────────┘
                            ▼
               IDomainCacheOptionsProvider
-              (HttpContext.Items + ConcurrentDictionary)
+              (ICacheOrchestratorFeature + ConcurrentDictionary)
                            │
                            ▼
               CacheOrchestratorOptions (IOptionsMonitor)
@@ -73,7 +73,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 |--------------------------|-----------------------------|
 | `AddCacheOrchestrator` / `UseCacheOrchestrator` / `ICacheOrchestratorBuilder` | `DefaultCacheOrchestratorBuilder` |
 | `IDomainFusionCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainFusionCacheService` |
-| `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainName`, options types | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator` |
+| `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainName`, `ICacheOrchestratorFeature`, options types | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator`, `CacheOrchestratorFeature` |
 | `ICacheOrchestratorInvalidator`, `CacheInvalidationResult`, `ICacheInvalidationObserver`, `CacheTags` | `CacheOrchestratorInvalidator` |
 | `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records (`InvalidateCommand`, `VersionBumpCommand`, `TtlPatchCommand`, `SettingsPatchCommand`, …) | `DefaultClusterCommandHandler` |
 | `NullClusterCommandBus`, `NullClusterMembership` | — |
@@ -87,7 +87,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | Health: `AddCacheOrchestrator()`, `ICacheOrchestratorHealthProbe` | `CacheOrchestratorHealthCheck` |
 | Meter/activity **names** (`CacheOrchestrator`) | `CacheOrchestratorMetrics.Record*` |
 
-`HttpContext.Items` keys live on **`CacheOrchestratorKeys`** (`DomainOptionsKey`, `ResourceIdKey`, `EntityKindKey`, `DispositionKey`).
+Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features` (domain options, entity identity, disposition, pending footprint). Prefer `http.GetDomainCacheOptions()` for the resolved snapshot. The old `CacheOrchestratorKeys` / `HttpContext.Items` slots were removed.
 
 ## Request flow — Output Cache
 

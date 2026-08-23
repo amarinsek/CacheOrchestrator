@@ -16,13 +16,6 @@ public static class CacheOrchestratorHttpContextExtensions
     public static DomainCacheOptions? GetDomainCacheOptions(this HttpContext httpContext)
     {
         ArgumentNullException.ThrowIfNull(httpContext);
-
-        if (httpContext.Items.TryGetValue(CacheOrchestratorKeys.DomainOptionsKey, out object? obj) &&
-            obj is DomainCacheOptions opts)
-        {
-            return opts;
-        }
-
-        return null;
+        return httpContext.Features.Get<ICacheOrchestratorFeature>()?.DomainOptions;
     }
 }

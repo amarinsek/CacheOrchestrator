@@ -44,7 +44,7 @@ public class DomainOutputCachePolicyBenchmarks
             });
 
         _queryMixed = _withQuery.HttpContext.Request.Query;
-        _queryOpts = (DomainCacheOptions)_withQuery.HttpContext.Items[CacheOrchestratorKeys.DomainOptionsKey]!;
+        _queryOpts = _withQuery.HttpContext.Features.Get<ICacheOrchestratorFeature>()!.DomainOptions!;
     }
 
     [Benchmark(Baseline = true)]
@@ -109,12 +109,12 @@ public class DomainOutputCachePolicyBenchmarks
 
         public DomainCacheOptions EnsureDomainOptions(HttpContext http, string domain)
         {
-            http.Items[CacheOrchestratorKeys.DomainOptionsKey] = _opts;
+            http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = _opts });
             return _opts;
         }
 
         public DomainCacheOptions? GetDomainOptions(HttpContext http)
-            => http.Items[CacheOrchestratorKeys.DomainOptionsKey] as DomainCacheOptions;
+            => http.Features.Get<ICacheOrchestratorFeature>()?.DomainOptions;
 
         public DomainCacheOptions GetOrCreateDomainOptions(string domain) => _opts;
     }

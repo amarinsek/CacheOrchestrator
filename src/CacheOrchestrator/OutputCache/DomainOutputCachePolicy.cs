@@ -330,9 +330,8 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
 
     private string? TryResolveEntityKind(HttpContext http)
     {
-        if (http.Items.TryGetValue(CacheOrchestratorKeys.EntityKindKey, out object? fromItems)
-            && fromItems is string itemKind
-            && itemKind.Length > 0)
+        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+        if (feature?.EntityKind is { Length: > 0 } itemKind)
         {
             return itemKind;
         }
@@ -340,15 +339,15 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         if (EntityKind is null)
             return null;
 
-        http.Items[CacheOrchestratorKeys.EntityKindKey] = EntityKind;
+        feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
+        feature.EntityKind = EntityKind;
         return EntityKind;
     }
 
     private string? TryResolveResourceId(HttpContext http)
     {
-        if (http.Items.TryGetValue(CacheOrchestratorKeys.ResourceIdKey, out object? fromItems)
-            && fromItems is string itemId
-            && itemId.Length > 0)
+        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
+        if (feature?.ResourceId is { Length: > 0 } itemId)
         {
             return itemId;
         }
@@ -363,7 +362,8 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         if (string.IsNullOrEmpty(normalized))
             return null;
 
-        http.Items[CacheOrchestratorKeys.ResourceIdKey] = normalized;
+        feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
+        feature.ResourceId = normalized;
         return normalized;
     }
 
@@ -376,10 +376,23 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
                 break;
 
             case ETagMode.Resource:
-                string resourceKey = resourceId is not null && entityKind is not null
-                    ? entityKind + ":" + resourceId
-                    : resourceId ?? BuildPathResourceKey(http);
-                http.Response.Headers.ETag = CacheETagFactory.FromVersionAndResource(opts.VersionHex, resourceKey);
+                if (resourceId is not null && entityKind is not null)
+                {
+                    http.Response.Headers.ETag = CacheETagFactory.FromVersionAndResource(
+                        opts.VersionHex, entityKind.AsSpan(), ":".AsSpan(), resourceId.AsSpan());
+                }
+                else if (resourceId is not null)
+                {
+                    http.Response.Headers.ETag = CacheETagFactory.FromVersionAndResource(
+                        opts.VersionHex, resourceId.AsSpan());
+                }
+                else
+                {
+                    http.Response.Headers.ETag = CacheETagFactory.FromVersionAndResource(
+                        opts.VersionHex, 
+                        (http.Request.Path.Value ?? "/").AsSpan(), 
+                        (http.Request.QueryString.Value ?? string.Empty).AsSpan());
+                }
                 break;
 
             case ETagMode.Version:
@@ -387,14 +400,6 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
                 http.Response.Headers.ETag = opts.ETag;
                 break;
         }
-    }
-
-    private static string BuildPathResourceKey(HttpContext http)
-    {
-        // Stable per-URL identity when no explicit resource id is available.
-        string path = http.Request.Path.Value ?? "/";
-        string query = http.Request.QueryString.Value ?? string.Empty;
-        return path + query;
     }
 
     /// <summary>
@@ -410,7 +415,9 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         if (logger.IsEnabled(LogLevel.Debug))
             logger.LogDebug("OutputCache HIT: [{Method}] {Path}", http.Request.Method, http.Request.Path);
 
-        http.Items[CacheOrchestratorKeys.DispositionKey] = new CacheDisposition
+        ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
+
+        feature.Disposition = new CacheDisposition
         {
             Output = OutputCacheResult.Hit
         };
@@ -418,8 +425,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.output.hit");
         if (activity is not null)
         {
-            if (http.Items.TryGetValue(CacheOrchestratorKeys.DomainOptionsKey, out object? obj)
-                && obj is DomainCacheOptions opts)
+            if (feature.DomainOptions is { } opts)
             {
                 activity.SetTag("domain", opts.Domain);
             }
@@ -439,7 +445,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     public ValueTask ServeResponseAsync(OutputCacheContext context, CancellationToken cancellationToken)
     {
         HttpContext http = context.HttpContext;
-        if (http.Items.TryGetValue(CacheOrchestratorKeys.DomainOptionsKey, out object? obj) && obj is DomainCacheOptions opts)
+        if (http.Features.Get<ICacheOrchestratorFeature>()?.DomainOptions is { } opts)
         {
             if (!IsCacheableStatusCode(http.Response.StatusCode, opts.CacheableStatusCodes)
                 || http.Response.Headers.ContainsKey(HeaderNames.SetCookie)
@@ -459,8 +465,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     private static void MergePendingFootprintTags(OutputCacheContext context, string domain)
     {
         HttpContext http = context.HttpContext;
-        if (!http.Items.TryGetValue(CacheOrchestratorKeys.PendingEntityFootprintKey, out object? raw)
-            || raw is not EntityFootprint footprint
+        if (http.Features.Get<ICacheOrchestratorFeature>()?.PendingEntityFootprint is not { } footprint
             || ReferenceEquals(footprint, EntityFootprint.Empty))
         {
             return;
@@ -504,9 +509,9 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         HttpResponse response = httpContext.Response;
         int sc = response.StatusCode;
 
+        ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(httpContext);
         CacheDisposition disp;
-        if (httpContext.Items.TryGetValue(CacheOrchestratorKeys.DispositionKey, out object? raw)
-            && raw is CacheDisposition existing)
+        if (feature.Disposition is { } existing)
         {
             disp = existing;
             disp.Output ??= defOutput;
@@ -514,8 +519,9 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         else
         {
             disp = new CacheDisposition { Output = defOutput };
-            httpContext.Items[CacheOrchestratorKeys.DispositionKey] = disp;
         }
+
+        feature.Disposition = disp;
 
         OutputCacheResult output = disp.Output ?? defOutput;
 

@@ -117,8 +117,13 @@ public static class ServiceCollectionExtensions
             outputCacheSupport[name] = reg.SupportsOutputCacheStore;
         }
 
-        services.AddSingleton<IValidateOptions<CacheOrchestratorOptions>>(
-            new CacheOrchestratorOptionsValidator(validProviders, outputCacheSupport));
+        services.AddSingleton<IValidateOptions<CacheOrchestratorOptions>>(sp =>
+            new CacheOrchestratorOptionsValidator(
+                validProviders,
+                outputCacheSupport,
+                sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()
+                    ?.CreateLogger(typeof(CacheOrchestratorOptionsValidator).FullName
+                        ?? nameof(CacheOrchestratorOptionsValidator))));
 
         CacheOrchestratorOptions opts = new();
         configuration.GetSection(configSection).Bind(opts);

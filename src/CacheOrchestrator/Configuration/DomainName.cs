@@ -28,6 +28,9 @@ public static class DomainName
         if (string.IsNullOrWhiteSpace(s))
             return Default;
 
+        if (IsNormalized(s))
+            return s;
+
         Span<char> chars = s.Length <= 256 ? stackalloc char[s.Length] : new char[s.Length];
         s.AsSpan().ToLowerInvariant(chars);
         int write = 0;
@@ -70,6 +73,33 @@ public static class DomainName
             write--;
 
         return write - start <= 0 ? Default : chars[start..write].ToString();
+    }
+
+    /// <summary>
+    /// Checks if a string is already completely normalized to avoid allocations.
+    /// </summary>
+    internal static bool IsNormalized(ReadOnlySpan<char> s)
+    {
+        if (s.IsEmpty) return false;
+        if (s[0] == '-' || s[^1] == '-') return false;
+
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if (c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or ':' or '_' or '@') 
+                continue;
+            
+            if (c == '-')
+            {
+                // Leading dash already rejected; i >= 1 here.
+                if (s[i - 1] == '-') return false;
+                continue;
+            }
+            
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>

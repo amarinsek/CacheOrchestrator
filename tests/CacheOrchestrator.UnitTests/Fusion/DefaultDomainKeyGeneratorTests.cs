@@ -43,8 +43,7 @@ public class DefaultDomainKeyGeneratorTests
     {
         var cfg = CreateConfig(domain: "products");
         var http = CreateHttpContext();
-        http.Items[CacheOrchestratorKeys.EntityKindKey] = "items";
-        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "items", ResourceId = "42" });
 
         string key1 = _sut.Generate(cfg, http);
         string key2 = _sut.Generate(cfg, http);
@@ -59,11 +58,9 @@ public class DefaultDomainKeyGeneratorTests
     {
         var cfg = CreateConfig(domain: "store");
         var product = CreateHttpContext();
-        product.Items[CacheOrchestratorKeys.EntityKindKey] = "products";
-        product.Items[CacheOrchestratorKeys.ResourceIdKey] = "1";
+        product.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "products", ResourceId = "1" });
         var asset = CreateHttpContext();
-        asset.Items[CacheOrchestratorKeys.EntityKindKey] = "assets";
-        asset.Items[CacheOrchestratorKeys.ResourceIdKey] = "1";
+        asset.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "assets", ResourceId = "1" });
 
         _sut.Generate(cfg, product).Should().NotBe(_sut.Generate(cfg, asset));
         _sut.Generate(cfg, product).Should().Contain(":id:products:1:");
@@ -75,7 +72,7 @@ public class DefaultDomainKeyGeneratorTests
     {
         var cfg = CreateConfig(domain: "products");
         var http = CreateHttpContext();
-        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { ResourceId = "42" });
 
         string key = _sut.Generate(cfg, http);
 
@@ -87,11 +84,9 @@ public class DefaultDomainKeyGeneratorTests
     {
         var cfg = CreateConfig(domain: "products");
         var http1 = CreateHttpContext();
-        http1.Items[CacheOrchestratorKeys.EntityKindKey] = "items";
-        http1.Items[CacheOrchestratorKeys.ResourceIdKey] = "1";
+        http1.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "items", ResourceId = "1" });
         var http2 = CreateHttpContext();
-        http2.Items[CacheOrchestratorKeys.EntityKindKey] = "items";
-        http2.Items[CacheOrchestratorKeys.ResourceIdKey] = "2";
+        http2.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "items", ResourceId = "2" });
 
         _sut.Generate(cfg, http1).Should().NotBe(_sut.Generate(cfg, http2));
     }
@@ -344,12 +339,10 @@ public class DefaultDomainKeyGeneratorTests
     {
         var cfg = CreateConfig(domain: "products");
         var http = CreateHttpContext();
-        http.Items[CacheOrchestratorKeys.EntityKindKey] = "items";
-        http.Items[CacheOrchestratorKeys.ResourceIdKey] = "42";
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "items", ResourceId = "42" });
         string entityKey = _sut.Generate(cfg, http);
 
-        http.Items.Remove(CacheOrchestratorKeys.EntityKindKey);
-        http.Items.Remove(CacheOrchestratorKeys.ResourceIdKey);
+        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature());
         string urlKey = _sut.Generate(cfg, http);
 
         entityKey.Should().Contain(":id:items:42:");

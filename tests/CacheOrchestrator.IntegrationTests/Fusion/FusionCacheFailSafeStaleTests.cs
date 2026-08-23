@@ -50,7 +50,7 @@ public class FusionCacheFailSafeStaleTests
     }
 
     private static CacheDisposition? GetDisposition(HttpContext http) =>
-        http.Items[CacheOrchestratorKeys.DispositionKey] as CacheDisposition;
+        http.Features.Get<ICacheOrchestratorFeature>()?.Disposition as CacheDisposition;
 
     [Fact]
     public async Task GetOrSetAsync_WhenFactoryFailsAfterSoftExpiry_ReturnsStaleValueAndDisposition()

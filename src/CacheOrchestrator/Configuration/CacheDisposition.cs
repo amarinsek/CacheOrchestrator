@@ -1,7 +1,7 @@
 namespace CacheOrchestrator.Configuration;
 
 /// <summary>
-/// Per-request cache outcome stored in <see cref="Microsoft.AspNetCore.Http.HttpContext.Items"/>.
+/// Per-request cache outcome stored on <see cref="ICacheOrchestratorFeature"/>.
 /// </summary>
 public sealed class CacheDisposition
 {
