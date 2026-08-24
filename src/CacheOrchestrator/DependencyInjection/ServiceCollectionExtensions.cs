@@ -144,11 +144,12 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IClusterCommandHandler, DefaultClusterCommandHandler>();
         services.AddSingleton<IDomainCacheOptionsProvider, DomainCacheOptionsProvider>();
         services.AddSingleton<IDomainFusionCache, DomainFusionCacheService>();
-        services.AddSingleton<ICacheOrchestratorInvalidator, CacheOrchestratorInvalidator>();
         // v3 data path: one IDataCacheProvider (Fusion today; Hybrid later). TryAdd so a future
         // provider package can register first; fail-fast if two distinct providers are resolved.
         services.TryAddSingleton<IDataCacheProvider, FusionDataCacheProvider>();
         services.AddSingleton<ICacheOrchestrator, CacheOrchestratorService>();
+        services.TryAddSingleton<IHttpCacheInvalidationSink, OutputCacheInvalidationSink>();
+        services.AddSingleton<ICacheOrchestratorInvalidator, CacheOrchestratorInvalidator>();
         services.TryAddSingleton<Vary.CacheVaryMaterializer>(sp =>
             new Vary.CacheVaryMaterializer(sp.GetServices<Vary.ICacheVaryContributor>()));
         services.TryAddSingleton<IDomainKeyGenerator>(sp =>

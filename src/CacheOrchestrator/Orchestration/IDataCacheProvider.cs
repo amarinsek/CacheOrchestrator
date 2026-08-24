@@ -24,9 +24,20 @@ public interface IDataCacheProvider
         Func<CancellationToken, ValueTask<T>> factory,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Removes / logically invalidates all entries associated with <paramref name="tag"/>.</summary>
+    /// <summary>
+    /// Removes / logically invalidates all entries associated with <paramref name="tag"/>
+    /// on every configured data-cache instance.
+    /// </summary>
     ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default);
 
-    /// <summary>Removes / logically invalidates entries for each tag in <paramref name="tags"/>.</summary>
+    /// <summary>
+    /// Removes / logically invalidates entries for <paramref name="tag"/> on a single named instance.
+    /// </summary>
+    ValueTask RemoveByTagAsync(
+        string instanceName,
+        string tag,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Removes / logically invalidates entries for each tag in <paramref name="tags"/> (all instances).</summary>
     ValueTask RemoveByTagsAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default);
 }

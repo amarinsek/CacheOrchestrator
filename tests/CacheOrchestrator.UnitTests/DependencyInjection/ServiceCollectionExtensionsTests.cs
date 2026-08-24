@@ -36,6 +36,7 @@ public class ServiceCollectionExtensionsTests
         sp.GetService<ICacheOrchestrator>().Should().NotBeNull();
         sp.GetService<IDataCacheProvider>().Should().NotBeNull();
         sp.GetService<IDataCacheProvider>()!.Name.Should().Be("FusionCache");
+        sp.GetService<IHttpCacheInvalidationSink>().Should().NotBeNull();
         sp.GetService<ICacheOrchestratorInvalidator>().Should().NotBeNull();
         sp.GetService<IDomainKeyGenerator>().Should().NotBeNull();
         sp.GetService<IFusionCacheProvider>().Should().NotBeNull();

@@ -65,10 +65,20 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         ArgumentException.ThrowIfNullOrWhiteSpace(tag);
 
         foreach (string instanceName in _options.CurrentValue.FusionCacheInstances.Keys)
-        {
-            IFusionCache fusion = _fusionProvider.GetCache(instanceName);
-            await fusion.RemoveByTagAsync(tag, token: cancellationToken).ConfigureAwait(false);
-        }
+            await RemoveByTagAsync(instanceName, tag, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask RemoveByTagAsync(
+        string instanceName,
+        string tag,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(instanceName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+
+        IFusionCache fusion = _fusionProvider.GetCache(instanceName);
+        await fusion.RemoveByTagAsync(tag, token: cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

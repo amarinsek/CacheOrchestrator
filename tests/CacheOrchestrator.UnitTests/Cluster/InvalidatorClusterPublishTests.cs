@@ -1,6 +1,9 @@
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.Invalidation;
+using CacheOrchestrator.Orchestration;
+using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -134,15 +137,23 @@ public class InvalidatorClusterPublishTests
         result.Errors.Should().Contain(e => e.Contains("Cluster peer 'b'", StringComparison.Ordinal));
     }
 
-    private CacheOrchestratorInvalidator CreateSut() =>
-        new(
+    private CacheOrchestratorInvalidator CreateSut()
+    {
+        IDataCacheProvider dataCache = new FusionDataCacheProvider(
             _fusionProvider,
+            _options,
+            NullLogger<FusionDataCacheProvider>.Instance);
+        IHttpCacheInvalidationSink httpCache = new OutputCacheInvalidationSink(_outputCacheStore);
+
+        return new CacheOrchestratorInvalidator(
+            dataCache,
             _domainOptionsProvider,
-            _outputCacheStore,
+            httpCache,
             _options,
             observers: [],
             NullLogger<CacheOrchestratorInvalidator>.Instance,
             adminStats: null,
             clusterBus: _bus,
             clusterCommands: _factory);
+    }
 }

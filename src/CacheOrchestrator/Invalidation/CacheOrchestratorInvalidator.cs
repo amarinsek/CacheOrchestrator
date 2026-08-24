@@ -2,25 +2,25 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
-using Microsoft.AspNetCore.OutputCaching;
+using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
-using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.Invalidation;
 
 /// <summary>
-/// Default <see cref="ICacheOrchestratorInvalidator"/> that evicts by tag on FusionCache
-/// (correct instance for domain/entity, all instances for arbitrary tags) and Output Cache.
+/// Default <see cref="ICacheOrchestratorInvalidator"/> that evicts by tag on the data-cache
+/// provider (correct instance for domain/entity, all instances for arbitrary tags) and on the
+/// optional HTTP Output Cache sink.
 /// When a non-null cluster bus is enabled, publishes <see cref="InvalidateCommand"/> after local apply
 /// (unless applying under <see cref="ClusterCommandScope"/> remote).
 /// </summary>
 internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidator
 {
-    private readonly IFusionCacheProvider _fusionProvider;
+    private readonly IDataCacheProvider _dataCache;
     private readonly IDomainCacheOptionsProvider _domainOptionsProvider;
-    private readonly IOutputCacheStore _outputCacheStore;
+    private readonly IHttpCacheInvalidationSink _httpCache;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly IEnumerable<ICacheInvalidationObserver> _observers;
     private readonly ILogger<CacheOrchestratorInvalidator> _logger;
@@ -32,9 +32,9 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
     /// Initializes a new instance of the <see cref="CacheOrchestratorInvalidator"/> class.
     /// </summary>
     public CacheOrchestratorInvalidator(
-        IFusionCacheProvider fusionProvider,
+        IDataCacheProvider dataCache,
         IDomainCacheOptionsProvider domainOptionsProvider,
-        IOutputCacheStore outputCacheStore,
+        IHttpCacheInvalidationSink httpCache,
         IOptionsMonitor<CacheOrchestratorOptions> options,
         IEnumerable<ICacheInvalidationObserver> observers,
         ILogger<CacheOrchestratorInvalidator> logger,
@@ -42,16 +42,16 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         IClusterCommandBus? clusterBus = null,
         ClusterCommandFactory? clusterCommands = null)
     {
-        ArgumentNullException.ThrowIfNull(fusionProvider);
+        ArgumentNullException.ThrowIfNull(dataCache);
         ArgumentNullException.ThrowIfNull(domainOptionsProvider);
-        ArgumentNullException.ThrowIfNull(outputCacheStore);
+        ArgumentNullException.ThrowIfNull(httpCache);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(observers);
         ArgumentNullException.ThrowIfNull(logger);
 
-        _fusionProvider = fusionProvider;
+        _dataCache = dataCache;
         _domainOptionsProvider = domainOptionsProvider;
-        _outputCacheStore = outputCacheStore;
+        _httpCache = httpCache;
         _options = options;
         _observers = observers;
         _logger = logger;
@@ -311,38 +311,25 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
 
         foreach (string instanceName in instanceNames)
         {
-            IFusionCache fusion;
-            try
-            {
-                fusion = _fusionProvider.GetCache(instanceName);
-            }
-            catch (Exception ex)
-            {
-                fusionOk = false;
-                string msg = $"Failed to resolve FusionCache instance '{instanceName}': {ex.Message}";
-                errors.Add(msg);
-                activity?.AddEvent(new ActivityEvent("fusion.resolve.failed"));
-                _logger.LogWarning(ex, "Failed to resolve FusionCache instance '{Instance}'", instanceName);
-                continue;
-            }
-
             foreach (string tag in tags)
             {
                 try
                 {
-                    await fusion.RemoveByTagAsync(tag, token: cancellationToken).ConfigureAwait(false);
+                    await _dataCache.RemoveByTagAsync(instanceName, tag, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
                     fusionOk = false;
-                    string msg = $"Fusion tag '{tag}' on '{instanceName}': {ex.Message}";
+                    string msg = $"DataCache tag '{tag}' on '{instanceName}' ({_dataCache.Name}): {ex.Message}";
                     errors.Add(msg);
                     activity?.AddEvent(new ActivityEvent("fusion.invalidate.failed"));
                     _logger.LogWarning(
                         ex,
-                        "Failed to invalidate FusionCache tag '{Tag}' on instance '{Instance}'",
+                        "Failed to invalidate data-cache tag '{Tag}' on instance '{Instance}' ({Provider})",
                         tag,
-                        instanceName);
+                        instanceName,
+                        _dataCache.Name);
                 }
             }
         }
@@ -351,7 +338,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         {
             try
             {
-                await _outputCacheStore.EvictByTagAsync(tag, cancellationToken).ConfigureAwait(false);
+                await _httpCache.EvictByTagAsync(tag, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
