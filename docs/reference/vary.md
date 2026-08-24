@@ -1,6 +1,6 @@
 # Domain vary dimensions
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Canonical detail for Accept / auth / contributors.
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md). Canonical detail for Accept / auth / contributors.
 
 CacheOrchestrator shares one **vary model** between **Output Cache** and **FusionCache** (where it makes sense). Built-in toggles and allowlists live on the domain; apps can add small custom dimensions via `ICacheVaryContributor` without replacing `IDomainKeyGenerator`.
 
@@ -145,8 +145,8 @@ services.AddSingleton<ICacheVaryContributor, TenantVaryContributor>();
 
 ## Related
 
-- [Guide — concepts](guide/concepts.md)
+- [concepts](../guide/concepts.md)
 - [output-cache.md](output-cache.md) — auth bypass on the policy
 - [cache-keys.md](cache-keys.md) — how vary material enters Fusion keys
 - [configuration.md](configuration.md) — domain flags
-- [faq.md](faq.md) — authenticated requests and JSON vs XML
+- [faq.md](../guide/faq.md) — authenticated requests and JSON vs XML

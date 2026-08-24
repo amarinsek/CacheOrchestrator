@@ -1,6 +1,6 @@
 # CacheOrchestrator.AdminConsole
 
-> **Runbook (local).** Orientation: [Guide — operations](../../docs/guide/operations.md). Architecture/security: [docs/admin.md](../../docs/admin.md). Docker: [deploy/admin/README.md](../../deploy/admin/README.md). Writing rules: [hints/README.md](hints/README.md).
+> **Runbook (local).** Orientation: [Guide — operations](../../docs/guide/operations.md). Architecture/security: [docs/reference/admin.md](../../docs/reference/admin.md). Docker: [deploy/admin/README.md](../../deploy/admin/README.md). Writing rules: [hints/README.md](hints/README.md).
 
 Admin Console App for multi-instance CacheOrchestrator: live stats, domain settings, invalidation, Version/TTL, **time-series Metrics**, and **recommendation Hints**.
 
@@ -21,8 +21,8 @@ Monitored app instances may still run on **.NET 8** or **.NET 10** — Admin tal
 | This README | Run / configure this host |
 | **[deploy/admin/README.md](../../deploy/admin/README.md)** | **Docker image, volumes, custom hints, logs** |
 | **[hints/README.md](hints/README.md)** | **How to write and add custom hint rules** (ships next to the rule packs) |
-| [docs/admin.md](../../docs/admin.md) | Architecture, security, Metrics store |
-| [docs/admin-hints.md](../../docs/admin-hints.md) | Repo overview of the hints feature |
+| [docs/reference/admin.md](../../docs/reference/admin.md) | Architecture, security, Metrics store |
+| [docs/contributor/admin-hints.md](../../docs/contributor/admin-hints.md) | Repo overview of the hints feature |
 
 ---
 
@@ -75,7 +75,7 @@ app.MapCacheOrchestratorAdmin();
 - **LocalPathPrefix** must match `Cache:Admin:RoutePrefix`.  
 - **Restart required** after changing `Instances`, `ApiKey`, timeouts, or `Metrics` (bound via `IOptions` snapshot). Hint packs (`Hints`) reload without restart.  
 - Production keys belong in a secret store; put VPN/SSO in front of this host.  
-- Invalidate / Version / TTL change live cache state — see [docs/admin.md — Security](../../docs/admin.md#security).
+- Invalidate / Version / TTL change live cache state — see [docs/reference/admin.md — Security](../../docs/reference/admin.md#security).
 
 ### Defaults by environment
 
@@ -194,7 +194,7 @@ Open **Settings**, confirm the group, then generate traffic and check **Hints**.
 
 → **[hints/README.md](hints/README.md)**
 
-Repo architecture notes: [docs/admin-hints.md](../../docs/admin-hints.md).
+Repo architecture notes: [docs/contributor/admin-hints.md](../../docs/contributor/admin-hints.md).
 
 ---
 
@@ -215,7 +215,7 @@ Repo architecture notes: [docs/admin-hints.md](../../docs/admin-hints.md).
 docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build -d
 ```
 
-Guide: [Playground topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) · [docs/admin.md](../../docs/admin.md).
+Guide: [Playground topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) · [docs/reference/admin.md](../../docs/reference/admin.md).
 
 ---
 
@@ -223,7 +223,7 @@ Guide: [Playground topology labs](../../samples/CacheOrchestrator.Sample/labs/RE
 
 - [Guide — operations](../../docs/guide/operations.md)  
 - **[deploy/admin/README.md](../../deploy/admin/README.md)** — Docker / GHCR  
-- [docs/admin.md](../../docs/admin.md) — fan-out, security, Metrics store  
-- [docs/admin-hints.md](../../docs/admin-hints.md) — hints feature in the monorepo  
+- [docs/reference/admin.md](../../docs/reference/admin.md) — fan-out, security, Metrics store  
+- [docs/contributor/admin-hints.md](../../docs/contributor/admin-hints.md) — hints feature in the monorepo  
 - **[hints/README.md](hints/README.md)** — writing custom rules  
-- [docs/cluster-bus.md](../../docs/cluster-bus.md) — multi-instance bus  
+- [docs/reference/cluster-bus.md](../../docs/reference/cluster-bus.md) — multi-instance bus  

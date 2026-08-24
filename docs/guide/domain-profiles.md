@@ -1,23 +1,25 @@
 # Domain profiles: snapshot and dynamic
 
-> **Guide.** Product overview: [root README](../README.md). Orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md).
+> **Guide.** Product overview: [root README](../../README.md). Orientation: [concepts](concepts.md). Catalog: [documentation index](../README.md).
 
-How fresh data enters the cache, and how to configure two common worlds:
+Two common ways to keep cached data fresh — and the configuration that matches each.
 
 1. **Snapshot** (map tiles, a monthly extract) — content is frozen until a planned cutover.
-2. **Dynamic** (a product detail) — individual records change under the same `Version`.
+2. **Dynamic / CRUD** (a product detail) — individual records change under the same `Version`.
+
+You can mix both in one app (different domains). Mental model first: [concepts](concepts.md).
 
 ## Model
 
-A **domain** is a named package of rules (TTLs, client headers, which data-cache instance). Each response or data-cache object has its own **key**. `Version` is a **generation stamp** for the whole package, not the version of one product.
+| Term | Meaning |
+|------|---------|
+| **Domain** | Named package of rules (`maps-osm`, `product-detail`) |
+| **Version** | Generation stamp for the whole domain (`2026-08`, `v1`) — not the version of one product |
+| **TTL** | How long one entry may live before the factory runs again |
+| **Tag invalidation** | Explicit delete: domain, kind, or one id (`entity:store:products:42`) |
+| **ETag** | Hint for browsers/CDNs — [ETag modes](#etag-modes) |
 
-- **Domain** — endpoints that share rules (`maps-osm`, `product-detail`).
-- **Version** — generation (`2026-08`, `v1`). Changing it opens a new key space.
-- **TTL** — how long one entry may live before the factory runs again.
-- **Tag invalidation** — an explicit delete: a domain, a kind, or one id (`entity:store:products:42`).
-- **ETag** — hint for browsers and CDNs. See [ETag modes](#etag-modes).
-
-### Three ways a request becomes a MISS (fresh data from the DB)
+### Three ways a request becomes a miss
 
 ```text
 Same Version, same URL
@@ -216,23 +218,22 @@ You can mix both profiles in one app (different domains).
 
 ## Authenticated traffic (auth bypass)
 
-Default: **any** authenticated user or `Authorization` header → Output Cache **off**, client cache **blocked** (`AuthBypassMode: AuthenticatedOrAuthorization`). Prefer `AuthBypassMode` over obsolete `BypassWhenAuthenticated`. Full matrix: [vary.md](vary.md).
-Safe default for mixed public/private APIs.
+Default: authenticated users **or** an `Authorization` header → Output Cache **off**, client cache **blocked**.
 
-| Goal | Settings |
-|------|----------|
-| Keep default safety | omit flags (`AuthBypassMode` defaults to `AuthenticatedOrAuthorization`) |
-| Cache private per-user pages | `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, `ClientCache.Cacheability: Private` |
-| Public assets with API key | `AuthBypassMode: Never`, `VaryOutputCacheByUser: false`, `ClientCache.Cacheability: Public` |
+| Goal | Typical settings |
+|------|------------------|
+| Keep the safe default | leave `AuthBypassMode` unset |
+| Public tiles behind an API key | `AuthBypassMode: Never`, careful `ClientCache.Cacheability` |
+| Private per-user pages | `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, `Private` client cache |
 
-Canonical detail and full examples: [output-cache.md](output-cache.md#authenticated-traffic), [vary.md](vary.md). See [configuration.md](configuration.md) for nested domain sections.
+Full matrix: [vary](../reference/vary.md). FAQ: [authenticated traffic](faq.md#authenticated-requests-and-api-keys).
 
 ---
 
 ## Related
 
-- [Guide — concepts](guide/concepts.md)  
-- [invalidation.md](invalidation.md) — Version, domain, entity, custom tags  
-- [configuration.md](configuration.md) — full property list  
-- [client-cache-schedule.md](client-cache-schedule.md) — cutover-friendly client max-age  
-- [data-cache.md](data-cache.md) — `GetOrSetAsync` overloads  
+- [Concepts](concepts.md)
+- [Client Cache Schedule](client-cache-schedule.md)
+- [Invalidation](../reference/invalidation.md)
+- [Data cache](../reference/data-cache.md)
+- [Configuration](../reference/configuration.md)

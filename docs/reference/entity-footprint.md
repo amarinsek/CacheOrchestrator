@@ -1,12 +1,10 @@
-# Entity footprint examples
+# Entity footprint
 
-> **Reference.** Product overview: [root README](../README.md). Data cache: [data-cache.md](data-cache.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [domain profiles](../guide/domain-profiles.md). Catalog: [documentation index](../README.md). Data-cache API: [data cache](data-cache.md).
 
-Optional **entity identity** lives inside a **domain**. Domains remain the unit of configuration; `entityKind` + id (and related tags) refine per-row keys and invalidation. See [guide — concepts](guide/concepts.md).
+How to tag cached objects so invalidation can retire the right rows — lists, references, aggregates, nested collections, batches, and aliases — without bumping the whole domain \Version\.
 
-This page is the cookbook. The Fusion reference keeps only the happy-path detail example and points here for the rest.
-
-Each section starts with a small **situation** (what is stored, how it relates), then the code, then a short **Invalidation** example. Purging a tag removes **every** cache entry that carries that tag — so invalidating a category refreshes product details that `DependsOn` it; invalidating one tag id refreshes products that listed that tag.
+Declare primary identity on the endpoint (esourceRouteKey\ + \entityKind\, or \entityKind\ for collections). Extend tags in the factory with \EntityCache\ / \EntitySet\. Happy-path reads use \GetOrSetEntityAsync\ / \GetOrSetEntitySetAsync\.
 
 ## Model (short)
 
@@ -513,4 +511,4 @@ await inv.InvalidateDomainAsync("catalog", cancellationToken);
 - [invalidation.md](invalidation.md) — tag purge wiring
 - [cache-keys.md](cache-keys.md) — entity vs URL key shapes
 - [ef-core-invalidation.md](ef-core-invalidation.md) — SaveChanges → same tags
-- [domain-profiles.md](domain-profiles.md) — snapshot vs CRUD domains
+- [domain-profiles.md](../guide/domain-profiles.md) — snapshot vs CRUD domains

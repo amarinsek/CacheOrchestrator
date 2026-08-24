@@ -1,8 +1,8 @@
 # Cache backends
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md). Canonical detail for Redis and custom registrars.
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md). Canonical detail for Redis and custom registrars.
 
-Policy (domains, TTLs, invalidation, client headers) is separate from **storage**. InMemory ships with the host packages. Redis is `CacheOrchestrator.Redis`. Any other provider name is a registrar you implement and pass to `AddBackend`. See [packages.md](packages.md), [comparison.md](comparison.md), and [faq.md](faq.md).
+Policy (domains, TTLs, invalidation, client headers) is separate from **storage**. InMemory ships with the host packages. Redis is `CacheOrchestrator.Redis`. Any other provider name is a registrar you implement and pass to `AddBackend`. See [packages.md](../guide/packages.md), [comparison.md](../guide/comparison.md), and [faq.md](../guide/faq.md).
 
 ## First-party backends
 
@@ -184,8 +184,8 @@ Config:
 
 ## Related
 
-- [packages.md](packages.md)  
-- [Guide — topologies](guide/topologies.md)  
+- [packages.md](../guide/packages.md)  
+- [Guide — topologies](../guide/topologies.md)  
 - [configuration.md](configuration.md) — `Distributed`, Redis, providers  
 - [deployment.md](deployment.md) — multi-instance Redis  
-- [architecture.md](architecture.md) — public API surface  
+- [architecture.md](../contributor/architecture.md) — public API surface  

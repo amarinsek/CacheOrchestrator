@@ -1,10 +1,10 @@
-# Data cache (`IDataCacheProvider`)
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md).
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Packages: [packages.md](packages.md).
+The **data cache** stores **application objects** from your factory (DTOs, tiles, aggregates) — not full HTTP responses. CacheOrchestrator scopes it to the same **domain** as Output Cache and client headers. A registered **`IDataCacheProvider`** owns the store (Fusion or Hybrid).
 
-The **data cache** (DC) stores **application objects** from your factory (DTOs, tiles, aggregates) — not full HTTP responses. CacheOrchestrator scopes it to the same **domain** as Output Cache and client headers. It does not own a store: a registered **`IDataCacheProvider`** does.
-
-Portable domain policy lives under nested **`DataCache`** (`TtlSeconds`, `Enabled`, `Instance`, vary / no-store flags). HTTP apps typically call **`IDomainDataCache`**; libraries / workers use Core **`ICacheOrchestrator`** (+ optional `CacheDomainContext`). Composition: [packages.md](packages.md).
+- Portable policy: nested **`DataCache`** (`TtlSeconds`, `Enabled`, `Instance`, …).
+- Web: **`IDomainDataCache`**. Libraries / workers: Core **`ICacheOrchestrator`** + `CacheDomainContext`.
+- Which NuGet: [packages](../guide/packages.md). Copy-paste stacks: [composition](../how-to/composition.md).
 
 ## Providers
 
@@ -13,9 +13,11 @@ Portable domain policy lives under nested **`DataCache`** (`TtlSeconds`, `Enable
 | **CacheOrchestrator.FusionCache** | ZiggyCreatures FusionCache (default in the meta package) | `DataCache.*` + nested **`FusionCache.*`** (hard TTL, fail-safe, jitter, factory timeouts, …) |
 | **CacheOrchestrator.HybridCache** | Microsoft HybridCache | `DataCache.TtlSeconds` only — ignores `FusionCache` |
 
-Register exactly one provider. Meta `AddCacheOrchestrator` = AspNetCore + Fusion. Hybrid: `AddHybridCache()` then `AddCacheOrchestratorAspNetCore` + `AddCacheOrchestratorHybridCache` (replaces any prior `IDataCacheProvider`). Package READMEs: [FusionCache](../src/CacheOrchestrator.FusionCache/README.md), [HybridCache](../src/CacheOrchestrator.HybridCache/README.md).
+Register exactly one provider. Meta `AddCacheOrchestrator` = AspNetCore + Fusion.
 
-Fusion/Hybrid capabilities below. Domain resolution, keys, entity identity, and `dc=` results are **shared**.
+**Hybrid instead of Fusion:** call `AddHybridCache()`, then `AddCacheOrchestratorAspNetCore`, then `AddCacheOrchestratorHybridCache` (replaces any prior `IDataCacheProvider`). Nested `FusionCache.*` domain knobs are ignored. Full sample: [composition §5](../how-to/composition.md#scenario-5).
+
+Package READMEs: [FusionCache](../../src/CacheOrchestrator.FusionCache/README.md), [HybridCache](../../src/CacheOrchestrator.HybridCache/README.md). Domain resolution, keys, entity identity, and `dc=` results below are **shared** across providers.
 
 ---
 
@@ -97,7 +99,7 @@ Tags for that detail entry: `domain:store`, `entity:store:products:42`, `entityk
 
 The same footprint model also covers lists, references, aggregates, nested collections, batch ids, aliases, derived data, and composites — via `EntityCache` / `EntitySet` (`Members`, `DependsOn`, `Alias`, `Miss`) and `GetOrSetEntitySetAsync`. Cookbook with use cases: **[entity-footprint.md](entity-footprint.md)**.
 
-Also: [domain-profiles.md](domain-profiles.md), [invalidation.md](invalidation.md), [cache-keys.md](cache-keys.md).
+Also: [domain-profiles.md](../guide/domain-profiles.md), [invalidation.md](invalidation.md), [cache-keys.md](cache-keys.md).
 
 #### Migration (obsolete overloads)
 
@@ -218,16 +220,16 @@ builder.Services.AddCacheOrchestratorHybridCache();
 - Optional L2: configure HybridCache / `IDistributedCache` as usual (outside this package) — not Fusion `AddRedisBackend`.
 - Prefer **Fusion** when you need fail-safe, eager refresh, or the full Fusion surface.
 
-Package README: [CacheOrchestrator.HybridCache](../src/CacheOrchestrator.HybridCache/README.md).
+Package README: [CacheOrchestrator.HybridCache](../../src/CacheOrchestrator.HybridCache/README.md).
 
 ---
 
 ## Related
 
-- [Guide — concepts](guide/concepts.md)
-- [packages.md](packages.md)
+- [Guide — concepts](../guide/concepts.md)
+- [packages.md](../guide/packages.md)
 - [cache-keys.md](cache-keys.md)
 - [configuration.md](configuration.md)
 - [invalidation.md](invalidation.md)
-- [architecture.md](architecture.md)
+- [architecture.md](../contributor/architecture.md)
 - [output-cache.md](output-cache.md)

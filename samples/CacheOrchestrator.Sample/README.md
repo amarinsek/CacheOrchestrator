@@ -43,7 +43,7 @@ This playground can write `appsettings.json` from the browser. That is for this 
   - **OC-MISS DC-STALE FACTORY** — fail-safe stale from data cache (`dc=stale; fa=run`)
   - **OC-MISS DC-MISS FACTORY** — both layers missed; factory ran (`dc=miss; fa=run`)
   - **OC-OFF** / **DC-OFF** — that layer is disabled for the domain. **FACTORY** still appears whenever `dc` is present and is not `hit` (`fa=run`)
-- **Extra query params** (optional): e.g. `page=2` usually creates a **different** cache key. Tracking params such as `utm_source=demo` are omitted from keys (same entry as without them) — see [cache-keys.md](../../docs/cache-keys.md).
+- **Extra query params** (optional): e.g. `page=2` usually creates a **different** cache key. Tracking params such as `utm_source=demo` are omitted from keys (same entry as without them) — see [cache-keys.md](../../docs/reference/cache-keys.md).
 
 ## CRUD (entity invalidation)
 
@@ -64,12 +64,12 @@ curl -i -X PUT http://localhost:5289/api/crud/products/42 \
 curl -i http://localhost:5289/api/crud/products/42
 ```
 
-`GET /api/crud/products` (list) is an uncached store dump — curl only. Background: [domain-profiles.md](../../docs/domain-profiles.md).
+`GET /api/crud/products` (list) is an uncached store dump — curl only. Background: [domain-profiles.md](../../docs/guide/domain-profiles.md).
 
 ## Next
 
 - [labs/README.md](labs/README.md) — topology labs 01–05 (main learning path for multi-instance cache)
 - [Guide](../../docs/guide/README.md) — concepts, topologies, operations
-- [Getting started](../../docs/getting-started.md)
-- [Client Cache Schedule](../../docs/client-cache-schedule.md)
-- [Deployment](../../docs/deployment.md) · [Cluster bus](../../docs/cluster-bus.md)
+- [Getting started](../../docs/guide/getting-started.md)
+- [Client Cache Schedule](../../docs/guide/client-cache-schedule.md)
+- [Deployment](../../docs/reference/deployment.md) · [Cluster bus](../../docs/reference/cluster-bus.md)

@@ -1,12 +1,12 @@
 # Comparison
 
-> **Guide.** Product overview: [root README](../README.md). Orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md).
+> **Guide.** Product overview: [root README](../../README.md). Orientation: [Guide](README.md). Catalog: [documentation index](../README.md).
 
-This page compares the usual way of wiring ASP.NET Core Output Cache and a data cache (here FusionCache) yourself with the same work done through CacheOrchestrator.
+The same snapshot endpoint — map tiles with a planned cutover — written two ways: hand-rolled Output Cache + FusionCache, then CacheOrchestrator.
 
-The same endpoint is written both ways, without and with CacheOrchestrator. The CacheOrchestrator domain config is the same snapshot profile as in [domain-profiles.md](domain-profiles.md).
+The CacheOrchestrator side uses the same profile as [domain profiles](domain-profiles.md). Count the policy code that moves into configuration.
 
-### Without CacheOrchestrator
+## Without CacheOrchestrator
 
 ```csharp
 builder.Services.AddOutputCache(options =>
@@ -91,7 +91,7 @@ await fusionCache.RemoveByTagAsync("domain:osm-tiles", cancellationToken);
 await outputCache.EvictByTagAsync("domain:osm-tiles", cancellationToken);
 ```
 
-### With CacheOrchestrator
+## With CacheOrchestrator
 
 ```json
 "Domains": {
@@ -160,9 +160,9 @@ If you are working on a smaller app — one or two endpoints, or Output Cache al
 
 ## Related
 
-- [Guide](guide/README.md)
+- [Guide](README.md)
 - [getting-started.md](getting-started.md)
 - [faq.md](faq.md)
-- [architecture.md](architecture.md)
-- [backends.md](backends.md)
+- [architecture.md](../contributor/architecture.md)
+- [backends.md](../reference/backends.md)
 - [domain-profiles.md](domain-profiles.md)

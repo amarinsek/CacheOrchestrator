@@ -59,8 +59,8 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 
 ## Documentation
 
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md)
-- [Backends](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/backends.md)
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
+- [Backends](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/backends.md)
 - [Topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 

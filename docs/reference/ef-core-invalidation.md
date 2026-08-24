@@ -1,10 +1,10 @@
 # EF Core SaveChanges invalidation
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md).
 
 Package **`CacheOrchestrator.EFCore.Invalidation`**. After a successful `SaveChanges` / `SaveChangesAsync`, the cache for the rows that changed is purged through `ICacheOrchestratorInvalidator`.
 
-Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../src/CacheOrchestrator.EFCore.Invalidation/README.md). See also [invalidation.md](invalidation.md), [domain-profiles.md](domain-profiles.md), [data-cache.md](data-cache.md), [configuration.md](configuration.md).
+Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../../src/CacheOrchestrator.EFCore.Invalidation/README.md). See also [invalidation.md](invalidation.md), [domain-profiles.md](../guide/domain-profiles.md), [data-cache.md](data-cache.md), [configuration.md](configuration.md).
 
 ## How it works
 
@@ -50,7 +50,7 @@ InvalidateEntitiesAsync  or  InvalidateEntityKindAsync (OnBulk)
 
 ## Install and composition
 
-Full **packages + registration + config + endpoint** samples (in-app EF, and EF inside a class library): [packages.md §8–§9](packages.md).
+Full **packages + registration + config + endpoint** samples (in-app EF, and EF inside a class library): [packages.md §8–§9](../guide/packages.md).
 
 ```bash
 dotnet add package CacheOrchestrator
@@ -102,7 +102,7 @@ builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration, o
 });
 ```
 
-The HTTP / library cache path must use the **same** domain and `entityKind` as the mapping — see [packages.md §8–§9](packages.md).
+The HTTP / library cache path must use the **same** domain and `entityKind` as the mapping — see [packages.md §8–§9](../guide/packages.md).
 
 Primary keys: stringify each PK part with invariant culture, join composite keys with `:`, then `DomainName.NormalizeResourceId`. Route `resourceRouteKey` must produce the same string. Entity kinds use `DomainName.NormalizeEntityKind` (garbage such as `!!!` is empty, not `default`).
 
@@ -132,7 +132,7 @@ TPH: Fluent `CacheInvalidate` and `Map<T>` match the **exact** `ClrType` — map
 
 ## SaveChanges vs `Execute*`
 
-Composition samples (GET + PUT): [packages.md §8–§9](packages.md).
+Composition samples (GET + PUT): [packages.md §8–§9](../guide/packages.md).
 
 | Path | Invalidation |
 |------|----------------|
@@ -191,9 +191,9 @@ Operational flags only. Bound from the same root section as `AddCacheOrchestrato
 
 ## Related
 
-- [Guide — topologies](guide/topologies.md)  
+- [Guide — topologies](../guide/topologies.md)  
 - [invalidation.md](invalidation.md) — tags, invalidator, multi-instance strategies  
 - [data-cache.md](data-cache.md) — `GetOrSetEntityAsync`  
 - [output-cache.md](output-cache.md) — `resourceRouteKey` + `entityKind`  
-- [faq.md](faq.md) — `ExecuteUpdate`
+- [faq.md](../guide/faq.md) — `ExecuteUpdate`
 - Package README — copy-paste samples  

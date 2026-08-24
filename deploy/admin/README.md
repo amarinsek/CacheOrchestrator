@@ -1,6 +1,6 @@
 # Run CacheOrchestrator Admin Console App (Docker)
 
-> **Runbook (Docker).** Orientation: [Guide — operations](../../docs/guide/operations.md). Local `dotnet run`: [Admin Console README](../../src/CacheOrchestrator.AdminConsole/README.md). Architecture/security: [docs/admin.md](../../docs/admin.md). Writing rules: [hints/README.md](../../src/CacheOrchestrator.AdminConsole/hints/README.md).
+> **Runbook (Docker).** Orientation: [Guide — operations](../../docs/guide/operations.md). Local `dotnet run`: [Admin Console README](../../src/CacheOrchestrator.AdminConsole/README.md). Architecture/security: [docs/reference/admin.md](../../docs/reference/admin.md). Writing rules: [hints/README.md](../../src/CacheOrchestrator.AdminConsole/hints/README.md).
 
 The Admin Console App is an **ops host**: it fans out to your application instances (Local Admin API) and optionally queries Prometheus for Metrics. It is **not** a NuGet package.
 
@@ -238,7 +238,7 @@ Attach Loki, Fluent Bit, Datadog, etc. at the host/cluster level (Docker logging
 - Treat `ApiKey` as a secret (env or secret store). It must match each instance’s `Cache:Admin:ApiKey`.
 - Invalidate / Version / TTL change **live** cache state on target instances.
 
-See [docs/admin.md](../../docs/admin.md).
+See [docs/reference/admin.md](../../docs/reference/admin.md).
 
 ---
 

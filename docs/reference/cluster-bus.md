@@ -1,10 +1,10 @@
 # Cluster command bus (`CacheOrchestrator.HttpBus`)
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md). Canonical detail for membership, commands, and peer HTTP.
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md). Canonical detail for membership, commands, and peer HTTP.
 
 When several instances must apply the same invalidate, Version, or TTL change, this package delivers those **commands** over HTTP. It does not move cache payloads. Peers run the same local purge or overlay they would have run if the call had been made on that process.
 
-Package README: [src/CacheOrchestrator.HttpBus/README.md](../src/CacheOrchestrator.HttpBus/README.md). See also [invalidation.md](invalidation.md), [deployment.md](deployment.md), [admin.md](admin.md), [configuration.md](configuration.md).
+Package README: [src/CacheOrchestrator.HttpBus/README.md](../../src/CacheOrchestrator.HttpBus/README.md). See also [invalidation.md](invalidation.md), [deployment.md](deployment.md), [admin.md](admin.md), [configuration.md](configuration.md).
 
 ---
 
@@ -301,10 +301,10 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 
 ## Related
 
-- [Guide — topologies](guide/topologies.md) — Bus vs Redis backplane  
+- [Guide — topologies](../guide/topologies.md) — Bus vs Redis backplane  
 - [invalidation.md](invalidation.md) — multi-instance strategies  
 - [deployment.md](deployment.md) — topologies  
 - [admin.md](admin.md) — Admin API + Admin Console App  
 - [configuration.md](configuration.md) — options tables  
 - [backends.md](backends.md) — Redis package  
-- [architecture.md](architecture.md) — layout  
+- [architecture.md](../contributor/architecture.md) — layout  

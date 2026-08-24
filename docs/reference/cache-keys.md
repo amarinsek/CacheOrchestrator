@@ -1,6 +1,6 @@
 # Cache keys
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Canonical detail for Namespace and key composition.
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — concepts](../guide/concepts.md). Catalog: [documentation index](../README.md). Canonical detail for Namespace and key composition.
 
 How the **data cache** and Output Cache decide that two requests are the **same** resource. That is lookup identity. Eviction — tags and Version — is [invalidation.md](invalidation.md).
 
@@ -236,12 +236,12 @@ See [data-cache.md](data-cache.md#custom-key-generator).
 
 ## Related
 
-- [Guide — concepts](guide/concepts.md)  
+- [Guide — concepts](../guide/concepts.md)  
 - [data-cache.md](data-cache.md) — `GetOrSetAsync`, domain resolution, custom generator  
 - [output-cache.md](output-cache.md) — policy, auth vary, `resourceRouteKey`  
 - [invalidation.md](invalidation.md) — Version, domain/entity tags  
 - [configuration.md](configuration.md) — `Namespace`, domain `Version`, vary flags  
-- [architecture.md](architecture.md) — request flow  
-- [domain-profiles.md](domain-profiles.md) — snapshot vs dynamic domains  
+- [architecture.md](../contributor/architecture.md) — request flow  
+- [domain-profiles.md](../guide/domain-profiles.md) — snapshot vs dynamic domains  
 
 

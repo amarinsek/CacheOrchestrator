@@ -1,6 +1,6 @@
 # Output Cache
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md).
 
 Output Cache stores the **full HTTP response** for GET and HEAD. CacheOrchestrator applies ASP.NET Core Output Caching per **domain**: TTL, tags, vary rules, `Cache-Control`, and ETag all come from that domain.
 
@@ -25,7 +25,7 @@ ASP.NET Core Output Caching is **policy-driven**. CacheOrchestrator registers a 
 
 **Without `.CacheOutputWithDomain` / `[CacheDomain]`, there is no Output Cache entry.** You do not need a separate `.NoCache()` / `NoStore` for that. Built-in Admin and sample `/metrics` may still set `NoStore` explicitly; that is harmless.
 
-Data cache is separate: `IDomainDataCache` / `ICacheOrchestrator` still need a domain (endpoint metadata, explicit overload, or `CacheDomainContext`) or the factory runs uncached — see [FAQ](faq.md#fusion-runs-uncached--why).
+Data cache is separate: `IDomainDataCache` / `ICacheOrchestrator` still need a domain (endpoint metadata, explicit overload, or `CacheDomainContext`) or the factory runs uncached — see [FAQ](../guide/faq.md#fusion-runs-uncached--why).
 
 ## Minimal APIs
 
@@ -106,7 +106,7 @@ app.MapGet(...).CacheOutputWithDomainAttribute();
 
 **Tags:** `domain:{name}`. If `resourceRouteKey` and `entityKind` resolve, also `entity:{domain}:{entityKind}:{id}` and `entitykind:{domain}:{entityKind}`.
 
-**ETag:** domain `ETagMode` — `Version` (generation), `Resource` (per URL or id), `None`. See [domain-profiles.md](domain-profiles.md).
+**ETag:** domain `ETagMode` — `Version` (generation), `Resource` (per URL or id), `None`. See [domain-profiles.md](../guide/domain-profiles.md).
 
 ### Authenticated traffic
 
@@ -154,18 +154,18 @@ Alice and Bob both call `GET /api/me/summary`. The server stores two entries (`a
 
 Clients send `Authorization: Bearer <map-key>` for rate limits or billing. The body is the same for everyone. Use this only when the payload does not depend on the caller.
 
-See [vary.md](vary.md), [configuration.md](configuration.md), and [domain-profiles.md](domain-profiles.md).
+See [vary.md](vary.md), [configuration.md](configuration.md), and [domain-profiles.md](../guide/domain-profiles.md).
 
 ## Headers
 
 On response start the policy sets:
 
-- **Cache-Control** — from `ClientCacheHeaderGenerator`, including the [Client Cache Schedule](client-cache-schedule.md) ramp when `ScheduledUpdateUtc` is set.
+- **Cache-Control** — from `ClientCacheHeaderGenerator`, including the [Client Cache Schedule](../guide/client-cache-schedule.md) ramp when `ScheduledUpdateUtc` is set.
 - **X-Cache** — domain, client, output (and data / ms when Output Cache missed). Written when `Cache:EmitDiagnosticsHeaders` is `true` (the default). See [observability.md](observability.md).
 
 ## Related
 
-- [Guide — concepts](guide/concepts.md)
+- [concepts](../guide/concepts.md)
 - [vary.md](vary.md)
 - [cache-keys.md](cache-keys.md)
 - [configuration.md](configuration.md)

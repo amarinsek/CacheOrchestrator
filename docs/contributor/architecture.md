@@ -1,6 +1,6 @@
 # Architecture
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Packages: [packages.md](packages.md).
+> **Contributor.** Product overview: [root README](../../README.md). Orientation: [Guide — concepts](../guide/concepts.md). Catalog: [documentation index](../README.md). Packages: [packages.md](../guide/packages.md).
 
 How the library is put together.
 
@@ -55,10 +55,10 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 | `CacheOrchestrator` | Meta NuGet: AspNetCore + FusionCache |
 | `CacheOrchestrator.Redis` | Redis OC store + Fusion L2 + backplane |
 | `CacheOrchestrator.HttpBus` | HTTP cluster command bus + Static / ServiceDiscovery membership |
-| `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation — [ef-core-invalidation.md](ef-core-invalidation.md) |
+| `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation — [ef-core-invalidation.md](../reference/ef-core-invalidation.md) |
 | `CacheOrchestrator.AdminConsole` | Admin Console App (operator UI); not a NuGet package |
 
-Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion, Hybrid, Redis, HttpBus, or EF. Details: [packages.md](packages.md).
+Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion, Hybrid, Redis, HttpBus, or EF. Details: [packages.md](../guide/packages.md).
 
 ## Public API surface
 
@@ -107,7 +107,7 @@ Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features
 6. Registered `IDataCacheProvider` (Fusion: L1 → L2 → factory with soft/hard timeouts, fail-safe, jitter; Hybrid: expiration from `DataCache.TtlSeconds`).  
 7. Disposition (`Hit` / `Miss` / `Stale` / …) stored for `X-Cache` (`dc=`).  
 
-See [data-cache.md](data-cache.md) for HTTP resolution order and entity identity.  
+See [data-cache.md](../reference/data-cache.md) for HTTP resolution order and entity identity.  
 
 ## Backends
 
@@ -117,7 +117,7 @@ See [data-cache.md](data-cache.md) for HTTP resolution order and entity identity
 | `Redis` | **`CacheOrchestrator.Redis`** | StackExchange Redis store | Keyed L2 + Redis backplane per instance |
 | *(Custom)* | Your app | Custom | Keyed L2 recommended for multi-instance |
 
-Register Redis with `AddRedisBackend()` (see [backends.md](backends.md)). Custom backends use `ICacheBackendRegistrar` + `AddBackend`.
+Register Redis with `AddRedisBackend()` (see [backends.md](../reference/backends.md)). Custom backends use `ICacheBackendRegistrar` + `AddBackend`.
 
 Output and data-cache providers can differ (e.g. OC in-memory, Fusion Redis).
 
@@ -125,12 +125,12 @@ Output and data-cache providers can differ (e.g. OC in-memory, Fusion Redis).
 
 ## Related
 
-- [packages.md](packages.md)  
-- [Guide — concepts](guide/concepts.md)  
-- [cluster-bus.md](cluster-bus.md)  
-- [cache-keys.md](cache-keys.md)  
-- [configuration.md](configuration.md)  
-- [output-cache.md](output-cache.md)  
-- [data-cache.md](data-cache.md)  
-- [vary.md](vary.md)  
-- [deployment.md](deployment.md)  
+- [packages.md](../guide/packages.md)  
+- [Guide — concepts](../guide/concepts.md)  
+- [cluster-bus.md](../reference/cluster-bus.md)  
+- [cache-keys.md](../reference/cache-keys.md)  
+- [configuration.md](../reference/configuration.md)  
+- [output-cache.md](../reference/output-cache.md)  
+- [data-cache.md](../reference/data-cache.md)  
+- [vary.md](../reference/vary.md)  
+- [deployment.md](../reference/deployment.md)  

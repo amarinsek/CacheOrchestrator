@@ -1,54 +1,27 @@
-# Packages and composition
+# Package composition
 
-> **Reference.** Product overview: [root README](../README.md). Catalog: [documentation index](README.md). Quick path: [getting-started](getting-started.md).
+> **How-to.** Product overview: [root README](../../README.md). Catalog: [documentation index](../README.md). Which NuGet: [Packages guide](../guide/packages.md). First endpoint: [getting-started](../guide/getting-started.md).
 
-CacheOrchestrator is split so **policy and orchestration** live in Core, while **engines and HTTP** are optional packages. The application chooses topology with NuGet references and DI — domain rules and call sites stay stable.
+Copy-paste wiring for common stacks. Domain rules stay the same; only **packages**, **registration**, and **config** change.
 
-Dependency rule: arrows point at **Core**. Core never references ASP.NET, FusionCache, HybridCache, Redis, HttpBus, or EF.
+Without `.CacheOutputWithDomain` / `[CacheDomain]`, the base Output Cache policy is `NoCache` — there is no Output Cache entry. EF mapping and SaveChanges rules: [EF Core invalidation](../reference/ef-core-invalidation.md).
 
----
+Decision tables: [packages](../guide/packages.md) · [topologies](../guide/topologies.md).
 
-## Package map
+## Scenarios
 
-| Package | Role |
-|---------|------|
-| [**CacheOrchestrator.Core**](../src/CacheOrchestrator.Core/README.md) | Domains, Version, portable `DataCache` policy, entity footprint/tags, `ICacheOrchestrator`, `CacheDomainContext`, invalidation and cluster **contracts** |
-| [**CacheOrchestrator.FusionCache**](../src/CacheOrchestrator.FusionCache/README.md) | ZiggyCreatures FusionCache as `IDataCacheProvider`; owns JSON `FusionCache` knobs |
-| [**CacheOrchestrator.HybridCache**](../src/CacheOrchestrator.HybridCache/README.md) | Microsoft HybridCache as `IDataCacheProvider` |
-| [**CacheOrchestrator.AspNetCore**](../src/CacheOrchestrator.AspNetCore/README.md) | Output Cache, Client Cache-Control, HTTP `IDomainDataCache`, Admin API |
-| [**CacheOrchestrator**](../src/CacheOrchestrator/README.md) (meta) | AspNetCore + FusionCache; `AddCacheOrchestrator` wires both |
-| [**CacheOrchestrator.Redis**](../src/CacheOrchestrator.Redis/README.md) | Redis Output Cache store and Fusion L2 / backplane |
-| [**CacheOrchestrator.HttpBus**](../src/CacheOrchestrator.HttpBus/README.md) | HTTP cluster command bus |
-| [**CacheOrchestrator.EFCore.Invalidation**](../src/CacheOrchestrator.EFCore.Invalidation/README.md) | After `SaveChanges`, purge via the invalidator |
-
-**Admin Console App** is a separate host, not a NuGet package. [admin.md](admin.md).
-
-| API | Package | Role |
-|-----|---------|------|
-| `ICacheOrchestrator` | Core | Http-free data get-or-create |
-| `CacheDomainContext` | Core | Host-supplied domain (+ optional entity kind) for libraries |
-| `IDomainDataCache` | AspNetCore | HTTP projection over `ICacheOrchestrator` |
+- [§1. Typical web (InMemory Fusion)](#scenario-1)
+- [§2. Output Cache only](#scenario-2)
+- [§3. Data cache only](#scenario-3)
+- [§4. Redis data-cache L2](#scenario-4)
+- [§5. HybridCache](#scenario-5)
+- [§6. Dynamic domain](#scenario-6)
+- [§7. Class library + host](#scenario-7)
+- [§8. EF invalidation (web app)](#scenario-8)
+- [§9. EF in library + web host](#scenario-9)
 
 ---
-
-## Use-case matrix
-
-| # | Host | Data | Output Cache | Typical packages |
-|---|------|------|--------------|------------------|
-| **1** | Web | Fusion (InMemory) | yes | Meta *(or AspNetCore + Fusion)* |
-| **2** | Web | — | yes | AspNetCore only |
-| **3** | Web | Fusion | no | AspNetCore + FusionCache |
-| **4** | Web | Fusion (Redis L2) | yes | Meta + Redis |
-| **5** | Web | Hybrid | yes | AspNetCore + HybridCache |
-| **6** | Web | Fusion | yes (dynamic domain) | Meta *(or AspNetCore + Fusion)* |
-| **7** | Library + web / worker | Fusion | yes / n/a | Core in library; Meta (or Fusion) in host |
-| **8** | Web + EF invalidation | Fusion | yes | Meta + EFCore.Invalidation |
-| **9** | Library (EF) + web host | Fusion | yes | Core (+ EF) in library; Meta + EFCore.Invalidation in host |
-
-Each scenario below uses the **same product endpoint shape** where possible. Differences are in **packages**, **registration**, and **config**. Base Output Cache policy is `NoCache` — without `.CacheOutputWithDomain` there is no OC entry. EF mapping and SaveChanges behaviour: [ef-core-invalidation.md](ef-core-invalidation.md).
-
----
-
+<a id="scenario-1"></a>
 ## 1. Typical web — OC + data cache + client headers (InMemory Fusion)
 
 Uses the **meta** package `CacheOrchestrator` (`AddCacheOrchestrator` = AspNetCore + Fusion). You can instead install the two packages separately:
@@ -106,6 +79,7 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 
 ---
 
+<a id="scenario-2"></a>
 ## 2. Output Cache only (AspNetCore package)
 
 No Fusion / Hybrid. Handler does not use `IDomainDataCache`.
@@ -152,6 +126,7 @@ app.MapGet("/api/products/{id}", async (string id) =>
 
 ---
 
+<a id="scenario-3"></a>
 ## 3. Data cache only (AspNetCore + FusionCache)
 
 Not the meta package. No `.CacheOutputWithDomain` — base Output Cache policy is `NoCache`.
@@ -198,6 +173,7 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 
 ---
 
+<a id="scenario-4"></a>
 ## 4. Redis data-cache L2 (Fusion) + InMemory Output Cache
 
 **Packages**
@@ -248,6 +224,7 @@ For Redis as the Output Cache store as well, set `"OutputCache": { "Provider": "
 
 ---
 
+<a id="scenario-5"></a>
 ## 5. HybridCache data provider
 
 **Packages**
@@ -298,6 +275,7 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 
 ---
 
+<a id="scenario-6"></a>
 ## 6. Dynamic domain from the route
 
 Same packages as §1 (meta, or AspNetCore + Fusion separately).
@@ -346,6 +324,7 @@ app.MapGet("/t/{tenant}/products/{id}", async (HttpContext http, string id, IDom
 
 ---
 
+<a id="scenario-7"></a>
 ## 7. Class library + host
 
 **Library packages**
@@ -449,9 +428,10 @@ await catalog.GetProductAsync(domain, job.ProductId, cancellationToken);
 
 ---
 
+<a id="scenario-8"></a>
 ## 8. EF Core invalidation — all in the web app
 
-Same read path as §1, plus SaveChanges → automatic entity tag purge. Domain and `entityKind` on the GET must match the EF mapping (`[CacheEntity]`, Fluent `CacheInvalidate`, or `Map<T>`). Details: [ef-core-invalidation.md](ef-core-invalidation.md).
+Same read path as §1, plus SaveChanges → automatic entity tag purge. Domain and `entityKind` on the GET must match the EF mapping (`[CacheEntity]`, Fluent `CacheInvalidate`, or `Map<T>`). Details: [ef-core-invalidation.md](../reference/ef-core-invalidation.md).
 
 **Packages**
 
@@ -520,6 +500,7 @@ app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, AppDbCo
 
 ---
 
+<a id="scenario-9"></a>
 ## 9. EF Core in a class library + web host
 
 Library owns DbContext usage and cache reads/writes. Host wires CacheOrchestrator, the EF interceptor, and HTTP. Keep the same domain / `entityKind` in mapping, `CacheDomainContext`, and `.CacheOutputWithDomain`.
@@ -534,6 +515,9 @@ dotnet add package Microsoft.EntityFrameworkCore
 **Library**
 
 ```csharp
+[CacheEntity("catalog", "products")]
+public class Product { public int Id { get; set; } public decimal Price { get; set; } }
+
 public sealed class CatalogService(ICacheOrchestrator cache, AppDbContext db)
 {
     public ValueTask<ProductDto?> GetProductAsync(
@@ -628,37 +612,10 @@ app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, Catalog
 
 ---
 
-## Config layers (nested)
-
-| JSON section | Portable? | Meaning |
-|--------------|-----------|---------|
-| `DataCache` | Yes | Enable, instance, TTL, vary / no-store |
-| `OutputCache` | AspNet | HTTP response cache |
-| `ClientCache` | AspNet | Browser / CDN `Cache-Control` (+ schedule) |
-| `FusionCache` | Fusion only | Hard TTL, fail-safe, factory timeouts, … |
-
-Root engines: `OutputCache` + **`DataCacheInstances`**. Default key namespace suffix `{Namespace}-fc` is historical.
-
----
-
-## Capability note (Fusion vs Hybrid)
-
-| Feature | Fusion | Hybrid |
-|---------|--------|--------|
-| GetOrCreate + stampede | Yes | Yes |
-| Tag invalidation | Yes | Yes (logical) |
-| `DataCache.TtlSeconds` | Soft / duration | Expiration |
-| Hard TTL / fail-safe / factory timeouts | Yes | No (ignored) |
-| Named `DataCacheInstances` | Yes | Single DI HybridCache |
-| Redis L2 + backplane | Redis package | Configure Hybrid / `IDistributedCache` separately |
-
----
-
 ## Related
 
-- [Topologies](guide/topologies.md)  
-- [Architecture](architecture.md)  
-- [Getting started](getting-started.md)  
-- [Configuration](configuration.md)  
-- [EF Core invalidation](ef-core-invalidation.md) — mapping, SaveChanges rules, options  
-
+- [Packages guide](../guide/packages.md) — which NuGet to install  
+- [Topologies](../guide/topologies.md)  
+- [Configuration](../reference/configuration.md)  
+- [Data cache](../reference/data-cache.md)  
+- [EF Core invalidation](../reference/ef-core-invalidation.md)  

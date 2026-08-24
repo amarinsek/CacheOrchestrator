@@ -30,7 +30,7 @@ Cache **invalidation** presents the exact same coordination problem. Clearing th
 - **Policy and topology in settings.** TTLs, client cacheability, InMemory versus Redis, a second data-cache instance, or a planned cutover are all handled via configuration. You don't need to change the handler.
 - **One generation, one invalidation.** A coordinated invalidation or a new generation stamp reliably retires the stale data in every layer that still holds it.
 
-See the code [comparison](docs/comparison.md) to see how much boilerplate CacheOrchestrator actually removes.
+See the code [comparison](docs/guide/comparison.md) to see how much boilerplate CacheOrchestrator actually removes.
 
 ---
 
@@ -142,25 +142,25 @@ Domains are the unit of configuration. Within a domain you can optionally use **
 
 ## Also included
 
-- **Coordinated policies.** A single domain governs both client and backend cache policies. [Output Cache](docs/output-cache.md) · [Data cache](docs/data-cache.md) · [Packages](docs/packages.md)
+- **Coordinated policies.** A single domain governs both client and backend cache policies. [Output Cache](docs/reference/output-cache.md) · [Data cache](docs/reference/data-cache.md) · [Packages](docs/guide/packages.md)
 
-- **Coordinated invalidation.** Invalidation by domain, entity kind, or specific ID is seamlessly coordinated across Output Cache and data cache. [Invalidation](docs/invalidation.md)
+- **Coordinated invalidation.** Invalidation by domain, entity kind, or specific ID is seamlessly coordinated across Output Cache and data cache. [Invalidation](docs/reference/invalidation.md)
 
-- **Variety of cache topologies.** InMemory only; InMemory Output Cache with Redis L2 data cache; Redis for both plus a backplane; or InMemory nodes synchronized via the HTTP cluster bus. [Backends](docs/backends.md) · [Deployment](docs/deployment.md) · [Cluster bus](docs/cluster-bus.md)
+- **Variety of cache topologies.** InMemory only; InMemory Output Cache with Redis L2 data cache; Redis for both plus a backplane; or InMemory nodes synchronized via the HTTP cluster bus. [Backends](docs/reference/backends.md) · [Deployment](docs/reference/deployment.md) · [Cluster bus](docs/reference/cluster-bus.md)
 
-- **Planned cutovers.** A Version bump starts a new generation, or a [Client Cache Schedule](docs/client-cache-schedule.md) eases clients perfectly into the cutover.
+- **Planned cutovers.** A Version bump starts a new generation, or a [Client Cache Schedule](docs/guide/client-cache-schedule.md) eases clients perfectly into the cutover.
 
-- **Multiple instances.** Shared data-cache objects use Redis L2 and the FusionCache backplane. When Output Cache stays per-process, the [cluster bus](docs/cluster-bus.md) carries invalidation commands and runtime Version/settings across instances.
+- **Multiple instances.** Shared data-cache objects use Redis L2 and the FusionCache backplane. When Output Cache stays per-process, the [cluster bus](docs/reference/cluster-bus.md) carries invalidation commands and runtime Version/settings across instances.
 
-- **Diagnostics.** Insights via the `X-Cache` response header (domain, `oc`/`dc` status, schedule phase), plus OpenTelemetry metrics, activity sources, and health checks. [Observability](docs/observability.md)
+- **Diagnostics.** Insights via the `X-Cache` response header (domain, `oc`/`dc` status, schedule phase), plus OpenTelemetry metrics, activity sources, and health checks. [Observability](docs/reference/observability.md)
 
-- **Admin API & Console.** An embedded Admin API and a standalone **Admin Console App** for monitoring and managing your cache instances. [Admin](docs/admin.md)
+- **Admin API & Console.** An embedded Admin API and a standalone **Admin Console App** for monitoring and managing your cache instances. [Admin](docs/reference/admin.md)
 
 ---
 
 ## Packages
 
-The library is **modular**. The Core package provides the foundational policies and the ICacheOrchestrator interface. From there, you can opt into specific packages to match your stack: FusionCache or HybridCache for the data engine, ASP.NET Output and Client Cache, Redis, an HTTP cluster bus, and EF Core for automatic invalidation. See the [Packages and composition](docs/packages.md) guide to learn how to wire them together.
+The library is **modular**. The Core package provides the foundational policies and the ICacheOrchestrator interface. From there, you can opt into specific packages to match your stack: FusionCache or HybridCache for the data engine, ASP.NET Output and Client Cache, Redis, an HTTP cluster bus, and EF Core for automatic invalidation. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
 
 | Package | Purpose |
 |---------|---------|
@@ -201,11 +201,11 @@ The library is **modular**. The Core package provides the foundational policies 
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md) — first endpoint, `X-Cache`, what to read next
+- [Getting started](docs/guide/getting-started.md) — first endpoint, `X-Cache`, what to read next
 - [Guide](docs/guide/README.md) — concepts, topologies, operations
 - [Documentation index](docs/README.md) — configuration, keys, deployment, architecture
-- [FAQ](docs/faq.md) — common mistakes and limits
-- [Comparison](docs/comparison.md) — the usual stack versus CacheOrchestrator
+- [FAQ](docs/guide/faq.md) — common mistakes and limits
+- [Comparison](docs/guide/comparison.md) — the usual stack versus CacheOrchestrator
 
 - [CHANGELOG](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)

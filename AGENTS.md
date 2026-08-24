@@ -4,7 +4,7 @@ Context for AI coding agents working in this repository.
 
 ## What this project is
 
-**CacheOrchestrator** configures and coordinates three layers — Output Cache (OC), **data cache** (DC; FusionCache or HybridCache), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, the data engine holds the object, and the browser or CDN still honours `Cache-Control`. Package composition: `docs/packages.md`.
+**CacheOrchestrator** configures and coordinates three layers — Output Cache (OC), **data cache** (DC; FusionCache or HybridCache), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, the data engine holds the object, and the browser or CDN still honours `Cache-Control`. Package composition: `docs/guide/packages.md` · `docs/how-to/composition.md`.
 
 Internally it wires:
 
@@ -61,7 +61,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 - `ScheduledUpdateUtc` + `ClientTtlSeconds` / `ClientTtlMinSeconds` → long client `max-age` in **Calm**, linear ramp-down in **Approaching**, floor in **Hold**.  
 - Affects **client** `Cache-Control` only, not server Output/Fusion TTLs.  
 - Phase is exposed on **`X-Cache` (`phase=`)** and metrics **`cache_orchestrator.client.schedule`** (tags `domain`, `phase`).  
-- Human docs: `docs/client-cache-schedule.md`, README section “Client Cache Schedule”.
+- Human docs: `docs/guide/client-cache-schedule.md`, README section “Client Cache Schedule”.
 
 ## Public entry points (do not invent alternate names)
 
@@ -148,16 +148,18 @@ docs/
 
 ## Docs for humans
 
-Three tiers (do not put reference into the root README):
+Doc layers (do not put reference into the root README):
 
 - **Product:** `README.md` — overview and quick start only
-- **Guide:** `docs/guide/` (concepts, topologies, operations) + `docs/getting-started.md` + `docs/packages.md` + FAQ + Minimal sample
-- **Reference:** topic pages under `docs/` (configuration, keys, deployment, …); hub: `docs/README.md`
+- **Guide:** `docs/guide/` (getting-started, concepts, packages, topologies, domain-profiles, CCS, operations, FAQ, …)
+- **How-to:** `docs/how-to/composition.md` (copy-paste package scenarios)
+- **Reference:** `docs/reference/` (configuration, keys, deployment, …); hub: `docs/README.md`
+- **Contributor:** `docs/contributor/` (architecture, releasing, benchmarks, worklog template)
 
 Contributor / security: `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`.  
 Keep docs in sync when renaming public types or config keys. Put a change in the matching tier.
 
-Branch worklog: copy `docs/templates/worklog-template.md` (do not commit the filled copy). Summary → PR title and description; the rest is the PR appendix. Record **net outcomes** only — no chat, no rejected alternatives, no draft paths. A work item must still make sense a month later without the conversation.
+Branch worklog: copy `docs/contributor/templates/worklog-template.md` (do not commit the filled copy). Summary → PR title and description; the rest is the PR appendix. Record **net outcomes** only — no chat, no rejected alternatives, no draft paths. A work item must still make sense a month later without the conversation.
 
 Do **not** edit `CHANGELOG.md` unless the user asks. User-facing notes go in the worklog Changelog. The maintainer updates `CHANGELOG.md` from merged PR worklogs.
 

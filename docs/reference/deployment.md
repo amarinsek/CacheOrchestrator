@@ -1,6 +1,6 @@
 # Deployment
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md).
 
 How to run CacheOrchestrator on one process or on several: in-memory stores, Redis, the backplane, and the cluster bus.
 
@@ -331,17 +331,17 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 |---------|-------------------|
 | Shared HTTP / object data across nodes | Redis (or other L2) — topologies above |
 | L1 memory after invalidation | Redis **backplane** (Fusion) |
-| Browser caches near a data cutover | [Client Cache Schedule](client-cache-schedule.md) |
-| One product row changed under same Version | [Entity invalidation](invalidation.md) / [domain profiles](domain-profiles.md) |
+| Browser caches near a data cutover | [Client Cache Schedule](../guide/client-cache-schedule.md) |
+| One product row changed under same Version | [Entity invalidation](invalidation.md) / [domain profiles](../guide/domain-profiles.md) |
 
 ## Related
 
-- [Guide — topologies](guide/topologies.md) — which layout to pick  
+- [Guide — topologies](../guide/topologies.md) — which layout to pick  
 - [configuration.md](configuration.md) — namespaces, providers, full schema  
 - [backends.md](backends.md) — Redis package and custom registrars  
 - [data-cache.md](data-cache.md)  
 - [invalidation.md](invalidation.md)  
 - [observability.md](observability.md)  
-- [faq.md](faq.md) — multi-instance and InMemory limitations  
-- [comparison.md](comparison.md) — when Redis OC alone is enough  
-- [domain-profiles.md](domain-profiles.md) — Version vs TTL cutovers  
+- [faq.md](../guide/faq.md) — multi-instance and InMemory limitations  
+- [comparison.md](../guide/comparison.md) — when Redis OC alone is enough  
+- [domain-profiles.md](../guide/domain-profiles.md) — Version vs TTL cutovers  

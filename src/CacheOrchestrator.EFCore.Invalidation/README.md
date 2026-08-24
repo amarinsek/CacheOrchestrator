@@ -76,7 +76,7 @@ app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, AppDbCo
 });
 ```
 
-Tracked `SaveChanges` invalidates automatically; `ExecuteUpdate` / `ExecuteDelete` require manual `Invalidate*`. More layouts: [packages.md §8–§9](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md).
+Tracked `SaveChanges` invalidates automatically; `ExecuteUpdate` / `ExecuteDelete` require manual `Invalidate*`. More layouts: [composition §8–§9](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md).
 
 ## Related packages
 
@@ -92,8 +92,8 @@ Tracked `SaveChanges` invalidates automatically; `ExecuteUpdate` / `ExecuteDelet
 
 ## Documentation
 
-- [EF Core invalidation](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/ef-core-invalidation.md)
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md)
+- [EF Core invalidation](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/ef-core-invalidation.md)
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

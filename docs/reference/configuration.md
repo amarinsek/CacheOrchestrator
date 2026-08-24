@@ -1,12 +1,14 @@
 # Configuration reference
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md). Packages: [packages.md](packages.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide](../guide/README.md). Catalog: [documentation index](../README.md). Packages: [packages](../guide/packages.md).
 
-Every setting under the `Cache` section (or another root you pass to `AddCacheOrchestrator`). Tables below are the schema: property, type or default, and meaning.
+Schema for the `Cache` configuration section (or another root you pass to `AddCacheOrchestrator`).
 
-Root section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(config, "MySection")`.
+- Section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(config, "MySection")`.
+- Domain lifetimes use nested objects (`DataCache`, `OutputCache`, `ClientCache`, Fusion-only `FusionCache`) with **integer seconds** (`TtlSeconds`, …) — not TimeSpan strings.
+- Runtime snapshots often expose `TimeSpan` for server TTLs; client max-age fields stay `int` seconds.
 
-Domain TTLs and related durations use **nested objects** (`DataCache`, `OutputCache`, `ClientCache`, and Fusion-only `FusionCache`) with **integer seconds** (for example `"TtlSeconds": 60`). Prefer `*Seconds` over TimeSpan strings for cache TTL DX.
+For “which package do I need?”, start with [packages](../guide/packages.md), not this page.
 
 ## Root shape
 
@@ -163,9 +165,9 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults). Ne
 | `VaryByHost` | **true** | Output Cache `VaryByHost` (host + port) |
 | `CacheableStatusCodes` | `[200]` | Status codes allowed to store |
 | `EncodingNormalizationList` | `br`, `gzip` | Prefer these Accept-Encoding values |
-| `ETagMode` | `Version` | `Version`, `None`, or `Resource`. How Output Cache policy sets the HTTP `ETag` header. See [domain-profiles.md](domain-profiles.md). |
+| `ETagMode` | `Version` | `Version`, `None`, or `Resource`. How Output Cache policy sets the HTTP `ETag` header. See [domain-profiles.md](../guide/domain-profiles.md). |
 
-### `ClientCache` — [Client Cache Schedule](client-cache-schedule.md)
+### `ClientCache` — [Client Cache Schedule](../guide/client-cache-schedule.md)
 
 | Property | Default* | Description |
 |----------|----------|-------------|
@@ -176,7 +178,7 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults). Ne
 | `MustRevalidateNearUpdate` | false | Append `must-revalidate` at min floor |
 | `ForcePrivateWhenAuthenticated` | true | Force client Private for signed-in Identity + Public |
 
-See **[client-cache-schedule.md](client-cache-schedule.md)** for phases, formula, and operational playbook.
+See **[client-cache-schedule.md](../guide/client-cache-schedule.md)** for phases, formula, and operational playbook.
 
 ### `FusionCache` (Fusion package only)
 
@@ -289,13 +291,13 @@ Entity kinds: `DomainName.NormalizeEntityKind` (same as resource ids). Unusable 
 
 ## Example domains
 
-See **[domain-profiles.md](domain-profiles.md)** for full **osm-tiles** (snapshot) and **product-detail** (CRUD) recipes.
+See **[domain-profiles.md](../guide/domain-profiles.md)** for full **osm-tiles** (snapshot) and **product-detail** (CRUD) recipes.
 
 ## Related
 
-- [packages.md](packages.md)  
-- [Guide](guide/README.md)  
+- [packages.md](../guide/packages.md)  
+- [Guide](../guide/README.md)  
 - [cache-keys.md](cache-keys.md) — Namespace and key composition  
-- [architecture.md](architecture.md)  
-- [domain-profiles.md](domain-profiles.md)  
+- [architecture.md](../contributor/architecture.md)  
+- [domain-profiles.md](../guide/domain-profiles.md)  
 - [invalidation.md](invalidation.md)  

@@ -61,7 +61,7 @@ The host supplies `CacheDomainContext`, registers a data provider (Fusion or Hyb
 
 ## Documentation
 
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md)
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

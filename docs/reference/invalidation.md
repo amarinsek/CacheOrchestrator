@@ -1,12 +1,10 @@
 # Invalidation
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [domain profiles](../guide/domain-profiles.md). Catalog: [documentation index](../README.md).
 
-How to drop cached data so the next request loads it again. Snapshot versus changing records: [domain-profiles.md](domain-profiles.md).
+When data changes, retire it in **every** layer that still holds it — data cache tags, Output Cache tags, and (via Version or Client Cache Schedule) the client generation story.
 
-1. **Version stamp** — change `Version` so new keys never match old ones (a bulk cutover).
-2. **Domain tag** — remove everything tagged `domain:{name}`.
-3. **Entity tag** — remove one resource tagged `entity:{domain}:{entityKind}:{resourceId}`.
+Prefer **`ICacheOrchestratorInvalidator`** over talking to Fusion or Output Cache stores directly. Multi-instance behaviour depends on topology ([deployment](deployment.md), [cluster bus](cluster-bus.md)).
 
 ## Version (preferred for bulk cutovers)
 
@@ -294,9 +292,9 @@ Prefer Redis L2 and the backplane when instances share Fusion data. Use HttpBus 
 
 ## Related
 
-- [Guide — topologies](guide/topologies.md) — which approach across instances  
+- [Guide — topologies](../guide/topologies.md) — which approach across instances  
 - [cache-keys.md](cache-keys.md) — keys vs tags, Version in key material  
-- [domain-profiles.md](domain-profiles.md) — Snapshot vs Dynamic + config recipes  
+- [domain-profiles.md](../guide/domain-profiles.md) — Snapshot vs Dynamic + config recipes  
 - [deployment.md](deployment.md) — multi-instance topologies + shared configuration  
 - [configuration.md](configuration.md)  
 - [output-cache.md](output-cache.md)  

@@ -47,7 +47,7 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 .CacheOutputWithDomain("catalog");
 ```
 
-More layouts (Redis, Hybrid, libraries, EF): [packages.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md).
+More layouts (Redis, Hybrid, libraries, EF): [packages.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md).
 
 ## Related packages
 
@@ -63,9 +63,9 @@ More layouts (Redis, Hybrid, libraries, EF): [packages.md](https://github.com/am
 
 ## Documentation
 
-- [Getting started](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/getting-started.md)
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md)
-- [Configuration](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/configuration.md)
+- [Getting started](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/getting-started.md)
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
+- [Configuration](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/configuration.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

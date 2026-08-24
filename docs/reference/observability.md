@@ -1,8 +1,10 @@
 # Observability
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — operations](guide/operations.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [operations](../guide/operations.md). Catalog: [documentation index](../README.md).
 
-Dashboards and multi-instance ops: [admin.md](admin.md). **Admin Console traffic stats are Prometheus-only** (`AdminConsole:Metrics` → `GET /api/stats/window`). Local Admin (`Cache:Admin:Enabled`) still exposes health, config, invalidate, Version/TTL, and an obsolete process-lifetime `GET …/stats` for diagnostics. Time series belong on the `CacheOrchestrator` meter (OpenTelemetry / Prometheus). Playground topology labs including Prometheus (sample-only Docker Compose, not a NuGet dependency): [samples/CacheOrchestrator.Sample/labs/README.md](../samples/CacheOrchestrator.Sample/labs/README.md).
+How to see what the cache is doing: the **`X-Cache`** response header, the **`CacheOrchestrator`** meter and activity source, logs, and health checks.
+
+Operator dashboards and multi-instance actions: [admin](admin.md). Admin Console **traffic** charts are **Prometheus-only** (point `AdminConsole:Metrics` at a scrape of the meter). Try Prometheus with the playground [topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) — sample Compose only, not a NuGet dependency.
 
 ## X-Cache response header
 
@@ -96,7 +98,7 @@ Wire names use the same short layer ids as `X-Cache` / metrics (`dc`, `oc`). Dat
 | Cluster ignore (namespace / self / dedupe) | Debug |
 | Unknown domain / missing Version | Warning |
 
-Log categories use the implementing type names (internal): `DomainDataCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, and public `DomainOutputCachePolicy`. Cluster bus: `HttpClusterCommandBus`, `DefaultClusterCommandHandler`, `CacheOrchestrator.HttpBus`.
+Useful categories include `DomainOutputCachePolicy` and the data-cache / invalidation services. Cluster bus categories live in the HttpBus package (`HttpClusterCommandBus`, …).
 
 ## Health checks
 
@@ -115,7 +117,7 @@ Local Admin `GET …/health` is a **separate** endpoint: it still returns HTTP 2
 
 ## Related
 
-- [Guide — operations](guide/operations.md)  
-- [cluster-bus.md](cluster-bus.md) — multi-instance command bus metrics and endpoints  
-- [architecture.md](architecture.md)  
+- [Operations guide](../guide/operations.md)
+- [Admin](admin.md)
+- [Cluster bus](cluster-bus.md) — multi-instance command metrics
 

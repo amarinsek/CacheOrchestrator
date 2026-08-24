@@ -1,32 +1,17 @@
 # CacheOrchestrator Admin
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — operations](guide/operations.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [operations](../guide/operations.md). Catalog: [documentation index](../README.md).
 
-**Read order**
+Two surfaces for operators:
 
-| Document | Audience |
-|----------|----------|
-| [Guide — operations](guide/operations.md) | Which document to open |
-| **This page** | Architecture, Admin API, Console, security |
-| [admin-hints.md](admin-hints.md) | How hints work in the repo |
-| [Admin Console README](../src/CacheOrchestrator.AdminConsole/README.md) | `dotnet run` / host config |
-| [deploy/admin/README.md](../deploy/admin/README.md) | Docker / GHCR / volumes |
-| [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md) | Writing JSON rules |
+| Piece | What it is | Where it runs |
+|-------|------------|----------------|
+| **Admin API** | Opt-in HTTP on each app instance | AspNetCore package (`Cache:Admin` + `MapCacheOrchestratorAdmin`) |
+| **Admin Console App** | Dashboard that fans out to those APIs | Separate process / Docker image — not a NuGet package |
 
-Two pieces work together:
+Use the API alone for scripts. Use the Console for multi-instance UI. **Traffic charts need Prometheus.** Security matters: these endpoints mutate cache state.
 
-- **Admin API** — opt-in HTTP on each application process (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`). Stats, health, invalidate, Version and TTL overlays. Ships in the core NuGet package; off by default.
-- **Admin Console App** — a separate host (`src/CacheOrchestrator.AdminConsole`) that calls those APIs and serves the operator UI. It is not a NuGet package.
-
-This page covers architecture, security, and production. To run the App: [Admin README](../src/CacheOrchestrator.AdminConsole/README.md). Hint rules: [admin-hints.md](admin-hints.md).
-
-- One process, curl or a script — enable the Admin API (health, config, invalidate, Version/TTL; optional process-lifetime `/stats` diagnostics).
-- A dashboard across instances — Admin Console App, with the Admin API on each target **and** Prometheus (`AdminConsole:Metrics`) for all traffic stats.
-- Time window (“last hour”) — Console **Range** (Last N / absolute from–to) drives **all** traffic & impact from Prometheus (`GET /api/stats/window`). Green-underlined fields stay **current** (config/identity). Without Metrics store, health/config/operations still work; statistics and charts do not.
-
-Writes (invalidate, Version, TTL) change live cache state. Restrict who can reach these endpoints.
-
----
+Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Admin Console README](../../src/CacheOrchestrator.AdminConsole/README.md).
 
 ## Architecture
 
@@ -60,7 +45,7 @@ Writes (invalidate, Version, TTL) change live cache state. Restrict who can reac
 |-------|--|
 | Registry | `ghcr.io/amarinsek/cacheorchestrator-admin-console` |
 | Tags | Release version (e.g. `1.2.3`), plus `latest` for stable releases |
-| Docs | **[deploy/admin/README.md](../deploy/admin/README.md)** — config mount, `data/` volume for custom hints + disabled state, logs |
+| Docs | **[deploy/admin/README.md](../../deploy/admin/README.md)** — config mount, `data/` volume for custom hints + disabled state, logs |
 
 Run the Admin Console App as an internal ops service (Docker or Helm, VPN only). Configure **instances** and **API key** per environment; product hint pack stays in the image (`hints/core-hints.json`).
 
@@ -196,7 +181,7 @@ The miss path that runs your `GetOrSet` lambda / DB is the **factory**. Admin UI
 | **FA run / Factory share** | `fc.factoryShare` | `factoryRuns / requests` |
 | **DC stale %** (overlay) | `dataCache.staleShare` / pipeline `staleShare` | `stale / requests` (also included in FA run) |
 
-These three mix shares (OC hit, DC hit, FA run) use the same request denominator and are the exclusive pipeline bar. **DC stale %** is extra information, not a fourth bar segment. Layer **bypass** is auth / no-store skip (not “caching disabled”; disabled OC is `off`). **Layer rates** (e.g. DC miss rate = misses among traffic that reached data cache) stay on **detail** views. Prefer factory share for “how often did origin run?” — see [admin-hints.md](admin-hints.md).
+These three mix shares (OC hit, DC hit, FA run) use the same request denominator and are the exclusive pipeline bar. **DC stale %** is extra information, not a fourth bar segment. Layer **bypass** is auth / no-store skip (not “caching disabled”; disabled OC is `off`). **Layer rates** (e.g. DC miss rate = misses among traffic that reached data cache) stay on **detail** views. Prefer factory share for “how often did origin run?” — see [admin-hints.md](../contributor/admin-hints.md).
 
 **Low sample flags**
 
@@ -260,7 +245,7 @@ Section: `AdminConsole` → `AdminConsoleOptions`.
 | `Instances[].id` | Stable UI / filter id |
 | `Instances[].url` | **Base URL only** (scheme + host + port) — no `/cache-admin/...` path |
 | `Metrics` | Optional Prometheus-compatible store for the **Metrics** page (see below) |
-| `Hints` | Declarative rule packs + disable list ([admin-hints.md](admin-hints.md), operator guide [Admin hints/README](../src/CacheOrchestrator.AdminConsole/hints/README.md)) |
+| `Hints` | Declarative rule packs + disable list ([admin-hints.md](../contributor/admin-hints.md), operator guide [Admin hints/README](../../src/CacheOrchestrator.AdminConsole/hints/README.md)) |
 
 ### Metrics store (time series)
 
@@ -278,7 +263,7 @@ Minimal config (everything else has defaults). The Admin Console App in this rep
 }
 ```
 
-Dev stack (Playground + Prometheus + Admin Console labs): [samples/CacheOrchestrator.Sample/labs/README.md](../samples/CacheOrchestrator.Sample/labs/README.md) (sample only, not a library dependency).
+Dev stack (Playground + Prometheus + Admin Console labs): [samples/CacheOrchestrator.Sample/labs/README.md](../../samples/CacheOrchestrator.Sample/labs/README.md) (sample only, not a library dependency).
 
 | Key | Default | Notes |
 |-----|---------|--------|
@@ -317,7 +302,7 @@ dotnet run --project src/CacheOrchestrator.AdminConsole
 
 Default UI: `http://localhost:5188/` (see launchSettings). Default `Instances` point at the Playground sample (`:5289`). Metrics time series use Playground scrape via Prometheus.
 
-Quick operator steps: [Admin Console App README](../src/CacheOrchestrator.AdminConsole/README.md).
+Quick operator steps: [Admin Console App README](../../src/CacheOrchestrator.AdminConsole/README.md).
 
 ### What the SPA shows
 
@@ -335,8 +320,8 @@ Quick operator steps: [Admin Console App README](../src/CacheOrchestrator.AdminC
 Evaluated **only in the Admin Console App** on Prometheus window stats (`HintEngine` + JSON packs), plus domain config for config-only rules.  
 **Customizable:** product defaults in `hints/core-hints.json`; extra packs via `AdminConsole:Hints:RuleFiles`; enable/disable in **Settings**. UI does not invent rules.
 
-Step-by-step custom rules (ships with Admin): [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md).  
-Repo overview: [admin-hints.md](admin-hints.md).
+Step-by-step custom rules (ships with Admin): [hints/README.md](../../src/CacheOrchestrator.AdminConsole/hints/README.md).  
+Repo overview: [admin-hints.md](../contributor/admin-hints.md).
 
 ### Admin Console App HTTP API (for the SPA / automation)
 
@@ -354,7 +339,7 @@ Repo overview: [admin-hints.md](admin-hints.md).
 | GET | `/api/metrics/catalog` | Allowlisted chart panels |
 | GET | `/api/metrics/series?range=&panels=&domains=` | Range series for panels |
 | GET | `/api/metrics/summary?range=` | Window KPI snapshot |
-| GET | `/api/hints/rules` | Hint catalog (also [admin-hints.md](admin-hints.md)) |
+| GET | `/api/hints/rules` | Hint catalog (also [admin-hints.md](../contributor/admin-hints.md)) |
 | POST | `/api/hints/reload` | Reload hint packs |
 | PUT | `/api/hints/rules/{code}/enabled` | Enable/disable a code |
 | POST | `/api/invalidate` | Invalidate (auto fan-out or bus-distribute) |
@@ -441,10 +426,10 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 
 ## Related docs
 
-- [Guide — operations](guide/operations.md)  
-- [admin-hints.md](admin-hints.md) — recommendation hints + customization  
+- [Guide — operations](../guide/operations.md)  
+- [admin-hints.md](../contributor/admin-hints.md) — recommendation hints + customization  
 - [observability.md](observability.md) — metrics / `X-Cache` / health checks  
 - [invalidation.md](invalidation.md) — domain/entity invalidation model  
 - [configuration.md](configuration.md) — domain options binding  
-- [architecture.md](architecture.md) — library layers  
+- [architecture.md](../contributor/architecture.md) — library layers  
 - [deployment.md](deployment.md) — multi-instance topologies  

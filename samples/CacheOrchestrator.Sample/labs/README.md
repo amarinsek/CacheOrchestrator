@@ -1,6 +1,6 @@
 # Playground topology labs (Docker Compose)
 
-> **Guide (learn by running).** Orientation: [Guide — topologies](../../../docs/guide/topologies.md). Product overview: [root README](../../../README.md). Production wiring: [deployment.md](../../../docs/deployment.md).
+> **Guide (learn by running).** Orientation: [Guide — topologies](../../../docs/guide/topologies.md). Product overview: [root README](../../../README.md). Production wiring: [deployment.md](../../../docs/reference/deployment.md).
 
 These numbered **Compose stacks** run the **Playground sample** together with Prometheus, Admin Console, Redis, single or multiple app instances, and the cluster bus. Use them to learn how cache layers fit together and how CacheOrchestrator ties them to domain model using simple configuration.
 
@@ -72,7 +72,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability
 
 One app process with full **ops surface**: Admin API (health, config, invalidate; optional process-lifetime `/stats`), Prometheus (`/metrics` from the `CacheOrchestrator` meter), Admin Console (dashboard / fan-out / **Prom-only** stats & hints / impact). Caching itself is still InMemory — observability does not change how OC/FC store data. Rebuild images after library changes (`docker compose … up --build`) so Console and playground pick up OTEL instruments and window-stats BFF.
 
-→ [observability.md](../../../docs/observability.md) · [admin.md](../../../docs/admin.md)
+→ [observability.md](../../../docs/reference/observability.md) · [admin.md](../../../docs/reference/admin.md)
 
 ### When this layout fits
 
@@ -134,7 +134,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml up 
 
 **L2** = Redis for Fusion objects (survives restart / later multi-node). OC stays InMemory on purpose — layers can use different providers. With one instance the backplane is quiet; registration already matches multi-node (Stage 03).
 
-→ [backends.md](../../../docs/backends.md) · [data-cache.md](../../../docs/data-cache.md)
+→ [backends.md](../../../docs/reference/backends.md) · [data-cache.md](../../../docs/reference/data-cache.md)
 
 ### When this layout fits
 
@@ -206,7 +206,7 @@ Two processes, one Redis L2. **Shared:** Fusion L2 objects + Fusion **backplane*
 
 That gap is real multi-instance behaviour with OC InMemory and no command bus. Stage **04** adds the bus; Stage **05** shares OC via Redis.
 
-→ [deployment.md](../../../docs/deployment.md) · [cache-keys.md](../../../docs/cache-keys.md)
+→ [deployment.md](../../../docs/reference/deployment.md) · [cache-keys.md](../../../docs/reference/cache-keys.md)
 
 ### When this layout fits
 
@@ -280,7 +280,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/04-bus.yml up --
 
 Redis L2 + backplane handle **data / Fusion L1**. The **bus** carries **commands** (invalidate, Version, TTL patch) — critical for process-local state such as InMemory OC and runtime overlays. 
 
-→ [cluster-bus.md](../../../docs/cluster-bus.md) · [deployment.md](../../../docs/deployment.md)
+→ [cluster-bus.md](../../../docs/reference/cluster-bus.md) · [deployment.md](../../../docs/reference/deployment.md)
 
 ### When this layout fits
 
@@ -371,7 +371,7 @@ Shared OC store ≠ bus: Redis OC shares **payloads**; the bus still distributes
 
 Host/port vary is off in multi-instance labs (same note as Stage 03).
 
-→ [deployment.md](../../../docs/deployment.md) · [backends.md](../../../docs/backends.md) · [cluster-bus.md](../../../docs/cluster-bus.md)
+→ [deployment.md](../../../docs/reference/deployment.md) · [backends.md](../../../docs/reference/backends.md) · [cluster-bus.md](../../../docs/reference/cluster-bus.md)
 
 ### When this layout fits
 
@@ -449,8 +449,8 @@ Labs stay short on purpose: stages cover **topology**; use the sample README and
 | Which layout / package | [Guide — topologies](../../../docs/guide/topologies.md) |
 | Docs index (getting started, config, OC/FC, invalidation, ops) | [docs/README.md](../../../docs/README.md) |
 | Product overview | [root README](../../../README.md) |
-| Deployment / multi-instance / Redis / bus | [deployment.md](../../../docs/deployment.md), [cluster-bus.md](../../../docs/cluster-bus.md) |
-| Admin API + Admin Console | [admin.md](../../../docs/admin.md) · [Guide — operations](../../../docs/guide/operations.md) |
-| Observability (`X-Cache`, metrics) | [observability.md](../../../docs/observability.md) |
-| Cache keys (host/port vary, query params) | [cache-keys.md](../../../docs/cache-keys.md) |
+| Deployment / multi-instance / Redis / bus | [deployment.md](../../../docs/reference/deployment.md), [cluster-bus.md](../../../docs/reference/cluster-bus.md) |
+| Admin API + Admin Console | [admin.md](../../../docs/reference/admin.md) · [Guide — operations](../../../docs/guide/operations.md) |
+| Observability (`X-Cache`, metrics) | [observability.md](../../../docs/reference/observability.md) |
+| Cache keys (host/port vary, query params) | [cache-keys.md](../../../docs/reference/cache-keys.md) |
 

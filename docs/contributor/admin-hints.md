@@ -1,6 +1,6 @@
 # Admin recommendation hints
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — operations](guide/operations.md). Catalog: [documentation index](README.md). Repo architecture for hints; **how to write rules:** [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — operations](../guide/operations.md). Catalog: [documentation index](../README.md). Repo architecture for hints; **how to write rules:** [hints/README.md](../../src/CacheOrchestrator.AdminConsole/hints/README.md).
 
 How the Admin Console App turns **live counters** (and domain config) into **read-only recommendations**.  
 Hints never change cache behaviour, TTLs, or invalidation.
@@ -9,11 +9,11 @@ Hints never change cache behaviour, TTLs, or invalidation.
 
 | Document | Audience |
 |----------|----------|
-| [Guide — operations](guide/operations.md) | Which document to open |
-| **[Operator guide: writing rules](../src/CacheOrchestrator.AdminConsole/hints/README.md)** | Full how-to, JSON format, paths, step-by-step new rule (**ships with the Admin Console App** next to the packs) |
-| [Admin Console App README](../src/CacheOrchestrator.AdminConsole/README.md) | Run/configure the host + feature overview |
-| [admin.md](admin.md) | Admin architecture / security |
-| [deploy/admin/README.md](../deploy/admin/README.md) | Docker / GHCR / volumes |
+| [Guide — operations](../guide/operations.md) | Which document to open |
+| **[Operator guide: writing rules](../../src/CacheOrchestrator.AdminConsole/hints/README.md)** | Full how-to, JSON format, paths, step-by-step new rule (**ships with the Admin Console App** next to the packs) |
+| [Admin Console App README](../../src/CacheOrchestrator.AdminConsole/README.md) | Run/configure the host + feature overview |
+| [admin.md](../reference/admin.md) | Admin architecture / security |
+| [deploy/admin/README.md](../../deploy/admin/README.md) | Docker / GHCR / volumes |
 
 ---
 
@@ -21,7 +21,7 @@ Hints never change cache behaviour, TTLs, or invalidation.
 
 1. Open Admin → **Settings** for the rule catalog, compile errors/warnings, enable/disable, and “view rule JSON”.  
 2. Open **Hints** / domain / endpoint pages for live recommendations.  
-3. To **add a rule**: write a JSON pack (`hints/` in Development, or `data/rules/` in Docker/Production), load it via `AdminConsole:Hints:RuleFiles`, Reload — details in the **[operator guide](../src/CacheOrchestrator.AdminConsole/hints/README.md)** (include optional `"badge"` for table chips). Docker volume layout: [deploy/admin/README.md](../deploy/admin/README.md).
+3. To **add a rule**: write a JSON pack (`hints/` in Development, or `data/rules/` in Docker/Production), load it via `AdminConsole:Hints:RuleFiles`, Reload — details in the **[operator guide](../../src/CacheOrchestrator.AdminConsole/hints/README.md)** (include optional `"badge"` for table chips). Docker volume layout: [deploy/admin/README.md](../../deploy/admin/README.md).
 
 ---
 
@@ -78,7 +78,7 @@ Uniqueness: **`(code, scope)`** — same code may exist for domain and endpoint.
 
 Optional **`badge`** on each rule is the 3-character table chip. The same `code` on domain and endpoint may share a badge; two different codes with the same badge is a **warning**. Omit `badge` to show **ERR** / **WRN** / **INF** from severity. A list row shows at most two chips; more hints collapse to the Hints nav severity stack.
 
-Full disable options and pack examples: [hints/README.md](../src/CacheOrchestrator.AdminConsole/hints/README.md).
+Full disable options and pack examples: [hints/README.md](../../src/CacheOrchestrator.AdminConsole/hints/README.md).
 
 ---
 
@@ -142,8 +142,8 @@ Exact thresholds, messages, and `badge` labels: open **`core-hints.json`** or Se
 
 ## See also
 
-- [Guide — operations](guide/operations.md)  
-- **[Writing rules (distributed with Admin)](../src/CacheOrchestrator.AdminConsole/hints/README.md)**  
-- [Admin Console App README](../src/CacheOrchestrator.AdminConsole/README.md)  
-- [admin.md](admin.md)  
-- [client-cache-schedule.md](client-cache-schedule.md)  
+- [Guide — operations](../guide/operations.md)  
+- **[Writing rules (distributed with Admin)](../../src/CacheOrchestrator.AdminConsole/hints/README.md)**  
+- [Admin Console App README](../../src/CacheOrchestrator.AdminConsole/README.md)  
+- [admin.md](../reference/admin.md)  
+- [client-cache-schedule.md](../guide/client-cache-schedule.md)  

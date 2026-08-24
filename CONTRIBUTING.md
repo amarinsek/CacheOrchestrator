@@ -63,7 +63,7 @@ Micro-benchmarks (optional):
 dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks
 ```
 
-See [docs/benchmarks/results.md](docs/benchmarks/results.md).
+See [docs/contributor/benchmarks/results.md](docs/contributor/benchmarks/results.md).
 
 ## Samples
 
@@ -121,8 +121,8 @@ If you change public cache behaviour, check whether a lab stage still demonstrat
 | `deploy/admin` | Admin Console Docker runbook and example config |
 | `tests/*` | Unit, integration, benchmarks |
 | `samples/*` | Minimal demo, playground, [topology labs](samples/CacheOrchestrator.Sample/labs) |
-| `docs/*` | Human docs (product README, [guide](docs/guide/README.md), reference) |
-| `docs/templates/` | Copy-paste contributor files ([worklog](docs/templates/worklog-template.md)) |
+| `docs/guide/`, `docs/how-to/`, `docs/reference/` | End-user docs (hub: [docs/README.md](docs/README.md)) |
+| `docs/contributor/` | Architecture, releasing, benchmarks, [worklog template](docs/contributor/templates/worklog-template.md) |
 
 Agent-oriented conventions live in [AGENTS.md](AGENTS.md) (same rules for human contributors).
 
@@ -149,9 +149,11 @@ Project-level rules that are easy to miss:
 When you change public API, config keys, or behaviour, update the **right tier** (do not dump reference into the root README):
 
 1. **Product** — root [README.md](README.md) only if the try/minimal path or feature list changes
-2. **Guide** — [docs/guide/](docs/guide/README.md) plus [getting-started](docs/getting-started.md) / [FAQ](docs/faq.md) / [domain-profiles](docs/domain-profiles.md) when orientation changes
-3. **Reference** — the topic page under `docs/` (configuration, keys, deployment, …)
-4. Record user-facing changes in the [worklog Changelog](#worklog) — **do not** edit [CHANGELOG.md](CHANGELOG.md) in the PR
+2. **Guide** — [docs/guide/](docs/guide/README.md) (getting-started, concepts, packages, topologies, FAQ, …)
+3. **How-to** — [docs/how-to/composition.md](docs/how-to/composition.md) when package wiring scenarios change
+4. **Reference** — [docs/reference/](docs/reference/) (configuration, keys, deployment, …)
+5. **Contributor** — [docs/contributor/](docs/contributor/) only for maintainer-facing pages
+6. Record user-facing changes in the [worklog Changelog](#worklog) — **do not** edit [CHANGELOG.md](CHANGELOG.md) in the PR
 
 Hub: [docs/README.md](docs/README.md).
 
@@ -169,7 +171,7 @@ Packable projects inherit from `Directory.Build.props`:
 | SourceLink + **`.snupkg`** | `Directory.Build.props` + `Microsoft.SourceLink.GitHub` |
 
 `PackageReleaseNotes` is **not** auto-generated from `CHANGELOG.md`.  
-Full release procedure (maintainer): **[docs/releasing.md](docs/releasing.md)**.
+Full release procedure (maintainer): **[docs/contributor/releasing.md](docs/contributor/releasing.md)**.
 
 #### Release checklist (maintainer)
 
@@ -188,7 +190,7 @@ All four NuGet packages share the same version and `PACKAGE_RELEASE_NOTES.md`.
 
 #### Optional package signing
 
-Not enabled by default (no cert in repo). When you have a code-signing certificate, sign after pack with `dotnet nuget sign` (see [docs/releasing.md](docs/releasing.md)).
+Not enabled by default (no cert in repo). When you have a code-signing certificate, sign after pack with `dotnet nuget sign` (see [docs/contributor/releasing.md](docs/contributor/releasing.md)).
 
 ### Product description (keep in sync)
 
@@ -203,7 +205,7 @@ Core package `Description` may append: `Redis backends: install CacheOrchestrato
 Use a worklog for any branch that is more than a one-line fix. It serves as the living record of the branch and becomes the final PR description.
 
 **How to use it:**
-1.  Copy `docs/templates/worklog-template.md` when you open a branch.
+1.  Copy `docs/contributor/templates/worklog-template.md` when you open a branch.
 2.  Save your working copy in a `_local/` folder at the project root (ignored by Git) or your personal notes. **Name the file after your branch** (e.g., `_local/fix-etag-resource.md`). **Do not commit this file.**
 3.  Update the document continuously as you work, following these rules:
     *   **Title:** Write a short, imperative sentence (max ~70 characters). This will be your PR title.
