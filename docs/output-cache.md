@@ -15,36 +15,17 @@ app.UseCacheOrchestrator();
 
 ## Base policy and endpoints without a domain
 
-ASP.NET Core Output Caching is **policy-driven**. Calling `AddOutputCache` / `UseOutputCache` alone does not decide *what* is cached; **policies** do. A **base policy** is the ASP.NET mechanism for defaults that apply to **every** endpoint the middleware sees. Named policies and endpoint metadata then refine or override that.
+ASP.NET Core Output Caching is **policy-driven**. CacheOrchestrator registers a **base policy of `NoStore`**: responses are **not** stored unless an endpoint opts in.
 
-CacheOrchestrator registers a **base policy** when Output Cache is set up. Today it varies by `Accept-Encoding` (so gzip and identity responses do not share one entry). Because that base policy is active, **GET/HEAD responses can be stored even when the endpoint has no domain** — no `.CacheOutputWithDomain` / `[CacheDomain]`, no domain TTL, tags, or `X-Cache` domain stamp from `DomainOutputCachePolicy`.
-
-| Endpoint | What applies |
+| Endpoint | Output Cache |
 |----------|----------------|
-| `.CacheOutputWithDomain("…")` / `[CacheDomain("…")]` | Domain policy (TTL, tags, client headers, diagnostics) **on top of** the base policy |
-| Built-in Admin API, cluster bus receive, sample `/metrics` | Explicit **`NoStore`** so control surfaces are not cached |
-| Other GET routes (health, demo settings APIs, your own ops routes) | **Base policy only**, unless you opt out |
+| `.CacheOutputWithDomain("…")` / `[CacheDomain("…")]` | **Yes** — domain policy (TTL, tags, client headers, diagnostics; encoding vary from domain settings) |
+| No domain metadata | **No** — base `NoStore` |
+| Explicit `.CacheOutput(p => p.NoStore())` / `OutputCacheAttribute { NoStore = true }` | **No** — redundant with the base policy, still fine on Admin / metrics / ops routes |
 
-**Domain is opt-in. Response caching via the base policy is not limited to domains.**
+**Without `.CacheOutputWithDomain` / `[CacheDomain]`, there is no Output Cache entry.** You do not need a separate `.NoCache()` for that. Built-in Admin and sample `/metrics` may still set `NoStore` explicitly; that is harmless.
 
-### Opt out (`NoStore`)
-
-For endpoints that must always hit the app (settings editors, health, diagnostics, anything that reads a live file or process state):
-
-```csharp
-using Microsoft.AspNetCore.OutputCaching;
-
-app.MapGet("/health", () => Results.Ok())
-    .WithMetadata(new OutputCacheAttribute { NoStore = true });
-
-// or
-app.MapGet("/api/live", () => /* ... */)
-    .CacheOutput(p => p.NoStore());
-```
-
-If a route “ignores” config or file changes for tens of seconds while the file on disk already changed, suspect Output Cache on that route before blaming configuration reload or the host.
-
-Domain-scoped routes do not need this: they use domain TTL and invalidation. FusionCache still needs a domain (or it runs uncached) — see [FAQ](faq.md#fusion-runs-uncached--why).
+Data cache is separate: `IDomainDataCache` / `ICacheOrchestrator` still need a domain (endpoint metadata, explicit overload, or `CacheDomainContext`) or the factory runs uncached — see [FAQ](faq.md#fusion-runs-uncached--why).
 
 ## Minimal APIs
 

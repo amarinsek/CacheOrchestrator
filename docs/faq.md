@@ -20,18 +20,9 @@ Call `InvalidateEntitiesAsync` or `InvalidateEntityKindAsync` yourself. Details:
 
 ## Why is a route cached when I never set a domain?
 
-**Domain** Output Cache is opt-in (`.CacheOutputWithDomain` / `[CacheDomain]`).  
-**ASP.NET base Output Cache policy** is separate: CacheOrchestrator registers one (today: vary by `Accept-Encoding`) that applies to **all** endpoints the middleware handles. So a plain `MapGet` with no domain can still get a full-response cache entry until that entry expires.
+It should not be. CacheOrchestrator’s **base** Output Cache policy is **`NoStore`**. Full-response caching applies only with `.CacheOutputWithDomain` / `[CacheDomain]` (or your own explicit Output Cache policy).
 
-That follows ASP.NET’s model (base policy = app-wide defaults; endpoint policies refine). It is **not** “default domain”.
-
-**Opt out** when the response must be live:
-
-```csharp
-.WithMetadata(new Microsoft.AspNetCore.OutputCaching.OutputCacheAttribute { NoStore = true })
-```
-
-Built-in Admin, cluster bus, and sample `/metrics` already use `NoStore`. Your health checks, settings APIs, and similar routes should do the same.
+If a route still looks cached, check for a host-added `AddBasePolicy` / `.CacheOutput(...)`, a CDN/browser cache, or a domain policy you forgot. Explicit `NoStore` on Admin/metrics is optional redundancy, not required for plain endpoints.
 
 Details: [output-cache.md — Base policy](output-cache.md#base-policy-and-endpoints-without-a-domain).
 

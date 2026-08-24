@@ -11,7 +11,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using Microsoft.Net.Http.Headers;
 
 namespace CacheOrchestrator.DependencyInjection;
 
@@ -197,8 +196,8 @@ public static class ServiceCollectionExtensions
 
         List<Action<OutputCacheOptions>> optionConfigurators = [];
 
-        // Base policy first (always).
-        optionConfigurators.Add(o => o.AddBasePolicy(b => b.SetVaryByHeader(HeaderNames.AcceptEncoding)));
+        // Base policy: no store. Output Cache is opt-in via .CacheOutputWithDomain / [CacheDomain].
+        optionConfigurators.Add(o => o.AddBasePolicy(b => b.NoStore()));
 
         OutputCacheRegistrationContext context = new(
             services,

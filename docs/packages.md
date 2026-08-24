@@ -101,10 +101,10 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
     var data = await cache.GetOrSetAsync(http, "catalog", ct => LoadProductAsync(id, ct));
     return Results.Json(data);
 });
-// no .CacheOutputWithDomain — OC policy not attached
+// no .CacheOutputWithDomain — base Output Cache policy is NoStore (no OC entry)
 ```
 
-Pass the domain name into `GetOrSetAsync` when there is no endpoint domain metadata. Client headers are not applied by an OC policy on this route.
+Pass the domain name into `GetOrSetAsync` when there is no endpoint domain metadata. Without a domain Output Cache policy, client `Cache-Control` from the domain is also not applied on that route.
 
 ### 4. Redis as data-cache L2 (and optional OC store)
 
