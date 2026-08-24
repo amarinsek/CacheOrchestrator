@@ -2,7 +2,7 @@
 
 > **Reference.** Product overview: [root README](../README.md). Catalog: [documentation index](README.md). Quick path: [getting-started](getting-started.md).
 
-CacheOrchestrator is split so **policy and orchestration** live in Core, while **engines and HTTP** are optional packages. The application chooses topology with NuGet references and DI — domain rules and the library call site stay the same.
+CacheOrchestrator is split so **policy and orchestration** live in Core, while **engines and HTTP** are optional packages. The application chooses topology with NuGet references and DI — domain rules and call sites stay stable.
 
 Dependency rule: arrows point at **Core**. Core never references ASP.NET, FusionCache, HybridCache, Redis, HttpBus, or EF.
 
@@ -12,7 +12,7 @@ Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion
 
 | Package | Role |
 |---------|------|
-| [**CacheOrchestrator.Core**](../src/CacheOrchestrator.Core/README.md) | Domains, Version, portable `DataCache` policy, entity footprint/tags, `ICacheOrchestrator`, invalidation and cluster **contracts** |
+| [**CacheOrchestrator.Core**](../src/CacheOrchestrator.Core/README.md) | Domains, Version, portable `DataCache` policy, entity footprint/tags, `ICacheOrchestrator`, `CacheDomainContext`, invalidation and cluster **contracts** |
 | [**CacheOrchestrator.FusionCache**](../src/CacheOrchestrator.FusionCache/README.md) | ZiggyCreatures FusionCache as `IDataCacheProvider`; owns JSON `FusionCache` knobs (hard TTL, fail-safe, factory timeouts, …) |
 | [**CacheOrchestrator.HybridCache**](../src/CacheOrchestrator.HybridCache/README.md) | Microsoft HybridCache as `IDataCacheProvider` (portable `DataCache.Ttl` only; no fail-safe) |
 | [**CacheOrchestrator.AspNetCore**](../src/CacheOrchestrator.AspNetCore/README.md) | Output Cache, Client Cache-Control, HTTP `IDomainDataCache`, Admin API, `AddCacheOrchestratorAspNetCore` |
@@ -23,154 +23,55 @@ Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion
 
 **Admin Console App** (`src/CacheOrchestrator.AdminConsole`) is a separate host, not a NuGet package. [admin.md](admin.md) · [deploy/admin](../deploy/admin/README.md).
 
-Libraries should take **`ICacheOrchestrator`** (and/or `ICacheOrchestratorInvalidator`) from Core (including entity/footprint helpers). Web endpoints often use AspNetCore’s **`IDomainDataCache`** + `.CacheOutputWithDomain` / `[CacheDomain]` — a thin HTTP projection over the same orchestrator (no Ziggy dependency in AspNetCore).
-
----
-
-## `ICacheOrchestrator` vs `IDomainDataCache`
-
-| | `ICacheOrchestrator` | `IDomainDataCache` |
-|--|----------------------|--------------------|
-| Package | Core | AspNetCore |
-| Typical caller | Class libraries, workers | Minimal APIs / controllers |
-| Input | `CacheEntryRequest` or domain + key / entity args — **no** `HttpContext` | `HttpContext` (domain and entity identity from the request) |
-| Role | Domain policy, Version keying, tags, get-or-create via `IDataCacheProvider` | Resolve domain / vary key / auth from HTTP, then call `ICacheOrchestrator` |
-
-`IDomainDataCache` is not a second cache. Output Cache and Client Cache-Control are separate layers applied by the ASP.NET host; they are not invoked through either interface.
-
-### Who chooses the domain name
-
-`.CacheOutputWithDomain(...)` / `[CacheDomain]` attach a domain to an **HTTP endpoint**. `ICacheOrchestrator` has no ambient request: the library must pass a domain string into each call. The library author typically **does not** hard-code that name — the **host** supplies it (environment / product mapping). Keep the library Http-free: inject options, not `HttpContext`.
-
-`Configure<TOptions>` is the usual .NET Options pattern. A library can wrap it in one extension for a shorter host line, for example `AddCatalogCache(o => o.Domain = "catalog")` that calls `Configure` + `AddScoped<CatalogService>` internally. Binding from configuration (`Configure<CatalogCacheOptions>(config.GetSection("CatalogCache"))`) is equivalent.
-
-### Library + web host (shared domain config)
-
-One domain block under `Cache:Domains` can hold **DataCache**, **OutputCache**, and **ClientCache**. The library uses the data-cache policy (and Version). The host applies Output Cache and client headers for the **same** domain name around the library call.
-
-**Library** (references Core only — no domain literal):
-
-```csharp
-public sealed class CatalogCacheOptions
-{
-    /// <summary>Maps to Cache:Domains:{Domain}. Required — set by the host.</summary>
-    public string Domain { get; set; } = "";
-}
-
-public sealed class CatalogService(
-    ICacheOrchestrator cache,
-    IOptions<CatalogCacheOptions> options)
-{
-    public ValueTask<ProductDto?> GetProductAsync(string id, CancellationToken cancellationToken)
-    {
-        string domain = options.Value.Domain;
-        if (string.IsNullOrWhiteSpace(domain))
-            throw new InvalidOperationException("CatalogCacheOptions.Domain must be set by the host.");
-
-        return cache.GetOrCreateAsync(
-            new CacheEntryRequest { Domain = domain, Key = $"product:{id}" },
-            async ct => await LoadProductAsync(id, ct),
-            cancellationToken);
-    }
-}
-```
-
-**Host** — one place decides the name; Options and Output Cache both use it:
-
-```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration);
-
-const string catalogDomain = "catalog";
-builder.Services.Configure<CatalogCacheOptions>(o => o.Domain = catalogDomain);
-builder.Services.AddScoped<CatalogService>();
-
-app.MapGet("/api/products/{id}", async (string id, CatalogService catalog, CancellationToken ct) =>
-    Results.Json(await catalog.GetProductAsync(id, ct)))
-.CacheOutputWithDomain(catalogDomain);
-```
-
-**Configuration** (policy for that domain name):
-
-```json
-"Domains": {
-  "catalog": {
-    "Version": "1",
-    "DataCache": { "Ttl": "00:05:00" },
-    "OutputCache": { "Ttl": "00:01:00" },
-    "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
-  }
-}
-```
-
-With several modules, register several options types (each with its own `Domain`). Multiple domains in `Cache:Domains` are independent policies; each library options instance points at one of them.
-
-Request path: client headers → Output Cache → handler → `CatalogService` → `ICacheOrchestrator` → Fusion or Hybrid. Layer TTLs may differ; coordination is the shared domain name and Version (and tag invalidation). A worker host sets the same `CatalogCacheOptions.Domain` and skips `.CacheOutputWithDomain` — Output/Client sections simply do not apply in that process.
+| API | Package | Role |
+|-----|---------|------|
+| `ICacheOrchestrator` | Core | Http-free data get-or-create |
+| `CacheDomainContext` | Core | Host-supplied domain (+ optional entity kind) for libraries |
+| `IDomainDataCache` | AspNetCore | HTTP projection over `ICacheOrchestrator` |
 
 ---
 
 ## Use-case matrix
 
-Same domain policy idea in every row. What changes is **which packages you install** and **how the host registers** them.
-
 | # | Host | Data provider | Output Cache | Client Cache | Typical packages |
 |---|------|---------------|--------------|--------------|------------------|
-| **A** | Worker / class library | Fusion | — | — | Core + FusionCache (+ host registration) |
-| **B** | Worker / class library | Hybrid | — | — | Core + HybridCache (+ host registration) |
+| **A** | Worker | Fusion | — | — | Core + FusionCache |
+| **B** | Worker | Hybrid | — | — | Core + HybridCache |
 | **C** | Web | Fusion | yes | yes | **Meta** *or* AspNetCore + FusionCache (+ Redis optional) |
 | **D** | Web | Hybrid | yes | yes | AspNetCore + HybridCache |
-| **E** | Web | unused | yes | yes | AspNetCore / meta — call OC/CC only; skip data get-or-set |
+| **E** | Web | unused | yes | yes | AspNetCore / meta — OC/CC only |
 | **F** | Web + EF | Fusion | yes | yes | **C** + EFCore.Invalidation |
 
-**Host registration:** meta package `AddCacheOrchestrator` = `AddCacheOrchestratorAspNetCore` + `AddCacheOrchestratorFusionCache` (binds `Cache`, Output Cache, named Fusion instances, `ICacheOrchestrator`, `IDomainDataCache`). AspNetCore alone does **not** register a data engine — call Fusion or Hybrid explicitly. For Hybrid: `AddHybridCache()` → `AddCacheOrchestratorAspNetCore` → `AddCacheOrchestratorHybridCache()`. Class libraries still depend only on Core contracts so the **call site below does not change**.
+**Registration**
+
+- Meta: `AddCacheOrchestrator(configuration)` = AspNetCore + Fusion.
+- Hybrid web: `AddHybridCache()` → `AddCacheOrchestratorAspNetCore` → `AddCacheOrchestratorHybridCache()`.
+- Redis: `AddCacheOrchestrator(..., o => o.AddRedisBackend())` (after Redis package).
+
+Shared nested config shape (adapt providers / enable flags per scenario):
+
+```json
+"Cache": {
+  "OutputCache": { "Provider": "InMemory" },
+  "DataCacheInstances": { "default": { "Provider": "InMemory" } },
+  "Domains": {
+    "catalog": {
+      "Version": "1",
+      "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
+      "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
+      "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+    }
+  }
+}
+```
 
 ---
 
-## Invariant call site (rows A–D)
+## Endpoint composition examples
 
-Library code that loads domain data (domain name from host options — see above):
+Assume `AddCacheOrchestrator` (or AspNetCore + a data provider) is already called. Examples use Minimal APIs; controllers use `[CacheDomain("catalog")]` the same way.
 
-```csharp
-cache.GetOrCreateAsync(
-    new CacheEntryRequest { Domain = options.Value.Domain, Key = $"product:{id}" },
-    async ct => await LoadProductAsync(id, ct),
-    cancellationToken);
-```
-
-This call is the same for Fusion and Hybrid. The registered `IDataCacheProvider` is what differs.
-
-### Registration diffs
-
-**C — Web + Fusion (typical, meta package):**
-
-```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration);
-// optional: o => o.AddRedisBackend()
-// Equivalent without meta:
-//   AddCacheOrchestratorAspNetCore(...) + AddCacheOrchestratorFusionCache(configuration)
-```
-
-**D — Web + Hybrid:**
-
-```csharp
-builder.Services.AddHybridCache();
-builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
-builder.Services.AddCacheOrchestratorHybridCache(); // replaces IDataCacheProvider
-```
-
-**F — add EF invalidation** on top of C:
-
-```csharp
-builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration);
-// + interceptor / DbContext registration — see ef-core-invalidation.md
-```
-
-**A / B — worker-style:** still compose Core contracts + a data provider; most hosts reuse `AddCacheOrchestrator` (AspNetCore) or wire the same Core services in custom DI. Prefer depending on `ICacheOrchestrator`, not on Fusion or Hybrid types.
-
----
-
-## Web happy path (rows C / D / F)
-
-When AspNetCore is present, endpoints usually attach the domain once and use the HTTP helper:
+### 1. Output Cache + data cache + client headers (typical web)
 
 ```csharp
 app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
@@ -181,41 +82,181 @@ app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
 .CacheOutputWithDomain("catalog");
 ```
 
-That path still resolves the same domain options and goes through the orchestrator / data provider. Controllers use `[CacheDomain("catalog")]` the same way.
+Domain on the endpoint drives Output Cache, Client Cache-Control, and (via `IDomainDataCache`) data cache.
 
-Row **E** (Output + Client only): keep `.CacheOutputWithDomain` / `[CacheDomain]` and do **not** call data get-or-set (or set `DataCache:Enabled` false for that domain).
+### 2. Output Cache only (no data get-or-set)
+
+```csharp
+app.MapGet("/api/about", () => Results.Content("…", "text/html"))
+.CacheOutputWithDomain("static-pages");
+```
+
+Or keep data registration but set `"DataCache": { "Enabled": false }` for that domain. Handler does not call `IDomainDataCache` / `ICacheOrchestrator`.
+
+### 3. Data cache only (no Output Cache on the route)
+
+```csharp
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+{
+    var data = await cache.GetOrSetAsync(http, "catalog", ct => LoadProductAsync(id, ct));
+    return Results.Json(data);
+});
+// no .CacheOutputWithDomain — OC policy not attached
+```
+
+Pass the domain name into `GetOrSetAsync` when there is no endpoint domain metadata. Client headers are not applied by an OC policy on this route.
+
+### 4. Redis as data-cache L2 (and optional OC store)
+
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBackend());
+```
+
+```json
+"OutputCache": { "Provider": "InMemory" },
+"DataCacheInstances": { "default": { "Provider": "Redis" } },
+"Redis": { "Configuration": "localhost:6379" }
+```
+
+Endpoint code stays like example 1. Swap `"OutputCache": { "Provider": "Redis" }` when full HTTP responses should also live in Redis.
+
+### 5. HybridCache instead of Fusion
+
+```csharp
+builder.Services.AddHybridCache();
+builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
+builder.Services.AddCacheOrchestratorHybridCache();
+```
+
+Endpoint code unchanged (still `IDomainDataCache` + `.CacheOutputWithDomain`). Fusion-only JSON (`FusionCache` hard TTL / fail-safe) is ignored.
+
+### 6. Dynamic domain from the route
+
+```csharp
+static string CatalogDomain(HttpContext http) =>
+    $"tenant-{http.Request.RouteValues["tenant"]}";
+
+app.MapGet("/t/{tenant}/products", async (HttpContext http, IDomainDataCache cache) =>
+{
+    var data = await cache.GetOrSetAsync(http, CatalogDomain(http), LoadProductsAsync);
+    return Results.Json(data);
+})
+.CacheOutputWithDomain(CatalogDomain);
+```
+
+Use matching entries under `Cache:Domains` (or rely on domain defaults). Prefer one shared resolver so Output Cache and data cache never diverge.
+
+### 7. Worker / no HTTP (data cache only)
+
+No Minimal API. Register Core + Fusion (or Hybrid) and call `ICacheOrchestrator` with an explicit `CacheDomainContext` (see next section). Output/Client settings in config do not apply without an ASP.NET pipeline.
+
+---
+
+## `CacheDomainContext` (libraries)
+
+Http-free libraries should not hard-code domain names and should not take `HttpContext`. By convention they accept a **`CacheDomainContext`** from the host:
+
+```csharp
+public sealed class CacheDomainContext
+{
+    public CacheDomainContext(string domain, string? entityKind = null);
+    public string Domain { get; }
+    public string? EntityKind { get; }
+    public string EntityKindOr(string defaultEntityKind);
+}
+```
+
+Optional entity kind supports entity APIs; resource ids stay method parameters. Core also provides `ICacheOrchestrator` extension overloads that take `CacheDomainContext`.
+
+### Library + endpoint (static domain)
+
+**Library** (Core only):
+
+```csharp
+public sealed class CatalogService(ICacheOrchestrator cache)
+{
+    public ValueTask<ProductDto?> GetProductAsync(
+        CacheDomainContext cacheDomain,
+        string id,
+        CancellationToken cancellationToken) =>
+        cache.GetOrCreateAsync(
+            cacheDomain,
+            logicalKey: $"product:{id}",
+            async ct => await LoadProductAsync(id, ct),
+            cancellationToken);
+}
+```
+
+**Host** — build one context; reuse for Output Cache and the library:
+
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration);
+builder.Services.AddScoped<CatalogService>();
+
+var catalogDomain = new CacheDomainContext("catalog");
+
+app.MapGet("/api/products/{id}", async (
+    string id,
+    CatalogService catalog,
+    CancellationToken ct) =>
+    Results.Json(await catalog.GetProductAsync(catalogDomain, id, ct)))
+.CacheOutputWithDomain(catalogDomain.Domain);
+```
+
+**Configuration** — policy under that domain name (`DataCache` / `OutputCache` / `ClientCache` as needed).
+
+### Library + endpoint (dynamic domain)
+
+```csharp
+CacheDomainContext CatalogDomain(HttpContext http) =>
+    new($"tenant-{http.Request.RouteValues["tenant"]}");
+
+app.MapGet("/t/{tenant}/products/{id}", async (
+    HttpContext http,
+    string id,
+    CatalogService catalog,
+    CancellationToken ct) =>
+{
+    CacheDomainContext domain = CatalogDomain(http);
+    return Results.Json(await catalog.GetProductAsync(domain, id, ct));
+})
+.CacheOutputWithDomain(http => CatalogDomain(http).Domain);
+```
+
+### Worker using the same library
+
+```csharp
+var domain = new CacheDomainContext($"tenant-{job.TenantId}");
+await catalog.GetProductAsync(domain, job.ProductId, cancellationToken);
+```
+
+No `.CacheOutputWithDomain`. Same `CatalogService` API.
 
 ---
 
 ## Config layers (nested)
 
-Under each domain (and `DomainDefaults`):
-
 | JSON section | Portable? | Meaning |
 |--------------|-----------|---------|
-| `DataCache` | Yes | Enable, instance name, TTL, vary / no-store — Fusion **or** Hybrid |
+| `DataCache` | Yes | Enable, instance, TTL, vary / no-store |
 | `OutputCache` | AspNet | HTTP response cache |
 | `ClientCache` | AspNet | Browser / CDN `Cache-Control` (+ schedule) |
-| `FusionCache` | Fusion package only | Hard TTL, fail-safe, factory timeouts, jitter, … |
+| `FusionCache` | Fusion only | Hard TTL, fail-safe, factory timeouts, … |
 
-Root providers: `OutputCache` + **`DataCacheInstances`** (named engines; default instance is typically InMemory or Redis via the Redis package).
-
-Default key namespace for a data-cache instance remains `{Namespace}-fc` / `{Namespace}-fc-{name}` when unset (historical suffix; override with per-instance `Namespace` if you prefer).
+Root engines: `OutputCache` + **`DataCacheInstances`**. Default key namespace suffix `{Namespace}-fc` is historical (override per instance if needed).
 
 ---
 
 ## Capability note (Fusion vs Hybrid)
 
-| Feature | Fusion provider | Hybrid provider |
-|---------|-----------------|-----------------|
+| Feature | Fusion | Hybrid |
+|---------|--------|--------|
 | GetOrCreate + stampede | Yes | Yes |
 | Tag invalidation | Yes | Yes (logical) |
 | `DataCache.Ttl` | Soft / duration | Expiration |
-| Hard TTL / fail-safe / eager / factory timeouts | Yes (`FusionCache` section) | No (ignored) |
+| Hard TTL / fail-safe / factory timeouts | Yes | No (ignored) |
 | Named `DataCacheInstances` | Yes | Single DI HybridCache |
-| Redis L2 + backplane | Yes (Redis package) | Configure Hybrid / `IDistributedCache` separately |
-
-Admin runtime overlays for `fusionCache.*` require the Fusion package contributor. Details: [fusion-cache.md](fusion-cache.md), [HybridCache README](../src/CacheOrchestrator.HybridCache/README.md), [configuration.md](configuration.md).
+| Redis L2 + backplane | Redis package | Configure Hybrid / `IDistributedCache` separately |
 
 ---
 
@@ -224,3 +265,4 @@ Admin runtime overlays for `fusionCache.*` require the Fusion package contributo
 - [Topologies](guide/topologies.md) — InMemory / Redis / bus layouts  
 - [Architecture](architecture.md) — request flow and project layout  
 - [Getting started](getting-started.md) — first web endpoint  
+- [Configuration](configuration.md) — full schema  

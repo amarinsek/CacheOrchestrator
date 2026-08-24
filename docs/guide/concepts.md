@@ -28,7 +28,7 @@ All three resolve the same `DomainCacheOptions`. If lifetimes and invalidation d
 
 Libraries take **`ICacheOrchestrator`** from Core and pass the domain (and entity identity) in the call. Web endpoints usually use AspNetCore’s **`IDomainDataCache`** + `.CacheOutputWithDomain` / `[CacheDomain]` — the HTTP projection over the same orchestrator. Which engine backs the data layer is an `IDataCacheProvider` (Fusion by default; Hybrid optional).
 
-The same domain name in configuration can define DataCache, OutputCache, and ClientCache together. The **host** chooses that name (e.g. via `IOptions` on the library); library code only exercises the data-cache policy; the host applies Output Cache and client headers for that domain around the call. Worked example: [packages.md — library + web host](../packages.md#library--web-host-shared-domain-config).
+The same domain name in configuration can define DataCache, OutputCache, and ClientCache together. Http-free libraries take a host-supplied **`CacheDomainContext`** (domain, optional entity kind) on each call; the host applies Output Cache / client headers with the same domain string. Endpoint and library examples: [packages.md](../packages.md).
 
 The core package is Http-free policy and contracts. ASP.NET Output Cache / client headers, Redis, the cluster HttpBus, and EF hooks are separate packages — [packages.md](../packages.md), [topologies](topologies.md).
 
