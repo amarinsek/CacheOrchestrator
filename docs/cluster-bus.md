@@ -1,10 +1,10 @@
-# Cluster command bus (`CacheOrchestrator.Bus`)
+# Cluster command bus (`CacheOrchestrator.HttpBus`)
 
 > **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — topologies](guide/topologies.md). Catalog: [documentation index](README.md). Canonical detail for membership, commands, and peer HTTP.
 
 When several instances must apply the same invalidate, Version, or TTL change, this package delivers those **commands** over HTTP. It does not move cache payloads. Peers run the same local purge or overlay they would have run if the call had been made on that process.
 
-Package README: [src/CacheOrchestrator.Bus/README.md](../src/CacheOrchestrator.Bus/README.md). See also [invalidation.md](invalidation.md), [deployment.md](deployment.md), [admin.md](admin.md), [configuration.md](configuration.md).
+Package README: [src/CacheOrchestrator.HttpBus/README.md](../src/CacheOrchestrator.HttpBus/README.md). See also [invalidation.md](invalidation.md), [deployment.md](deployment.md), [admin.md](admin.md), [configuration.md](configuration.md).
 
 ---
 
@@ -37,14 +37,14 @@ Peer HTTP/timeout failures are reported in `ClusterPublishResult` (not swallowed
 
 ```bash
 dotnet add package CacheOrchestrator
-dotnet add package CacheOrchestrator.Bus
+dotnet add package CacheOrchestrator.HttpBus
 ```
 
 ## Register
 
 ```csharp
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.Bus;
+using CacheOrchestrator.HttpBus;
 
 builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 {
@@ -61,8 +61,8 @@ Receive endpoints are independent of the Admin API. Call `AddHttpClusterBus()` i
 
 | API | Assembly / namespace |
 |-----|----------------------|
-| `AddHttpClusterBus` | `CacheOrchestrator.Bus` |
-| `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.Bus` |
+| `AddHttpClusterBus` | `CacheOrchestrator.HttpBus` |
+| `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.HttpBus` |
 | `IClusterCommandBus` / `IClusterMembership` / `IClusterCommandHandler` | `CacheOrchestrator.Cluster` (core; Null by default) |
 | `IInstanceIdProvider` | `CacheOrchestrator.Cluster` |
 

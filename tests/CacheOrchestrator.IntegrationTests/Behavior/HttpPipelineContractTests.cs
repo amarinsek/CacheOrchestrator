@@ -54,7 +54,7 @@ public class HttpPipelineContractTests
         Dictionary<string, string?> d = new()
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
@@ -71,7 +71,7 @@ public class HttpPipelineContractTests
     private static Dictionary<string, string?> DefaultsOnlyConfig() => new()
     {
         ["Cache:OutputCache:Provider"] = "InMemory",
-        ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+        ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
         ["Cache:EmitDiagnosticsHeaders"] = "true",
         ["Cache:DomainDefaults:Version"] = "v1",
         ["Cache:DomainDefaults:ClientCache:Cacheability"] = "Public",

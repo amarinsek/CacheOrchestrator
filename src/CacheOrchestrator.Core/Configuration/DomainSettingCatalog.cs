@@ -18,8 +18,24 @@ public static class DomainSettingCatalog
         typeof(DomainDataCacheSettings),
         typeof(DomainOutputCacheSettings),
         typeof(DomainClientCacheSettings),
-        typeof(DomainFusionCacheSettings),
     ];
+
+    private static readonly ConcurrentDictionary<string, (Type Type, string IdPrefix, string PropertyPrefix)> ExtraSections =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Registers an additional attributed settings type (e.g. Fusion engine knobs) under a fixed id prefix.
+    /// Clears the catalog cache so subsequent reads include the section.
+    /// </summary>
+    public static void RegisterSection(Type settingsType, string idPrefix, string propertyPrefix)
+    {
+        ArgumentNullException.ThrowIfNull(settingsType);
+        ArgumentException.ThrowIfNullOrWhiteSpace(idPrefix);
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyPrefix);
+
+        ExtraSections[idPrefix] = (settingsType, idPrefix, propertyPrefix);
+        Cache.Clear();
+    }
 
     /// <summary>All attributed domain settings (config shape).</summary>
     public static IReadOnlyList<DomainSettingCatalogEntry> GetEntries() =>
@@ -50,6 +66,9 @@ public static class DomainSettingCatalog
     {
         List<DomainSettingCatalogEntry> list = [];
         Walk(typeof(CacheOrchestratorOptions.DomainCacheSettings), prefixId: null, prefixProperty: null, overlayOnly, list);
+
+        foreach ((Type type, string idPrefix, string propertyPrefix) in ExtraSections.Values)
+            Walk(type, idPrefix, propertyPrefix, overlayOnly, list);
 
         list.Sort((a, b) =>
         {

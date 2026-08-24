@@ -2,7 +2,7 @@ namespace CacheOrchestrator.Cluster;
 
 /// <summary>
 /// Publishes cluster commands to peer instances. Default implementation is a no-op
-/// (<see cref="NullClusterCommandBus"/>) until <c>CacheOrchestrator.Bus</c> is registered.
+/// (<see cref="NullClusterCommandBus"/>) until <c>CacheOrchestrator.HttpBus</c> is registered.
 /// </summary>
 public interface IClusterCommandBus
 {

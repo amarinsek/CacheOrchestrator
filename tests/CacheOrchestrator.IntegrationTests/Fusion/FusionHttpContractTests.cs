@@ -15,7 +15,7 @@ namespace CacheOrchestrator.IntegrationTests.Fusion;
 /// <summary>
 /// HTTP coverage for Fusion contracts that are easy to get wrong on a real request:
 /// entity-then-URL key restore, Accept restore, explicit domain vs OC domain,
-/// FusionRespectAuthBypass, and no-store through both layers.
+/// DataCacheRespectAuthBypass, and no-store through both layers.
 /// </summary>
 public class FusionHttpContractTests
 {
@@ -31,7 +31,7 @@ public class FusionHttpContractTests
         Dictionary<string, string?> d = new()
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
@@ -306,13 +306,13 @@ public class FusionHttpContractTests
     }
 
     [Fact]
-    public async Task FusionRespectAuthBypass_True_Authorization_RunsFactoryEveryTime()
+    public async Task DataCacheRespectAuthBypass_True_Authorization_RunsFactoryEveryTime()
     {
         string domain = "fc-auth-on-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
             d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
-            d[$"Cache:Domains:{domain}:FusionRespectAuthBypass"] = "true";
+            d[$"Cache:Domains:{domain}:DataCacheRespectAuthBypass"] = "true";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
@@ -351,13 +351,13 @@ public class FusionHttpContractTests
     }
 
     [Fact]
-    public async Task FusionRespectAuthBypass_False_StillCachesUnderAuthorization()
+    public async Task DataCacheRespectAuthBypass_False_StillCachesUnderAuthorization()
     {
         string domain = "fc-auth-off-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
             d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
-            d[$"Cache:Domains:{domain}:FusionRespectAuthBypass"] = "false";
+            d[$"Cache:Domains:{domain}:DataCacheRespectAuthBypass"] = "false";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>

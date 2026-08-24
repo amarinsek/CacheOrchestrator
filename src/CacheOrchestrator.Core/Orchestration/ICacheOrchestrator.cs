@@ -5,7 +5,7 @@ namespace CacheOrchestrator.Orchestration;
 /// </summary>
 /// <remarks>
 /// This is the primary library-facing abstraction for CacheOrchestrator v3.
-/// It does not own a store: a registered <see cref="IDataCacheProvider"/> (e.g. FusionCache)
+/// It does not own a store: a registered <see cref="IDataCacheProvider"/> (e.g. FusionCache, HybridCache)
 /// performs the physical get-or-set. HTTP Output Cache / Client Cache live in the ASP.NET
 /// integration and are not required to use this interface.
 /// </remarks>

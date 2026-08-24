@@ -50,7 +50,7 @@ public sealed class AdminLayerDto
     public bool LowRequestSample { get; init; }
 }
 
-/// <summary>Fusion layer counters with layer rates and request shares.</summary>
+/// <summary>Data-cache layer counters with layer rates and request shares (wire <c>fc</c>).</summary>
 public sealed class AdminFusionLayerDto
 {
     /// <summary>Cache hits.</summary>
@@ -98,7 +98,7 @@ public sealed class AdminFusionLayerDto
     private double? _factoryShare;
 
     /// <summary>
-    /// Request share: factoryRuns / requests (Fusion factory / miss path).
+    /// Request share: factoryRuns / requests (data-cache factory / miss path).
     /// Also known as origin share in CDN terms.
     /// </summary>
     public double? FactoryShare
@@ -119,7 +119,7 @@ public sealed class AdminFusionLayerDto
     }
 
     /// <summary>
-    /// True when the Fusion <strong>layer</strong> sample (hits+misses) is positive but below
+    /// True when the data-cache <strong>layer</strong> sample (hits+misses) is positive but below
     /// <see cref="AdminStatsMath.LowSampleThreshold"/>. Use for layer rates only.
     /// </summary>
     public bool LowSample { get; init; }
@@ -143,7 +143,7 @@ public sealed class AdminPipelineDto
     /// <summary>Served entirely from Output Cache.</summary>
     public double? OcHitShare { get; init; }
 
-    /// <summary>Served from Fusion without factory (fresh hit).</summary>
+    /// <summary>Served from data cache without factory (fresh hit).</summary>
     public double? FcHitShare { get; init; }
 
     /// <summary>
@@ -155,7 +155,7 @@ public sealed class AdminPipelineDto
     private double? _factoryShare;
 
     /// <summary>
-    /// Factory callback share of requests (factoryRuns / requests), including Fusion disabled.
+    /// Factory callback share of requests (factoryRuns / requests), including data cache disabled.
     /// Also known as origin share. Exclusive mix sibling of OC hit and FC hit.
     /// </summary>
     public double? FactoryShare
@@ -340,7 +340,7 @@ public sealed class AdminDomainStatsDto
     /// <summary>Output Cache counters + rates/shares.</summary>
     public required AdminLayerDto Oc { get; init; }
 
-    /// <summary>FusionCache counters + rates/shares.</summary>
+    /// <summary>Data-cache counters + rates/shares (wire <c>fc</c>).</summary>
     public required AdminFusionLayerDto Fc { get; init; }
 
     /// <summary>Pipeline shares of requests.</summary>
@@ -389,7 +389,7 @@ public sealed class AdminEndpointStatsDto
     /// <summary>Output Cache layer.</summary>
     public required AdminLayerDto Oc { get; init; }
 
-    /// <summary>Fusion layer.</summary>
+    /// <summary>Data-cache layer (wire <c>fc</c>).</summary>
     public required AdminFusionLayerDto Fc { get; init; }
 
     /// <summary>Pipeline shares.</summary>
@@ -508,23 +508,23 @@ public sealed class AdminDomainConfigDto
     /// <summary>Output Cache enabled.</summary>
     public bool OutputCacheEnabled { get; init; }
 
-    /// <summary>FusionCache enabled.</summary>
-    public bool FusionCacheEnabled { get; init; }
+    /// <summary>Data cache enabled.</summary>
+    public bool DataCacheEnabled { get; init; }
 
-    /// <summary>Fusion instance name.</summary>
-    public required string FusionCacheInstanceName { get; init; }
+    /// <summary>Data-cache instance name.</summary>
+    public required string DataCacheInstanceName { get; init; }
 
     /// <summary>Output Cache TTL seconds.</summary>
     public int OutputCacheTtlSeconds { get; init; }
 
-    /// <summary>Fusion soft TTL seconds.</summary>
-    public int FusionCacheSoftTtlSeconds { get; init; }
+    /// <summary>Data-cache soft TTL seconds.</summary>
+    public int DataCacheTtlSeconds { get; init; }
 
-    /// <summary>Fusion hard TTL seconds.</summary>
-    public int FusionCacheHardTtlSeconds { get; init; }
+    /// <summary>Data-cache hard TTL seconds.</summary>
+    public int HardTtlSeconds { get; init; }
 
-    /// <summary>Fusion fail-safe seconds.</summary>
-    public int FusionCacheFailSafeSeconds { get; init; }
+    /// <summary>Data-cache fail-safe seconds.</summary>
+    public int FailSafeSeconds { get; init; }
 
     /// <summary>Client TTL seconds.</summary>
     public int ClientTtlSeconds { get; init; }
@@ -551,14 +551,14 @@ public sealed class AdminRuntimeOverrideFlagsDto
     /// <summary>Output TTL overridden.</summary>
     public bool OutputCacheTtl { get; init; }
 
-    /// <summary>Fusion soft TTL overridden.</summary>
-    public bool FusionCacheSoftTtl { get; init; }
+    /// <summary>Data-cache soft TTL overridden.</summary>
+    public bool DataCacheTtl { get; init; }
 
-    /// <summary>Fusion hard TTL overridden.</summary>
-    public bool FusionCacheHardTtl { get; init; }
+    /// <summary>Data-cache hard TTL overridden.</summary>
+    public bool HardTtl { get; init; }
 
-    /// <summary>Fusion fail-safe overridden.</summary>
-    public bool FusionCacheFailSafe { get; init; }
+    /// <summary>Data-cache fail-safe overridden.</summary>
+    public bool FailSafe { get; init; }
 
     /// <summary>Client TTL overridden.</summary>
     public bool ClientTtl { get; init; }
@@ -649,14 +649,14 @@ public sealed class AdminTtlPatchRequest
     /// <summary>Output Cache TTL seconds.</summary>
     public int? OutputCacheTtlSeconds { get; set; }
 
-    /// <summary>Fusion soft TTL seconds.</summary>
-    public int? FusionCacheSoftTtlSeconds { get; set; }
+    /// <summary>Data-cache soft TTL seconds.</summary>
+    public int? DataCacheTtlSeconds { get; set; }
 
-    /// <summary>Fusion hard TTL seconds.</summary>
-    public int? FusionCacheHardTtlSeconds { get; set; }
+    /// <summary>Data-cache hard TTL seconds.</summary>
+    public int? HardTtlSeconds { get; set; }
 
-    /// <summary>Fusion fail-safe seconds.</summary>
-    public int? FusionCacheFailSafeSeconds { get; set; }
+    /// <summary>Data-cache fail-safe seconds.</summary>
+    public int? FailSafeSeconds { get; set; }
 
     /// <summary>Client TTL seconds.</summary>
     public int? ClientTtlSeconds { get; set; }

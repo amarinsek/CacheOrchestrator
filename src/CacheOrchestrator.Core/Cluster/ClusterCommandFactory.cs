@@ -65,9 +65,9 @@ internal sealed class ClusterCommandFactory
             TimestampUtc = DateTimeOffset.UtcNow,
             Domain = domain,
             OutputCacheTtlSeconds = patch.OutputCacheTtlSeconds,
-            FusionCacheSoftTtlSeconds = patch.FusionCacheSoftTtlSeconds,
-            FusionCacheHardTtlSeconds = patch.FusionCacheHardTtlSeconds,
-            FusionCacheFailSafeSeconds = patch.FusionCacheFailSafeSeconds,
+            DataCacheTtlSeconds = patch.DataCacheTtlSeconds,
+            HardTtlSeconds = patch.HardTtlSeconds,
+            FailSafeSeconds = patch.FailSafeSeconds,
             ClientTtlSeconds = patch.ClientTtlSeconds,
             ClientTtlMinSeconds = patch.ClientTtlMinSeconds
         };

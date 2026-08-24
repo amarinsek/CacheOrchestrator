@@ -44,7 +44,7 @@ public class RedisMultiNodeTests
         {
             ["Cache:Namespace"] = "it-multi-" + Guid.NewGuid().ToString("N")[..8],
             ["Cache:OutputCache:Provider"] = ocProvider,
-            ["Cache:FusionCacheInstances:default:Provider"] = fcProvider,
+            ["Cache:DataCacheInstances:default:Provider"] = fcProvider,
             ["Cache:Redis:Configuration"] = redisCs,
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
@@ -151,7 +151,7 @@ public class RedisMultiNodeTests
                 {
                     ["Cache:Namespace"] = ns,
                     ["Cache:OutputCache:Provider"] = "InMemory",
-                    ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+                    ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                     ["Cache:Redis:Configuration"] = _redis.ConnectionString,
                     [$"Cache:Domains:{domain}:Version"] = "v1",
                     [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
@@ -225,7 +225,7 @@ public class RedisMultiNodeTests
                 {
                     ["Cache:Namespace"] = ns,
                     ["Cache:OutputCache:Provider"] = "InMemory",
-                    ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+                    ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                     ["Cache:Redis:Configuration"] = _redis.ConnectionString,
                     [$"Cache:Domains:{domain}:Version"] = "v1",
                     [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
@@ -296,7 +296,7 @@ public class RedisMultiNodeTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "Redis",
-                ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+                ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString,
             })
             .Build();

@@ -68,9 +68,9 @@ public static class AdminConsoleWriteValidators
 
         bool any =
             request.OutputCacheTtlSeconds is not null
-            || request.FusionCacheSoftTtlSeconds is not null
-            || request.FusionCacheHardTtlSeconds is not null
-            || request.FusionCacheFailSafeSeconds is not null
+            || request.DataCacheTtlSeconds is not null
+            || request.HardTtlSeconds is not null
+            || request.FailSafeSeconds is not null
             || request.ClientTtlSeconds is not null
             || request.ClientTtlMinSeconds is not null;
 
@@ -78,9 +78,9 @@ public static class AdminConsoleWriteValidators
             throw new ArgumentException("At least one TTL field must be set.", nameof(request));
 
         ValidateNonNegative(request.OutputCacheTtlSeconds, nameof(request.OutputCacheTtlSeconds));
-        ValidateNonNegative(request.FusionCacheSoftTtlSeconds, nameof(request.FusionCacheSoftTtlSeconds));
-        ValidateNonNegative(request.FusionCacheHardTtlSeconds, nameof(request.FusionCacheHardTtlSeconds));
-        ValidateNonNegative(request.FusionCacheFailSafeSeconds, nameof(request.FusionCacheFailSafeSeconds));
+        ValidateNonNegative(request.DataCacheTtlSeconds, nameof(request.DataCacheTtlSeconds));
+        ValidateNonNegative(request.HardTtlSeconds, nameof(request.HardTtlSeconds));
+        ValidateNonNegative(request.FailSafeSeconds, nameof(request.FailSafeSeconds));
         ValidateNonNegative(request.ClientTtlSeconds, nameof(request.ClientTtlSeconds));
         ValidateNonNegative(request.ClientTtlMinSeconds, nameof(request.ClientTtlMinSeconds));
     }

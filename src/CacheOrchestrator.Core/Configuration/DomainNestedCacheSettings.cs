@@ -8,7 +8,7 @@ public sealed class DomainDataCacheSettings
     public bool? Enabled { get; set; }
 
     /// <summary>
-    /// Named data-cache instance (today: key in <see cref="CacheOrchestratorOptions.FusionCacheInstances"/>).
+    /// Named data-cache instance (today: key in <see cref="CacheOrchestratorOptions.DataCacheInstances"/>).
     /// </summary>
     [DomainSetting(Kind = DomainSettingValueKind.String, RuntimeOverlay = false, Group = "Data", DisplayName = "Data Cache instance")]
     public string? Instance { get; set; }
@@ -16,6 +16,18 @@ public sealed class DomainDataCacheSettings
     /// <summary>Logical data-cache TTL (maps to Fusion soft duration / Hybrid expiration).</summary>
     [DomainSetting(Kind = DomainSettingValueKind.TimeSpan, RuntimeOverlay = true, Group = "TTL", DisplayName = "Data Cache TTL")]
     public TimeSpan? Ttl { get; set; }
+
+    /// <summary>When true, skip data cache if the request has Cache-Control: no-store.</summary>
+    [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Data", DisplayName = "Respect no-store")]
+    public bool? RespectNoStore { get; set; }
+
+    /// <summary>Include scheme/host in the data-cache key.</summary>
+    [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Data", DisplayName = "Vary on public address")]
+    public bool? VaryOnPublicAddress { get; set; }
+
+    /// <summary>Include Accept-Encoding in the data-cache key.</summary>
+    [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Data", DisplayName = "Vary on encoding")]
+    public bool? VaryOnEncoding { get; set; }
 }
 
 /// <summary>Output Cache policy. Bound from <c>OutputCache</c> under a domain.</summary>
@@ -72,56 +84,4 @@ public sealed class DomainClientCacheSettings
     /// <summary>Force client Private when Identity is authenticated and cacheability is Public.</summary>
     [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Client", DisplayName = "Force private when authenticated")]
     public bool? ForcePrivateWhenAuthenticated { get; set; }
-}
-
-/// <summary>FusionCache-specific knobs. Bound from <c>FusionCache</c> under a domain.</summary>
-public sealed class DomainFusionCacheSettings
-{
-    /// <summary>Hard (absolute) duration cap.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.TimeSpan, RuntimeOverlay = true, Group = "TTL", DisplayName = "Fusion hard TTL")]
-    public TimeSpan? HardTtl { get; set; }
-
-    /// <summary>Fail-safe max duration.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.TimeSpan, RuntimeOverlay = true, Group = "TTL", DisplayName = "Fusion fail-safe")]
-    public TimeSpan? FailSafe { get; set; }
-
-    /// <summary>Eager refresh threshold ratio (0–1 exclusive). 0 = disabled.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.Double, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Eager refresh ratio")]
-    public double? EagerRefreshRatio { get; set; }
-
-    /// <summary>Max jitter added to Fusion duration.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.TimeSpan, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Fusion jitter")]
-    public TimeSpan? Jitter { get; set; }
-
-    /// <summary>Factory soft timeout.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.TimeSpan, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Factory soft timeout")]
-    public TimeSpan? FactorySoftTimeout { get; set; }
-
-    /// <summary>Factory hard timeout.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.TimeSpan, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Factory hard timeout")]
-    public TimeSpan? FactoryHardTimeout { get; set; }
-
-    /// <summary>Optional max item size for memory cache (bytes). 0 = unlimited.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.Int, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Max item bytes")]
-    public int? MaxItemBytes { get; set; }
-
-    /// <summary>When true, skip data cache if the request has Cache-Control: no-store.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Respect no-store")]
-    public bool? RespectNoStore { get; set; }
-
-    /// <summary>Allow background distributed cache operations.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Background distributed ops")]
-    public bool? AllowBackgroundDistributed { get; set; }
-
-    /// <summary>Allow background backplane operations.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Background backplane ops")]
-    public bool? AllowBackgroundBackplane { get; set; }
-
-    /// <summary>Include scheme/host in the FusionCache key.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Vary on public address")]
-    public bool? VaryOnPublicAddress { get; set; }
-
-    /// <summary>Include Accept-Encoding in the FusionCache key.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Vary on encoding")]
-    public bool? VaryOnEncoding { get; set; }
 }

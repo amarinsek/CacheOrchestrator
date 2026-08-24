@@ -38,7 +38,7 @@ public class AdminHealthHttpTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:InstanceId"] = "it-admin-health",
                 ["Cache:Admin:Enabled"] = "true",
                 ["Cache:Admin:ApiKey"] = "k",

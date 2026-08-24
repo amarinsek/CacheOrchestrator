@@ -1,4 +1,4 @@
-using CacheOrchestrator.Bus;
+using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Redis;

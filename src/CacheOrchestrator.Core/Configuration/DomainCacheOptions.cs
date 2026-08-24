@@ -9,10 +9,10 @@ public sealed class DomainCacheOptions
     public string Domain { get; init; } = string.Empty;
 
     /// <summary>
-    /// Name of the FusionCache instance that handles this domain.
-    /// Matches a key in <see cref="CacheOrchestratorOptions.FusionCacheInstances"/>.
+    /// Name of the data-cache instance that handles this domain.
+    /// Matches a key in <see cref="CacheOrchestratorOptions.DataCacheInstances"/>.
     /// </summary>
-    public string FusionCacheInstanceName { get; init; } = "default";
+    public string DataCacheInstanceName { get; init; } = "default";
 
     /// <summary>Whether Output Cache is enabled for this domain. Default: <see langword="true"/>.</summary>
     public bool OutputCacheEnabled { get; init; } = true;
@@ -21,7 +21,7 @@ public sealed class DomainCacheOptions
     public bool DataCacheEnabled { get; init; } = true;
 
     /// <summary>
-    /// When Output Cache (and optionally FusionCache) auto-bypasses for auth traffic.
+    /// When Output Cache (and optionally data cache) auto-bypasses for auth traffic.
     /// Default: <see cref="AuthBypassMode.AuthenticatedOrAuthorization"/> (historical behaviour).
     /// </summary>
     public AuthBypassMode AuthBypassMode { get; init; } = AuthBypassMode.AuthenticatedOrAuthorization;
@@ -51,11 +51,11 @@ public sealed class DomainCacheOptions
     public string[]? VaryByAuthClaims { get; init; }
 
     /// <summary>
-    /// When <see langword="true"/> (default), FusionCache <c>GetOrSet*</c> runs the factory uncached when
-    /// <see cref="DomainAuthEvaluator.ShouldBypassForAuth"/> would fire for Output Cache.
-    /// Set <see langword="false"/> only if you intentionally want Fusion to cache while OC auth-bypasses.
+    /// When <see langword="true"/> (default), data-cache <c>GetOrSet*</c> runs the factory uncached when
+    /// auth bypass would fire for Output Cache.
+    /// Set <see langword="false"/> only if you intentionally want data cache while OC auth-bypasses.
     /// </summary>
-    public bool FusionRespectAuthBypass { get; init; } = true;
+    public bool DataCacheRespectAuthBypass { get; init; } = true;
 
     /// <summary>
     /// When <see langword="true"/> (default), clamp client <c>Cache-Control</c> from Public to Private
@@ -148,47 +148,20 @@ public sealed class DomainCacheOptions
     /// <summary>Logical data-cache TTL (Fusion soft duration / Hybrid expiration).</summary>
     public TimeSpan DataCacheTtl { get; init; }
 
-    /// <summary>FusionCache hard (absolute) duration cap for soft TTL.</summary>
-    public TimeSpan FusionCacheHardTtl { get; init; }
-
-    /// <summary>FusionCache fail-safe max duration when serving stale data.</summary>
-    public TimeSpan FusionCacheFailSafe { get; init; }
-
     /// <summary>Key prefix / namespace for Output Cache.</summary>
     public string OutputCacheNamespace { get; init; } = string.Empty;
 
-    /// <summary>Key prefix / namespace for FusionCache.</summary>
-    public string FusionCacheNamespace { get; init; } = string.Empty;
+    /// <summary>Key prefix / namespace for the data-cache instance.</summary>
+    public string DataCacheNamespace { get; init; } = string.Empty;
 
-    /// <summary>Eager refresh threshold ratio (0–1 exclusive), or 0 to disable.</summary>
-    public double FusionCacheEagerRefreshRatio { get; init; }
+    /// <summary>When true (default), skip data cache if the request has Cache-Control: no-store.</summary>
+    public bool DataCacheRespectNoStore { get; init; } = true;
 
-    /// <summary>Max jitter added to FusionCache duration (seconds).</summary>
-    public int FusionCacheJitterSeconds { get; init; }
+    /// <summary>Include Accept-Encoding in the data-cache key. Default: <see langword="true"/>.</summary>
+    public bool DataCacheVaryOnEncoding { get; init; } = true;
 
-    /// <summary>Factory soft timeout (seconds).</summary>
-    public int FusionCacheFactorySoftTimeoutSeconds { get; init; }
-
-    /// <summary>Factory hard timeout (seconds).</summary>
-    public int FusionCacheFactoryHardTimeoutSeconds { get; init; }
-
-    /// <summary>Optional max item size for memory cache (bytes); 0 = unlimited.</summary>
-    public int FusionCacheMaxItemBytes { get; init; }
-
-    /// <summary>When true (default), skip FusionCache if the request has Cache-Control: no-store.</summary>
-    public bool FusionCacheRespectNoStore { get; init; } = true;
-
-    /// <summary>Allow background distributed cache operations. Default: <see langword="true"/>.</summary>
-    public bool FusionCacheAllowBackgroundDistributed { get; init; } = true;
-
-    /// <summary>Allow background backplane operations. Default: <see langword="true"/>.</summary>
-    public bool FusionCacheAllowBackgroundBackplane { get; init; } = true;
-
-    /// <summary>Include Accept-Encoding in the FusionCache key. Default: <see langword="true"/>.</summary>
-    public bool FusionCacheVaryOnEncoding { get; init; } = true;
-
-    /// <summary>Include scheme/host in the FusionCache key. Default: <see langword="true"/>.</summary>
-    public bool FusionCacheVaryOnPublicAddress { get; init; } = true;
+    /// <summary>Include scheme/host in the data-cache key. Default: <see langword="true"/>.</summary>
+    public bool DataCacheVaryOnPublicAddress { get; init; } = true;
 
     /// <summary>
     /// When true (default), Output Cache varies by request host (includes port).

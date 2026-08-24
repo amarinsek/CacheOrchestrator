@@ -33,7 +33,7 @@ public class ClientCacheScheduleHttpTests
         Dictionary<string, string?> configValues = new()
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",

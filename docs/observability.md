@@ -96,7 +96,7 @@ Fusion activities tag `domain` and `cache.result` (including `unresolved` / `off
 | Cluster ignore (namespace / self / dedupe) | Debug |
 | Unknown domain / missing Version | Warning |
 
-Log categories use the implementing type names (internal): `DomainFusionCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, and public `DomainOutputCachePolicy`. Cluster bus: `HttpClusterCommandBus`, `DefaultClusterCommandHandler`, `CacheOrchestrator.Bus`.
+Log categories use the implementing type names (internal): `DomainFusionCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, and public `DomainOutputCachePolicy`. Cluster bus: `HttpClusterCommandBus`, `DefaultClusterCommandHandler`, `CacheOrchestrator.HttpBus`.
 
 ## Health checks
 

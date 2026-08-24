@@ -17,13 +17,13 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 - Packages: `src/CacheOrchestrator.Core` (Http-free), `src/CacheOrchestrator.FusionCache`, `src/CacheOrchestrator.HybridCache` (Microsoft HybridCache data provider; subset of Fusion), `src/CacheOrchestrator.AspNetCore` (HTTP host; InMemory backend)  
 - Meta NuGet: `src/CacheOrchestrator` (PackageId `CacheOrchestrator` → AspNetCore + FusionCache)  
 - Redis package: `src/CacheOrchestrator.Redis` (`AddRedisBackend`)  
-- Bus package: `src/CacheOrchestrator.Bus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
+- HttpBus package: `src/CacheOrchestrator.HttpBus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
 - EF invalidation package: `src/CacheOrchestrator.EFCore.Invalidation` (`AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation`)  
 - Admin Console App: `src/CacheOrchestrator.AdminConsole` (fan-out UI/API; not a NuGet package; **net10.0 only**)  
 - Target frameworks: libraries `net8.0` + `net10.0`; Admin Console App `net10.0` only; samples typically net10  
 - Version: **MinVer** from Git tags `v*` (do not hardcode `<Version>` in Directory.Build.props)  
 - Samples: `samples/CacheOrchestrator.Minimal` (1-minute InMemory), `samples/CacheOrchestrator.Sample` (playground; Redis package)  
-- Tests: `tests/CacheOrchestrator.UnitTests` (core, net8+net10), `tests/CacheOrchestrator.Redis.UnitTests`, `tests/CacheOrchestrator.Bus.UnitTests`, `tests/CacheOrchestrator.EFCore.Invalidation.UnitTests` (net8+net10), `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only; Admin Console App), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
+- Tests: `tests/CacheOrchestrator.Core.UnitTests`, `tests/CacheOrchestrator.AspNetCore.UnitTests`, `tests/CacheOrchestrator.FusionCache.UnitTests`, `tests/CacheOrchestrator.HybridCache.UnitTests`, `tests/CacheOrchestrator.Redis.UnitTests`, `tests/CacheOrchestrator.HttpBus.UnitTests`, `tests/CacheOrchestrator.EFCore.Invalidation.UnitTests` (net8+net10), `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
 
 ## Non-goals
 
@@ -74,7 +74,8 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `AddRedisBackend` / `RedisCacheBackendRegistrar` | `CacheOrchestrator.Redis` |
 | `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheOrchestrator.OutputCache` |
 | `[CacheDomain("…")]` | `CacheOrchestrator.OutputCache` |
-| `IDomainFusionCache` / `EntityCache` / `EntitySet` / `EntityFootprint` | `CacheOrchestrator.FusionCache` |
+| `IDomainFusionCache` | `CacheOrchestrator.FusionCache` (HTTP API in AspNetCore) |
+| `EntityCache` / `EntitySet` / `EntityFootprint` | `CacheOrchestrator.Entity` (Core) |
 | `ICacheVaryContributor` / `CacheVaryMaterializer` / `ICacheVaryBuilder` | `CacheOrchestrator.Vary` |
 | `AuthBypassMode` / `DomainAuthEvaluator` | `CacheOrchestrator.Configuration` |
 | `IDomainCacheOptionsProvider` / `DomainCacheOptions` / `DomainName` | `CacheOrchestrator.Configuration` |
@@ -82,7 +83,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `CacheTags` | `CacheOrchestrator.Configuration` |
 | Health: `AddCacheOrchestrator` on `IHealthChecksBuilder` | `CacheOrchestrator.Diagnostics` |
 | `MapCacheOrchestratorAdmin` / Admin API | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Admin` |
-| `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.Bus` |
+| `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.HttpBus` |
 | `AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation` / `[CacheEntity]` | `CacheOrchestrator.EFCore` |
 | `IClusterCommandBus` / `IClusterMembership` / `IInstanceIdProvider` | `CacheOrchestrator.Cluster` |
 | Admin Console App fan-out host | `src/CacheOrchestrator.AdminConsole` (`AdminConsole` config) |
@@ -117,31 +118,27 @@ Do not rename config property names without a breaking-change plan (bound from a
 ## Folder map
 
 ```
-src/CacheOrchestrator/          core (InMemory only; no Redis/Bus packages)
-  Configuration/     options, domain resolution, headers
-  OutputCache/       policy, attributes, endpoint extensions
-  FusionCache/       data cache API + key gen
-  Vary/              shared OC↔Fusion vary materializer + ICacheVaryContributor
-  Backends/          ICacheBackendRegistrar, registration contexts, InMemory
-  Invalidation/      tag purge
-  Cluster/           Null bus/membership, InstanceId, command handler (HTTP in Bus package)
-  Diagnostics/       metrics, activities, health
-  Admin/             Admin API (feature-flagged; stats, invalidate, version/TTL overlay)
-  DependencyInjection/ AddCacheOrchestrator, MapCacheOrchestratorAdmin, ICacheOrchestratorBuilder
-  Utilities/
-src/CacheOrchestrator.Redis/    Redis package: registrar, RedisConnectionOptions, config resolve, validation
-src/CacheOrchestrator.Bus/      HTTP cluster bus + Static membership + cluster receive endpoints
-src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges interceptor (not an EF cache provider)
-src/CacheOrchestrator.AdminConsole/    Admin Console App host (fan-out, UI, Scalar; not packable)
-tests/CacheOrchestrator.UnitTests/          core library unit tests
+src/CacheOrchestrator.Core/         Http-free: options, Entity footprint, orchestration, invalidation, cluster contracts
+src/CacheOrchestrator.FusionCache/  Fusion IDataCacheProvider + Fusion domain settings
+src/CacheOrchestrator.HybridCache/  HybridCache IDataCacheProvider
+src/CacheOrchestrator.AspNetCore/   HTTP: OutputCache, Vary, Admin API, IDomainFusionCache, DI host
+src/CacheOrchestrator/              meta NuGet PackageId CacheOrchestrator → AspNetCore + FusionCache
+src/CacheOrchestrator.Redis/        Redis OC store + Fusion L2/backplane
+src/CacheOrchestrator.HttpBus/      HTTP cluster command bus + membership
+src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges → invalidator (Core only)
+src/CacheOrchestrator.AdminConsole/ Admin Console App (not packable)
+tests/CacheOrchestrator.Core.UnitTests/
+tests/CacheOrchestrator.AspNetCore.UnitTests/
+tests/CacheOrchestrator.FusionCache.UnitTests/
+tests/CacheOrchestrator.HybridCache.UnitTests/
 tests/CacheOrchestrator.Redis.UnitTests/
-tests/CacheOrchestrator.Bus.UnitTests/
+tests/CacheOrchestrator.HttpBus.UnitTests/
 tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/
 tests/CacheOrchestrator.AdminConsole.UnitTests/
 tests/CacheOrchestrator.IntegrationTests/
 tests/CacheOrchestrator.Benchmarks/
 samples/
-docs/                human technical docs
+docs/
 ```
 
 ## Docs for humans
@@ -162,7 +159,7 @@ Do **not** edit `CHANGELOG.md` unless the user asks. User-facing notes go in the
 ## Safe change checklist
 
 1. Build solution (`CacheOrchestrator.slnx`)  
-2. Run unit tests (`tests/CacheOrchestrator.UnitTests` plus Redis / Bus / EFCore.Invalidation unit-test projects when those packages change)  
+2. Run unit tests for touched packages (`Core` / `AspNetCore` / `FusionCache` / `HybridCache` / `Redis` / `HttpBus` / `EFCore.Invalidation`)  
 3. Update sample if public API or config surface changes  
 4. Avoid introducing `CacheOrchestrator.Abstractions` again  
 5. Avoid reintroducing Slovenian comments or `ct` as public parameter names  

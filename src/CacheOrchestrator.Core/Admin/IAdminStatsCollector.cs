@@ -26,14 +26,14 @@ public interface IAdminStatsCollector
     void RecordOutput(string? endpointKey, string? domain, string result);
 
     /// <summary>
-    /// Records a FusionCache outcome.
+    /// Records a data-cache outcome.
     /// </summary>
     /// <param name="endpointKey">e.g. <c>GET /api/x</c>, or null.</param>
     /// <param name="domain">Normalized domain, or null.</param>
     /// <param name="result"><c>hit</c>, <c>miss</c>, <c>stale</c>, <c>bypass</c>, <c>off</c>, <c>unresolved</c>, <c>fail</c>.</param>
     /// <param name="elapsedTicks">Optional factory/get duration ticks when latency tracking is on.</param>
     /// <param name="resultSizeBytes">Optional measured factory result size when size tracking is on.</param>
-    void RecordFusion(
+    void RecordDataCache(
         string? endpointKey,
         string? domain,
         string result,

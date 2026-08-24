@@ -102,7 +102,7 @@ app.MapCacheOrchestratorAdmin(); // after routing is available; safe no-op when 
 
 Process identity is **`Cache:InstanceId`** (not under Admin). Same id is used by the optional cluster bus.
 
-### Cluster distribute (with CacheOrchestrator.Bus)
+### Cluster distribute (with CacheOrchestrator.HttpBus)
 
 When the HTTP bus is enabled, Admin API mutation bodies accept **`distribute`** (default `false`):
 

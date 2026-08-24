@@ -109,7 +109,7 @@ public class HintEngineCoreHintsTests
         {
             Name = "catalog",
             Version = "1",
-            FusionCacheInstanceName = "default",
+            DataCacheInstanceName = "default",
             OutputCacheTtlSeconds = 60,
             ClientTtlSeconds = 3600,
             ClientTtlMinSeconds = 10
@@ -139,7 +139,7 @@ public class HintEngineCoreHintsTests
         {
             Name = "tiles",
             Version = "1",
-            FusionCacheInstanceName = "default",
+            DataCacheInstanceName = "default",
             OutputCacheTtlSeconds = 300,
             ClientTtlSeconds = 2592000,
             ScheduledUpdateUtc = DateTimeOffset.UtcNow.AddDays(20),
@@ -160,7 +160,7 @@ public class HintEngineCoreHintsTests
         {
             Name = "tiles",
             Version = "1",
-            FusionCacheInstanceName = "default",
+            DataCacheInstanceName = "default",
             ScheduledUpdateUtc = DateTimeOffset.UtcNow.AddHours(2),
             SchedulePhase = "approaching"
         };
@@ -184,7 +184,7 @@ public class HintEngineCoreHintsTests
         {
             Name = "tiles",
             Version = "1",
-            FusionCacheInstanceName = "default",
+            DataCacheInstanceName = "default",
             ScheduledUpdateUtc = DateTimeOffset.UtcNow.AddHours(-25),
             SchedulePhase = "hold"
         };
@@ -298,9 +298,9 @@ public class HintEngineCoreHintsTests
         {
             Name = "catalog",
             Version = "1",
-            FusionCacheInstanceName = "default",
-            FusionCacheSoftTtlSeconds = 3600,
-            FusionCacheHardTtlSeconds = 600
+            DataCacheInstanceName = "default",
+            DataCacheTtlSeconds = 3600,
+            HardTtlSeconds = 600
         };
 
         IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
@@ -320,7 +320,7 @@ public class HintEngineCoreHintsTests
         {
             Name = "tiles",
             Version = "1",
-            FusionCacheInstanceName = "default",
+            DataCacheInstanceName = "default",
             ClientTtlSeconds = 900,
             ClientTtlMinSeconds = 900,
             ScheduledUpdateUtc = DateTimeOffset.UtcNow.AddDays(1),
@@ -344,7 +344,7 @@ public class HintEngineCoreHintsTests
         {
             Name = "tiles",
             Version = "1",
-            FusionCacheInstanceName = "default",
+            DataCacheInstanceName = "default",
             ScheduledUpdateUtc = DateTimeOffset.UtcNow.AddHours(-1),
             SchedulePhase = "hold"
         };

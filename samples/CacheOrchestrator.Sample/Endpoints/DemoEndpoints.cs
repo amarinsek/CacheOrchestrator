@@ -1,3 +1,4 @@
+using CacheOrchestrator.Entity;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
@@ -116,8 +117,8 @@ public static class DemoEndpoints
             string BackendFor(string domain)
             {
                 var opts = provider.GetOrCreateDomainOptions(domain);
-                var fcName = opts.FusionCacheInstanceName ?? "default";
-                var fcProvider = config[$"Cache:FusionCacheInstances:{fcName}:Provider"] ?? "InMemory";
+                var fcName = opts.DataCacheInstanceName ?? "default";
+                var fcProvider = config[$"Cache:DataCacheInstances:{fcName}:Provider"] ?? "InMemory";
                 var ocProvider = config["Cache:OutputCache:Provider"] ?? "InMemory";
                 return $"{ocProvider} / {fcProvider}";
             }

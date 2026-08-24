@@ -1,7 +1,7 @@
 namespace CacheOrchestrator.Configuration;
 
 /// <summary>
-/// Well-known tag formats used for Output Cache and FusionCache invalidation.
+/// Well-known tag formats used for Output Cache and data-cache invalidation.
 /// </summary>
 public static class CacheTags
 {

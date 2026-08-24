@@ -26,7 +26,7 @@ public class FusionCacheRedisTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+                ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString,
                 ["Cache:Domains:products:DataCache:Ttl"] = "00:01:00",
                 ["Cache:Domains:products:Version"] = "v1"

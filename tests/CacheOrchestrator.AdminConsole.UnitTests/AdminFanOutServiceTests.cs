@@ -235,7 +235,7 @@ public class AdminFanOutServiceTests
             {
                 Name = "catalog",
                 Version = "1",
-                FusionCacheInstanceName = "default",
+                DataCacheInstanceName = "default",
             },
         ];
         client.DomainsById["b"] =
@@ -244,13 +244,13 @@ public class AdminFanOutServiceTests
             {
                 Name = "catalog",
                 Version = "1",
-                FusionCacheInstanceName = "default",
+                DataCacheInstanceName = "default",
             },
             new AdminDomainConfigDto
             {
                 Name = "maps",
                 Version = "2",
-                FusionCacheInstanceName = "default",
+                DataCacheInstanceName = "default",
             },
         ];
 
@@ -570,7 +570,7 @@ public class AdminFanOutServiceTests
                 {
                     Name = domain,
                     Version = body.Version ?? "generated",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                 },
             }));
         }
@@ -590,7 +590,7 @@ public class AdminFanOutServiceTests
                 {
                     Name = domain,
                     Version = "1",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                     OutputCacheTtlSeconds = body.OutputCacheTtlSeconds ?? 0,
                 },
             }));
@@ -611,7 +611,7 @@ public class AdminFanOutServiceTests
                 {
                     Name = domain,
                     Version = "1",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                 },
             }));
         }

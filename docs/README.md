@@ -68,7 +68,7 @@ Orientation after the product README. Summaries plus links into reference — no
 
 ## Packages and apps
 
-XML documentation ships with the NuGet packages: [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/), [Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/), [Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/), [EF Core](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/).
+XML documentation ships with the NuGet packages: [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/), [Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/), [HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/), [EF Core](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/).
 
 Admin Console App (not a NuGet package): [source README](../src/CacheOrchestrator.AdminConsole/README.md) · [Docker](../deploy/admin/README.md).
 

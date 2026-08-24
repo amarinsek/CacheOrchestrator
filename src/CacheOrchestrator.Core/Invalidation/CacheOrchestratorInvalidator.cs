@@ -73,8 +73,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             kind: CacheInvalidationKind.Domain,
             scopeLabel: normalizedDomain,
             tags: [CacheTags.Domain(normalizedDomain)],
-            fusionInstanceName: ResolveFusionInstance(normalizedDomain),
-            allFusionInstances: false,
+            dataCacheInstanceName: ResolveDataCacheInstance(normalizedDomain),
+            allDataCacheInstances: false,
             cancellationToken);
     }
 
@@ -150,8 +150,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             kind: CacheInvalidationKind.Entity,
             scopeLabel: $"{normalizedDomain}/{normalizedKind}/{normalizedResourceId}",
             tags: [tag],
-            fusionInstanceName: ResolveFusionInstance(normalizedDomain),
-            allFusionInstances: false,
+            dataCacheInstanceName: ResolveDataCacheInstance(normalizedDomain),
+            allDataCacheInstances: false,
             cancellationToken,
             domain: normalizedDomain,
             entityKind: normalizedKind,
@@ -204,8 +204,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             kind: CacheInvalidationKind.Entity,
             scopeLabel: $"{normalizedDomain}/{normalizedKind}",
             tags: tags,
-            fusionInstanceName: ResolveFusionInstance(normalizedDomain),
-            allFusionInstances: false,
+            dataCacheInstanceName: ResolveDataCacheInstance(normalizedDomain),
+            allDataCacheInstances: false,
             cancellationToken,
             domain: normalizedDomain,
             entityKind: normalizedKind,
@@ -234,8 +234,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             kind: CacheInvalidationKind.EntityKind,
             scopeLabel: $"{normalizedDomain}/{normalizedKind}",
             tags: [tag],
-            fusionInstanceName: ResolveFusionInstance(normalizedDomain),
-            allFusionInstances: false,
+            dataCacheInstanceName: ResolveDataCacheInstance(normalizedDomain),
+            allDataCacheInstances: false,
             cancellationToken,
             domain: normalizedDomain,
             entityKind: normalizedKind);
@@ -262,23 +262,23 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             kind: CacheInvalidationKind.Tags,
             scopeLabel: string.Join(',', list),
             tags: list,
-            fusionInstanceName: null,
-            allFusionInstances: true,
+            dataCacheInstanceName: null,
+            allDataCacheInstances: true,
             cancellationToken);
     }
 
-    private string ResolveFusionInstance(string normalizedDomain)
+    private string ResolveDataCacheInstance(string normalizedDomain)
     {
         DomainCacheOptions domainOpts = _domainOptionsProvider.GetOrCreateDomainOptions(normalizedDomain);
-        return domainOpts.FusionCacheInstanceName;
+        return domainOpts.DataCacheInstanceName;
     }
 
     private async ValueTask<CacheInvalidationResult> InvalidateScopedAsync(
         CacheInvalidationKind kind,
         string scopeLabel,
         IReadOnlyList<string> tags,
-        string? fusionInstanceName,
-        bool allFusionInstances,
+        string? dataCacheInstanceName,
+        bool allDataCacheInstances,
         CancellationToken cancellationToken,
         string? domain = null,
         string? entityKind = null,
@@ -297,7 +297,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             scopeLabel,
             kind,
             string.Join(", ", tags),
-            allFusionInstances);
+            allDataCacheInstances);
 
         await NotifyBeforeAsync(observerContext, cancellationToken).ConfigureAwait(false);
 
@@ -305,9 +305,9 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         bool outputOk = true;
         List<string> errors = [];
 
-        IEnumerable<string> instanceNames = allFusionInstances
-            ? _options.CurrentValue.FusionCacheInstances.Keys
-            : [fusionInstanceName ?? "default"];
+        IEnumerable<string> instanceNames = allDataCacheInstances
+            ? _options.CurrentValue.DataCacheInstances.Keys
+            : [dataCacheInstanceName ?? "default"];
 
         foreach (string instanceName in instanceNames)
         {

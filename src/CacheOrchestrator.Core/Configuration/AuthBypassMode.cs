@@ -1,7 +1,7 @@
 namespace CacheOrchestrator.Configuration;
 
 /// <summary>
-/// Controls when Output Cache (and optionally FusionCache) auto-bypasses for auth traffic.
+/// Controls when Output Cache (and optionally the data cache) auto-bypasses for auth traffic.
 /// </summary>
 public enum AuthBypassMode
 {

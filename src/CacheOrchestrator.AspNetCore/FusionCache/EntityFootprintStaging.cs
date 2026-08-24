@@ -1,5 +1,6 @@
 using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.Http;
+using CacheOrchestrator.Entity;
 
 namespace CacheOrchestrator.FusionCache;
 

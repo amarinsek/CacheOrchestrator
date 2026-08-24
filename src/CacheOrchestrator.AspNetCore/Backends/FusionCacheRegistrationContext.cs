@@ -16,7 +16,7 @@ public sealed class FusionCacheRegistrationContext
         CacheOrchestratorOptions rootOptions,
         string configSection,
         string instanceName,
-        CacheOrchestratorOptions.FusionCacheInstanceOptions instanceOptions,
+        CacheOrchestratorOptions.DataCacheInstanceOptions instanceOptions,
         string providerName,
         IFusionCacheBuilder fusionBuilder,
         DistributedResilienceOptions distributedResilience)
@@ -48,7 +48,7 @@ public sealed class FusionCacheRegistrationContext
     public string InstanceName { get; }
 
     /// <summary>Per-instance provider and connection settings.</summary>
-    public CacheOrchestratorOptions.FusionCacheInstanceOptions InstanceOptions { get; }
+    public CacheOrchestratorOptions.DataCacheInstanceOptions InstanceOptions { get; }
 
     /// <summary>Provider name for this registration.</summary>
     public string ProviderName { get; }
@@ -63,7 +63,7 @@ public sealed class FusionCacheRegistrationContext
     public DistributedResilienceOptions DistributedResilience { get; }
 
     /// <summary>
-    /// Section <c>{ConfigSection}:FusionCacheInstances:{InstanceName}:{ProviderName}</c>.
+    /// Section <c>{ConfigSection}:DataCacheInstances:{InstanceName}:{ProviderName}</c>.
     /// </summary>
     public IConfigurationSection BackendSection =>
         BackendConfiguration.GetFusionBackendSection(Configuration, ConfigSection, InstanceName, ProviderName);

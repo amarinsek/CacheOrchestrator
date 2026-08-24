@@ -312,9 +312,9 @@ public sealed class AdminFanOutService
         AdminTtlPatchRequest body = new()
         {
             OutputCacheTtlSeconds = request.OutputCacheTtlSeconds,
-            FusionCacheSoftTtlSeconds = request.FusionCacheSoftTtlSeconds,
-            FusionCacheHardTtlSeconds = request.FusionCacheHardTtlSeconds,
-            FusionCacheFailSafeSeconds = request.FusionCacheFailSafeSeconds,
+            DataCacheTtlSeconds = request.DataCacheTtlSeconds,
+            HardTtlSeconds = request.HardTtlSeconds,
+            FailSafeSeconds = request.FailSafeSeconds,
             ClientTtlSeconds = request.ClientTtlSeconds,
             ClientTtlMinSeconds = request.ClientTtlMinSeconds,
             Distribute = plan.Distribute

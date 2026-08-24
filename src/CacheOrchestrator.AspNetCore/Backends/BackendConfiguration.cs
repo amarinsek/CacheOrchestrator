@@ -10,7 +10,7 @@ namespace CacheOrchestrator.Backends;
 /// <c>appsettings.json</c> shape:
 /// <list type="bullet">
 /// <item><c>{section}:OutputCache:{Provider}</c> — e.g. <c>Cache:OutputCache:SqlServer</c></item>
-/// <item><c>{section}:FusionCacheInstances:{instance}:{Provider}</c> — e.g. <c>Cache:FusionCacheInstances:default:SqlServer</c></item>
+/// <item><c>{section}:DataCacheInstances:{instance}:{Provider}</c> — e.g. <c>Cache:DataCacheInstances:default:SqlServer</c></item>
 /// </list>
 /// </remarks>
 public static class BackendConfiguration
@@ -31,7 +31,7 @@ public static class BackendConfiguration
 
     /// <summary>
     /// Section for a named FusionCache instance backend:
-    /// <c>{configSection}:FusionCacheInstances:{instanceName}:{providerName}</c>.
+    /// <c>{configSection}:DataCacheInstances:{instanceName}:{providerName}</c>.
     /// </summary>
     public static IConfigurationSection GetFusionBackendSection(
         IConfiguration configuration,
@@ -43,6 +43,6 @@ public static class BackendConfiguration
         ArgumentException.ThrowIfNullOrWhiteSpace(configSection);
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceName);
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
-        return configuration.GetSection($"{configSection}:FusionCacheInstances:{instanceName}:{providerName}");
+        return configuration.GetSection($"{configSection}:DataCacheInstances:{instanceName}:{providerName}");
     }
 }

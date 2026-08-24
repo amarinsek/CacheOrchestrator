@@ -32,7 +32,7 @@ public class LiveHintProjectorTests
         {
             Name = "catalog",
             Version = "v2",
-            FusionCacheInstanceName = "default",
+            DataCacheInstanceName = "default",
             VersionIsRuntimeOverride = true,
         };
 
@@ -52,7 +52,7 @@ public class LiveHintProjectorTests
         {
             Name = "idle",
             Version = "1",
-            FusionCacheInstanceName = "default",
+            DataCacheInstanceName = "default",
         });
         quiet.Requests.Should().Be(0);
         quiet.Oc.Hits.Should().Be(0);
@@ -78,13 +78,13 @@ public class LiveHintProjectorTests
             {
                 Name = "hot",
                 Version = "1",
-                FusionCacheInstanceName = "default",
+                DataCacheInstanceName = "default",
             },
             ["idle"] = new AdminDomainConfigDto
             {
                 Name = "idle",
                 Version = "1",
-                FusionCacheInstanceName = "default",
+                DataCacheInstanceName = "default",
             },
         };
 

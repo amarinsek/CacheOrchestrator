@@ -21,7 +21,7 @@ internal sealed class NoOpAdminStatsCollector : IAdminStatsCollector
     {
     }
 
-    public void RecordFusion(
+    public void RecordDataCache(
         string? endpointKey,
         string? domain,
         string result,

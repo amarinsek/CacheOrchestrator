@@ -13,7 +13,7 @@ dotnet add package CacheOrchestrator
 Related packages, when you need them:
 
 - [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) — Redis for Output Cache and FusionCache L2 / backplane
-- [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/) — invalidate, Version, and TTL commands across instances
+- [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) — invalidate, Version, and TTL commands across instances
 - [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) — the cache follows your EF Core saves
 
 ## Configure

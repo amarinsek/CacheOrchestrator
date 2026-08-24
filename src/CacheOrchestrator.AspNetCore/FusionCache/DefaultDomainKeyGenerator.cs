@@ -87,7 +87,7 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
 
                 AppendVaryMaterial(hasher, http, opts, vary, includeQuery: false, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
-                if (opts.FusionCacheVaryOnPublicAddress)
+                if (opts.DataCacheVaryOnPublicAddress)
                     AppendPublicAddress(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
                 ulong resourceHash = hasher.GetCurrentHashAsUInt64();
@@ -126,7 +126,7 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
             AppendVaryMaterial(hasher, http, opts, vary, includeQuery: true, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
             // 3. Public address
-            if (opts.FusionCacheVaryOnPublicAddress)
+            if (opts.DataCacheVaryOnPublicAddress)
                 AppendPublicAddress(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
             ulong hash = hasher.GetCurrentHashAsUInt64();

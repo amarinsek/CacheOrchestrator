@@ -1,4 +1,5 @@
 using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.Entity;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.OutputCache;
 

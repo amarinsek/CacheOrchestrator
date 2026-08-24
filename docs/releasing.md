@@ -37,7 +37,7 @@ dotnet build src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -v:m
 | Guide (orientation) | [docs/guide/README.md](guide/README.md) |
 | NuGet `CacheOrchestrator` | [src/CacheOrchestrator/README.md](../src/CacheOrchestrator/README.md) |
 | NuGet `CacheOrchestrator.Redis` | [src/CacheOrchestrator.Redis/README.md](../src/CacheOrchestrator.Redis/README.md) |
-| NuGet `CacheOrchestrator.Bus` | [src/CacheOrchestrator.Bus/README.md](../src/CacheOrchestrator.Bus/README.md) |
+| NuGet `CacheOrchestrator.HttpBus` | [src/CacheOrchestrator.HttpBus/README.md](../src/CacheOrchestrator.HttpBus/README.md) |
 | NuGet `CacheOrchestrator.EFCore.Invalidation` | [src/CacheOrchestrator.EFCore.Invalidation/README.md](../src/CacheOrchestrator.EFCore.Invalidation/README.md) |
 
 Do **not** pack the root README into the core package (HTML/logo does not render well on nuget.org).
@@ -81,6 +81,6 @@ Not enabled in CI. See historical notes: sign locally with `dotnet nuget sign` i
 ```bash
 dotnet pack src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -o ./nupkg
 dotnet pack src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj -c Release -o ./nupkg
-dotnet pack src/CacheOrchestrator.Bus/CacheOrchestrator.Bus.csproj -c Release -o ./nupkg
+dotnet pack src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj -c Release -o ./nupkg
 dotnet pack src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj -c Release -o ./nupkg
 ```

@@ -78,13 +78,13 @@ public class LiveStatsServiceTests
                 {
                     Name = "catalog",
                     Version = "1",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                 },
                 new AdminDomainConfigDto
                 {
                     Name = "quiet",
                     Version = "1",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                 },
             ]);
 
@@ -145,7 +145,7 @@ public class LiveStatsServiceTests
                 {
                     Name = "hot",
                     Version = "1",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                 },
             ]);
 

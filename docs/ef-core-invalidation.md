@@ -17,7 +17,7 @@ entity:store:products:42
 entitykind:store:products
 ```
 
-The EF package only maps a CLR type → `(domain, entityKind)` and the primary key → `resourceId`. It then calls `ICacheOrchestratorInvalidator`. Multi-instance behaviour is whatever that invalidator already does (local only, Redis Fusion backplane, and/or `CacheOrchestrator.Bus`).
+The EF package only maps a CLR type → `(domain, entityKind)` and the primary key → `resourceId`. It then calls `ICacheOrchestratorInvalidator`. Multi-instance behaviour is whatever that invalidator already does (local only, Redis Fusion backplane, and/or `CacheOrchestrator.HttpBus`).
 
 ```text
 SavingChanges          snapshot mapped Added | Modified | Deleted
@@ -194,7 +194,7 @@ The EF package does not talk to Redis or the Bus. It only calls `ICacheOrchestra
 |----------|-------------------------------|
 | Single process | Local OC + Fusion only |
 | Redis Fusion L2 + backplane | Shared L2 purged; other nodes drop L1 via Fusion backplane |
-| `CacheOrchestrator.Bus` (InMemory multi-node) | One `InvalidateCommand` per `(domain, entityKind)` group; peers ApplyLocal |
+| `CacheOrchestrator.HttpBus` (InMemory multi-node) | One `InvalidateCommand` per `(domain, entityKind)` group; peers ApplyLocal |
 | Neither | Other nodes keep stale L1 until TTL / Version |
 
 Use the same `entityKind` on every node. Mixed 1.0 / 2.0 entity tags do not match.

@@ -61,7 +61,7 @@ public class RedisCacheBackendRegistrarTests
         var services = new ServiceCollection();
         var builder = services.AddFusionCache();
         var options = new CacheOrchestratorOptions();
-        var instanceOpts = new CacheOrchestratorOptions.FusionCacheInstanceOptions { Provider = "Redis" };
+        var instanceOpts = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" };
         var configuration = new ConfigurationBuilder().Build();
         var context = new FusionCacheRegistrationContext(
             services, configuration, options, "Cache", "default", instanceOpts, "Redis", builder,
@@ -79,7 +79,7 @@ public class RedisCacheBackendRegistrarTests
         var services = new ServiceCollection();
         var builder = services.AddFusionCache();
         var options = new CacheOrchestratorOptions();
-        var instanceOpts = new CacheOrchestratorOptions.FusionCacheInstanceOptions { Provider = "Redis" };
+        var instanceOpts = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" };
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -100,16 +100,16 @@ public class RedisCacheBackendRegistrarTests
     {
         var services = new ServiceCollection();
         var options = new CacheOrchestratorOptions { Namespace = "app" };
-        var defaultOpts = new CacheOrchestratorOptions.FusionCacheInstanceOptions { Provider = "Redis" };
-        var piiOpts = new CacheOrchestratorOptions.FusionCacheInstanceOptions { Provider = "Redis" };
-        options.FusionCacheInstances["default"] = defaultOpts;
-        options.FusionCacheInstances["pii"] = piiOpts;
+        var defaultOpts = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" };
+        var piiOpts = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" };
+        options.DataCacheInstances["default"] = defaultOpts;
+        options.DataCacheInstances["pii"] = piiOpts;
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:Redis:Configuration"] = "localhost:6379",
-                ["Cache:FusionCacheInstances:pii:Redis:Configuration"] = "other-host:6380"
+                ["Cache:DataCacheInstances:pii:Redis:Configuration"] = "other-host:6380"
             })
             .Build();
 
@@ -133,7 +133,7 @@ public class RedisCacheBackendRegistrarTests
     {
         var services = new ServiceCollection();
         var options = new CacheOrchestratorOptions();
-        var instanceOpts = new CacheOrchestratorOptions.FusionCacheInstanceOptions { Provider = "Redis" };
+        var instanceOpts = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" };
         var configuration = new ConfigurationBuilder().Build();
         var context = new BackendHealthRegistrationContext(
             services, configuration, "Cache", "pii", "Redis", options, instanceOpts);

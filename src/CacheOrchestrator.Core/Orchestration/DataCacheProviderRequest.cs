@@ -15,7 +15,7 @@ public sealed class DataCacheProviderRequest
     /// <summary>Fully formed cache key (includes domain + Version hex + logical key).</summary>
     public required string Key { get; init; }
 
-    /// <summary>Named data-cache instance (today: FusionCache instance name).</summary>
+    /// <summary>Named data-cache instance (from <c>Cache:DataCacheInstances</c>).</summary>
     public required string InstanceName { get; init; }
 
     /// <summary>Tags to attach on set (domain / entity / entitykind / extras).</summary>

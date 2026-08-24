@@ -36,12 +36,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<InternalsVisibleTo Include="CacheOrchestrator.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Core.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.FusionCache.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.HybridCache.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
-		<InternalsVisibleTo Include="CacheOrchestrator.Bus.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.HttpBus.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.EFCore.Invalidation.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Benchmarks" />
-		<InternalsVisibleTo Include="CacheOrchestrator.Bus" />
+		<InternalsVisibleTo Include="CacheOrchestrator.HttpBus" />
 		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore" />
 		<InternalsVisibleTo Include="CacheOrchestrator.FusionCache" />
 	</ItemGroup>

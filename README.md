@@ -163,7 +163,7 @@ Domains are the unit of configuration. Within a domain you can optionally use **
 | Package | Purpose |
 |---------|---------|
 | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) | Redis for Output Cache and for FusionCache L2 / backplane. |
-| [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/) | Invalidate, Version, and TTL commands delivered to every instance. |
+| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) | Invalidate, Version, and TTL commands delivered to every instance. |
 | [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) | Invalidate entity after a successful EF Core `SaveChanges`. |
 
 ---

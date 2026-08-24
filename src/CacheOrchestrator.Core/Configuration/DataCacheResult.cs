@@ -1,7 +1,7 @@
 namespace CacheOrchestrator.Configuration;
 
 /// <summary>
-/// Outcome of the FusionCache (data) layer for a request.
+/// Outcome of the data-cache layer for a request.
 /// </summary>
 public enum DataCacheResult : byte
 {
@@ -17,7 +17,7 @@ public enum DataCacheResult : byte
     /// <summary>Caching skipped for this request (e.g. no-store).</summary>
     Bypass = 3,
 
-    /// <summary>FusionCache disabled for the domain.</summary>
+    /// <summary>Data cache disabled for the domain.</summary>
     Off = 4,
 
     /// <summary>

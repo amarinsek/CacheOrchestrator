@@ -11,7 +11,7 @@ namespace CacheOrchestrator.Invalidation;
 public interface ICacheInvalidationObserver
 {
     /// <summary>
-    /// Called immediately before Fusion/Output eviction starts.
+    /// Called immediately before data-cache / Output Cache eviction starts.
     /// </summary>
     ValueTask OnBeforeInvalidateAsync(
         CacheInvalidationContext context,

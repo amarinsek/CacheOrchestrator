@@ -29,8 +29,8 @@ public sealed class CacheOrchestratorOptions
     public MetricsOptions Metrics { get; set; } = new();
 
     /// <summary>
-    /// Soft/hard timeouts and circuit breaker for distributed FusionCache L2 (any non-InMemory provider).
-    /// Bound from <c>Cache:Distributed</c>.
+    /// Soft/hard timeouts and circuit breaker for distributed L2 for data-cache providers
+    /// (any non-InMemory backend). Bound from <c>Cache:Distributed</c>.
     /// </summary>
     public DistributedResilienceOptions Distributed { get; set; } = new();
 
@@ -38,14 +38,15 @@ public sealed class CacheOrchestratorOptions
     public ProviderOptions OutputCache { get; set; } = new();
 
     /// <summary>
-    /// Named FusionCache instances. Each entry defines an independent L1+L2 cache with its own
+    /// Named data-cache instances. Each entry defines an independent L1+L2 cache with its own
     /// provider (built-in: <c>InMemory</c>; others via <see cref="DependencyInjection.ICacheOrchestratorBuilder.AddBackend"/>).
     /// At least one entry named <c>"default"</c> must be present.
+    /// Bound from <c>Cache:DataCacheInstances</c>.
     /// </summary>
-    public Dictionary<string, FusionCacheInstanceOptions> FusionCacheInstances { get; set; } =
+    public Dictionary<string, DataCacheInstanceOptions> DataCacheInstances { get; set; } =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["default"] = new FusionCacheInstanceOptions()
+            ["default"] = new DataCacheInstanceOptions()
         };
 
     /// <summary>Global default settings applied to all domains unless specifically overridden.</summary>
@@ -63,14 +64,14 @@ public sealed class CacheOrchestratorOptions
 
     /// <summary>
     /// Cluster command bus settings (optional multi-instance command distribution).
-    /// Bound from <c>Cache:Cluster</c>. Disabled by default; requires <c>CacheOrchestrator.Bus</c> for HTTP transport.
+    /// Bound from <c>Cache:Cluster</c>. Disabled by default; requires <c>CacheOrchestrator.HttpBus</c> for HTTP transport.
     /// </summary>
     public ClusterOptions Cluster { get; set; } = new();
 
     /// <summary>The final namespace used for Output Cache keys.</summary>
     public string OutputNamespace => OutputCache.Namespace ?? (Namespace + "-oc");
 
-    /// <summary>Effective distributed resilience settings for FusionCache L2.</summary>
+    /// <summary>Effective distributed resilience settings for data-cache L2.</summary>
     public DistributedResilienceOptions GetEffectiveDistributedResilience() => Distributed;
 
     // ---------------------------------------------------------------------------
@@ -134,7 +135,7 @@ public sealed class CacheOrchestratorOptions
 
     /// <summary>
     /// Optional cluster command bus. Bound from <c>Cache:Cluster:Bus</c>.
-    /// Transport implementations live in <c>CacheOrchestrator.Bus</c>.
+    /// Transport implementations live in <c>CacheOrchestrator.HttpBus</c>.
     /// </summary>
     public sealed class ClusterBusOptions
     {
@@ -214,9 +215,9 @@ public sealed class CacheOrchestratorOptions
     }
 
     /// <summary>
-    /// Configuration for a single named FusionCache instance.
+    /// Configuration for a single named data-cache instance.
     /// </summary>
-    public sealed class FusionCacheInstanceOptions
+    public sealed class DataCacheInstanceOptions
     {
         /// <summary>Optional key namespace override for this instance.</summary>
         public string? Namespace { get; set; }
@@ -266,9 +267,6 @@ public sealed class CacheOrchestratorOptions
         /// <summary>Client Cache-Control policy for this domain.</summary>
         public DomainClientCacheSettings? ClientCache { get; set; }
 
-        /// <summary>FusionCache-specific knobs (ignored by Hybrid).</summary>
-        public DomainFusionCacheSettings? FusionCache { get; set; }
-
         /// <summary>
         /// When Output Cache (and optionally data cache) auto-bypasses for auth traffic.
         /// When unset, defaults to <see cref="AuthBypassMode.AuthenticatedOrAuthorization"/>.
@@ -302,7 +300,7 @@ public sealed class CacheOrchestratorOptions
         /// When <see langword="true"/> (default), data cache skips when auth bypass would fire for OC.
         /// </summary>
         [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Data", DisplayName = "Data cache respects auth bypass")]
-        public bool? FusionRespectAuthBypass { get; set; }
+        public bool? DataCacheRespectAuthBypass { get; set; }
 
         /// <summary>Vary by <c>Accept</c> header. Default in v3: true.</summary>
         [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Vary", DisplayName = "Vary by Accept")]

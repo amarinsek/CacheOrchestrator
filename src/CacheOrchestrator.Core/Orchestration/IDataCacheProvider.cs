@@ -1,7 +1,7 @@
 namespace CacheOrchestrator.Orchestration;
 
 /// <summary>
-/// Data-cache engine behind <see cref="ICacheOrchestrator"/> (FusionCache, HybridCache, …).
+/// Data-cache engine behind <see cref="ICacheOrchestrator"/> (e.g. FusionCache, HybridCache).
 /// </summary>
 /// <remarks>
 /// Not intended as the primary app/library dependency — use <see cref="ICacheOrchestrator"/>.

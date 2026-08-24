@@ -56,7 +56,7 @@ Details: [labs README](../../samples/CacheOrchestrator.Sample/labs/README.md).
 |----------|-------------------------------|----------|
 | Bump `Version` in shared config | No — new key space; old entries expire by TTL | Snapshot / catalog cutover |
 | Redis Fusion L2 + backplane | Yes for Fusion L1 + shared L2 | Typical production multi-instance |
-| `CacheOrchestrator.Bus` | Yes if every peer has receive endpoints | InMemory multi-node; Admin `distribute` |
+| `CacheOrchestrator.HttpBus` | Yes if every peer has receive endpoints | InMemory multi-node; Admin `distribute` |
 | Neither | Calling process only | Single instance |
 
 Details: [invalidation.md](../invalidation.md#multi-instance-invalidation), [cluster-bus.md](../cluster-bus.md).

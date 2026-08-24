@@ -4,25 +4,25 @@ namespace CacheOrchestrator.Invalidation;
 /// Provides programmatic cache invalidation for CacheOrchestrator domains and tags.
 /// </summary>
 /// <remarks>
-/// All methods are <strong>best-effort</strong>: they do not throw when Fusion or Output Cache
+/// All methods are <strong>best-effort</strong>: they do not throw when the data cache or Output Cache
 /// fails; inspect <see cref="CacheInvalidationResult"/> instead. Register
 /// <see cref="ICacheInvalidationObserver"/> for audit/webhook hooks.
 /// </remarks>
 public interface ICacheOrchestratorInvalidator
 {
     /// <summary>
-    /// Invalidates all cache entries (Output Cache and FusionCache) tagged for the domain
+    /// Invalidates all cache entries (Output Cache and data cache) tagged for the domain
     /// (<c>domain:{name}</c>).
     /// </summary>
     /// <param name="domain">The domain name (will be normalized).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Structured outcome (Fusion/Output success flags and errors).</returns>
+    /// <returns>Structured outcome (data-cache/Output success flags and errors).</returns>
     ValueTask<CacheInvalidationResult> InvalidateDomainAsync(
         string domain,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Invalidates multiple domains sequentially (each domain on its owning Fusion instance).
+    /// Invalidates multiple domains sequentially (each domain on its owning data-cache instance).
     /// Observers receive per-domain <see cref="CacheInvalidationKind.Domain"/> callbacks and one
     /// aggregate <see cref="CacheInvalidationKind.Domains"/> before/after pair for the batch.
     /// </summary>
@@ -35,7 +35,7 @@ public interface ICacheOrchestratorInvalidator
 
     /// <summary>
     /// Invalidates a single entity (tag <c>entity:{domain}:{entityKind}:{resourceId}</c>)
-    /// on the FusionCache instance that owns the domain and on Output Cache.
+    /// on the data-cache instance that owns the domain and on Output Cache.
     /// </summary>
     /// <remarks>
     /// Entries must have been stored with that entity tag (via <c>GetOrSetEntityAsync</c>
@@ -84,7 +84,7 @@ public interface ICacheOrchestratorInvalidator
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Evicts the given tags from every registered FusionCache instance and from Output Cache.
+    /// Evicts the given tags from every registered data-cache instance and from Output Cache.
     /// </summary>
     /// <remarks>
     /// Prefer <see cref="InvalidateDomainAsync"/> / <see cref="InvalidateEntityAsync"/> when possible.

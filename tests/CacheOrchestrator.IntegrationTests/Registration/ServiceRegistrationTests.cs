@@ -22,7 +22,7 @@ public class ServiceRegistrationInMemoryTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory"
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory"
             })
             .Build();
 
@@ -54,7 +54,7 @@ public class ServiceRegistrationCustomBackendTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "CustomDB",
-                ["Cache:FusionCacheInstances:default:Provider"] = "CustomDB"
+                ["Cache:DataCacheInstances:default:Provider"] = "CustomDB"
             })
             .Build();
 
@@ -89,7 +89,7 @@ public class ServiceRegistrationRedisTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "Redis",
-                ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+                ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString
             })
             .Build();
@@ -108,7 +108,7 @@ public class ServiceRegistrationRedisTests
 
         CacheOrchestratorOptions opts = sp.GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
         opts.OutputCache.Provider.Should().Be("Redis");
-        opts.FusionCacheInstances["default"].Provider.Should().Be("Redis");
+        opts.DataCacheInstances["default"].Provider.Should().Be("Redis");
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class ServiceRegistrationRedisTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "Redis",
-                ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+                ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString
             })
             .Build();

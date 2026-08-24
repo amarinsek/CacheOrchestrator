@@ -16,7 +16,7 @@ public sealed class BackendHealthRegistrationContext
         string instanceName,
         string providerName,
         CacheOrchestratorOptions rootOptions,
-        CacheOrchestratorOptions.FusionCacheInstanceOptions instanceOptions)
+        CacheOrchestratorOptions.DataCacheInstanceOptions instanceOptions)
     {
         Services = services;
         Configuration = configuration;
@@ -50,7 +50,7 @@ public sealed class BackendHealthRegistrationContext
     /// <summary>
     /// Per-instance options. For Output Cache health, this may be an empty placeholder instance.
     /// </summary>
-    public CacheOrchestratorOptions.FusionCacheInstanceOptions InstanceOptions { get; }
+    public CacheOrchestratorOptions.DataCacheInstanceOptions InstanceOptions { get; }
 
     /// <summary>
     /// Fusion backend section when <see cref="InstanceName"/> is a Fusion instance;

@@ -52,20 +52,8 @@ public class DomainCacheOptionsProviderBenchmarks : IDisposable
         => _provider.GetOrCreateDomainOptions("catalog");
 
     [Benchmark]
-    public DomainCacheOptions Ensure_L1Miss_L2Hit()
-    {
-        // Fresh HttpContext each time so Items L1 misses; global L2 should hit.
-        var http = new DefaultHttpContext();
-        return _provider.EnsureDomainOptions(http, "catalog");
-    }
-
-    [Benchmark]
-    public DomainCacheOptions Ensure_L1Hit()
-    {
-        // Pin once on shared context, then measure Items hit.
-        _ = _provider.EnsureDomainOptions(_http, "catalog");
-        return _provider.EnsureDomainOptions(_http, "catalog");
-    }
+    public DomainCacheOptions GetOrCreate_Repeated()
+        => _provider.GetOrCreateDomainOptions("catalog");
 
     [GlobalCleanup]
     public void Cleanup() => Dispose();

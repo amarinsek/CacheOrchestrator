@@ -17,7 +17,7 @@ public class RedisBackendRegistrationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "Redis",
-                ["Cache:FusionCacheInstances:default:Provider"] = "Redis"
+                ["Cache:DataCacheInstances:default:Provider"] = "Redis"
             })
             .Build();
 
@@ -37,7 +37,7 @@ public class RedisBackendRegistrationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory"
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory"
             })
             .Build();
 
@@ -59,7 +59,7 @@ public class RedisBackendRegistrationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory"
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory"
             })
             .Build();
 

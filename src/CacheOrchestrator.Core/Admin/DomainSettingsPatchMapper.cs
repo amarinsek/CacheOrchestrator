@@ -81,7 +81,7 @@ public static class DomainSettingsPatchMapper
                 case "varyOutputCacheByUser": varyOutputCacheByUser = ReadBool(el, id); break;
                 case "treatAuthorizationAsAuthSignal": treatAuthorizationAsAuthSignal = ReadBool(el, id); break;
                 case "authVaryIncludeAuthorizationHash": authVaryIncludeAuthorizationHash = ReadBool(el, id); break;
-                case "fusionRespectAuthBypass": fusionRespectAuthBypass = ReadBool(el, id); break;
+                case "dataCacheRespectAuthBypass": fusionRespectAuthBypass = ReadBool(el, id); break;
                 case "clientCache.forcePrivateWhenAuthenticated": clientForcePrivateWhenAuthenticated = ReadBool(el, id); break;
                 case "varyByAccept": varyByAccept = ReadBool(el, id); break;
                 case "varyByAcceptLanguage": varyByAcceptLanguage = ReadBool(el, id); break;
@@ -108,11 +108,11 @@ public static class DomainSettingsPatchMapper
                 case "fusionCache.factorySoftTimeout": fusionCacheFactorySoftTimeout = ReadNonNegTimeSpan(el, id); break;
                 case "fusionCache.factoryHardTimeout": fusionCacheFactoryHardTimeout = ReadNonNegTimeSpan(el, id); break;
                 case "fusionCache.maxItemBytes": fusionCacheMaxItemBytes = ReadNonNegInt(el, id); break;
-                case "fusionCache.respectNoStore": fusionCacheRespectNoStore = ReadBool(el, id); break;
+                case "dataCache.respectNoStore": fusionCacheRespectNoStore = ReadBool(el, id); break;
                 case "fusionCache.allowBackgroundDistributed": fusionCacheAllowBackgroundDistributed = ReadBool(el, id); break;
                 case "fusionCache.allowBackgroundBackplane": fusionCacheAllowBackgroundBackplane = ReadBool(el, id); break;
-                case "fusionCache.varyOnPublicAddress": fusionCacheVaryOnPublicAddress = ReadBool(el, id); break;
-                case "fusionCache.varyOnEncoding": fusionCacheVaryOnEncoding = ReadBool(el, id); break;
+                case "dataCache.varyOnPublicAddress": fusionCacheVaryOnPublicAddress = ReadBool(el, id); break;
+                case "dataCache.varyOnEncoding": fusionCacheVaryOnEncoding = ReadBool(el, id); break;
                 case "outputCache.varyByHost": outputCacheVaryByHost = ReadBool(el, id); break;
                 default:
                     throw new ArgumentException($"Setting '{id}' is not mapped for overlay.", nameof(settings));
@@ -127,7 +127,7 @@ public static class DomainSettingsPatchMapper
             VaryOutputCacheByUser = varyOutputCacheByUser,
             TreatAuthorizationAsAuthSignal = treatAuthorizationAsAuthSignal,
             AuthVaryIncludeAuthorizationHash = authVaryIncludeAuthorizationHash,
-            FusionRespectAuthBypass = fusionRespectAuthBypass,
+            DataCacheRespectAuthBypass = fusionRespectAuthBypass,
             ClientForcePrivateWhenAuthenticated = clientForcePrivateWhenAuthenticated,
             VaryByAccept = varyByAccept,
             VaryByAcceptLanguage = varyByAcceptLanguage,
@@ -147,18 +147,18 @@ public static class DomainSettingsPatchMapper
             ClientMustRevalidateNearUpdate = clientMustRevalidateNearUpdate,
             OutputCacheTtl = outputCacheTtl,
             DataCacheTtl = dataCacheTtl,
-            FusionCacheHardTtl = fusionCacheHardTtl,
-            FusionCacheFailSafe = fusionCacheFailSafe,
-            FusionCacheEagerRefreshRatio = fusionCacheEagerRefreshRatio,
-            FusionCacheJitter = fusionCacheJitter,
-            FusionCacheFactorySoftTimeout = fusionCacheFactorySoftTimeout,
-            FusionCacheFactoryHardTimeout = fusionCacheFactoryHardTimeout,
-            FusionCacheMaxItemBytes = fusionCacheMaxItemBytes,
-            FusionCacheRespectNoStore = fusionCacheRespectNoStore,
-            FusionCacheAllowBackgroundDistributed = fusionCacheAllowBackgroundDistributed,
-            FusionCacheAllowBackgroundBackplane = fusionCacheAllowBackgroundBackplane,
-            FusionCacheVaryOnPublicAddress = fusionCacheVaryOnPublicAddress,
-            FusionCacheVaryOnEncoding = fusionCacheVaryOnEncoding,
+            HardTtl = fusionCacheHardTtl,
+            FailSafe = fusionCacheFailSafe,
+            EagerRefreshRatio = fusionCacheEagerRefreshRatio,
+            Jitter = fusionCacheJitter,
+            FactorySoftTimeout = fusionCacheFactorySoftTimeout,
+            FactoryHardTimeout = fusionCacheFactoryHardTimeout,
+            MaxItemBytes = fusionCacheMaxItemBytes,
+            DataCacheRespectNoStore = fusionCacheRespectNoStore,
+            AllowBackgroundDistributed = fusionCacheAllowBackgroundDistributed,
+            AllowBackgroundBackplane = fusionCacheAllowBackgroundBackplane,
+            DataCacheVaryOnPublicAddress = fusionCacheVaryOnPublicAddress,
+            DataCacheVaryOnEncoding = fusionCacheVaryOnEncoding,
             OutputCacheVaryByHost = outputCacheVaryByHost,
         };
     }
@@ -168,9 +168,9 @@ public static class DomainSettingsPatchMapper
         new()
         {
             OutputCacheTtl = FromSeconds(body.OutputCacheTtlSeconds),
-            DataCacheTtl = FromSeconds(body.FusionCacheSoftTtlSeconds),
-            FusionCacheHardTtl = FromSeconds(body.FusionCacheHardTtlSeconds),
-            FusionCacheFailSafe = FromSeconds(body.FusionCacheFailSafeSeconds),
+            DataCacheTtl = FromSeconds(body.DataCacheTtlSeconds),
+            HardTtl = FromSeconds(body.HardTtlSeconds),
+            FailSafe = FromSeconds(body.FailSafeSeconds),
             ClientTtl = FromSeconds(body.ClientTtlSeconds),
             ClientTtlMin = FromSeconds(body.ClientTtlMinSeconds),
         };

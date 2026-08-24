@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using ZiggyCreatures.Caching.Fusion;
+using CacheOrchestrator.Entity;
 
 namespace CacheOrchestrator.FusionCache;
 
@@ -21,6 +22,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
     private readonly IRequestDomainCacheOptions _domainConfig;
     private readonly IDomainKeyGenerator _keyGenerator;
     private readonly IDataCacheProvider _dataCache;
+    private readonly IFusionDomainSettingsProvider _fusionDomainSettings;
     private readonly ILogger<DomainFusionCacheService> _logger;
     private readonly IAdminStatsCollector _adminStats;
 
@@ -32,6 +34,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         IRequestDomainCacheOptions domainConfig,
         IDomainKeyGenerator keyGenerator,
         IDataCacheProvider dataCache,
+        IFusionDomainSettingsProvider fusionDomainSettings,
         ILogger<DomainFusionCacheService> logger,
         IAdminStatsCollector? adminStats = null)
     {
@@ -39,12 +42,14 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         ArgumentNullException.ThrowIfNull(domainConfig);
         ArgumentNullException.ThrowIfNull(keyGenerator);
         ArgumentNullException.ThrowIfNull(dataCache);
+        ArgumentNullException.ThrowIfNull(fusionDomainSettings);
         ArgumentNullException.ThrowIfNull(logger);
 
         _fusionProvider = fusionProvider;
         _domainConfig = domainConfig;
         _keyGenerator = keyGenerator;
         _dataCache = dataCache;
+        _fusionDomainSettings = fusionDomainSettings;
         _logger = logger;
         _adminStats = adminStats ?? NoOpAdminStatsCollector.Instance;
     }
@@ -196,7 +201,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             EntityFootprint staged = WithRequestPrimary(http, unresolved.Footprint);
             EntityFootprintStaging.Stage(http, staged);
             SetData(http, DataCacheResult.Unresolved);
-            CacheOrchestratorMetrics.RecordFusion("_", "unresolved", durationMs: null, null, resultSizeBytes: null);
+            CacheOrchestratorMetrics.RecordDataCache("_", "unresolved", durationMs: null, null, resultSizeBytes: null);
             return unresolved.IsMiss ? default : unresolved.Value;
         }
 
@@ -206,24 +211,24 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             EntityFootprint staged = WithRequestPrimary(http, off.Footprint);
             EntityFootprintStaging.Stage(http, staged);
             SetData(http, DataCacheResult.Off);
-            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "off", null, null);
+            RecordDataCacheAndAdmin(http, opts.Domain, opts.Domain, "off", null, null);
             return off.IsMiss ? default : off.Value;
         }
 
-        if (opts.FusionRespectAuthBypass && DomainAuthEvaluator.ShouldBypassForAuth(http, opts))
+        if (opts.DataCacheRespectAuthBypass && DomainAuthEvaluator.ShouldBypassForAuth(http, opts))
         {
             if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("FusionCache skipped due to auth bypass (FusionRespectAuthBypass)");
+                _logger.LogDebug("FusionCache skipped due to auth bypass (DataCacheRespectAuthBypass)");
 
             FootprintCacheBox<T?> bypass = await factory(cancellationToken).ConfigureAwait(false);
             EntityFootprint staged = WithRequestPrimary(http, bypass.Footprint);
             EntityFootprintStaging.Stage(http, staged);
             SetData(http, DataCacheResult.Bypass);
-            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "bypass", null, null);
+            RecordDataCacheAndAdmin(http, opts.Domain, opts.Domain, "bypass", null, null);
             return bypass.IsMiss ? default : bypass.Value;
         }
 
-        if (opts.FusionCacheRespectNoStore
+        if (opts.DataCacheRespectNoStore
             && HttpHelper.ContainsCacheDirective(http.Request.Headers.CacheControl, "no-store"))
         {
             if (_logger.IsEnabled(LogLevel.Debug))
@@ -233,7 +238,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             EntityFootprint staged = WithRequestPrimary(http, bypass.Footprint);
             EntityFootprintStaging.Stage(http, staged);
             SetData(http, DataCacheResult.Bypass);
-            RecordFusionAndAdmin(http, opts.Domain, opts.Domain, "bypass", null, null);
+            RecordDataCacheAndAdmin(http, opts.Domain, opts.Domain, "bypass", null, null);
             return bypass.IsMiss ? default : bypass.Value;
         }
 
@@ -257,8 +262,9 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
                 feature.ResourceId = previousId;
         }
 
-        FusionCacheEntryOptions options = FusionEntryOptionsFactory.Create(opts);
-        IFusionCache fusion = _fusionProvider.GetCache(opts.FusionCacheInstanceName);
+        DomainFusionCacheSettings fusionSettings = _fusionDomainSettings.Get(opts.Domain);
+        FusionCacheEntryOptions options = FusionEntryOptionsFactory.Create(opts, fusionSettings);
+        IFusionCache fusion = _fusionProvider.GetCache(opts.DataCacheInstanceName);
         // Early tags (mutable — factory may append before Fusion Set reads them).
         List<string> tags = [CacheTags.Domain(opts.Domain)];
         EntityRef? primary = TryGetRequestPrimary(http);
@@ -348,7 +354,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             if (factoryFailed)
             {
                 sw.Stop();
-                RecordFusionAndAdmin(
+                RecordDataCacheAndAdmin(
                     http,
                     opts.Domain,
                     opts.Domain,
@@ -379,7 +385,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             ? FactoryResultSize.TryEstimateBytes(box.Value)
             : null;
 
-        RecordFusionAndAdmin(
+        RecordDataCacheAndAdmin(
             http,
             opts.Domain,
             opts.Domain,
@@ -514,10 +520,10 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
                 .ConfigureAwait(false);
         }
 
-        if (opts.FusionRespectAuthBypass && DomainAuthEvaluator.ShouldBypassForAuth(http, opts))
+        if (opts.DataCacheRespectAuthBypass && DomainAuthEvaluator.ShouldBypassForAuth(http, opts))
         {
             if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("FusionCache skipped due to auth bypass (FusionRespectAuthBypass)");
+                _logger.LogDebug("FusionCache skipped due to auth bypass (DataCacheRespectAuthBypass)");
 
             using Activity? authBypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
             authBypassActivity?.SetTag("domain", opts.Domain);
@@ -533,7 +539,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
                 .ConfigureAwait(false);
         }
 
-        if (opts.FusionCacheRespectNoStore
+        if (opts.DataCacheRespectNoStore
             && HttpHelper.ContainsCacheDirective(http.Request.Headers.CacheControl, "no-store"))
         {
             if (_logger.IsEnabled(LogLevel.Debug))
@@ -583,7 +589,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         DataCacheProviderRequest providerRequest = new()
         {
             Key = key,
-            InstanceName = opts.FusionCacheInstanceName,
+            InstanceName = opts.DataCacheInstanceName,
             Tags = tags,
             DomainOptions = opts
         };
@@ -641,7 +647,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             if (factoryFailed)
             {
                 sw.Stop();
-                RecordFusionAndAdmin(
+                RecordDataCacheAndAdmin(
                     http,
                     opts.Domain,
                     opts.Domain,
@@ -674,7 +680,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             ? FactoryResultSize.TryEstimateBytes(result)
             : null;
 
-        RecordFusionAndAdmin(
+        RecordDataCacheAndAdmin(
             http,
             opts.Domain,
             opts.Domain,
@@ -826,7 +832,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         catch
         {
             sw.Stop();
-            RecordFusionAndAdmin(
+            RecordDataCacheAndAdmin(
                 http,
                 metricsDomain,
                 adminDomain,
@@ -838,7 +844,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         sw.Stop();
         SetData(http, dataResult, sw.ElapsedMilliseconds);
-        RecordFusionAndAdmin(
+        RecordDataCacheAndAdmin(
             http,
             metricsDomain,
             adminDomain,
@@ -875,7 +881,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         _ => "miss"
     };
 
-    private void RecordFusionAndAdmin(
+    private void RecordDataCacheAndAdmin(
         HttpContext http,
         string metricsDomain,
         string? adminDomain,
@@ -889,7 +895,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             forAdminStats: _adminStats.IsEnabled,
             out string? endpointKey,
             out string? metricsRoute);
-        CacheOrchestratorMetrics.RecordFusion(
+        CacheOrchestratorMetrics.RecordDataCache(
             metricsDomain, result, durationMs, metricsRoute, resultSizeBytes);
 
         if (!_adminStats.IsEnabled)
@@ -897,6 +903,6 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         long? ticks = _adminStats.TrackLatency ? elapsedTicks : null;
         long? size = _adminStats.TrackResultSize ? resultSizeBytes : null;
-        _adminStats.RecordFusion(endpointKey, adminDomain, result, ticks, size);
+        _adminStats.RecordDataCache(endpointKey, adminDomain, result, ticks, size);
     }
 }

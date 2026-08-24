@@ -33,7 +33,7 @@ public sealed class DomainRuntimeOverride
     public bool? AuthVaryIncludeAuthorizationHash { get; init; }
 
     /// <summary>Override Fusion respects auth bypass.</summary>
-    public bool? FusionRespectAuthBypass { get; init; }
+    public bool? DataCacheRespectAuthBypass { get; init; }
 
     /// <summary>Override force-private-when-authenticated.</summary>
     public bool? ClientForcePrivateWhenAuthenticated { get; init; }
@@ -93,40 +93,40 @@ public sealed class DomainRuntimeOverride
     public TimeSpan? DataCacheTtl { get; init; }
 
     /// <summary>Override Fusion hard TTL.</summary>
-    public TimeSpan? FusionCacheHardTtl { get; init; }
+    public TimeSpan? HardTtl { get; init; }
 
     /// <summary>Override Fusion fail-safe.</summary>
-    public TimeSpan? FusionCacheFailSafe { get; init; }
+    public TimeSpan? FailSafe { get; init; }
 
     /// <summary>Override eager refresh ratio.</summary>
-    public double? FusionCacheEagerRefreshRatio { get; init; }
+    public double? EagerRefreshRatio { get; init; }
 
     /// <summary>Override Fusion jitter.</summary>
-    public TimeSpan? FusionCacheJitter { get; init; }
+    public TimeSpan? Jitter { get; init; }
 
     /// <summary>Override factory soft timeout.</summary>
-    public TimeSpan? FusionCacheFactorySoftTimeout { get; init; }
+    public TimeSpan? FactorySoftTimeout { get; init; }
 
     /// <summary>Override factory hard timeout.</summary>
-    public TimeSpan? FusionCacheFactoryHardTimeout { get; init; }
+    public TimeSpan? FactoryHardTimeout { get; init; }
 
     /// <summary>Override max item bytes.</summary>
-    public int? FusionCacheMaxItemBytes { get; init; }
+    public int? MaxItemBytes { get; init; }
 
     /// <summary>Override respect no-store.</summary>
-    public bool? FusionCacheRespectNoStore { get; init; }
+    public bool? DataCacheRespectNoStore { get; init; }
 
     /// <summary>Override background distributed ops.</summary>
-    public bool? FusionCacheAllowBackgroundDistributed { get; init; }
+    public bool? AllowBackgroundDistributed { get; init; }
 
     /// <summary>Override background backplane ops.</summary>
-    public bool? FusionCacheAllowBackgroundBackplane { get; init; }
+    public bool? AllowBackgroundBackplane { get; init; }
 
     /// <summary>Override vary on public address.</summary>
-    public bool? FusionCacheVaryOnPublicAddress { get; init; }
+    public bool? DataCacheVaryOnPublicAddress { get; init; }
 
     /// <summary>Override vary on encoding.</summary>
-    public bool? FusionCacheVaryOnEncoding { get; init; }
+    public bool? DataCacheVaryOnEncoding { get; init; }
 
     /// <summary>Override Output Cache vary-by-host.</summary>
     public bool? OutputCacheVaryByHost { get; init; }
@@ -140,7 +140,7 @@ public sealed class DomainRuntimeOverride
         || VaryOutputCacheByUser is not null
         || TreatAuthorizationAsAuthSignal is not null
         || AuthVaryIncludeAuthorizationHash is not null
-        || FusionRespectAuthBypass is not null
+        || DataCacheRespectAuthBypass is not null
         || ClientForcePrivateWhenAuthenticated is not null
         || VaryByAccept is not null
         || VaryByAcceptLanguage is not null
@@ -160,18 +160,18 @@ public sealed class DomainRuntimeOverride
         || ClientMustRevalidateNearUpdate is not null
         || OutputCacheTtl is not null
         || DataCacheTtl is not null
-        || FusionCacheHardTtl is not null
-        || FusionCacheFailSafe is not null
-        || FusionCacheEagerRefreshRatio is not null
-        || FusionCacheJitter is not null
-        || FusionCacheFactorySoftTimeout is not null
-        || FusionCacheFactoryHardTimeout is not null
-        || FusionCacheMaxItemBytes is not null
-        || FusionCacheRespectNoStore is not null
-        || FusionCacheAllowBackgroundDistributed is not null
-        || FusionCacheAllowBackgroundBackplane is not null
-        || FusionCacheVaryOnPublicAddress is not null
-        || FusionCacheVaryOnEncoding is not null
+        || HardTtl is not null
+        || FailSafe is not null
+        || EagerRefreshRatio is not null
+        || Jitter is not null
+        || FactorySoftTimeout is not null
+        || FactoryHardTimeout is not null
+        || MaxItemBytes is not null
+        || DataCacheRespectNoStore is not null
+        || AllowBackgroundDistributed is not null
+        || AllowBackgroundBackplane is not null
+        || DataCacheVaryOnPublicAddress is not null
+        || DataCacheVaryOnEncoding is not null
         || OutputCacheVaryByHost is not null;
 }
 
@@ -200,7 +200,7 @@ public sealed class DomainSettingsPatch
     public bool? AuthVaryIncludeAuthorizationHash { get; init; }
 
     /// <summary>Fusion respects auth bypass.</summary>
-    public bool? FusionRespectAuthBypass { get; init; }
+    public bool? DataCacheRespectAuthBypass { get; init; }
 
     /// <summary>Force private when authenticated.</summary>
     public bool? ClientForcePrivateWhenAuthenticated { get; init; }
@@ -260,40 +260,40 @@ public sealed class DomainSettingsPatch
     public TimeSpan? DataCacheTtl { get; init; }
 
     /// <summary>Fusion hard TTL.</summary>
-    public TimeSpan? FusionCacheHardTtl { get; init; }
+    public TimeSpan? HardTtl { get; init; }
 
     /// <summary>Fusion fail-safe.</summary>
-    public TimeSpan? FusionCacheFailSafe { get; init; }
+    public TimeSpan? FailSafe { get; init; }
 
     /// <summary>Eager refresh ratio.</summary>
-    public double? FusionCacheEagerRefreshRatio { get; init; }
+    public double? EagerRefreshRatio { get; init; }
 
     /// <summary>Fusion jitter.</summary>
-    public TimeSpan? FusionCacheJitter { get; init; }
+    public TimeSpan? Jitter { get; init; }
 
     /// <summary>Factory soft timeout.</summary>
-    public TimeSpan? FusionCacheFactorySoftTimeout { get; init; }
+    public TimeSpan? FactorySoftTimeout { get; init; }
 
     /// <summary>Factory hard timeout.</summary>
-    public TimeSpan? FusionCacheFactoryHardTimeout { get; init; }
+    public TimeSpan? FactoryHardTimeout { get; init; }
 
     /// <summary>Max item bytes.</summary>
-    public int? FusionCacheMaxItemBytes { get; init; }
+    public int? MaxItemBytes { get; init; }
 
     /// <summary>Respect no-store.</summary>
-    public bool? FusionCacheRespectNoStore { get; init; }
+    public bool? DataCacheRespectNoStore { get; init; }
 
     /// <summary>Background distributed ops.</summary>
-    public bool? FusionCacheAllowBackgroundDistributed { get; init; }
+    public bool? AllowBackgroundDistributed { get; init; }
 
     /// <summary>Background backplane ops.</summary>
-    public bool? FusionCacheAllowBackgroundBackplane { get; init; }
+    public bool? AllowBackgroundBackplane { get; init; }
 
     /// <summary>Vary on public address.</summary>
-    public bool? FusionCacheVaryOnPublicAddress { get; init; }
+    public bool? DataCacheVaryOnPublicAddress { get; init; }
 
     /// <summary>Vary on encoding.</summary>
-    public bool? FusionCacheVaryOnEncoding { get; init; }
+    public bool? DataCacheVaryOnEncoding { get; init; }
 
     /// <summary>Vary Output Cache by host.</summary>
     public bool? OutputCacheVaryByHost { get; init; }
@@ -306,7 +306,7 @@ public sealed class DomainSettingsPatch
         || VaryOutputCacheByUser is not null
         || TreatAuthorizationAsAuthSignal is not null
         || AuthVaryIncludeAuthorizationHash is not null
-        || FusionRespectAuthBypass is not null
+        || DataCacheRespectAuthBypass is not null
         || ClientForcePrivateWhenAuthenticated is not null
         || VaryByAccept is not null
         || VaryByAcceptLanguage is not null
@@ -326,18 +326,18 @@ public sealed class DomainSettingsPatch
         || ClientMustRevalidateNearUpdate is not null
         || OutputCacheTtl is not null
         || DataCacheTtl is not null
-        || FusionCacheHardTtl is not null
-        || FusionCacheFailSafe is not null
-        || FusionCacheEagerRefreshRatio is not null
-        || FusionCacheJitter is not null
-        || FusionCacheFactorySoftTimeout is not null
-        || FusionCacheFactoryHardTimeout is not null
-        || FusionCacheMaxItemBytes is not null
-        || FusionCacheRespectNoStore is not null
-        || FusionCacheAllowBackgroundDistributed is not null
-        || FusionCacheAllowBackgroundBackplane is not null
-        || FusionCacheVaryOnPublicAddress is not null
-        || FusionCacheVaryOnEncoding is not null
+        || HardTtl is not null
+        || FailSafe is not null
+        || EagerRefreshRatio is not null
+        || Jitter is not null
+        || FactorySoftTimeout is not null
+        || FactoryHardTimeout is not null
+        || MaxItemBytes is not null
+        || DataCacheRespectNoStore is not null
+        || AllowBackgroundDistributed is not null
+        || AllowBackgroundBackplane is not null
+        || DataCacheVaryOnPublicAddress is not null
+        || DataCacheVaryOnEncoding is not null
         || OutputCacheVaryByHost is not null;
 
     /// <summary>True when this patch only touches the legacy TTL six-pack (safe for old <c>ttlPatch</c> peers).</summary>
@@ -349,7 +349,7 @@ public sealed class DomainSettingsPatch
         && VaryOutputCacheByUser is null
         && TreatAuthorizationAsAuthSignal is null
         && AuthVaryIncludeAuthorizationHash is null
-        && FusionRespectAuthBypass is null
+        && DataCacheRespectAuthBypass is null
         && ClientForcePrivateWhenAuthenticated is null
         && VaryByAccept is null
         && VaryByAcceptLanguage is null
@@ -365,21 +365,21 @@ public sealed class DomainSettingsPatch
         && ClientCacheability is null
         && ScheduledUpdateUtc is null
         && ClientMustRevalidateNearUpdate is null
-        && FusionCacheEagerRefreshRatio is null
-        && FusionCacheJitter is null
-        && FusionCacheFactorySoftTimeout is null
-        && FusionCacheFactoryHardTimeout is null
-        && FusionCacheMaxItemBytes is null
-        && FusionCacheRespectNoStore is null
-        && FusionCacheAllowBackgroundDistributed is null
-        && FusionCacheAllowBackgroundBackplane is null
-        && FusionCacheVaryOnPublicAddress is null
-        && FusionCacheVaryOnEncoding is null
+        && EagerRefreshRatio is null
+        && Jitter is null
+        && FactorySoftTimeout is null
+        && FactoryHardTimeout is null
+        && MaxItemBytes is null
+        && DataCacheRespectNoStore is null
+        && AllowBackgroundDistributed is null
+        && AllowBackgroundBackplane is null
+        && DataCacheVaryOnPublicAddress is null
+        && DataCacheVaryOnEncoding is null
         && OutputCacheVaryByHost is null
         && (OutputCacheTtl is not null
             || DataCacheTtl is not null
-            || FusionCacheHardTtl is not null
-            || FusionCacheFailSafe is not null
+            || HardTtl is not null
+            || FailSafe is not null
             || ClientTtl is not null
             || ClientTtlMin is not null);
 }
@@ -395,13 +395,13 @@ public sealed class DomainTtlPatch
     public int? OutputCacheTtlSeconds { get; init; }
 
     /// <summary>Data / Fusion soft TTL seconds.</summary>
-    public int? FusionCacheSoftTtlSeconds { get; init; }
+    public int? DataCacheTtlSeconds { get; init; }
 
     /// <summary>Fusion hard TTL seconds.</summary>
-    public int? FusionCacheHardTtlSeconds { get; init; }
+    public int? HardTtlSeconds { get; init; }
 
     /// <summary>Fusion fail-safe seconds.</summary>
-    public int? FusionCacheFailSafeSeconds { get; init; }
+    public int? FailSafeSeconds { get; init; }
 
     /// <summary>Client TTL seconds.</summary>
     public int? ClientTtlSeconds { get; init; }
@@ -416,9 +416,9 @@ public sealed class DomainTtlPatch
     public DomainSettingsPatch ToSettingsPatch() => new()
     {
         OutputCacheTtl = FromSeconds(OutputCacheTtlSeconds),
-        DataCacheTtl = FromSeconds(FusionCacheSoftTtlSeconds),
-        FusionCacheHardTtl = FromSeconds(FusionCacheHardTtlSeconds),
-        FusionCacheFailSafe = FromSeconds(FusionCacheFailSafeSeconds),
+        DataCacheTtl = FromSeconds(DataCacheTtlSeconds),
+        HardTtl = FromSeconds(HardTtlSeconds),
+        FailSafe = FromSeconds(FailSafeSeconds),
         ClientTtl = FromSeconds(ClientTtlSeconds),
         ClientTtlMin = FromSeconds(ClientTtlMinSeconds),
     };

@@ -67,9 +67,9 @@ public sealed class RedisCacheBackendRegistrar : ICacheBackendRegistrar
         if (string.IsNullOrWhiteSpace(redis.Configuration))
         {
             throw new InvalidOperationException(
-                $"FusionCacheInstances['{context.InstanceName}']: Redis configuration is required when Provider is 'Redis'. " +
+                $"DataCacheInstances['{context.InstanceName}']: Redis configuration is required when Provider is 'Redis'. " +
                 $"Set '{context.ConfigSection}:Redis:Configuration' or " +
-                $"'{context.ConfigSection}:FusionCacheInstances:{context.InstanceName}:Redis:Configuration'.");
+                $"'{context.ConfigSection}:DataCacheInstances:{context.InstanceName}:Redis:Configuration'.");
         }
 
         ConfigurationOptions configOptions = CreateConfigurationOptions(redis);

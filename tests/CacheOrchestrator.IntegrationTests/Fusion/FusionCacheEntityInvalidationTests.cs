@@ -1,5 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.Entity;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
@@ -16,7 +17,7 @@ public class FusionCacheEntityInvalidationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:Domains:products:Version"] = "v1",
                 ["Cache:Domains:products:DataCache:Ttl"] = "00:05:00",
             })

@@ -24,13 +24,13 @@ public static class XCacheHeaderFormatter
     /// <param name="domain">Normalized domain name.</param>
     /// <param name="client">Client cache class applied to the response.</param>
     /// <param name="output">Output Cache result (<c>oc=</c>).</param>
-    /// <param name="data">Optional FusionCache result (<c>fc=</c>; omitted on OC HIT).</param>
+    /// <param name="data">Optional data-cache result (<c>fc=</c> wire token; omitted on OC HIT).</param>
     /// <param name="ms">Optional elapsed milliseconds (omitted on OC HIT).</param>
     /// <param name="version">Domain version token.</param>
     /// <param name="phase">Client Cache Schedule phase used for <c>Cache-Control</c>.</param>
     /// <returns>Header value string.</returns>
     /// <remarks>
-    /// <c>fa=run</c> is written when <c>fc</c> is present and is not a fresh hit — the Fusion
+    /// <c>fa=run</c> is written when <c>fc</c> is present and is not a fresh hit — the data-cache
     /// factory callback ran. OC HIT omits <c>fc</c> and <c>fa</c> (handler/factory did not run).
     /// </remarks>
     public static string Format(

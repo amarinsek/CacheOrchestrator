@@ -193,9 +193,9 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
         DomainSettingsPatch patch = new()
         {
             OutputCacheTtl = FromSeconds(command.OutputCacheTtlSeconds),
-            DataCacheTtl = FromSeconds(command.FusionCacheSoftTtlSeconds),
-            FusionCacheHardTtl = FromSeconds(command.FusionCacheHardTtlSeconds),
-            FusionCacheFailSafe = FromSeconds(command.FusionCacheFailSafeSeconds),
+            DataCacheTtl = FromSeconds(command.DataCacheTtlSeconds),
+            HardTtl = FromSeconds(command.HardTtlSeconds),
+            FailSafe = FromSeconds(command.FailSafeSeconds),
             ClientTtl = FromSeconds(command.ClientTtlSeconds),
             ClientTtlMin = FromSeconds(command.ClientTtlMinSeconds)
         };

@@ -81,7 +81,7 @@ Details: [vary.md](../vary.md), [output-cache.md](../output-cache.md), [FAQ](../
 |---------------|------------------|
 | `CacheOrchestrator` | Always. Policy, InMemory, domain APIs, Null cluster bus. |
 | `CacheOrchestrator.Redis` | Shared OC store and/or Fusion L2 + backplane. `"Provider": "Redis"` fails validation without it. |
-| `CacheOrchestrator.Bus` | Commands (invalidate, Version, TTL) to every instance. Does not share cache payloads. |
+| `CacheOrchestrator.HttpBus` | Commands (invalidate, Version, TTL) to every instance. Does not share cache payloads. |
 | `CacheOrchestrator.EFCore.Invalidation` | Purge after a successful `SaveChanges`. |
 | Admin Console App | Operator UI across instances. Not a NuGet package. |
 

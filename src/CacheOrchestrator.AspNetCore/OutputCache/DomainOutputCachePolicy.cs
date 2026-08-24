@@ -1,6 +1,7 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.Entity;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.Utilities;
 using CacheOrchestrator.Vary;

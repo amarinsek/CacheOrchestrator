@@ -192,7 +192,7 @@ Admin Console App (`AdminConsole` section) is configured only in `src/CacheOrche
 
 ## Cluster bus (`Cache:Cluster:Bus`)
 
-Optional multi-instance **command** distribution. Requires package **`CacheOrchestrator.Bus`** + `AddHttpClusterBus()` + `MapCacheOrchestratorHttpBus()`.  
+Optional multi-instance **command** distribution. Requires package **`CacheOrchestrator.HttpBus`** + `AddHttpClusterBus()` + `MapCacheOrchestratorHttpBus()`.  
 Without the package, core registers a Null bus (no peer traffic). Details: **[cluster-bus.md](cluster-bus.md)**.
 
 | Property | Default | Description |

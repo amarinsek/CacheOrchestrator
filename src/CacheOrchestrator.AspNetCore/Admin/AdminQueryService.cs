@@ -1,5 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.FusionCache;
 using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.Admin;
@@ -14,6 +15,7 @@ internal sealed class AdminQueryService
     private readonly IAdminEndpointCatalog _endpoints;
     private readonly IDomainCacheOptionsProvider _domainOptions;
     private readonly IDomainRuntimeOverrideStore _overrides;
+    private readonly IFusionDomainSettingsProvider _fusionDomainSettings;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly TimeProvider _time;
     private readonly ICacheOrchestratorHealthProbe[] _probes;
@@ -23,6 +25,7 @@ internal sealed class AdminQueryService
         IAdminEndpointCatalog endpoints,
         IDomainCacheOptionsProvider domainOptions,
         IDomainRuntimeOverrideStore overrides,
+        IFusionDomainSettingsProvider fusionDomainSettings,
         IOptionsMonitor<CacheOrchestratorOptions> options,
         TimeProvider? timeProvider = null,
         IEnumerable<ICacheOrchestratorHealthProbe>? probes = null)
@@ -31,12 +34,14 @@ internal sealed class AdminQueryService
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(domainOptions);
         ArgumentNullException.ThrowIfNull(overrides);
+        ArgumentNullException.ThrowIfNull(fusionDomainSettings);
         ArgumentNullException.ThrowIfNull(options);
 
         _stats = stats;
         _endpoints = endpoints;
         _domainOptions = domainOptions;
         _overrides = overrides;
+        _fusionDomainSettings = fusionDomainSettings;
         _options = options;
         _time = timeProvider ?? TimeProvider.System;
         _probes = probes is null ? [] : [.. probes];
@@ -243,6 +248,9 @@ internal sealed class AdminQueryService
     {
         DomainCacheOptions opts = _domainOptions.GetOrCreateDomainOptions(normalizedDomain);
         DomainRuntimeOverride? ov = _overrides.Get(normalizedDomain);
+        DomainFusionCacheSettings fusion = _fusionDomainSettings.Get(normalizedDomain);
+        TimeSpan hardTtl = fusion.HardTtl ?? TimeSpan.Zero;
+        TimeSpan failSafe = fusion.FailSafe ?? TimeSpan.Zero;
 
         return new AdminDomainConfigDto
         {
@@ -250,12 +258,12 @@ internal sealed class AdminQueryService
             Version = opts.Version,
             VersionIsRuntimeOverride = ov?.Version is not null,
             OutputCacheEnabled = opts.OutputCacheEnabled,
-            FusionCacheEnabled = opts.DataCacheEnabled,
-            FusionCacheInstanceName = opts.FusionCacheInstanceName,
+            DataCacheEnabled = opts.DataCacheEnabled,
+            DataCacheInstanceName = opts.DataCacheInstanceName,
             OutputCacheTtlSeconds = (int)opts.OutputTtl.TotalSeconds,
-            FusionCacheSoftTtlSeconds = (int)opts.DataCacheTtl.TotalSeconds,
-            FusionCacheHardTtlSeconds = (int)opts.FusionCacheHardTtl.TotalSeconds,
-            FusionCacheFailSafeSeconds = (int)opts.FusionCacheFailSafe.TotalSeconds,
+            DataCacheTtlSeconds = (int)opts.DataCacheTtl.TotalSeconds,
+            HardTtlSeconds = (int)hardTtl.TotalSeconds,
+            FailSafeSeconds = (int)failSafe.TotalSeconds,
             ClientTtlSeconds = opts.ClientTtlSeconds,
             ClientTtlMinSeconds = opts.ClientTtlMinSeconds,
             ScheduledUpdateUtc = opts.ScheduledUpdateUtc,
@@ -266,9 +274,9 @@ internal sealed class AdminQueryService
                 {
                     Version = ov.Version is not null,
                     OutputCacheTtl = ov.OutputCacheTtl is not null,
-                    FusionCacheSoftTtl = ov.DataCacheTtl is not null,
-                    FusionCacheHardTtl = ov.FusionCacheHardTtl is not null,
-                    FusionCacheFailSafe = ov.FusionCacheFailSafe is not null,
+                    DataCacheTtl = ov.DataCacheTtl is not null,
+                    HardTtl = ov.HardTtl is not null,
+                    FailSafe = ov.FailSafe is not null,
                     ClientTtl = ov.ClientTtl is not null,
                     ClientTtlMin = ov.ClientTtlMin is not null
                 }

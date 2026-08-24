@@ -1,4 +1,4 @@
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.Entity;
 
 namespace CacheOrchestrator.Orchestration;
 

@@ -163,7 +163,7 @@ Observers are **audit/webhooks on this process only**. Cross-instance purge is t
 | Emergency “everything for products is wrong” | Domain invalidate and/or Version bump |
 | Custom multi-tag purge | `InvalidateTagsAsync` |
 | Audit / Slack / webhook | `ICacheInvalidationObserver` |
-| Multi-instance InMemory, need immediate purge everywhere | **CacheOrchestrator.Bus** or Redis backplane |
+| Multi-instance InMemory, need immediate purge everywhere | **CacheOrchestrator.HttpBus** or Redis backplane |
 | Admin Version/TTL on all InMemory nodes | Bus + Admin `distribute: true` (or Admin Console App fan-out) |
 
 ---
@@ -200,7 +200,7 @@ List/index endpoints tagged only `domain:{name}` are not refreshed by row invali
 
 ### What the library does on one call
 
-`ICacheOrchestratorInvalidator` always applies **locally** on the calling process. When **`CacheOrchestrator.Bus`** is registered and enabled, it then **publishes** an `InvalidateCommand` to peers (peers ApplyLocal only — no echo).
+`ICacheOrchestratorInvalidator` always applies **locally** on the calling process. When **`CacheOrchestrator.HttpBus`** is registered and enabled, it then **publishes** an `InvalidateCommand` to peers (peers ApplyLocal only — no echo).
 
 | Layer | Without Redis | With Redis (OC store and/or Fusion L2 + backplane) |
 |-------|---------------|-----------------------------------------------------|
@@ -218,7 +218,7 @@ Cluster **configuration** management (shared `appsettings.cache.json`, ConfigMap
 |----------|-------------------------------|-------------|
 | **1. Bump `Version` (shared config)** | No — new key space; old entries expire by TTL | Snapshot / catalog cutover; simplest multi-node story |
 | **2. Redis Fusion L2 + backplane** (+ optional Redis OC) | Yes for Fusion L1 (backplane) + shared L2 | **Recommended production multi-instance** |
-| **3. CacheOrchestrator.Bus** (HTTP + Static / ServiceDiscovery) | Yes if every peer has receive endpoints | Multi-instance **InMemory**; also Version/TTL overlays via Admin `distribute`. Full guide: [cluster-bus.md](cluster-bus.md) |
+| **3. CacheOrchestrator.HttpBus** (HTTP + Static / ServiceDiscovery) | Yes if every peer has receive endpoints | Multi-instance **InMemory**; also Version/TTL overlays via Admin `distribute`. Full guide: [cluster-bus.md](cluster-bus.md) |
 | **4. Rolling restart of all instances** | Yes (cold process) | Emergency only |
 | **5. Custom observer + external bus** | Yes if you implement it | Rare; prefer package Bus |
 
@@ -256,16 +256,16 @@ Use `CacheOrchestrator.Redis`, `"Provider": "Redis"` for Fusion (and optionally 
 
 Details: [deployment.md](deployment.md), [backends.md](backends.md).
 
-### Approach 3 — CacheOrchestrator.Bus (optional package)
+### Approach 3 — CacheOrchestrator.HttpBus (optional package)
 
 Full reference: **[cluster-bus.md](cluster-bus.md)** (install, membership Static/ServiceDiscovery, commands, Admin Console App, metrics, security).
 
 ```bash
-dotnet add package CacheOrchestrator.Bus
+dotnet add package CacheOrchestrator.HttpBus
 ```
 
 ```csharp
-using CacheOrchestrator.Bus;
+using CacheOrchestrator.HttpBus;
 
 builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClusterBus());
 app.UseCacheOrchestrator();
@@ -288,7 +288,7 @@ Prefer Redis L2 and the backplane when instances share Fusion data. Use the Bus 
 |------|--------|
 | Monthly data cutover, long TTL | Shared config **Version** bump ([deployment.md](deployment.md)) |
 | Many nodes, shared cache, immediate purge | **Redis** L2 + backplane |
-| InMemory only, invalidate everywhere | **CacheOrchestrator.Bus** |
+| InMemory only, invalidate everywhere | **CacheOrchestrator.HttpBus** |
 | Runtime Version/TTL on all InMemory nodes | Bus + Admin `distribute: true` (or Admin Console App fan-out to each node) |
 | Sticky sessions + TTL-only | Local invalidation may be enough |
 

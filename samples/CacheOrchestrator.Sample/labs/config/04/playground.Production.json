@@ -1,7 +1,7 @@
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "Redis" }
     },
     "Redis": {

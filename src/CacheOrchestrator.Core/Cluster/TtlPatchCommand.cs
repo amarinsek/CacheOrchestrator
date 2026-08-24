@@ -11,14 +11,14 @@ public sealed record TtlPatchCommand : ClusterCommand
     /// <summary>Output Cache TTL seconds.</summary>
     public int? OutputCacheTtlSeconds { get; init; }
 
-    /// <summary>Fusion soft TTL seconds.</summary>
-    public int? FusionCacheSoftTtlSeconds { get; init; }
+    /// <summary>Data-cache TTL seconds.</summary>
+    public int? DataCacheTtlSeconds { get; init; }
 
-    /// <summary>Fusion hard TTL seconds.</summary>
-    public int? FusionCacheHardTtlSeconds { get; init; }
+    /// <summary>Hard TTL seconds (Fusion engine).</summary>
+    public int? HardTtlSeconds { get; init; }
 
-    /// <summary>Fusion fail-safe seconds.</summary>
-    public int? FusionCacheFailSafeSeconds { get; init; }
+    /// <summary>Fail-safe seconds (Fusion engine).</summary>
+    public int? FailSafeSeconds { get; init; }
 
     /// <summary>Client TTL seconds.</summary>
     public int? ClientTtlSeconds { get; init; }

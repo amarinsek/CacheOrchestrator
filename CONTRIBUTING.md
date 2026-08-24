@@ -23,7 +23,7 @@ dotnet build CacheOrchestrator.slnx -c Release
 # Unit tests — multi-target net8.0 + net10.0 per library package.
 dotnet test tests/CacheOrchestrator.UnitTests -c Release
 dotnet test tests/CacheOrchestrator.Redis.UnitTests -c Release
-dotnet test tests/CacheOrchestrator.Bus.UnitTests -c Release
+dotnet test tests/CacheOrchestrator.HttpBus.UnitTests -c Release
 dotnet test tests/CacheOrchestrator.EFCore.Invalidation.UnitTests -c Release
 # Or one TFM, e.g.:
 dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net8.0
@@ -115,7 +115,7 @@ If you change public cache behaviour, check whether a lab stage still demonstrat
 |------|------|
 | `src/CacheOrchestrator` | Core library (InMemory; no Redis package references) |
 | `src/CacheOrchestrator.Redis` | Optional Redis backends |
-| `src/CacheOrchestrator.Bus` | Optional HTTP cluster command bus |
+| `src/CacheOrchestrator.HttpBus` | Optional HTTP cluster command bus |
 | `src/CacheOrchestrator.EFCore.Invalidation` | Optional SaveChanges invalidation |
 | `src/CacheOrchestrator.AdminConsole` | Admin Console App (not a NuGet package; net10 only) |
 | `deploy/admin` | Admin Console Docker runbook and example config |

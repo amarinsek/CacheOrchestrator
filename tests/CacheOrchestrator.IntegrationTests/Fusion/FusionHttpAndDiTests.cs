@@ -33,7 +33,7 @@ public class FusionHttpAndDiTests
         Dictionary<string, string?> d = new()
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
@@ -208,7 +208,7 @@ public class FusionHttpAndDiTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             })
             .Build();
 
@@ -253,7 +253,7 @@ public class FusionHttpAndDiTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
                 [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
                 [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
@@ -299,7 +299,7 @@ public class FusionHttpAndDiTests
         var initial = new Dictionary<string, string?>
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false",
@@ -474,7 +474,7 @@ public class FusionHttpAndDiTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
                 [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
                 [$"Cache:Domains:{domain}:FusionCache:VaryOnEncoding"] = "true",
@@ -531,7 +531,7 @@ public class FusionHttpAndDiTests
     }
 
     // =========================================================================
-    // B20 — FusionCacheEnabled false over HTTP
+    // B20 — DataCacheEnabled false over HTTP
     // =========================================================================
 
     [Fact]

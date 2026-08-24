@@ -8,9 +8,9 @@ public sealed class CacheDisposition
     /// <summary>Output Cache result for this request, if known.</summary>
     public OutputCacheResult? Output { get; set; }
 
-    /// <summary>FusionCache (data) result for this request, if known.</summary>
+    /// <summary>Data-cache result for this request, if known.</summary>
     public DataCacheResult? Data { get; set; }
 
-    /// <summary>Optional FusionCache operation duration in milliseconds.</summary>
+    /// <summary>Optional data-cache operation duration in milliseconds.</summary>
     public long? ElapsedMs { get; set; }
 }

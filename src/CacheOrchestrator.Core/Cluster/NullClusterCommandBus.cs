@@ -1,7 +1,7 @@
 namespace CacheOrchestrator.Cluster;
 
 /// <summary>
-/// No-op bus used when <c>CacheOrchestrator.Bus</c> is not registered or cluster bus is disabled.
+/// No-op bus used when <c>CacheOrchestrator.HttpBus</c> is not registered or cluster bus is disabled.
 /// </summary>
 public sealed class NullClusterCommandBus : IClusterCommandBus
 {

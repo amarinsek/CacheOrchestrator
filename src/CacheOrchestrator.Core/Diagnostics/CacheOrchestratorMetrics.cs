@@ -23,7 +23,7 @@ public static class CacheOrchestratorMetrics
         Meter.CreateCounter<long>(
             "cache_orchestrator.fc.requests",
             unit: "{request}",
-            description: "Fusion cache operations by domain and result");
+            description: "Data cache operations by domain and result");
 
     private static readonly Counter<long> OcRequests =
         Meter.CreateCounter<long>(
@@ -41,7 +41,7 @@ public static class CacheOrchestratorMetrics
         Meter.CreateHistogram<double>(
             "cache_orchestrator.fc.duration",
             unit: "ms",
-            description: "Fusion GetOrSet duration in milliseconds (legacy; all results with a duration). Prefer factory.duration for factory cost.");
+            description: "Data-cache get-or-set duration in milliseconds (legacy; all results with a duration). Prefer factory.duration for factory cost.");
 
     private static readonly Histogram<double> FactoryDurationMs =
         Meter.CreateHistogram<double>(
@@ -92,14 +92,14 @@ public static class CacheOrchestratorMetrics
             description: "Cluster commands ignored as duplicates within the dedupe window");
 
     /// <summary>
-    /// Records a FusionCache operation outcome (and optional duration).
+    /// Records a data-cache operation outcome (and optional duration).
     /// </summary>
     /// <param name="domain">Domain name.</param>
     /// <param name="result">Result code: hit, miss, stale, fail, bypass, off.</param>
     /// <param name="durationMs">Optional duration in milliseconds.</param>
     /// <param name="route">Optional stable endpoint key when IncludeEndpointLabel is enabled.</param>
     /// <param name="resultSizeBytes">Optional measured factory result size (bytes) on miss.</param>
-    internal static void RecordFusion(
+    internal static void RecordDataCache(
         string domain,
         string result,
         double? durationMs = null,
@@ -114,7 +114,7 @@ public static class CacheOrchestratorMetrics
             // Legacy: all timed GetOrSet outcomes (dashboards may still use this).
             FcDurationMs.Record(ms, tags);
 
-            // Canonical factory cost: factory callback ran (including Fusion disabled / unresolved / bypass).
+            // Canonical factory cost: factory callback ran (including data cache disabled / unresolved / bypass).
             if (IsFactoryInvocation(result))
                 FactoryDurationMs.Record(ms, tags);
         }
@@ -123,7 +123,7 @@ public static class CacheOrchestratorMetrics
             FactoryResultSizeBytes.Record(size, tags);
     }
 
-    /// <summary>True when the Fusion factory callback ran (including Fusion disabled).</summary>
+    /// <summary>True when the data-cache factory callback ran (including data cache disabled).</summary>
     internal static bool IsFactoryInvocation(string result) =>
         result is "miss" or "stale" or "fail" or "off" or "unresolved" or "bypass";
 

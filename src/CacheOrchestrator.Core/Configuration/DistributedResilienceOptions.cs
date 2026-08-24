@@ -1,11 +1,11 @@
 namespace CacheOrchestrator.Configuration;
 
 /// <summary>
-/// Soft/hard timeouts and circuit breaker for <strong>distributed</strong> FusionCache L2 operations
-/// (any non-InMemory provider: Redis package, SQL, custom).
+/// Soft/hard timeouts and circuit breaker for <strong>distributed</strong> L2 operations
+/// used by data-cache providers (any non-InMemory backend: Redis package, SQL, custom).
 /// </summary>
 /// <remarks>
-/// Bound from <c>Cache:Distributed</c>. Not applied when the FusionCache instance provider is <c>InMemory</c>.
+/// Bound from <c>Cache:Distributed</c>. Not applied when the data-cache instance provider is <c>InMemory</c>.
 /// </remarks>
 public sealed class DistributedResilienceOptions
 {

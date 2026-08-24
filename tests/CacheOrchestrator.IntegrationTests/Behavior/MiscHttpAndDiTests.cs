@@ -29,7 +29,7 @@ public class MiscHttpAndDiTests
     private static Dictionary<string, string?> Base(string domain) => new()
     {
         ["Cache:OutputCache:Provider"] = "InMemory",
-        ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+        ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
         ["Cache:EmitDiagnosticsHeaders"] = "true",
         [$"Cache:Domains:{domain}:Version"] = "v1",
         [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
@@ -181,7 +181,7 @@ public class MiscHttpAndDiTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
                 [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
                 [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",

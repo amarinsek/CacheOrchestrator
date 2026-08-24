@@ -1,4 +1,4 @@
-using CacheOrchestrator.Bus;
+using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
@@ -100,7 +100,7 @@ public class ClusterBusWithRedisBackplaneTests
             // OC stays InMemory so bus still matters for HTTP response layer on peers;
             // FC is Redis L2 + backplane (same topology as production mixed/full Redis FC).
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+            ["Cache:DataCacheInstances:default:Provider"] = "Redis",
             ["Cache:Redis:Configuration"] = _redis.ConnectionString,
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             ["Cache:Cluster:Bus:Enabled"] = "true",

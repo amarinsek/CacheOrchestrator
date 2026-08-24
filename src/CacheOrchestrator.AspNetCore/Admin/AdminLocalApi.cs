@@ -59,7 +59,7 @@ public static class AdminLocalApi
         group.MapGet("/health", async (AdminQueryService query, CancellationToken cancellationToken) =>
             Results.Ok(await query.GetHealthAsync(cancellationToken)));
 
-        // Always available when Local Admin is on (even without CacheOrchestrator.Bus).
+        // Always available when Local Admin is on (even without CacheOrchestrator.HttpBus).
         // Prevents SPA MapFallbackToFile HTML from being mistaken for JSON on probe misses.
         group.MapGet("/cluster/info", async (
             IInstanceIdProvider instanceId,
@@ -422,14 +422,14 @@ public static class AdminLocalApi
 
         if (NegativeTs(patch.OutputCacheTtl)
             || NegativeTs(patch.DataCacheTtl)
-            || NegativeTs(patch.FusionCacheHardTtl)
-            || NegativeTs(patch.FusionCacheFailSafe)
+            || NegativeTs(patch.HardTtl)
+            || NegativeTs(patch.FailSafe)
             || NegativeTs(patch.ClientTtl)
             || NegativeTs(patch.ClientTtlMin)
-            || NegativeTs(patch.FusionCacheJitter)
-            || NegativeTs(patch.FusionCacheFactorySoftTimeout)
-            || NegativeTs(patch.FusionCacheFactoryHardTimeout)
-            || Negative(patch.FusionCacheMaxItemBytes))
+            || NegativeTs(patch.Jitter)
+            || NegativeTs(patch.FactorySoftTimeout)
+            || NegativeTs(patch.FactoryHardTimeout)
+            || Negative(patch.MaxItemBytes))
         {
             return "Numeric settings must be non-negative.";
         }
@@ -441,7 +441,7 @@ public static class AdminLocalApi
             return "clientCache.ttlMin must be <= clientCache.ttl when both are set.";
         }
 
-        if (patch.FusionCacheEagerRefreshRatio is double r && (r < 0 || r >= 1))
+        if (patch.EagerRefreshRatio is double r && (r < 0 || r >= 1))
             return "fusionCache.eagerRefreshRatio must be in [0, 1).";
 
         return null;
@@ -452,9 +452,9 @@ public static class AdminLocalApi
         new()
         {
             OutputCacheTtlSeconds = ToSeconds(patch.OutputCacheTtl),
-            FusionCacheSoftTtlSeconds = ToSeconds(patch.DataCacheTtl),
-            FusionCacheHardTtlSeconds = ToSeconds(patch.FusionCacheHardTtl),
-            FusionCacheFailSafeSeconds = ToSeconds(patch.FusionCacheFailSafe),
+            DataCacheTtlSeconds = ToSeconds(patch.DataCacheTtl),
+            HardTtlSeconds = ToSeconds(patch.HardTtl),
+            FailSafeSeconds = ToSeconds(patch.FailSafe),
             ClientTtlSeconds = ToSeconds(patch.ClientTtl),
             ClientTtlMinSeconds = ToSeconds(patch.ClientTtlMin),
         };

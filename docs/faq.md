@@ -164,7 +164,7 @@ See [client-cache-schedule.md](client-cache-schedule.md).
 |---------|----------|
 | `CacheOrchestrator` | Policy, InMemory, domain APIs, Null cluster bus |
 | `CacheOrchestrator.Redis` | Redis registrar, connection options, Redis health probe |
-| `CacheOrchestrator.Bus` | HTTP cluster command bus, Static / ServiceDiscovery membership |
+| `CacheOrchestrator.HttpBus` | HTTP cluster command bus, Static / ServiceDiscovery membership |
 | `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation |
 
 Without Redis package + `AddRedisBackend()`, `"Provider": "Redis"` fails validation.  

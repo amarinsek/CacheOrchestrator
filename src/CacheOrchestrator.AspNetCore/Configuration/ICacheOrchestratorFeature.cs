@@ -1,3 +1,4 @@
+using CacheOrchestrator.Entity;
 using CacheOrchestrator.FusionCache;
 using Microsoft.AspNetCore.Http;
 

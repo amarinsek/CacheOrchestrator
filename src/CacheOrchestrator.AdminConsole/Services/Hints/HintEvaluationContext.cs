@@ -118,8 +118,8 @@ public sealed class HintEvaluationContext
                 return config.ClientTtlSeconds > 0
                     && config.ClientTtlMinSeconds >= config.ClientTtlSeconds;
             if (name.Equals("fusionHardLtSoft", StringComparison.OrdinalIgnoreCase))
-                return config.FusionCacheHardTtlSeconds > 0
-                    && config.FusionCacheSoftTtlSeconds > config.FusionCacheHardTtlSeconds;
+                return config.HardTtlSeconds > 0
+                    && config.DataCacheTtlSeconds > config.HardTtlSeconds;
         }
 
         if (target is AdminFusionLayerDto fc)

@@ -25,7 +25,7 @@ public class ConfigReloadAndValidationTests
         var initial = new Dictionary<string, string?>
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
@@ -88,7 +88,7 @@ public class ConfigReloadAndValidationTests
         var data = new Dictionary<string, string?>
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Domains:pin:Version"] = "1",
             ["Cache:Domains:pin:ClientCache:Ttl"] = "00:00:10",
             ["Cache:Domains:pin:ClientCache:TtlMin"] = "00:00:10",
@@ -141,7 +141,7 @@ public class ConfigReloadAndValidationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "NotARealProvider",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             })
             .Build();
 
@@ -161,7 +161,7 @@ public class ConfigReloadAndValidationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
                 [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "-00:00:01",
                 [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:01:00",

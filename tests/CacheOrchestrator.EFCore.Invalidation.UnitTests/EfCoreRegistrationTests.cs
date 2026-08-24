@@ -75,7 +75,7 @@ public class EfCoreRegistrationTests
         new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory"
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory"
         }).Build();
 
     public sealed class RegProduct

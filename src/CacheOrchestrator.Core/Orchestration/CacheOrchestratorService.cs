@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.Entity;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 
@@ -57,7 +57,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
         DataCacheProviderRequest providerRequest = new()
         {
             Key = physicalKey,
-            InstanceName = opts.FusionCacheInstanceName,
+            InstanceName = opts.DataCacheInstanceName,
             Tags = tags,
             DomainOptions = opts
         };

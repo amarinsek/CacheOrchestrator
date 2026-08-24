@@ -87,10 +87,10 @@ public sealed class CacheVaryMaterializer
         CacheVarySurface surface,
         Builder builder)
     {
-        // Accept-Encoding: OC always varies when present (historical). Fusion when FusionCacheVaryOnEncoding.
+        // Accept-Encoding: OC always varies when present (historical). Fusion when DataCacheVaryOnEncoding.
         StringValues ae = http.Request.Headers.AcceptEncoding;
         if (ae.Count > 0
-            && (surface == CacheVarySurface.OutputCache || options.FusionCacheVaryOnEncoding))
+            && (surface == CacheVarySurface.OutputCache || options.DataCacheVaryOnEncoding))
         {
             builder.AddHeader(HeaderNames.AcceptEncoding);
         }

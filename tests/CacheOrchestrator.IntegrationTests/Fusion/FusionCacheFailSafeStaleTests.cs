@@ -11,7 +11,7 @@ namespace CacheOrchestrator.IntegrationTests.Fusion;
 /// Integration coverage for Fusion fail-safe: after soft TTL expires, a failing factory
 /// must still return the last good value and mark disposition as <see cref="DataCacheResult.Stale"/>.
 /// </summary>
-public class FusionCacheFailSafeStaleTests
+public class FailSafeStaleTests
 {
     private static ServiceProvider BuildProvider()
     {
@@ -19,7 +19,7 @@ public class FusionCacheFailSafeStaleTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:Domains:stale:Version"] = "v1",
                 // Soft-expire quickly so the next GetOrSet re-runs the factory.
                 ["Cache:Domains:stale:DataCache:Ttl"] = "00:00:01",
@@ -118,7 +118,7 @@ public class FusionCacheFailSafeStaleTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:Domains:nofail:Version"] = "v1",
                 ["Cache:Domains:nofail:DataCache:Ttl"] = "00:00:01",
                 ["Cache:Domains:nofail:FusionCache:HardTtl"] = "01:00:00",

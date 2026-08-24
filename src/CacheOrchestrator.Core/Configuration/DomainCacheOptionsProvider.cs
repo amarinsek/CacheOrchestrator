@@ -145,20 +145,10 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
             ?? Pick(dom.OutputCache?.Ttl, defaults.OutputCache?.Ttl, TimeSpan.FromSeconds(3700));
         TimeSpan dataCacheTtl = overlay?.DataCacheTtl
             ?? Pick(dom.DataCache?.Ttl, defaults.DataCache?.Ttl, TimeSpan.FromSeconds(3800));
-        TimeSpan fusionHardTtl = overlay?.FusionCacheHardTtl
-            ?? Pick(dom.FusionCache?.HardTtl, defaults.FusionCache?.HardTtl, TimeSpan.FromSeconds(43200));
-        TimeSpan fusionFailSafe = overlay?.FusionCacheFailSafe
-            ?? Pick(dom.FusionCache?.FailSafe, defaults.FusionCache?.FailSafe, TimeSpan.FromSeconds(86400));
         TimeSpan clientTtl = overlay?.ClientTtl
             ?? Pick(dom.ClientCache?.Ttl, defaults.ClientCache?.Ttl, TimeSpan.FromSeconds(3600));
         TimeSpan clientTtlMin = overlay?.ClientTtlMin
             ?? Pick(dom.ClientCache?.TtlMin, defaults.ClientCache?.TtlMin, TimeSpan.FromSeconds(60));
-        TimeSpan fusionJitter = overlay?.FusionCacheJitter
-            ?? Pick(dom.FusionCache?.Jitter, defaults.FusionCache?.Jitter, TimeSpan.FromSeconds(60));
-        TimeSpan factorySoft = overlay?.FusionCacheFactorySoftTimeout
-            ?? Pick(dom.FusionCache?.FactorySoftTimeout, defaults.FusionCache?.FactorySoftTimeout, TimeSpan.FromSeconds(1));
-        TimeSpan factoryHard = overlay?.FusionCacheFactoryHardTimeout
-            ?? Pick(dom.FusionCache?.FactoryHardTimeout, defaults.FusionCache?.FactoryHardTimeout, TimeSpan.FromSeconds(5));
 
         AuthBypassMode authBypassMode = ResolveAuthBypassMode(overlay, dom, defaults);
 
@@ -170,7 +160,7 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
         return new DomainCacheOptions
         {
             Domain = domain,
-            FusionCacheInstanceName = instanceName,
+            DataCacheInstanceName = instanceName,
             OutputCacheEnabled = overlay?.OutputCacheEnabled
                 ?? Pick(dom.OutputCache?.Enabled, defaults.OutputCache?.Enabled, true),
             DataCacheEnabled = overlay?.DataCacheEnabled
@@ -182,8 +172,8 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
                 ?? Pick(dom.TreatAuthorizationAsAuthSignal, defaults.TreatAuthorizationAsAuthSignal, true),
             AuthVaryIncludeAuthorizationHash = overlay?.AuthVaryIncludeAuthorizationHash
                 ?? Pick(dom.AuthVaryIncludeAuthorizationHash, defaults.AuthVaryIncludeAuthorizationHash, true),
-            FusionRespectAuthBypass = overlay?.FusionRespectAuthBypass
-                ?? Pick(dom.FusionRespectAuthBypass, defaults.FusionRespectAuthBypass, true),
+            DataCacheRespectAuthBypass = overlay?.DataCacheRespectAuthBypass
+                ?? Pick(dom.DataCacheRespectAuthBypass, defaults.DataCacheRespectAuthBypass, true),
             ClientForcePrivateWhenAuthenticated = overlay?.ClientForcePrivateWhenAuthenticated
                 ?? Pick(
                     dom.ClientCache?.ForcePrivateWhenAuthenticated,
@@ -242,31 +232,18 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
 
             OutputTtl = outputTtl < TimeSpan.Zero ? TimeSpan.Zero : outputTtl,
             DataCacheTtl = dataCacheTtl,
-            FusionCacheHardTtl = fusionHardTtl,
-            FusionCacheFailSafe = fusionFailSafe,
 
             OutputCacheNamespace = options.OutputNamespace,
-            FusionCacheNamespace = options.FusionCacheInstances.TryGetValue(instanceName, out CacheOrchestratorOptions.FusionCacheInstanceOptions? inst)
+            DataCacheNamespace = options.DataCacheInstances.TryGetValue(instanceName, out CacheOrchestratorOptions.DataCacheInstanceOptions? inst)
                 ? inst.GetNamespace(instanceName, options)
-                : new CacheOrchestratorOptions.FusionCacheInstanceOptions().GetNamespace(instanceName, options),
+                : new CacheOrchestratorOptions.DataCacheInstanceOptions().GetNamespace(instanceName, options),
 
-            FusionCacheEagerRefreshRatio = overlay?.FusionCacheEagerRefreshRatio
-                ?? Pick(dom.FusionCache?.EagerRefreshRatio, defaults.FusionCache?.EagerRefreshRatio, 0.9),
-            FusionCacheJitterSeconds = ToNonNegSeconds(fusionJitter),
-            FusionCacheFactorySoftTimeoutSeconds = ToNonNegSeconds(factorySoft),
-            FusionCacheFactoryHardTimeoutSeconds = ToNonNegSeconds(factoryHard),
-            FusionCacheMaxItemBytes = overlay?.FusionCacheMaxItemBytes
-                ?? Pick(dom.FusionCache?.MaxItemBytes, defaults.FusionCache?.MaxItemBytes, 0),
-            FusionCacheRespectNoStore = overlay?.FusionCacheRespectNoStore
-                ?? Pick(dom.FusionCache?.RespectNoStore, defaults.FusionCache?.RespectNoStore, true),
-            FusionCacheAllowBackgroundDistributed = overlay?.FusionCacheAllowBackgroundDistributed
-                ?? Pick(dom.FusionCache?.AllowBackgroundDistributed, defaults.FusionCache?.AllowBackgroundDistributed, true),
-            FusionCacheAllowBackgroundBackplane = overlay?.FusionCacheAllowBackgroundBackplane
-                ?? Pick(dom.FusionCache?.AllowBackgroundBackplane, defaults.FusionCache?.AllowBackgroundBackplane, true),
-            FusionCacheVaryOnPublicAddress = overlay?.FusionCacheVaryOnPublicAddress
-                ?? Pick(dom.FusionCache?.VaryOnPublicAddress, defaults.FusionCache?.VaryOnPublicAddress, true),
-            FusionCacheVaryOnEncoding = overlay?.FusionCacheVaryOnEncoding
-                ?? Pick(dom.FusionCache?.VaryOnEncoding, defaults.FusionCache?.VaryOnEncoding, true),
+            DataCacheRespectNoStore = overlay?.DataCacheRespectNoStore
+                ?? Pick(dom.DataCache?.RespectNoStore, defaults.DataCache?.RespectNoStore, true),
+            DataCacheVaryOnPublicAddress = overlay?.DataCacheVaryOnPublicAddress
+                ?? Pick(dom.DataCache?.VaryOnPublicAddress, defaults.DataCache?.VaryOnPublicAddress, true),
+            DataCacheVaryOnEncoding = overlay?.DataCacheVaryOnEncoding
+                ?? Pick(dom.DataCache?.VaryOnEncoding, defaults.DataCache?.VaryOnEncoding, true),
             OutputCacheVaryByHost = overlay?.OutputCacheVaryByHost
                 ?? Pick(dom.OutputCache?.VaryByHost, defaults.OutputCache?.VaryByHost, true),
         };

@@ -97,7 +97,7 @@ public class MetricsWindowStatsServiceTests
                 {
                     Name = "catalog",
                     Version = "v1",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                 },
             ]);
 

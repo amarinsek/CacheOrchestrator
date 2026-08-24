@@ -6,28 +6,30 @@ using ZiggyCreatures.Caching.Fusion;
 namespace CacheOrchestrator.Benchmarks.Benchmarks;
 
 /// <summary>
-/// <see cref="FusionEntryOptionsFactory.Create"/> builds Fusion entry options from a domain snapshot.
+/// <see cref="FusionEntryOptionsFactory.Create"/> builds Fusion entry options from domain + Fusion settings.
 /// </summary>
 [MemoryDiagnoser]
 [ShortJob]
 public class FusionEntryOptionsBenchmarks
 {
     private DomainCacheOptions _warm = null!;
+    private DomainFusionCacheSettings _fusion = null!;
 
     [GlobalSetup]
     public void Setup()
     {
         _warm = CreateOptions();
-        _ = FusionEntryOptionsFactory.Create(_warm);
+        _fusion = CreateFusion();
+        _ = FusionEntryOptionsFactory.Create(_warm, _fusion);
     }
 
     [Benchmark(Baseline = true)]
     public FusionCacheEntryOptions Get_Warm_Reuse()
-        => FusionEntryOptionsFactory.Create(_warm);
+        => FusionEntryOptionsFactory.Create(_warm, _fusion);
 
     [Benchmark]
     public FusionCacheEntryOptions Get_Cold_NewSnapshot()
-        => FusionEntryOptionsFactory.Create(CreateOptions());
+        => FusionEntryOptionsFactory.Create(CreateOptions(), CreateFusion());
 
     private static DomainCacheOptions CreateOptions() => new()
     {
@@ -35,12 +37,6 @@ public class FusionEntryOptionsBenchmarks
         Version = "1",
         VersionHex = "01",
         DataCacheTtl = TimeSpan.FromSeconds(300),
-        FusionCacheHardTtl = TimeSpan.FromHours(12),
-        FusionCacheFailSafe = TimeSpan.FromHours(24),
-        FusionCacheJitterSeconds = 60,
-        FusionCacheEagerRefreshRatio = 0.9,
-        FusionCacheAllowBackgroundDistributed = true,
-        FusionCacheAllowBackgroundBackplane = true,
         OutputCacheEnabled = true,
         DataCacheEnabled = true,
         ClientCacheability = ClientCacheability.Public,
@@ -49,5 +45,15 @@ public class FusionEntryOptionsBenchmarks
         OutputTtl = TimeSpan.FromSeconds(60),
         CacheableStatusCodes = [200],
         OutputCacheNamespace = "b",
+    };
+
+    private static DomainFusionCacheSettings CreateFusion() => new()
+    {
+        HardTtl = TimeSpan.FromHours(12),
+        FailSafe = TimeSpan.FromHours(24),
+        Jitter = TimeSpan.FromSeconds(60),
+        EagerRefreshRatio = 0.9,
+        AllowBackgroundDistributed = true,
+        AllowBackgroundBackplane = true,
     };
 }

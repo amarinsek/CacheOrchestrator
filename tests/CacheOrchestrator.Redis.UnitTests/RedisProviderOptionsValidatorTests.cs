@@ -30,16 +30,16 @@ public class RedisProviderOptionsValidatorTests
         var validator = new RedisProviderOptionsValidator(config, "Cache");
         var options = new CacheOrchestratorOptions
         {
-            FusionCacheInstances =
+            DataCacheInstances =
             {
-                ["default"] = new CacheOrchestratorOptions.FusionCacheInstanceOptions { Provider = "Redis" }
+                ["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" }
             }
         };
 
         var result = validator.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("FusionCacheInstances['default']", StringComparison.OrdinalIgnoreCase));
+        result.Failures.Should().Contain(f => f.Contains("DataCacheInstances['default']", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -55,9 +55,9 @@ public class RedisProviderOptionsValidatorTests
         var options = new CacheOrchestratorOptions
         {
             OutputCache = { Provider = "Redis" },
-            FusionCacheInstances =
+            DataCacheInstances =
             {
-                ["default"] = new CacheOrchestratorOptions.FusionCacheInstanceOptions { Provider = "Redis" }
+                ["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" }
             }
         };
 
@@ -73,9 +73,9 @@ public class RedisProviderOptionsValidatorTests
         var options = new CacheOrchestratorOptions
         {
             OutputCache = { Provider = "InMemory" },
-            FusionCacheInstances =
+            DataCacheInstances =
             {
-                ["default"] = new CacheOrchestratorOptions.FusionCacheInstanceOptions { Provider = "InMemory" }
+                ["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "InMemory" }
             }
         };
 

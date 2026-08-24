@@ -1,5 +1,5 @@
 using CacheOrchestrator.Admin;
-using CacheOrchestrator.Bus;
+using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.FusionCache;
@@ -93,7 +93,7 @@ public class ClusterBusMultiHostTests
             ["Cache:Namespace"] = ns,
             ["Cache:InstanceId"] = instanceId,
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             ["Cache:Cluster:Bus:Enabled"] = "true",
             ["Cache:Cluster:Bus:Membership"] = membership,
@@ -250,7 +250,7 @@ public class ClusterBusMultiHostTests
             ["Cache:Namespace"] = ns,
             ["Cache:InstanceId"] = instanceId,
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Cluster:Bus:Enabled"] = "true",
             ["Cache:Cluster:Bus:Membership"] = "Static",
             ["Cache:Cluster:Bus:ApiKey"] = "bus-key",
@@ -750,7 +750,7 @@ public class ClusterBusMultiHostTests
 
         result.Succeeded.Should().BeTrue(
             "cluster publish failure must not flip local Fusion/Output Succeeded");
-        result.FusionSucceeded.Should().BeTrue();
+        result.DataCacheSucceeded.Should().BeTrue();
         result.OutputSucceeded.Should().BeTrue();
         result.ClusterPublish.Should().NotBeNull();
         result.ClusterPublish!.AllSucceeded.Should().BeFalse();

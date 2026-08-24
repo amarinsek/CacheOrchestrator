@@ -50,7 +50,7 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 | `Vary/` | Shared OC↔Fusion vary materializer, `ICacheVaryContributor` |
 | `Backends/` | `ICacheBackendRegistrar` contracts + **InMemory** registrar (Redis lives in `CacheOrchestrator.Redis`) |
 | `Invalidation/` | Tag-based eviction across OC + FC |
-| `Cluster/` | Command bus contracts, Null bus/membership, InstanceId, handler (HTTP in Bus package) |
+| `Cluster/` | Command bus contracts, Null bus/membership, InstanceId, handler (HTTP in HttpBus package) |
 | `Admin/` | Admin API (feature-flagged) |
 | `Diagnostics/` | Metrics, activities, health probes |
 | `DependencyInjection/` | `AddCacheOrchestrator`, `UseCacheOrchestrator`, `MapCacheOrchestratorAdmin` |
@@ -61,7 +61,7 @@ Companion packages:
 | Project | Role |
 |---------|------|
 | `CacheOrchestrator.Redis` | Redis OC store + Fusion L2 + backplane |
-| `CacheOrchestrator.Bus` | HTTP cluster command bus + Static / ServiceDiscovery membership |
+| `CacheOrchestrator.HttpBus` | HTTP cluster command bus + Static / ServiceDiscovery membership |
 | `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation — [ef-core-invalidation.md](ef-core-invalidation.md) |
 | `CacheOrchestrator.AdminConsole` | Admin Console App (operator UI); calls the Admin API on each instance. Not a NuGet package; Docker: `ghcr.io/amarinsek/cacheorchestrator-admin-console`. |
 
@@ -79,7 +79,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | `NullClusterCommandBus`, `NullClusterMembership` | — |
 | `ICacheBackendRegistrar`, `InMemoryCacheBackendRegistrar` | — |
 | Redis: `AddRedisBackend` / `RedisCacheBackendRegistrar` (**CacheOrchestrator.Redis**) | `RedisCacheHealthProbe` |
-| Bus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` / `HttpClusterCommandBus` (**CacheOrchestrator.Bus**) | `ClusterEndpointAuth` |
+| Bus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` / `HttpClusterCommandBus` (**CacheOrchestrator.HttpBus**) | `ClusterEndpointAuth` |
 | `MapCacheOrchestratorAdmin`, `AdminLocalApi`, Admin API DTOs | `InMemoryAdminStatsCollector` |
 | `AuthBypassMode`, `DomainAuthEvaluator` | — |
 | `ICacheVaryContributor`, `CacheVaryMaterializer`, `ICacheVaryBuilder` | — |

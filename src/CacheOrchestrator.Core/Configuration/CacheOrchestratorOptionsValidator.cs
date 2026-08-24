@@ -5,7 +5,7 @@ namespace CacheOrchestrator.Configuration;
 
 /// <summary>
 /// Validates core <see cref="CacheOrchestratorOptions"/> at startup (provider names, TTLs,
-/// FusionCache instance references, Output Cache capability).
+/// data-cache instance references, Output Cache capability).
 /// Provider-specific connection rules (e.g. Redis) are validated by the corresponding package.
 /// </summary>
 internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<CacheOrchestratorOptions>
@@ -48,21 +48,21 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
                 $"(e.g. InMemory, or Redis via CacheOrchestrator.Redis).");
         }
 
-        if (options.FusionCacheInstances.Count == 0)
+        if (options.DataCacheInstances.Count == 0)
         {
-            failures.Add("FusionCacheInstances must contain at least one entry named 'default'.");
+            failures.Add("DataCacheInstances must contain at least one entry named 'default'.");
         }
         else
         {
-            if (!options.FusionCacheInstances.ContainsKey("default"))
-                failures.Add("FusionCacheInstances must contain an entry named 'default'.");
+            if (!options.DataCacheInstances.ContainsKey("default"))
+                failures.Add("DataCacheInstances must contain an entry named 'default'.");
 
-            foreach ((string? instanceName, CacheOrchestratorOptions.FusionCacheInstanceOptions? instanceOpts) in options.FusionCacheInstances)
+            foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOpts) in options.DataCacheInstances)
             {
                 if (!_validProviders.Contains(instanceOpts.Provider))
                 {
                     failures.Add(
-                        $"FusionCacheInstances['{instanceName}'].Provider must be one of: {string.Join(", ", _validProviders)}. " +
+                        $"DataCacheInstances['{instanceName}'].Provider must be one of: {string.Join(", ", _validProviders)}. " +
                         $"Current value: '{instanceOpts.Provider}'.");
                 }
             }
@@ -78,11 +78,11 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 
             string? dataInstance = settings.DataCache?.Instance;
             if (!string.IsNullOrWhiteSpace(dataInstance) &&
-                !options.FusionCacheInstances.ContainsKey(dataInstance))
+                !options.DataCacheInstances.ContainsKey(dataInstance))
             {
                 failures.Add(
                     $"Domain '{domain}': DataCache.Instance '{dataInstance}' " +
-                    $"does not exist in FusionCacheInstances.");
+                    $"does not exist in DataCacheInstances.");
             }
         }
 
@@ -150,14 +150,6 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
         ValidateNonNegTimeSpan(label, "OutputCache.Ttl", settings.OutputCache?.Ttl, failures);
         ValidateNonNegTimeSpan(label, "ClientCache.Ttl", settings.ClientCache?.Ttl, failures);
         ValidateNonNegTimeSpan(label, "ClientCache.TtlMin", settings.ClientCache?.TtlMin, failures);
-        ValidateNonNegTimeSpan(label, "FusionCache.HardTtl", settings.FusionCache?.HardTtl, failures);
-        ValidateNonNegTimeSpan(label, "FusionCache.FailSafe", settings.FusionCache?.FailSafe, failures);
-        ValidateNonNegTimeSpan(label, "FusionCache.Jitter", settings.FusionCache?.Jitter, failures);
-        ValidateNonNegTimeSpan(label, "FusionCache.FactorySoftTimeout", settings.FusionCache?.FactorySoftTimeout, failures);
-        ValidateNonNegTimeSpan(label, "FusionCache.FactoryHardTimeout", settings.FusionCache?.FactoryHardTimeout, failures);
-
-        if (settings.FusionCache?.EagerRefreshRatio is double ratio && (ratio < 0 || ratio >= 1))
-            failures.Add($"{label}: FusionCache.EagerRefreshRatio must be 0 (disabled) or in (0, 1).");
 
         ValidateAllowlist(label, "VaryByHeaders", settings.VaryByHeaders, Admin.DomainSettingsPatchMapper.MaxVaryByHeaders, failures, allowEmpty: true);
         ValidateAllowlist(label, "VaryByCookies", settings.VaryByCookies, Admin.DomainSettingsPatchMapper.MaxVaryByCookies, failures, allowEmpty: true);

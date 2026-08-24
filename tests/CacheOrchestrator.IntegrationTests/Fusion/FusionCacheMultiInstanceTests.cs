@@ -15,8 +15,8 @@ public class FusionCacheMultiInstanceTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:pii:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:pii:Provider"] = "InMemory",
                 ["Cache:Domains:products:DataCache:Instance"] = "default",
                 ["Cache:Domains:users:DataCache:Instance"] = "pii",
             })

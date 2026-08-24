@@ -22,11 +22,15 @@
 	<ItemGroup>
 		<ProjectReference Include="..\CacheOrchestrator.Core\CacheOrchestrator.Core.csproj" />
 		<PackageReference Include="ZiggyCreatures.FusionCache" Version="2.6.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
 		<PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.6.0" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<InternalsVisibleTo Include="CacheOrchestrator.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.FusionCache.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.HybridCache.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Benchmarks" />

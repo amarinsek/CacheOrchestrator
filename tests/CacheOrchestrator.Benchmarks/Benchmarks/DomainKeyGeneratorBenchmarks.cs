@@ -38,14 +38,12 @@ public class DomainKeyGeneratorBenchmarks
             ClientTtlMinSeconds = 60,
             OutputTtl = TimeSpan.FromSeconds(60),
             DataCacheTtl = TimeSpan.FromSeconds(60),
-            FusionCacheHardTtl = TimeSpan.FromHours(12),
-            FusionCacheFailSafe = TimeSpan.FromHours(24),
             OutputCacheNamespace = "sample:oc",
-            FusionCacheNamespace = "sample:fc",
+            DataCacheNamespace = "sample:fc",
             CacheableStatusCodes = [200],
             EncodingNormalizationList = ["br", "gzip"],
-            FusionCacheVaryOnEncoding = true,
-            FusionCacheVaryOnPublicAddress = true
+            DataCacheVaryOnEncoding = true,
+            DataCacheVaryOnPublicAddress = true
         };
 
         _noQuery = CreateHttp("/api/catalog");

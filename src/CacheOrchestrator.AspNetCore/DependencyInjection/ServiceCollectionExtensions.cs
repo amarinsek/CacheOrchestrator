@@ -23,7 +23,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registers CacheOrchestrator services, options validation, Output Cache, and all named
-    /// FusionCache instances defined in <c>FusionCacheInstances</c>.
+    /// FusionCache instances defined in <c>DataCacheInstances</c>.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Application configuration (binds the cache section).</param>
@@ -49,6 +49,10 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
+        // FusionDomainSettingsProvider (and similar) resolve IConfiguration from DI.
+        // Host builders usually register it; bare ServiceCollection unit tests do not.
+        services.TryAddSingleton(configuration);
+
         DefaultCacheOrchestratorBuilder builder = new(services, configuration);
 
         // Built-in InMemory only. Redis: install CacheOrchestrator.Redis and call AddRedisBackend().
@@ -59,7 +63,7 @@ public static class ServiceCollectionExtensions
 
         CacheOrchestratorOptions opts = BindAndValidateOptions(services, configuration, configSection, builder);
 
-        RegisterCoreServices(services);
+        RegisterCoreServices(services, configSection);
         RegisterAdminServices(services, opts.Admin);
 
         if (enableMvcConvention)
@@ -71,7 +75,7 @@ public static class ServiceCollectionExtensions
 
         // Register each named FusionCache instance
         services.AddMemoryCache();
-        foreach ((string? instanceName, CacheOrchestratorOptions.FusionCacheInstanceOptions? instanceOptions) in opts.FusionCacheInstances)
+        foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOptions) in opts.DataCacheInstances)
         {
             ICacheBackendRegistrar fusionRegistrar = builder.ResolveRegistrar(instanceOptions.Provider);
             RegisterFusionCacheInstance(
@@ -94,7 +98,7 @@ public static class ServiceCollectionExtensions
             instanceName: "oc",
             providerName: outputRegistrar.Name,
             rootOptions: opts,
-            instanceOptions: new CacheOrchestratorOptions.FusionCacheInstanceOptions()));
+            instanceOptions: new CacheOrchestratorOptions.DataCacheInstanceOptions()));
 
         return services;
     }
@@ -131,7 +135,7 @@ public static class ServiceCollectionExtensions
         return opts;
     }
 
-    private static void RegisterCoreServices(IServiceCollection services)
+    private static void RegisterCoreServices(IServiceCollection services, string configSection)
     {
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
@@ -146,7 +150,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRequestDomainCacheOptions, RequestDomainCacheOptionsProvider>();
         services.AddSingleton<IDomainFusionCache, DomainFusionCacheService>();
         // Fusion adapter package; TryAdd so a custom IDataCacheProvider can win if registered first.
-        services.AddCacheOrchestratorFusionCache();
+        services.AddCacheOrchestratorFusionCache(configSection);
         services.AddSingleton<ICacheOrchestrator, CacheOrchestratorService>();
         services.TryAddSingleton<IHttpCacheInvalidationSink, OutputCacheInvalidationSink>();
         services.AddSingleton<ICacheOrchestratorInvalidator, CacheOrchestratorInvalidator>();
@@ -201,7 +205,7 @@ public static class ServiceCollectionExtensions
                 $"OutputCache.Provider is '{registrar.Name}', but that backend does not support an Output Cache store " +
                 $"(SupportsOutputCacheStore = false). Use a provider that supports Output Cache " +
                 $"(e.g. InMemory, or Redis via CacheOrchestrator.Redis), " +
-                $"and keep '{registrar.Name}' only under FusionCacheInstances.");
+                $"and keep '{registrar.Name}' only under DataCacheInstances.");
         }
 
         List<Action<OutputCacheOptions>> optionConfigurators = [];
@@ -237,7 +241,7 @@ public static class ServiceCollectionExtensions
         CacheOrchestratorOptions rootOpts,
         string configSection,
         string instanceName,
-        CacheOrchestratorOptions.FusionCacheInstanceOptions instanceOpts,
+        CacheOrchestratorOptions.DataCacheInstanceOptions instanceOpts,
         ICacheBackendRegistrar registrar)
     {
         DistributedResilienceOptions resilience = rootOpts.GetEffectiveDistributedResilience();

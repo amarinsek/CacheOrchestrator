@@ -13,7 +13,7 @@ public sealed class CacheInvalidationResult
     public CacheInvalidationResult(
         string scope,
         IReadOnlyList<string> tags,
-        bool fusionSucceeded,
+        bool dataCacheSucceeded,
         bool outputSucceeded,
         IReadOnlyList<string>? errors = null,
         ClusterPublishResult? clusterPublish = null,
@@ -21,7 +21,7 @@ public sealed class CacheInvalidationResult
     {
         Scope = scope ?? string.Empty;
         Tags = tags ?? [];
-        FusionSucceeded = fusionSucceeded;
+        DataCacheSucceeded = dataCacheSucceeded;
         OutputSucceeded = outputSucceeded;
         Errors = errors ?? [];
         ClusterPublish = clusterPublish;
@@ -34,8 +34,8 @@ public sealed class CacheInvalidationResult
     /// <summary>Tags that were targeted for eviction.</summary>
     public IReadOnlyList<string> Tags { get; }
 
-    /// <summary><see langword="true"/> when all FusionCache removals for this scope succeeded.</summary>
-    public bool FusionSucceeded { get; }
+    /// <summary><see langword="true"/> when all data-cache removals for this scope succeeded.</summary>
+    public bool DataCacheSucceeded { get; }
 
     /// <summary><see langword="true"/> when all Output Cache evictions for this scope succeeded.</summary>
     public bool OutputSucceeded { get; }
@@ -47,10 +47,10 @@ public sealed class CacheInvalidationResult
     public bool IsSkipped { get; }
 
     /// <summary>
-    /// <see langword="true"/> when both Fusion and Output Cache fully succeeded and the call was not skipped.
+    /// <see langword="true"/> when both data cache and Output Cache fully succeeded and the call was not skipped.
     /// Cluster publish failures do not flip this flag.
     /// </summary>
-    public bool Succeeded => !IsSkipped && FusionSucceeded && OutputSucceeded;
+    public bool Succeeded => !IsSkipped && DataCacheSucceeded && OutputSucceeded;
 
     /// <summary>Non-fatal error messages collected during best-effort invalidation.</summary>
     public IReadOnlyList<string> Errors { get; }
@@ -67,7 +67,7 @@ public sealed class CacheInvalidationResult
         new(
             scope: "(skipped)",
             tags: [],
-            fusionSucceeded: true,
+            dataCacheSucceeded: true,
             outputSucceeded: true,
             errors: string.IsNullOrWhiteSpace(reason) ? [] : [reason],
             isSkipped: true);
@@ -93,7 +93,7 @@ public sealed class CacheInvalidationResult
             scopes.Add(part.Scope);
             tags.AddRange(part.Tags);
             errors.AddRange(part.Errors);
-            fusionOk &= part.FusionSucceeded;
+            fusionOk &= part.DataCacheSucceeded;
             outputOk &= part.OutputSucceeded;
             if (!part.IsSkipped)
                 anyWork = true;
@@ -102,7 +102,7 @@ public sealed class CacheInvalidationResult
         return new CacheInvalidationResult(
             scope: string.Join(',', scopes),
             tags: tags,
-            fusionSucceeded: fusionOk,
+            dataCacheSucceeded: fusionOk,
             outputSucceeded: outputOk,
             errors: errors,
             isSkipped: !anyWork);

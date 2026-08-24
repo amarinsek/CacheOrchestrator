@@ -12,14 +12,14 @@ COPY PACKAGE_RELEASE_NOTES.md ./
 
 COPY src/CacheOrchestrator/CacheOrchestrator.csproj src/CacheOrchestrator/
 COPY src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj src/CacheOrchestrator.Redis/
-COPY src/CacheOrchestrator.Bus/CacheOrchestrator.Bus.csproj src/CacheOrchestrator.Bus/
+COPY src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj src/CacheOrchestrator.HttpBus/
 COPY samples/CacheOrchestrator.Sample/CacheOrchestrator.Sample.csproj samples/CacheOrchestrator.Sample/
 
 RUN dotnet restore samples/CacheOrchestrator.Sample/CacheOrchestrator.Sample.csproj
 
 COPY src/CacheOrchestrator/ src/CacheOrchestrator/
 COPY src/CacheOrchestrator.Redis/ src/CacheOrchestrator.Redis/
-COPY src/CacheOrchestrator.Bus/ src/CacheOrchestrator.Bus/
+COPY src/CacheOrchestrator.HttpBus/ src/CacheOrchestrator.HttpBus/
 COPY samples/CacheOrchestrator.Sample/ samples/CacheOrchestrator.Sample/
 
 RUN dotnet publish samples/CacheOrchestrator.Sample/CacheOrchestrator.Sample.csproj \
