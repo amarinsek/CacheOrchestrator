@@ -99,15 +99,30 @@ jobs:
 
     - name: Pack (nupkg + snupkg)
       run: |
+        set -e
         mkdir -p nupkg
         # Version comes from MinVer + Git tags (this workflow uses fetch-depth: 0).
         # Create the GitHub Release from the version tag (e.g. v1.0.0).
-        dotnet pack src/CacheOrchestrator/CacheOrchestrator.csproj --configuration Release --output ./nupkg
-        dotnet pack src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj --configuration Release --output ./nupkg
-        dotnet pack src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj --configuration Release --output ./nupkg
-        dotnet pack src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj --configuration Release --output ./nupkg
+        # Pack every NuGet library (Admin Console is IsPackable=false — GHCR image below).
+        for proj in \
+          src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj \
+          src/CacheOrchestrator.AspNetCore/CacheOrchestrator.AspNetCore.csproj \
+          src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj \
+          src/CacheOrchestrator.HybridCache/CacheOrchestrator.HybridCache.csproj \
+          src/CacheOrchestrator/CacheOrchestrator.csproj \
+          src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj \
+          src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj \
+          src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj
+        do
+          dotnet pack "$proj" --configuration Release --no-build --output ./nupkg
+        done
         ls -la ./nupkg
         echo "Packed with MinVer-derived version (see nupkg file names)."
+        # Expect 8 libraries (.nupkg) + 8 symbol packages (.snupkg).
+        nupkg_count=$(ls -1 ./nupkg/*.nupkg | wc -l)
+        snupkg_count=$(ls -1 ./nupkg/*.snupkg | wc -l)
+        test "$nupkg_count" -eq 8
+        test "$snupkg_count" -eq 8
 
     # NuGet Trusted Publishing: exchange GitHub OIDC token for a temporary API key.
     # Policy on nuget.org must match: owner, repo, workflow file publish.yml

@@ -35,12 +35,16 @@ dotnet build src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -v:m
 |---------|------|
 | GitHub (full story, logo) | Root [README.md](../../README.md) |
 | Guide (orientation) | [docs/guide/README.md](../guide/README.md) |
-| NuGet `CacheOrchestrator` | [src/CacheOrchestrator/README.md](../../src/CacheOrchestrator/README.md) |
+| NuGet `CacheOrchestrator` (meta) | [src/CacheOrchestrator/README.md](../../src/CacheOrchestrator/README.md) |
+| NuGet `CacheOrchestrator.Core` | [src/CacheOrchestrator.Core/README.md](../../src/CacheOrchestrator.Core/README.md) |
+| NuGet `CacheOrchestrator.AspNetCore` | [src/CacheOrchestrator.AspNetCore/README.md](../../src/CacheOrchestrator.AspNetCore/README.md) |
+| NuGet `CacheOrchestrator.FusionCache` | [src/CacheOrchestrator.FusionCache/README.md](../../src/CacheOrchestrator.FusionCache/README.md) |
+| NuGet `CacheOrchestrator.HybridCache` | [src/CacheOrchestrator.HybridCache/README.md](../../src/CacheOrchestrator.HybridCache/README.md) |
 | NuGet `CacheOrchestrator.Redis` | [src/CacheOrchestrator.Redis/README.md](../../src/CacheOrchestrator.Redis/README.md) |
 | NuGet `CacheOrchestrator.HttpBus` | [src/CacheOrchestrator.HttpBus/README.md](../../src/CacheOrchestrator.HttpBus/README.md) |
 | NuGet `CacheOrchestrator.EFCore.Invalidation` | [src/CacheOrchestrator.EFCore.Invalidation/README.md](../../src/CacheOrchestrator.EFCore.Invalidation/README.md) |
 
-Do **not** pack the root README into the core package (HTML/logo does not render well on nuget.org).
+Do **not** pack the root README into library packages (HTML/logo does not render well on nuget.org). Admin Console App is **not** a NuGet package (Docker / GHCR only).
 
 ## Checklist
 
@@ -54,14 +58,15 @@ Do **not** pack the root README into the core package (HTML/logo does not render
    git push origin v1.0.0
    ```
 
-5. Create a **GitHub Release** for that tag (**not** marked pre-release for stable 1.0.0).  
+5. Create a **GitHub Release** for that tag (**not** marked pre-release for a stable release).  
    This triggers [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml):
-   - test (core + Redis / Bus / EFCore unit tests + integration on net8/net10 + Testcontainers Redis)
-   - `dotnet pack` → `.nupkg` + `.snupkg`
+   - unit tests (Core / Fusion / Hybrid / AspNetCore / Redis / HttpBus / EF) on net8 + net10; Admin Console on net10
+   - integration tests on net8/net10 + Testcontainers Redis; Minimal sample smoke
+   - `dotnet pack` for **all eight** NuGet libraries → `.nupkg` + `.snupkg`
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)
    - **Admin Console App Docker image** → `ghcr.io/amarinsek/cacheorchestrator-admin-console` (same version tags)
 
-6. Confirm nuget.org for **CacheOrchestrator**, **.Redis**, **.HttpBus**, and **.EFCore.Invalidation**; optionally **unlist** old pre-release versions.  
+6. Confirm nuget.org for all eight packages (meta + Core + AspNetCore + FusionCache + HybridCache + Redis + HttpBus + EFCore.Invalidation); optionally **unlist** old pre-release versions.  
    Confirm GHCR package **cacheorchestrator-admin-console** (see [deploy/admin/README.md](../../deploy/admin/README.md)).  
    First-time: set the package **visibility** to Public if anonymous `docker pull` is desired.
 
@@ -78,9 +83,21 @@ Not enabled in CI. See historical notes: sign locally with `dotnet nuget sign` i
 
 ## Local pack smoke test
 
+Pack the eight NuGet libraries (same set as `publish.yml`). Do **not** `dotnet pack` the whole solution — Benchmarks is packable and would produce an unwanted nupkg.
+
 ```bash
-dotnet pack src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -o ./nupkg
-dotnet pack src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj -c Release -o ./nupkg
-dotnet pack src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj -c Release -o ./nupkg
-dotnet pack src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj -c Release -o ./nupkg
+mkdir -p nupkg
+for proj in \
+  src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj \
+  src/CacheOrchestrator.AspNetCore/CacheOrchestrator.AspNetCore.csproj \
+  src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj \
+  src/CacheOrchestrator.HybridCache/CacheOrchestrator.HybridCache.csproj \
+  src/CacheOrchestrator/CacheOrchestrator.csproj \
+  src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj \
+  src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj \
+  src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj
+do
+  dotnet pack "$proj" -c Release -o ./nupkg
+done
+ls nupkg
 ```
