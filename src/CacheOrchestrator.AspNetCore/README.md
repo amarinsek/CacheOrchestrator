@@ -1,6 +1,6 @@
 # CacheOrchestrator.AspNetCore
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application **data cache**, and client `Cache-Control` under one **domain** model. It does not replace those systems or own a store.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application data cache, and client `Cache-Control` under one domain model. It does not replace those systems or own a store.
 
 This package is the **ASP.NET Core host** layer: Output Cache domain policies, client Cache-Control, Admin API, vary rules, and HTTP **`IDomainDataCache`** (a thin projection over Core `ICacheOrchestrator`). It depends on **Core** only. You still need a data-cache provider package (Fusion or Hybrid) unless you use Output Cache alone.
 

@@ -1,6 +1,6 @@
 # CacheOrchestrator.HttpBus
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application **data cache**, and client `Cache-Control` under one **domain** model. It does not replace those systems or own a store.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application data cache, and client `Cache-Control` under one domain model. It does not replace those systems or own a store.
 
 This package is the HTTP **cluster command bus**: it delivers invalidate, Version, and settings patches to every configured peer. Use it when you run more than one instance and need those **commands** everywhere (it does not share Redis cache payloads by itself).
 

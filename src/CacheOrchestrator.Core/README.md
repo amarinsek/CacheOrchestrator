@@ -1,6 +1,6 @@
 # CacheOrchestrator.Core
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application **data cache**, and client `Cache-Control` under one **domain** model. It does not replace those systems or own a store.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application data cache, and client `Cache-Control` under one domain model. It does not replace those systems or own a store.
 
 This package is the **Http-free core**: domain options, Version, portable `DataCache` policy, entity footprint/tags, **`ICacheOrchestrator`**, **`CacheDomainContext`**, invalidation, and cluster **contracts**. Use it from class libraries and workers. It does not reference ASP.NET or a concrete cache engine.
 

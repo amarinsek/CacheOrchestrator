@@ -1,6 +1,6 @@
 # CacheOrchestrator
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application **data cache**, and client `Cache-Control` under one **domain** model in ASP.NET Core. It does not replace those systems or own a store.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application data cache, and client `Cache-Control` under one domain model in ASP.NET Core. It does not replace those systems or own a store.
 
 This **meta** package is the usual starting point for web apps: it includes **AspNetCore** + **FusionCache**.
 

@@ -1,6 +1,6 @@
 # CacheOrchestrator.Redis
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application **data cache**, and client `Cache-Control` under one **domain** model. It does not replace those systems or own a store.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application data cache, and client `Cache-Control` under one domain model. It does not replace those systems or own a store.
 
 This package adds **Redis** backends: Output Cache store, Fusion data-cache **L2**, Fusion **backplane**, and a connection health probe. Use it when several app instances must share cache data.
 
