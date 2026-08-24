@@ -8,7 +8,7 @@ Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../src/Cac
 
 ## How it works
 
-A **domain** is a cache policy group (TTL, Version, Fusion instance). Ids are unique together with `entityKind`, not inside the domain alone.
+A **domain** is a cache policy group (TTL, Version, data-cache instance). Ids are unique together with `entityKind`, not inside the domain alone.
 
 Row identity is always `(domain, entityKind, resourceId)`:
 
@@ -31,8 +31,8 @@ SavedChanges                    SaveChangesFailed
         ▼
 InvalidateEntitiesAsync  or  InvalidateEntityKindAsync (OnBulk)
         │
-        ├─ local OC + Fusion tag purge
-        └─ Redis backplane / Bus  (if those packages are configured)
+        ├─ local OC + data-cache tag purge
+        └─ Redis backplane / HttpBus  (if those packages are configured)
 ```
 
 ---
@@ -192,7 +192,7 @@ The EF package does not talk to Redis or the Bus. It only calls `ICacheOrchestra
 
 | Topology | After `SaveChanges` on node A |
 |----------|-------------------------------|
-| Single process | Local OC + Fusion only |
+| Single process | Local OC + data cache only |
 | Redis Fusion L2 + backplane | Shared L2 purged; other nodes drop L1 via Fusion backplane |
 | `CacheOrchestrator.HttpBus` (InMemory multi-node) | One `InvalidateCommand` per `(domain, entityKind)` group; peers ApplyLocal |
 | Neither | Other nodes keep stale L1 until TTL / Version |

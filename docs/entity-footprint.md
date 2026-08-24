@@ -467,7 +467,7 @@ await inv.InvalidateEntityAsync("store", "promotions", promoId, cancellationToke
 
 ## Fusion-only (no Output Cache entity metadata)
 
-**Situation.** A worker, gRPC handler, or Minimal endpoint without `.CacheOutputWithDomain(..., resourceRouteKey, entityKind)` still wants Fusion entries shaped and tagged like product `42`, so `InvalidateEntityAsync` works the same way.
+**Situation.** A worker, gRPC handler, or Minimal endpoint without `.CacheOutputWithDomain(..., resourceRouteKey, entityKind)` still wants data-cache entries shaped and tagged like product `42`, so `InvalidateEntityAsync` works the same way.
 
 **Footprint:** same as detail — you stamp identity yourself, then call `GetOrSetEntityAsync`.
 

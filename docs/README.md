@@ -1,6 +1,6 @@
 # CacheOrchestrator documentation
 
-CacheOrchestrator is a configuration and coordination layer over ASP.NET Output Cache, FusionCache, and client Cache-Control. It is not a cache of its own. The [root README](../README.md) is the product overview.
+CacheOrchestrator is a configuration and coordination layer over ASP.NET Output Cache, a **data cache** engine (FusionCache or HybridCache), and client Cache-Control. It is not a cache of its own. The [root README](../README.md) is the product overview. How packages compose: [packages.md](packages.md).
 
 Human docs in three layers. You do not need every page below.
 
@@ -21,13 +21,14 @@ README.md  →  docs/guide/  →  docs/<topic>.md
 Orientation after the product README. Summaries plus links into reference — not the `appsettings` schema.
 
 1. [Getting started](getting-started.md) — install, first endpoint, `X-Cache`.
-2. [Concepts](guide/concepts.md) — domain, three layers, Version vs TTL vs tags.
-3. [Topologies](guide/topologies.md) — InMemory, Redis, Bus, mixed; which package.
-4. [Operations](guide/operations.md) — `X-Cache`, meter, Admin API vs Console vs Docker.
-5. [Domain profiles](domain-profiles.md) — snapshot datasets versus changing records.
-6. [Client Cache Schedule](client-cache-schedule.md) — client `max-age` before a planned cutover.
-7. [Comparison](comparison.md) — this library versus hand-rolled Output Cache and FusionCache.
-8. [FAQ](faq.md) — common mistakes.
+2. [Packages and composition](packages.md) — NuGet map, use-case matrix, same call site.
+3. [Concepts](guide/concepts.md) — domain, three layers, Version vs TTL vs tags.
+4. [Topologies](guide/topologies.md) — InMemory, Redis, HttpBus, mixed; which package.
+5. [Operations](guide/operations.md) — `X-Cache`, meter, Admin API vs Console vs Docker.
+6. [Domain profiles](domain-profiles.md) — snapshot datasets versus changing records.
+7. [Client Cache Schedule](client-cache-schedule.md) — client `max-age` before a planned cutover.
+8. [Comparison](comparison.md) — this library versus hand-rolled Output Cache and FusionCache.
+9. [FAQ](faq.md) — common mistakes.
 
 ### Learn by running
 
@@ -41,16 +42,16 @@ Orientation after the product README. Summaries plus links into reference — no
 
 - [Configuration](configuration.md) — `appsettings` schema and defaults.
 - [Output Cache](output-cache.md) — HTTP policies, authentication flags, Minimal APIs and MVC.
-- [FusionCache](fusion-cache.md) — `IDomainFusionCache`, keys, fail-safe, entity identity overview.
+- [FusionCache](fusion-cache.md) — Fusion as `IDataCacheProvider`, fail-safe, entity identity overview.
 - [Entity footprint](entity-footprint.md) — use-case cookbook (list, references, aggregate, nested, batch, aliases, …).
-- [Cache keys](cache-keys.md) — how Output Cache and Fusion keys are built.
+- [Cache keys](cache-keys.md) — how Output Cache and data-cache keys are built.
 - [Vary](vary.md) — Accept / language / headers / cookies / query allowlists, auth modes, contributors.
 
 ### Invalidation
 
 - [Invalidation](invalidation.md) — Version, tags, `ICacheOrchestratorInvalidator`.
 - [EF Core](ef-core-invalidation.md) — purge after `SaveChanges`.
-- [Cluster bus](cluster-bus.md) — commands across instances.
+- [Cluster bus](cluster-bus.md) — commands across instances (`CacheOrchestrator.HttpBus`).
 
 ### Operations
 
@@ -63,12 +64,23 @@ Orientation after the product README. Summaries plus links into reference — no
 
 ### Internals
 
-- [Architecture](architecture.md) — layers, request flow, public surface.
+- [Architecture](architecture.md) — packages, request flow, public surface.
 - [Benchmarks](benchmarks/results.md) — how to run them.
 
 ## Packages and apps
 
-XML documentation ships with the NuGet packages: [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/), [Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/), [HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/), [EF Core](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/).
+XML documentation ships with the NuGet packages. Composition and use cases: [packages.md](packages.md).
+
+| Package | |
+|---------|--|
+| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/) | Meta (AspNetCore + FusionCache) |
+| [Core](https://www.nuget.org/packages/CacheOrchestrator.Core/) | Domains, `ICacheOrchestrator` |
+| [AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/) | OC, Client Cache, Admin |
+| [FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/) | Fusion data provider |
+| [HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/) | Hybrid data provider |
+| [Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) | Redis backends |
+| [HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) | Cluster HTTP bus |
+| [EF Core Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) | SaveChanges → purge |
 
 Admin Console App (not a NuGet package): [source README](../src/CacheOrchestrator.AdminConsole/README.md) · [Docker](../deploy/admin/README.md).
 
@@ -78,5 +90,3 @@ Admin Console App (not a NuGet package): [source README](../src/CacheOrchestrato
 - [Releasing](releasing.md)
 - [Contributing](../CONTRIBUTING.md) — build, tests, samples, labs, worklog
 - [Worklog template](templates/worklog-template.md) — copy when opening a branch
-- [Security](../SECURITY.md)
-- [License](../LICENSE.md)

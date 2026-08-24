@@ -26,7 +26,7 @@ X-Cache: domain=catalog; version=1; client=public; phase=n/a; oc=miss; dc=miss; 
 ```
 
 - **oc** — Output Cache `miss`, `hit`, `bypass`, or `off`.
-- **fc** — Fusion (`hit`, `miss`, …). Omitted when Output Cache already hit.
+- **dc** — Data cache (`hit`, `miss`, …). Omitted when Output Cache already hit.
 - **fa** — `run` when `dc` is present and is not `hit` (factory callback ran).
 - **phase** — Client Cache Schedule, or `n/a`.
 

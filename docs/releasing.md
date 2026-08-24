@@ -61,7 +61,7 @@ Do **not** pack the root README into the core package (HTML/logo does not render
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)
    - **Admin Console App Docker image** → `ghcr.io/amarinsek/cacheorchestrator-admin-console` (same version tags)
 
-6. Confirm nuget.org for **CacheOrchestrator**, **.Redis**, **.Bus**, and **.EFCore.Invalidation**; optionally **unlist** old pre-release versions.  
+6. Confirm nuget.org for **CacheOrchestrator**, **.Redis**, **.HttpBus**, and **.EFCore.Invalidation**; optionally **unlist** old pre-release versions.  
    Confirm GHCR package **cacheorchestrator-admin-console** (see [deploy/admin/README.md](../deploy/admin/README.md)).  
    First-time: set the package **visibility** to Public if anonymous `docker pull` is desired.
 

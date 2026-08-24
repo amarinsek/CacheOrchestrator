@@ -9,7 +9,7 @@ How fresh data enters the cache, and how to configure two common worlds:
 
 ## Model
 
-A **domain** is a named package of rules (TTLs, client headers, which Fusion instance). Each response or Fusion object has its own **key**. `Version` is a **generation stamp** for the whole package, not the version of one product.
+A **domain** is a named package of rules (TTLs, client headers, which data-cache instance). Each response or data-cache object has its own **key**. `Version` is a **generation stamp** for the whole package, not the version of one product.
 
 - **Domain** — endpoints that share rules (`maps-osm`, `product-detail`).
 - **Version** — generation (`2026-08`, `v1`). Changing it opens a new key space.
@@ -46,16 +46,24 @@ If a product changes under the same Version and you neither wait for TTL nor inv
 "Domains": {
   "osm-tiles": {
     "Version": "2026-08",
-    "ETagMode": "Version",
-    "ClientCacheability": "Public",
-    "ClientTtlSeconds": 2592000,
-    "ClientTtlMinSeconds": 900,
-    "ScheduledUpdateUtc": "2026-09-01T00:00:00Z",
-    "ClientMustRevalidateNearUpdate": true,
-    "OutputCacheTtlSeconds": 604800,
-    "FusionCacheSoftTtlSeconds": 2592000,
-    "FusionCacheHardTtlSeconds": 5184000,
-    "FusionCacheFailSafeSeconds": 7776000
+    "DataCache": {
+      "Ttl": "30.00:00:00"
+    },
+    "OutputCache": {
+      "Ttl": "7.00:00:00",
+      "ETagMode": "Version"
+    },
+    "ClientCache": {
+      "Cacheability": "Public",
+      "Ttl": "30.00:00:00",
+      "TtlMin": "00:15:00",
+      "ScheduledUpdateUtc": "2026-09-01T00:00:00Z",
+      "MustRevalidateNearUpdate": true
+    },
+    "FusionCache": {
+      "HardTtl": "60.00:00:00",
+      "FailSafe": "90.00:00:00"
+    }
   }
 }
 ```
@@ -93,14 +101,22 @@ No per-tile invalidation is required.
 "Domains": {
   "store": {
     "Version": "1",
-    "ETagMode": "Resource",
-    "ClientCacheability": "Public",
-    "ClientTtlSeconds": 15,
-    "ClientTtlMinSeconds": 15,
-    "OutputCacheTtlSeconds": 30,
-    "FusionCacheSoftTtlSeconds": 60,
-    "FusionCacheHardTtlSeconds": 300,
-    "FusionCacheFailSafeSeconds": 600
+    "DataCache": {
+      "Ttl": "00:01:00"
+    },
+    "OutputCache": {
+      "Ttl": "00:00:30",
+      "ETagMode": "Resource"
+    },
+    "ClientCache": {
+      "Cacheability": "Public",
+      "Ttl": "00:00:15",
+      "TtlMin": "00:00:15"
+    },
+    "FusionCache": {
+      "HardTtl": "00:05:00",
+      "FailSafe": "00:10:00"
+    }
   }
 }
 ```
@@ -129,7 +145,7 @@ app.MapPut("/api/products/{id}", async (string id, ProductDto dto, ICacheOrchest
 Flow:
 
 ```text
-t0  GET /products/42  → MISS → DB (price 10) → store OC+FC, tags domain + entity:store:products:42
+t0  GET /products/42  → MISS → DB (price 10) → store OC+DC, tags domain + entity:store:products:42
 t1  Admin sets price 12, calls InvalidateEntityAsync("store", "products", 42)
 t2  GET /products/42  → MISS → DB (price 12)
     GET /products/99  → still HIT (other entity)
@@ -206,10 +222,10 @@ Safe default for mixed public/private APIs.
 | Goal | Settings |
 |------|----------|
 | Keep default safety | omit flags (`AuthBypassMode` defaults to `AuthenticatedOrAuthorization`) |
-| Cache private per-user pages | `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, `ClientCacheability: Private` |
-| Public assets with API key | `AuthBypassMode: Never`, `VaryOutputCacheByUser: false`, `ClientCacheability: Public` |
+| Cache private per-user pages | `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, `ClientCache.Cacheability: Private` |
+| Public assets with API key | `AuthBypassMode: Never`, `VaryOutputCacheByUser: false`, `ClientCache.Cacheability: Public` |
 
-Canonical detail and full examples: [output-cache.md](output-cache.md#authenticated-traffic), [vary.md](vary.md). The obsolete `BypassWhenAuthenticated` bool still binds when `AuthBypassMode` is unset — see [configuration.md](configuration.md).
+Canonical detail and full examples: [output-cache.md](output-cache.md#authenticated-traffic), [vary.md](vary.md). See [configuration.md](configuration.md) for nested domain sections.
 
 ---
 

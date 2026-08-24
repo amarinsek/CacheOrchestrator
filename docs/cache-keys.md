@@ -2,9 +2,9 @@
 
 > **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Canonical detail for Namespace and key composition.
 
-How FusionCache and Output Cache decide that two requests are the **same** resource. That is lookup identity. Eviction — tags and Version — is [invalidation.md](invalidation.md).
+How the **data cache** and Output Cache decide that two requests are the **same** resource. That is lookup identity. Eviction — tags and Version — is [invalidation.md](invalidation.md).
 
-- **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` and `my-app-fc`.
+- **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` and `my-app-fc` (historical `-fc` suffix for data-cache instances).
 - **Domain** — the policy group (`products`, `product-detail`).
 - **Request material** — what varies inside a domain: path, route, query, host, encoding, resource id.
 
@@ -33,8 +33,8 @@ Default: `app-cache`. Effective store prefixes:
 | Target | Effective name | Override |
 |--------|----------------|----------|
 | Output Cache | `{Namespace}-oc` | `OutputCache.Namespace` |
-| Fusion **default** instance | `{Namespace}-fc` | `FusionCacheInstances.default.Namespace` |
-| Fusion **named** instance `pii` | `{Namespace}-fc-pii` | `FusionCacheInstances.pii.Namespace` |
+| Data-cache **default** instance | `{Namespace}-fc` | `DataCacheInstances.default.Namespace` |
+| Data-cache **named** instance `pii` | `{Namespace}-fc-pii` | `DataCacheInstances.pii.Namespace` |
 
 **Purpose:** isolate multiple applications or environments that share the same Redis (or other L2) so keys and backplane channels do not collide. Namespace is **not** a domain and is **not** per-endpoint.
 
@@ -44,20 +44,20 @@ Default: `app-cache`. Effective store prefixes:
 |---------|-------|-----|
 | **Output Cache key** | Yes | `CacheKeyPrefix` = effective OC namespace |
 | **Output Cache Redis store** | Yes | `InstanceName` = effective OC namespace |
-| **Fusion logical key** (`DefaultDomainKeyGenerator`) | **No** | Key is `{domain}:{versionHex}:{hash}` only |
-| **Fusion Redis L2** | Yes | `IDistributedCache` `InstanceName` = effective FC namespace |
-| **Fusion backplane** | Yes | Channel prefix `{fcNamespace}:backplane` |
-| **Fusion InMemory (L1 only)** | **No** | Process-local `IMemoryCache`; no shared keyspace to isolate |
+| **Data-cache logical key** (`DefaultDomainKeyGenerator`) | **No** | Key is `{domain}:{versionHex}:{hash}` only |
+| **Fusion Redis L2** | Yes | `IDistributedCache` `InstanceName` = effective data-cache namespace (`-fc`) |
+| **Fusion backplane** | Yes | Channel prefix `{dcNamespace}:backplane` |
+| **Data-cache InMemory (L1 only)** | **No** | Process-local `IMemoryCache`; no shared keyspace to isolate |
 
-### Why Fusion InMemory skips Namespace
+### Why InMemory L1 skips Namespace
 
-Namespace exists for **shared external keyspaces**. In-process L1 is already isolated per host process (and per named Fusion instance). Adding Namespace into every logical FC key would not fix multi-app collisions (those apps do not share L1) and would only lengthen keys.
+Namespace exists for **shared external keyspaces**. In-process L1 is already isolated per host process (and per named `DataCacheInstances` entry). Adding Namespace into every logical data-cache key would not fix multi-app collisions (those apps do not share L1) and would only lengthen keys.
 
-When you enable Redis L2, the registrar applies the FC namespace as a **physical** Redis prefix. Logical keys stay domain-shaped; store-level isolation is separate.
+When you enable Redis L2 (Fusion provider), the registrar applies the data-cache namespace as a **physical** Redis prefix. Logical keys stay domain-shaped; store-level isolation is separate.
 
 ---
 
-## FusionCache keys
+## Data-cache keys
 
 ### Who builds them
 
@@ -95,11 +95,11 @@ store:a1b2c3d4e5f60708:id:products:42:9c8b7a6d5e4f3210
 | Route pattern + route parameter values | Endpoint is a `RouteEndpoint` | Pattern text + each route value (lowercased) |
 | Path | No route endpoint | Full path |
 | Query string | Per `VaryByQueryKeys` / `IgnoreQueryKeys` | Default: all non-tracking keys sorted; tracking params excluded (`utm_*`, `gclid`, `fbclid`, …) |
-| `Accept-Encoding` | `FusionCacheVaryOnEncoding` | Domain setting |
+| `Accept-Encoding` | `DataCache.VaryOnEncoding` | Domain setting |
 | `Accept` / `Accept-Language` | `VaryByAccept` / `VaryByAcceptLanguage` | Optional normalization lists |
 | Extra headers / cookies | `VaryByHeaders` / `VaryByCookies` | Sensitive values hashed; see [vary.md](vary.md) |
 | Auth-user / claims | `AuthBypassMode: Never` (or claim list) + `VaryOutputCacheByUser` | Not applied under default auth-bypass modes (key stability) |
-| Scheme + host | `FusionCacheVaryOnPublicAddress` | Domain setting |
+| Scheme + host | `DataCache.VaryOnPublicAddress` | Domain setting |
 | `ICacheVaryContributor` values | When registered | After built-in material |
 
 Order of query keys does not matter: `?a=1&b=2` and `?b=2&a=1` produce the same hash.
@@ -169,16 +169,16 @@ The library does **not** emit a single custom string of the form `{domain}:{vers
 | `entity:{domain}:{entityKind}:{id}` | When **both** `resourceRouteKey` and `entityKind` are set on the policy/attribute **and** the route value resolves |
 | `entitykind:{domain}:{entityKind}` | Same writes as the entity tag |
 
-Output Cache stamps early tags in `CacheRequestAsync` (domain; primary entity when route id resolves; `entitykind` when kind is set without an id). Fusion stages an `EntityFootprint` on the request; `ServeResponseAsync` merges members / dependsOn / aliases into OC tags before storage.
+Output Cache stamps early tags in `CacheRequestAsync` (domain; primary entity when route id resolves; `entitykind` when kind is set without an id). The data-cache path stages an `EntityFootprint` on the request; `ServeResponseAsync` merges members / dependsOn / aliases into OC tags before storage.
 
 ---
 
 ## Side-by-side
 
-| | FusionCache | Output Cache |
-|--|-------------|--------------|
+| | Data cache | Output Cache |
+|--|------------|--------------|
 | **Logical shape** | `{domain}:{versionHex}:{hash}` | Framework key from prefix + vary |
-| **Namespace** | Logical key: no; Redis L2/backplane: yes | Yes (`CacheKeyPrefix`) |
+| **Namespace** | Logical key: no; Fusion Redis L2/backplane: yes (`-fc`) | Yes (`CacheKeyPrefix`) |
 | **Domain in key** | Yes | No (tag only) |
 | **Version in key** | Yes (`versionHex`) | Yes (`data-version` vary) |
 | **Route / path** | In hash (unless entity id mode) | Path in framework key |
@@ -196,8 +196,8 @@ Version: v1
 
 | Layer | Identity (conceptually) |
 |-------|-------------------------|
-| FC (URL-shaped) | `product-detail:{versionHex}:{hash(route id=42, query page=1)}` — `utm_source` ignored |
-| FC (entity overload, kind `products`, id `42`) | `product-detail:{versionHex}:id:products:42:{hash}` |
+| DC (URL-shaped) | `product-detail:{versionHex}:{hash(route id=42, query page=1)}` — `utm_source` ignored |
+| DC (entity overload, kind `products`, id `42`) | `product-detail:{versionHex}:id:products:42:{hash}` |
 | OC | prefix `…-oc` + path `/api/products/42` + query `page` + host + `data-version` — `utm_source` ignored |
 | Tags | `domain:product-detail`; with OC `resourceRouteKey` + `entityKind`: also `entity:product-detail:products:42` and `entitykind:product-detail:products` |
 
@@ -205,7 +205,7 @@ Version: v1
 
 ## Tracking query parameters
 
-Both FC and OC **exclude** known marketing/tracking parameters from key material so cache hit rates stay high when only the tracker changes.
+Both DC and OC **exclude** known marketing/tracking parameters from key material so cache hit rates stay high when only the tracker changes.
 
 Implementation: shared helper used by `DefaultDomainKeyGenerator` and `DomainOutputCachePolicy` (e.g. `utm_*`, `gclid`, `fbclid`). Business query parameters (`id`, `page`, `sort`, …) remain part of the key.
 
@@ -214,15 +214,15 @@ Implementation: shared helper used by `DefaultDomainKeyGenerator` and `DomainOut
 ## Design rationale (summary)
 
 1. **Namespace** isolates **applications** on shared infrastructure; it is not a substitute for domain.  
-2. **Domain** is the unit of policy and purge. Fusion embeds it in the key because the data API is domain-first. Output Cache typically binds one fixed domain per route, so path + tags suffice; dynamic domains need an extra vary dimension.  
+2. **Domain** is the unit of policy and purge. The data cache embeds it in the key because the data API is domain-first. Output Cache typically binds one fixed domain per route, so path + tags suffice; dynamic domains need an extra vary dimension.  
 3. **Version** partitions **generations** inside a domain without mass-deleting keys (prefer bump + TTL expiry for bulk cutovers).  
 4. **Request material** (path, query, host, encoding) partitions **resources** inside a generation.  
 5. **Tags** answer “what to delete,” not “what to return on GET.”  
-6. **Entity id mode** gives stable FC identity and entity-level invalidation for CRUD without encoding the full URL into the key.
+6. **Entity id mode** gives stable data-cache identity and entity-level invalidation for CRUD without encoding the full URL into the key.
 
 ---
 
-## Custom Fusion keys
+## Custom data-cache keys
 
 Implement `IDomainKeyGenerator` when default material is insufficient (multi-tenant claim, non-URL locale, etc.):
 

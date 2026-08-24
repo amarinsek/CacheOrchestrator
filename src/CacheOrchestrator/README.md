@@ -1,8 +1,10 @@
 # CacheOrchestrator
 
-**CacheOrchestrator** configures and coordinates three existing layers in ASP.NET Core — Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, FusionCache still holds the object, and the browser or CDN still honours `Cache-Control`.
+**CacheOrchestrator** configures and coordinates Output Cache (OC), **data cache** (DC — FusionCache or HybridCache), and client Cache-Control (CC) under one **domain** model. This meta package pulls **AspNetCore + FusionCache** for typical web apps.
 
-The package targets **.NET 8** and **.NET 10**.
+It does not own a store: ASP.NET holds the HTTP response, FusionCache holds the object, and the browser or CDN honours `Cache-Control`.
+
+Targets **.NET 8** and **.NET 10**.
 
 ## Install
 
@@ -10,11 +12,13 @@ The package targets **.NET 8** and **.NET 10**.
 dotnet add package CacheOrchestrator
 ```
 
-Related packages, when you need them:
+Compose other packages when needed — [packages and composition](../../docs/packages.md):
 
-- [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) — Redis for Output Cache and FusionCache L2 / backplane
-- [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) — invalidate, Version, and TTL commands across instances
-- [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) — the cache follows your EF Core saves
+- [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/) — `ICacheOrchestrator`, domains (libraries)
+- [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/) — Hybrid instead of Fusion
+- [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) — Redis OC / Fusion L2
+- [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) — cluster commands
+- [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) — invalidate after `SaveChanges`
 
 ## Configure
 
@@ -23,16 +27,15 @@ Related packages, when you need them:
   "Cache": {
     "Namespace": "my-app",
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "InMemory" }
     },
     "Domains": {
       "catalog": {
         "Version": "1",
-        "ClientCacheability": "Public",
-        "ClientTtlSeconds": 60,
-        "OutputCacheTtlSeconds": 120,
-        "FusionCacheSoftTtlSeconds": 300
+        "DataCache": { "Ttl": "00:05:00" },
+        "OutputCache": { "Ttl": "00:02:00" },
+        "ClientCache": { "Cacheability": "Public", "Ttl": "00:01:00" }
       }
     }
   }
@@ -43,7 +46,6 @@ Related packages, when you need them:
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
-
 var app = builder.Build();
 app.UseCacheOrchestrator();
 ```
@@ -59,16 +61,6 @@ app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =
 .CacheOutputWithDomain("catalog");
 ```
 
-On a controller, use `[CacheDomain("catalog")]` and inject `IDomainFusionCache` in the same way.
+Libraries can inject `ICacheOrchestrator` from Core instead of `IDomainFusionCache`.
 
-## Documentation
-
-- [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)
-- [Getting started](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/getting-started.md)
-- [Guide](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/README.md)
-- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
-- [Minimal sample](https://github.com/amarinsek/CacheOrchestrator/tree/main/samples/CacheOrchestrator.Minimal)
-
-## License
-
-MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)
+Docs: [getting started](../../docs/getting-started.md) · [packages](../../docs/packages.md) · [configuration](../../docs/configuration.md).

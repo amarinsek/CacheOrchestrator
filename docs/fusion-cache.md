@@ -1,8 +1,12 @@
-# FusionCache
+# FusionCache (`IDataCacheProvider`)
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Packages: [packages.md](packages.md).
 
-FusionCache stores **serializable objects** (JSON via System.Text.Json): L1 in memory, optional L2 in a distributed store, optional backplane. CacheOrchestrator scopes Fusion to the same **domain** as Output Cache and client headers.
+**CacheOrchestrator.FusionCache** registers ZiggyCreatures FusionCache as the default **`IDataCacheProvider`** (data cache / DC). Portable domain policy lives under nested **`DataCache`** (`Ttl`, `Enabled`, `Instance`, …). Fusion-only knobs (`HardTtl`, `FailSafe`, factory timeouts, jitter, …) live under nested **`FusionCache`**.
+
+Microsoft HybridCache is an alternate provider — [HybridCache README](../src/CacheOrchestrator.HybridCache/README.md). Swap with `AddCacheOrchestratorHybridCache()` after `AddHybridCache()`; Hybrid uses `DataCache.Ttl` only and ignores the `FusionCache` section.
+
+Fusion stores **serializable objects** (JSON via System.Text.Json): L1 in memory, optional L2 in a distributed store, optional backplane. CacheOrchestrator scopes the data cache to the same **domain** as Output Cache and client headers.
 
 ## How Fusion finds the domain
 
@@ -39,7 +43,7 @@ public class ProductsController : ControllerBase
 }
 ```
 
-### Fusion only
+### Data cache only (no Output Cache domain)
 
 When the endpoint has no Output Cache domain, pass the name:
 
@@ -62,7 +66,7 @@ If you omit the domain:
 
 ### Entity identity
 
-Entity identity is optional and lives **inside** a domain (domains stay the configuration unit). Endpoint metadata owns domain + primary kind/id; Fusion consumes that identity on the happy path.
+Entity identity is optional and lives **inside** a domain (domains stay the configuration unit). Endpoint metadata owns domain + primary kind/id; the data-cache HTTP helpers consume that identity on the happy path.
 
 ```csharp
 app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, CancellationToken cancellationToken) =>
@@ -91,9 +95,9 @@ Also: [domain-profiles.md](domain-profiles.md), [invalidation.md](invalidation.m
 ## When the factory runs uncached
 
 - No domain on the request or metadata — disposition `Unresolved` (Warning + metric `result=unresolved`).
-- `FusionCacheEnabled: false` — `Off`.
-- Request `no-store` and `FusionCacheRespectNoStore` — `Bypass`.
-- Auth bypass would fire **and** `FusionRespectAuthBypass` is `true` (the default) — `Bypass` (Debug: Fusion skipped due to auth bypass). Set `FusionRespectAuthBypass: false` for 2.1-like Fusion-under-Authorization.
+- `DataCache.Enabled: false` — `Off`.
+- Request `no-store` and `DataCache.RespectNoStore` — `Bypass`.
+- Auth bypass would fire **and** `DataCacheRespectAuthBypass` is `true` (the default) — `Bypass` (Debug: data cache skipped due to auth bypass). Set `DataCacheRespectAuthBypass: false` for 2.1-like data-cache-under-Authorization.
 
 ## Cache key
 
@@ -109,8 +113,8 @@ Without a resource id (URL-shaped):
 
 1. Route pattern and route values (or path)
 2. Query string (tracking parameters omitted: `utm_*`, `gclid`, …)
-3. `Accept-Encoding` if `FusionCacheVaryOnEncoding`
-4. Scheme and host if `FusionCacheVaryOnPublicAddress`
+3. `Accept-Encoding` if `DataCache.VaryOnEncoding`
+4. Scheme and host if `DataCache.VaryOnPublicAddress`
 
 The string includes **domain** and **Version**. Every entry is tagged `domain:{name}`.
 
@@ -154,14 +158,14 @@ Keys must be deterministic, must not contain secrets (they land in Redis and in 
 
 | Domain setting | FusionCache |
 |----------------|-------------|
-| `FusionCacheSoftTtl` | `Duration` (capped by hard TTL if soft is larger) |
-| `FusionCacheFailSafe` | `FailSafeMaxDuration` |
-| `FusionCacheJitterSeconds` | `JitterMaxDuration` |
-| `FusionCacheEagerRefreshRatio` | `EagerRefreshThreshold` |
-| Factory soft / hard timeouts | `FactorySoftTimeout` / `FactoryHardTimeout` |
-| Background flags | distributed and backplane background work |
+| `DataCache.Ttl` → `DataCacheTtl` | `Duration` (capped by `FusionCache.HardTtl` if soft is larger) |
+| `FusionCache.FailSafe` | `FailSafeMaxDuration` |
+| `FusionCache.Jitter` | `JitterMaxDuration` |
+| `FusionCache.EagerRefreshRatio` | `EagerRefreshThreshold` |
+| `FusionCache.FactorySoftTimeout` / `FactoryHardTimeout` | `FactorySoftTimeout` / `FactoryHardTimeout` |
+| `FusionCache.AllowBackground*` | distributed and backplane background work |
 
-Stampede protection and fail-safe stale serve come from FusionCache itself.
+Stampede protection and fail-safe stale serve come from FusionCache itself. Named engines: root **`DataCacheInstances`**.
 
 ## Results (`X-Cache` `dc=` and `DataCacheResult`)
 
@@ -170,8 +174,8 @@ Stampede protection and fail-safe stale serve come from FusionCache itself.
 | `Hit` | Served from cache |
 | `Miss` | Factory ran; value stored |
 | `Stale` | Factory failed; fail-safe may serve stale |
-| `Bypass` | Skipped (for example `no-store`, or auth bypass when `FusionRespectAuthBypass`) |
-| `Off` | Fusion disabled for the domain. The factory still runs and counts as a factory invocation (FA run). |
+| `Bypass` | Skipped (for example `no-store`, or auth bypass when `DataCacheRespectAuthBypass`) |
+| `Off` | Data cache disabled for the domain. The factory still runs and counts as a factory invocation (FA run). |
 | `Unresolved` | No domain resolved; factory ran uncached (also a factory invocation). |
 
 There is **no** `DataCacheResult.Fail` and **no** `dc=fail` on `X-Cache`. A hard factory throw with no fail-safe value is recorded on the meter as `cache_orchestrator.dc.requests` `result=fail` (and `factory.duration`), then the exception propagates.

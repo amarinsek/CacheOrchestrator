@@ -37,7 +37,7 @@ The simplest topology. One process, no Redis, no cross-process coordination.
   "Cache": {
     "Namespace": "my-app",
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": { 
+    "DataCacheInstances": {
       "default": { "Provider": "InMemory" }
     }
   }
@@ -45,7 +45,7 @@ The simplest topology. One process, no Redis, no cross-process coordination.
 ```
 
 **Limitations:**
-- Output Cache and FusionCache data are **not shared** between process restarts or replicas.
+- Output Cache and data-cache entries are **not shared** between process restarts or replicas.
 - No invalidation signal reaches other instances -- `InvalidateDomainAsync` only clears the calling process.
 
 ---
@@ -54,23 +54,23 @@ The simplest topology. One process, no Redis, no cross-process coordination.
 
 Redis is the distributed backend that ships with the library (`CacheOrchestrator.Redis`). For SQL Server, Memcached, or Cosmos, implement `ICacheBackendRegistrar` and call `AddBackend`. [backends.md](backends.md) includes an example of Fusion L2 on SQL Server.
 
-Multiple replicas share both Output Cache data and FusionCache data through Redis.
-FusionCache also receives **backplane** invalidation signals so L1 (in-memory) is cleared on all nodes
+Multiple replicas share both Output Cache data and Fusion data-cache entries through Redis.
+Fusion also receives **backplane** invalidation signals so L1 (in-memory) is cleared on all nodes
 when any node invalidates a tag.
 
 ```json
 {
   "Cache": {
     "Namespace": "my-app",
-    "OutputCache": { 
+    "OutputCache": {
       "Provider": "Redis",
       "Redis": { "Configuration": "redis-primary:6379" }
     },
-    "FusionCacheInstances": { 
-      "default": { 
+    "DataCacheInstances": {
+      "default": {
         "Provider": "Redis",
         "Redis": { "Configuration": "redis-primary:6379" }
-      } 
+      }
     }
   }
 }
@@ -88,7 +88,7 @@ Instance A (ASP.NET)          Instance B (ASP.NET)
 Output Cache:
   Instance A writes -> Redis -> Instance B reads (shared store)
 
-FusionCache invalidation:
+Data-cache (Fusion) invalidation:
   Instance A calls InvalidateDomainAsync
     -> removes tag from Redis L2
     -> publishes backplane message
@@ -99,14 +99,14 @@ FusionCache invalidation:
 Instance B's L1 memory would still hold stale data until its TTL expired. The Redis backplane
 (pub/sub) delivers the invalidation signal so L1 is cleared immediately on all nodes.
 
-**Backplane channel:** `{FusionNamespace}:backplane` (e.g. `my-app-fc:backplane`).
-Effective Fusion namespace is `Cache:FusionCacheInstances:{name}:Namespace` if set, else `{Cache:Namespace}-fc` for instance `default`, else `{Cache:Namespace}-fc-{instanceName}`. There is **no** `Cache:FusionCache:Namespace`. Multiple apps on the same Redis cluster stay isolated when those prefixes differ.
+**Backplane channel:** `{DataCacheNamespace}:backplane` (e.g. `my-app-fc:backplane`).
+Effective data-cache namespace is `Cache:DataCacheInstances:{name}:Namespace` if set, else `{Cache:Namespace}-fc` for instance `default`, else `{Cache:Namespace}-fc-{instanceName}`. The `-fc` suffix is historical. Multiple apps on the same Redis cluster stay isolated when those prefixes differ.
 
-Runtime Version / TTL / **settings** overlays are **not** carried by the Fusion backplane. Use the [cluster bus](cluster-bus.md) or Admin Console fan-out for those.
+Runtime Version / TTL / **settings** overlays are **not** carried by the Fusion backplane. Use the [cluster bus](cluster-bus.md) (`CacheOrchestrator.HttpBus`) or Admin Console fan-out for those.
 
 ---
 
-## Multiple instances without Redis (InMemory FC, no backplane)
+## Multiple instances without Redis (InMemory data cache, no backplane)
 
 Possible when Redis is not available, at the cost of stale L1 data across instances.
 
@@ -114,7 +114,7 @@ Possible when Redis is not available, at the cost of stale L1 data across instan
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": { 
+    "DataCacheInstances": {
       "default": { "Provider": "InMemory" }
     }
   }
@@ -148,21 +148,21 @@ Full setup and Bus vs Redis matrix: **[cluster-bus.md](cluster-bus.md)**.
 
 ---
 
-## Mixed backends (Output Cache InMemory + FusionCache Redis)
+## Mixed backends (Output Cache InMemory + data cache Redis)
 
 A common hybrid: Output Cache stays in-process for maximum response speed,
-while FusionCache uses Redis so object data is shared and invalidation propagates.
+while the Fusion data-cache provider uses Redis so object data is shared and invalidation propagates.
 
 ```json
 {
   "Cache": {
     "Namespace": "my-app",
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": { 
-      "default": { 
+    "DataCacheInstances": {
+      "default": {
         "Provider": "Redis",
         "Redis": { "Configuration": "redis-primary:6379" }
-      } 
+      }
     }
   }
 }
@@ -171,30 +171,30 @@ while FusionCache uses Redis so object data is shared and invalidation propagate
 | Layer | Storage | Cross-instance? |
 |-------|---------|-----------------|
 | Output Cache (HTTP responses) | Per-process memory | No |
-| FusionCache L1 | Per-process memory | No (but invalidated via backplane) |
-| FusionCache L2 | Redis | Yes |
+| Data cache L1 (Fusion) | Per-process memory | No (but invalidated via backplane) |
+| Data cache L2 (Fusion) | Redis | Yes |
 
 Output Cache will eventually diverge between instances (until TTL expires or endpoint is not hit on that instance yet).
-FusionCache object data stays consistent because Redis is the shared source of truth and the backplane keeps L1 in sync.
+Fusion object data stays consistent because Redis is the shared source of truth and the backplane keeps L1 in sync.
 
 ---
 
-## Using multiple FusionCache instances
+## Using multiple data-cache instances {#using-multiple-datacache-instances}
 
-By default, CacheOrchestrator uses a single `default` FusionCache instance for all domains. This provides isolation via keys and tags, which is sufficient for most applications.
+By default, CacheOrchestrator uses a single `default` entry in `DataCacheInstances` for all domains. This provides isolation via keys and tags, which is sufficient for most applications.
 
-However, you might need separate FusionCache instances for:
+However, you might need separate named instances for:
 - Regulatory isolation (GDPR: user PII must not touch product cache Redis)
 - Scale isolation (high-write domain should not evict low-write domains)
 - Geographic isolation (domain A served from EU Redis, domain B from US Redis)
 
-You can configure multiple named instances in `FusionCacheInstances` and map them to specific domains:
+Configure multiple named instances in `DataCacheInstances` and map domains via `DataCache.Instance`:
 
 ```json
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": {
         "Provider": "Redis",
         "Redis": { "Configuration": "global-redis:6379" }
@@ -205,8 +205,8 @@ You can configure multiple named instances in `FusionCacheInstances` and map the
       }
     },
     "Domains": {
-      "Products": { "FusionCacheInstance": "default" },
-      "UserProfiles": { "FusionCacheInstance": "pii" }
+      "products": { "DataCache": { "Instance": "default" } },
+      "user-profiles": { "DataCache": { "Instance": "pii" } }
     }
   }
 }
@@ -218,7 +218,7 @@ Each named instance maintains:
 |-----------|-----------|
 | `IConnectionMultiplexer` | Keyed singleton per instance name |
 | `IDistributedCache` (L2) | **Keyed** singleton per instance name (not a single global registration) |
-| Redis backplane | Same multiplexer + channel prefix `{FusionNamespace}:backplane` |
+| Redis backplane | Same multiplexer + channel prefix `{DataCacheNamespace}:backplane` |
 
 This means two domains can safely map to **different Redis clusters** (e.g. GDPR isolation) without the last-registered L2 overwriting the first.
 
@@ -286,7 +286,7 @@ Keep host-specific settings in `appsettings.json` / environment; put **cluster-w
     "OutputCache": {
       "Provider": "InMemory"
     },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": {
         "Provider": "Redis"
       }
@@ -295,22 +295,26 @@ Keep host-specific settings in `appsettings.json` / environment; put **cluster-w
       "Configuration": "redis-primary:6379"
     },
     "DomainDefaults": {
-      "ClientCacheability": "Public",
-      "ClientTtlMinSeconds": 60
+      "ClientCache": {
+        "Cacheability": "Public",
+        "TtlMin": "00:01:00"
+      }
     },
     "Domains": {
       "catalog": {
         "Version": "2026-08",
-        "ClientTtlSeconds": 3600,
-        "OutputCacheTtlSeconds": 3700,
-        "FusionCacheSoftTtlSeconds": 3800,
-        "ScheduledUpdateUtc": "2026-09-01T00:00:00Z"
+        "DataCache": { "Ttl": "01:03:20" },
+        "OutputCache": { "Ttl": "01:01:40" },
+        "ClientCache": {
+          "Ttl": "01:00:00",
+          "ScheduledUpdateUtc": "2026-09-01T00:00:00Z"
+        }
       },
       "live-tracking": {
         "Version": "1",
-        "ClientTtlSeconds": 5,
-        "OutputCacheTtlSeconds": 5,
-        "FusionCacheSoftTtlSeconds": 10
+        "DataCache": { "Ttl": "00:00:10" },
+        "OutputCache": { "Ttl": "00:00:05" },
+        "ClientCache": { "Ttl": "00:00:05" }
       }
     }
   }

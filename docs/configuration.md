@@ -1,10 +1,12 @@
 # Configuration reference
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md). Packages: [packages.md](packages.md).
 
 Every setting under the `Cache` section (or another root you pass to `AddCacheOrchestrator`). Tables below are the schema: property, type or default, and meaning.
 
 Root section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(config, "MySection")`.
+
+Domain TTLs and client policy use **nested objects** (`DataCache`, `OutputCache`, `ClientCache`, and Fusion-only `FusionCache`) with **TimeSpan** strings (for example `"00:01:00"`). Flat `*TtlSeconds` integers are no longer the documented shape.
 
 ## Root shape
 
@@ -15,10 +17,15 @@ Root section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(c
     "InstanceId": "",
     "Distributed": { },
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "InMemory" }
     },
-    "DomainDefaults": { },
+    "DomainDefaults": {
+      "DataCache": { "Enabled": true, "Ttl": "01:03:20" },
+      "OutputCache": { "Enabled": true, "Ttl": "01:01:40" },
+      "ClientCache": { "Cacheability": "Public", "Ttl": "01:00:00", "TtlMin": "00:01:00" },
+      "FusionCache": { "HardTtl": "12:00:00", "FailSafe": "1.00:00:00" }
+    },
     "Domains": {
       "products": { }
     },
@@ -36,9 +43,9 @@ Root section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(c
 | `InstanceId` | string | machine name | Stable process id (Admin, cluster bus anti-echo, diagnostics) |
 | `EmitDiagnosticsHeaders` | bool | `true` | When `true`, emit client-visible diagnostic headers (currently `X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
 | `Metrics` | object | see below | Meter label options (OpenTelemetry / Prometheus) |
-| `Distributed` | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** Fusion providers |
+| `Distributed` | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** data-cache providers (Fusion Redis, …) |
 | `OutputCache` | object | Provider `InMemory` | Output Cache provider + optional namespace |
-| `FusionCacheInstances` | map | `default` instance `InMemory` | Named FusionCache instances |
+| `DataCacheInstances` | map | `default` instance `InMemory` | Named data-cache engines (Fusion L1±L2 today; Hybrid uses a single DI HybridCache) |
 | `DomainDefaults` | object | — | Fallbacks for every domain |
 | `Domains` | map | — | Per-domain overrides (keys are domain names) |
 | `Admin` | object | disabled | Admin API (see [admin.md](admin.md)) |
@@ -50,7 +57,7 @@ Bound from `Cache:Metrics`. Controls labels on the `CacheOrchestrator` meter (no
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `IncludeEndpointLabel` | bool | `true` | When `true`, OC/FC instruments include a stable `route` tag (`METHOD` + route template, same shape as Admin endpoint keys). Set `false` to emit only `domain` / `result` (lower Prometheus cardinality). Keep the same value on all cluster nodes. |
+| `IncludeEndpointLabel` | bool | `true` | When `true`, OC/DC instruments include a stable `route` tag (`METHOD` + route template, same shape as Admin endpoint keys). Set `false` to emit only `domain` / `result` (lower Prometheus cardinality). Keep the same value on all cluster nodes. |
 
 Endpoint time series need a scrape of the meter and Admin Console App Metrics store; empty charts mean no samples in range (traffic, flag off for part of the window, or label mismatch)—not a separate “feature bit” from Prometheus history.
 
@@ -59,11 +66,11 @@ Endpoint time series need a scrape of the meter and Admin Console App Metrics st
 Effective namespaces:
 
 - Output: `OutputCache.Namespace` ?? `{Namespace}-oc`
-- Fusion **`default`** instance: `FusionCacheInstances.default.Namespace` ?? `{Namespace}-fc`  
-  (**no** `-default` suffix — keys look like `app-cache-fc:…`, not `app-cache-fc-default:…`)
-- Fusion **named** instance (e.g. `pii`): `…Namespace` ?? `{Namespace}-fc-{name}`
+- Data-cache **`default`** instance: `DataCacheInstances.default.Namespace` ?? `{Namespace}-fc`  
+  (**no** `-default` suffix — keys look like `app-cache-fc:…`, not `app-cache-fc-default:…`. The `-fc` suffix is historical.)
+- Data-cache **named** instance (e.g. `pii`): `…Namespace` ?? `{Namespace}-fc-{name}`
 
-## Provider options (`OutputCache` / `FusionCacheInstances` entry)
+## Provider options (`OutputCache` / `DataCacheInstances` entry)
 
 | Property | Description |
 |----------|-------------|
@@ -79,7 +86,7 @@ Bound **only** when you call `AddRedisBackend()`. Types: `RedisConnectionOptions
 |---------|------|
 | `Cache:Redis` | Global fallback connection |
 | `Cache:OutputCache:Redis` | Override for Output Cache store |
-| `Cache:FusionCacheInstances:{name}:Redis` | Override for one Fusion instance |
+| `Cache:DataCacheInstances:{name}:Redis` | Override for one data-cache instance |
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -90,87 +97,102 @@ Bound **only** when you call `AddRedisBackend()`. Types: `RedisConnectionOptions
 
 ## Distributed resilience (`Cache:Distributed`)
 
-Core setting. Applied only when a FusionCache instance `Provider` is **not** `InMemory`.
+Core setting. Applied when a data-cache instance `Provider` is **not** `InMemory` (Fusion L2 path).
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `SoftTimeoutSeconds` | 1 | Fusion distributed soft timeout |
-| `HardTimeoutSeconds` | 2 | Fusion distributed hard timeout |
+| `SoftTimeoutSeconds` | 1 | Distributed soft timeout |
+| `HardTimeoutSeconds` | 2 | Distributed hard timeout |
 | `CircuitBreakerSeconds` | 5 | Distributed circuit breaker |
 
 ## Domain settings (`DomainDefaults` and each `Domains` entry)
 
-Nullable fields **inherit** from defaults (then hard-coded library defaults).
+Nullable fields **inherit** from defaults (then hard-coded library defaults). Nested sections merge the same way.
 
-### Feature flags
+### Nested sections
+
+| JSON section | Portable? | Meaning |
+|--------------|-----------|---------|
+| `DataCache` | Yes (Core) | Enable, instance name, TTL, vary / no-store — Fusion **or** Hybrid |
+| `OutputCache` | AspNet | HTTP response cache TTL and OC knobs |
+| `ClientCache` | AspNet | Browser / CDN `Cache-Control` (+ schedule) |
+| `FusionCache` | Fusion package only | Hard TTL, fail-safe, factory timeouts, jitter, … |
+
+### Feature flags and vary (domain root)
 
 | Property | Default* | Description |
 |----------|----------|-------------|
-| `OutputCacheEnabled` | true | Enable HTTP output cache for domain |
-| `FusionCacheEnabled` | true | Enable FusionCache for domain |
-| `FusionCacheInstance` | `default` | Which named FusionCache instance to use |
-| `AuthBypassMode` | `AuthenticatedOrAuthorization` | Prefer this: `Never` / `AuthenticatedIdentityOnly` / `AuthorizationHeaderOnly` / `AuthenticatedOrAuthorization`. Unset → derived from the obsolete bool (default `true` → this mode). |
-| `BypassWhenAuthenticated` | true | **Obsolete** — used only when `AuthBypassMode` is unset (`true` → `AuthenticatedOrAuthorization`, `false` → `Never`) |
-| `VaryOutputCacheByUser` | true | When auth is not bypassed, vary OC (and Fusion when intentional) by user / claims / API-key hash |
+| `AuthBypassMode` | `AuthenticatedOrAuthorization` | Prefer this: `Never` / `AuthenticatedIdentityOnly` / `AuthorizationHeaderOnly` / `AuthenticatedOrAuthorization` |
+| `VaryOutputCacheByUser` | true | When auth is not bypassed, vary OC (and data cache when intentional) by user / claims / API-key hash |
 | `TreatAuthorizationAsAuthSignal` | true | `Authorization` counts as auth signal for OR-mode |
 | `AuthVaryIncludeAuthorizationHash` | true | Hash `Authorization` into auth-user when no identity |
 | `VaryByAuthClaims` | null | Claim types for auth-user material |
-| `FusionRespectAuthBypass` | **true** | Fusion skips cache when auth bypass would fire (set `false` for 2.1-like Fusion-under-Authorization) |
-| `ClientForcePrivateWhenAuthenticated` | true | Force client Private for signed-in Identity + Public |
-| `VaryByAccept` / `VaryByAcceptLanguage` | false | Content negotiation / locale vary (Accept planned `true` in 3.0) |
+| `DataCacheRespectAuthBypass` | **true** | Data cache skips when auth bypass would fire (set `false` for 2.1-like data-cache-under-Authorization) |
+| `VaryByAccept` / `VaryByAcceptLanguage` | true / false | Content negotiation / locale vary |
 | `AcceptNormalizationList` / `AcceptLanguageNormalizationList` | null | Prefer-lists when those vary flags are on — [vary.md](vary.md) |
 | `VaryByHeaders` / `VaryByCookies` | null | Header/cookie **name** allowlists — [vary.md](vary.md) |
 | `VaryByQueryKeys` | null | `null` = all non-tracking query keys; `[]` = none; non-empty = allowlist |
 | `IgnoreQueryKeys` | null | Extra deny list on top of built-in tracking prefixes |
 | `EmitResponseVary` | **true** | Emit HTTP response `Vary` for non-secret headers (set `false` to omit) |
-| `OutputCacheVaryByHost` | **true** | Output Cache `VaryByHost` (host + port) |
 
 \*After merge with defaults.
 
-### Versioning & ETag
+### Versioning
 
 | Property | Description |
 |----------|-------------|
 | `Version` | Bulk invalidation stamp string (e.g. "v1", "2026-08"). Missing → stable default "1" + warning log (stable keys, no auto-invalidate on restart) |
-| `ETagMode` | `Version` (default), `None`, or `Resource`. How Output Cache policy sets the HTTP `ETag` header. See [domain-profiles.md](domain-profiles.md). |
 
-### Output Cache
+### `DataCache` (portable)
 
 | Property | Default* | Description |
 |----------|----------|-------------|
-| `OutputCacheTtlSeconds` | 3700 | Server-side output entry TTL |
+| `Enabled` | true | Enable data cache for the domain |
+| `Instance` | `default` | Key in `DataCacheInstances` |
+| `Ttl` | `01:03:20` (3800s) | Logical data-cache TTL (Fusion soft/`Duration`; Hybrid expiration) |
+| `RespectNoStore` | true | Skip data cache when request has `Cache-Control: no-store` |
+| `VaryOnEncoding` | true | Include Accept-Encoding in the data-cache key |
+| `VaryOnPublicAddress` | true | Include scheme + host in the data-cache key |
+
+### `OutputCache` (nested under domain)
+
+| Property | Default* | Description |
+|----------|----------|-------------|
+| `Enabled` | true | Enable HTTP output cache for domain |
+| `Ttl` | `01:01:40` (3700s) | Server-side output entry TTL |
+| `VaryByHost` | **true** | Output Cache `VaryByHost` (host + port) |
 | `CacheableStatusCodes` | `[200]` | Status codes allowed to store |
 | `EncodingNormalizationList` | `br`, `gzip` | Prefer these Accept-Encoding values |
+| `ETagMode` | `Version` | `Version`, `None`, or `Resource`. How Output Cache policy sets the HTTP `ETag` header. See [domain-profiles.md](domain-profiles.md). |
 
-### FusionCache
-
-| Property | Default* | Description |
-|----------|----------|-------------|
-| `FusionCacheSoftTtlSeconds` | 3800 | Soft duration (`Duration`) |
-| `FusionCacheHardTtlSeconds` | 43200 | Caps soft duration if soft &gt; hard |
-| `FusionCacheFailSafeSeconds` | 86400 | Fail-safe max duration |
-| `FusionCacheEagerRefreshRatio` | 0.9 | Eager refresh threshold. **`0` = disabled**; values in `(0, 1)` allowed; `>= 1` fails validation |
-| `FusionCacheJitterSeconds` | 60 | Max jitter on duration |
-| `FusionCacheFactorySoftTimeoutSeconds` | 1 | Factory soft timeout |
-| `FusionCacheFactoryHardTimeoutSeconds` | 5 | Factory hard timeout |
-| `FusionCacheMaxItemBytes` | 0 | Memory size limit; 0 = unlimited |
-| `FusionCacheRespectNoStore` | true | Skip FC when request has `Cache-Control: no-store` |
-| `FusionCacheAllowBackgroundDistributed` | true | Fusion may complete L2 I/O in the background |
-| `FusionCacheAllowBackgroundBackplane` | true | Fusion may publish backplane messages in the background |
-| `FusionCacheVaryOnEncoding` | true | Include Accept-Encoding in key |
-| `FusionCacheVaryOnPublicAddress` | true | Include scheme + host in key |
-
-### Client cache (`Cache-Control`) — [Client Cache Schedule](client-cache-schedule.md)
+### `ClientCache` — [Client Cache Schedule](client-cache-schedule.md)
 
 | Property | Default* | Description |
 |----------|----------|-------------|
-| `ClientCacheability` | `Public` | `Public`, `Private`, `NoStore` |
-| `ClientTtlSeconds` | 3600 | Target max-age far from schedule (Calm) |
-| `ClientTtlMinSeconds` | 60 | Floor near/after schedule and during post-version hold |
+| `Cacheability` | `Public` | `Public`, `Private`, `NoStore` |
+| `Ttl` | `01:00:00` (3600s) | Target max-age far from schedule (Calm) |
+| `TtlMin` | `00:01:00` (60s) | Floor near/after schedule and during post-version hold |
 | `ScheduledUpdateUtc` | null | Planned cutover; linear ramp of max-age toward min |
-| `ClientMustRevalidateNearUpdate` | false | Append `must-revalidate` at min floor |
+| `MustRevalidateNearUpdate` | false | Append `must-revalidate` at min floor |
+| `ForcePrivateWhenAuthenticated` | true | Force client Private for signed-in Identity + Public |
 
 See **[client-cache-schedule.md](client-cache-schedule.md)** for phases, formula, and operational playbook.
+
+### `FusionCache` (Fusion package only)
+
+Bound from `Cache:DomainDefaults:FusionCache` / `Cache:Domains:{name}:FusionCache` by **CacheOrchestrator.FusionCache**. Ignored when Hybrid is the `IDataCacheProvider`.
+
+| Property | Default* | Description |
+|----------|----------|-------------|
+| `HardTtl` | `12:00:00` (43200s) | Caps soft/`DataCache.Ttl` if soft &gt; hard |
+| `FailSafe` | `1.00:00:00` (86400s) | Fail-safe max duration |
+| `EagerRefreshRatio` | 0.9 | Eager refresh threshold. **`0` = disabled**; values in `(0, 1)` allowed; `>= 1` fails validation |
+| `Jitter` | `00:01:00` | Max jitter on duration |
+| `FactorySoftTimeout` | `00:00:01` | Factory soft timeout |
+| `FactoryHardTimeout` | `00:00:05` | Factory hard timeout |
+| `MaxItemBytes` | 0 | Memory size limit; 0 = unlimited |
+| `AllowBackgroundDistributed` | true | Fusion may complete L2 I/O in the background |
+| `AllowBackgroundBackplane` | true | Fusion may publish backplane messages in the background |
 
 ## Admin API (`Cache:Admin`)
 
@@ -197,7 +219,7 @@ Without the package, core registers a Null bus (no peer traffic). Details: **[cl
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `Enabled` | `false` | When false, no peer publish even if the Bus package is registered |
+| `Enabled` | `false` | When false, no peer publish even if the HttpBus package is registered |
 | `Membership` | `Null` | `Null` · `Static` · `ServiceDiscovery` |
 | `PeerTimeoutMs` | `2000` | Per-peer HTTP timeout (clamped **100–120_000** ms at publish) |
 | `MaxParallelism` | `32` | Max concurrent peer deliveries (clamped **1–64**) |
@@ -224,27 +246,29 @@ Optional. Requires package **`CacheOrchestrator.EFCore.Invalidation`**. Type →
 
 `CacheOrchestratorOptionsValidator` runs on start (`ValidateOnStart`):
 
-- `FusionCacheInstances` must contain **`default`**
-- Each domain `FusionCacheInstance` must name a registered instance (JSON `FusionCacheInstance` → runtime `FusionCacheInstanceName`, default `"default"`)
+- `DataCacheInstances` must contain **`default`**
+- Each domain `DataCache.Instance` must name a registered instance (default `"default"`)
 - Provider must be a registered backend (`InMemory`, `Redis` after `AddRedisBackend()`, custom via `AddBackend`)
 - Output Cache provider must support an OC store (`SupportsOutputCacheStore`)
-- Redis provider requires a connection string (`Cache:Redis:Configuration` or the scoped `OutputCache:Redis` / `FusionCacheInstances:{name}:Redis` override)
-- Negative TTLs fail; `FusionCacheEagerRefreshRatio` must be in `[0, 1)`
+- Redis provider requires a connection string (`Cache:Redis:Configuration` or the scoped `OutputCache:Redis` / `DataCacheInstances:{name}:Redis` override)
+- Negative TTLs fail; `FusionCache.EagerRefreshRatio` must be in `[0, 1)` when present
 - Allowlists have max lengths (headers, cookies, query, claims, Accept lists)
 - `AuthBypassMode` must be a defined enum value  
 
 ## Runtime model
 
-Resolved settings are **`DomainCacheOptions`** (immutable snapshot). JSON `*Seconds` integers become `TimeSpan` only for:
+Resolved settings are **`DomainCacheOptions`** (immutable snapshot). Nested JSON TimeSpans map to:
 
 | JSON | Runtime |
 |------|---------|
-| `OutputCacheTtlSeconds` | `OutputTtl` |
-| `FusionCacheSoftTtlSeconds` | `FusionCacheSoftTtl` |
-| `FusionCacheHardTtlSeconds` | `FusionCacheHardTtl` |
-| `FusionCacheFailSafeSeconds` | `FusionCacheFailSafe` |
+| `OutputCache.Ttl` | `OutputTtl` |
+| `DataCache.Ttl` | `DataCacheTtl` |
+| `ClientCache.Ttl` / `TtlMin` | `ClientTtlSeconds` / `ClientTtlMinSeconds` (seconds on the snapshot) |
+| `DataCache.Instance` | `DataCacheInstanceName` |
+| `DataCache.Enabled` / `OutputCache.Enabled` | `DataCacheEnabled` / `OutputCacheEnabled` |
+| `ClientCache.Cacheability` | `ClientCacheability` |
 
-Client TTL, Fusion jitter, and factory timeouts stay **`int` seconds** on the snapshot (`ClientTtlSeconds`, `FusionCacheJitterSeconds`, …). JSON `FusionCacheInstance` is `FusionCacheInstanceName` at runtime.
+Fusion-only knobs stay on `DomainFusionCacheSettings` (Fusion package), not on Core `DomainCacheOptions`.
 
 ## Domain name normalization
 
@@ -269,9 +293,9 @@ See **[domain-profiles.md](domain-profiles.md)** for full **osm-tiles** (snapsho
 
 ## Related
 
+- [packages.md](packages.md)  
 - [Guide](guide/README.md)  
 - [cache-keys.md](cache-keys.md) — Namespace and key composition  
 - [architecture.md](architecture.md)  
 - [domain-profiles.md](domain-profiles.md)  
 - [invalidation.md](invalidation.md)  
-

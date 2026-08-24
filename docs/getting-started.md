@@ -1,6 +1,6 @@
 # Getting started
 
-> **Guide.** Product overview: [root README](../README.md). Next orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md).
+> **Guide.** Product overview: [root README](../README.md). Next orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md). Packages: [packages.md](packages.md).
 
 This page takes you from an empty project to a working domain endpoint, then points to the rest of the documentation.
 
@@ -16,19 +16,21 @@ See [samples/CacheOrchestrator.Minimal](../samples/CacheOrchestrator.Minimal).
 
 ## How the pieces fit
 
-A **domain** is a named policy, not a store. Output Cache, FusionCache, and client `Cache-Control` remain the three caches; CacheOrchestrator applies the same options to all three. In configuration it is a name (`catalog`, `osm-tiles`, …). It holds TTLs, Version, client headers, and which Fusion instance to use. You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. `IDomainFusionCache.GetOrSetAsync` uses the same options.
+A **domain** is a named policy, not a store. Output Cache, **data cache**, and client `Cache-Control` remain the three layers; CacheOrchestrator applies the same options to all three. In configuration it is a name (`catalog`, `osm-tiles`, …). It holds TTLs, Version, client headers, and which data-cache instance to use. You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. `IDomainFusionCache.GetOrSetAsync` uses the same options (HTTP projection over `ICacheOrchestrator`).
 
 - **Output Cache** stores the full HTTP response. You enable it by putting the domain on the endpoint.
-- **FusionCache** stores the object your factory produced. You call `IDomainFusionCache`.
+- **Data cache** stores the object your factory produced (FusionCache by default with the meta package, or HybridCache). You call `IDomainFusionCache` or `ICacheOrchestrator`.
 - **Client Cache-Control** is written from the domain on the way out. You do not set those headers by hand.
 
-The core package uses in-memory stores. Redis is a separate package.
+In-memory stores are built in. Redis, Hybrid, the HTTP cluster bus, and EF hooks are separate packages — [packages.md](packages.md).
 
 ## Install
 
 ```bash
 dotnet add package CacheOrchestrator
 ```
+
+That meta package includes AspNetCore + FusionCache. For Hybrid, Redis, HttpBus, or EF, see [packages.md](packages.md).
 
 ## Configure
 
@@ -37,21 +39,22 @@ dotnet add package CacheOrchestrator
   "Cache": {
     "Namespace": "my-app",
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "InMemory" }
     },
     "Domains": {
       "catalog": {
         "Version": "1",
-        "ClientCacheability": "Public",
-        "ClientTtlSeconds": 60,
-        "OutputCacheTtlSeconds": 120,
-        "FusionCacheSoftTtlSeconds": 300
+        "DataCache": { "Ttl": "00:05:00" },
+        "OutputCache": { "Ttl": "00:02:00" },
+        "ClientCache": { "Cacheability": "Public", "Ttl": "00:01:00" }
       }
     }
   }
 }
 ```
+
+Optional Fusion-only knobs (hard TTL, fail-safe, …) go under `FusionCache` on the domain — [fusion-cache.md](fusion-cache.md), [configuration.md](configuration.md).
 
 ## Register
 
@@ -73,7 +76,7 @@ app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =
 .CacheOutputWithDomain("catalog");
 ```
 
-The domain on the endpoint is enough. Fusion reads it from the request (or from endpoint metadata).
+The domain on the endpoint is enough. Data cache reads it from the request (or from endpoint metadata).
 
 On a controller:
 
@@ -92,7 +95,7 @@ public sealed class ProductsController : ControllerBase
 }
 ```
 
-If the endpoint has no domain, pass the name: `GetOrSetAsync(http, "catalog", factory, cancellationToken)`. Without a domain the factory runs uncached. Details: [fusion-cache.md](fusion-cache.md).
+If the endpoint has no domain, pass the name: `GetOrSetAsync(http, "catalog", factory, cancellationToken)`. Without a domain the factory runs uncached. Details: [fusion-cache.md](fusion-cache.md). Class libraries can use `ICacheOrchestrator` instead — [packages.md](packages.md).
 
 > **Note:** Unlike native ASP.NET Core Output Caching which ignores query parameters by default, CacheOrchestrator domains **vary by all non-tracking query parameters** by default. `?id=1` and `?id=2` will automatically be cached separately.
 
@@ -105,7 +108,7 @@ X-Cache: domain=catalog; version=1; client=public; phase=n/a; oc=miss; dc=miss; 
 ```
 
 - **oc** — Output Cache `miss`, `hit`, `bypass`, or `off`.
-- **fc** — Fusion (`hit`, `miss`, …). Omitted when Output Cache already hit.
+- **dc** — Data cache (`hit`, `miss`, `stale`, …). Omitted when Output Cache already hit.
 - **fa** — `run` when `dc` is present and is not `hit` (factory callback ran).
 - **phase** — Client Cache Schedule, or `n/a`.
 
@@ -122,7 +125,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 ```
 
 ```json
-"FusionCacheInstances": {
+"DataCacheInstances": {
   "default": { "Provider": "Redis" }
 },
 "Redis": { "Configuration": "localhost:6379" }
@@ -130,6 +133,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 
 ## Next
 
+- [Packages](packages.md) — compose Core / Fusion / Hybrid / AspNetCore
 - [Guide](guide/README.md) — concepts, topologies, operations
 - [Playground sample](../samples/CacheOrchestrator.Sample) — TTLs and schedule in a UI
 - [Domain profiles](domain-profiles.md) — published datasets versus changing records

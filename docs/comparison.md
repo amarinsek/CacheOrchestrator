@@ -2,7 +2,7 @@
 
 > **Guide.** Product overview: [root README](../README.md). Orientation: [Guide](guide/README.md). Catalog: [documentation index](README.md).
 
-This page compares the usual way of wiring ASP.NET Core Output Cache and FusionCache yourself with the same work done through CacheOrchestrator.
+This page compares the usual way of wiring ASP.NET Core Output Cache and a data cache (here FusionCache) yourself with the same work done through CacheOrchestrator.
 
 The same endpoint is written both ways, without and with CacheOrchestrator.
 
@@ -97,16 +97,24 @@ await outputCache.EvictByTagAsync("domain:osm-tiles", cancellationToken);
 "Domains": {
   "osm-tiles": {
     "Version": "2026-08",
-    "ETagMode": "Version",
-    "ClientCacheability": "Public",
-    "ClientTtlSeconds": 2592000,
-    "ClientTtlMinSeconds": 900,
-    "ScheduledUpdateUtc": "2026-09-01T00:00:00Z",
-    "ClientMustRevalidateNearUpdate": true,
-    "OutputCacheTtlSeconds": 604800,
-    "FusionCacheSoftTtlSeconds": 2592000,
-    "FusionCacheHardTtlSeconds": 5184000,
-    "FusionCacheFailSafeSeconds": 7776000
+    "DataCache": {
+      "Ttl": "30.00:00:00"
+    },
+    "OutputCache": {
+      "Ttl": "7.00:00:00",
+      "ETagMode": "Version"
+    },
+    "ClientCache": {
+      "Cacheability": "Public",
+      "Ttl": "30.00:00:00",
+      "TtlMin": "00:15:00",
+      "ScheduledUpdateUtc": "2026-09-01T00:00:00Z",
+      "MustRevalidateNearUpdate": true
+    },
+    "FusionCache": {
+      "HardTtl": "60.00:00:00",
+      "FailSafe": "90.00:00:00"
+    }
   }
 }
 ```

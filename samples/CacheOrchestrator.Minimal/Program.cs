@@ -14,7 +14,7 @@ app.UseCacheOrchestrator();
 app.MapCacheOrchestratorAdmin(); // no-op unless Cache:Admin:Enabled
 
 // Domain rules live in appsettings (Cache:Domains:hello).
-// One line on the endpoint wires Output Cache + FusionCache for this route.
+// One line on the endpoint wires Output Cache + data cache for this route.
 app.MapGet("/hello", async (HttpContext http, IDomainFusionCache cache) =>
 {
     var payload = await cache.GetOrSetAsync(http, async ct =>

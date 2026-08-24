@@ -4,12 +4,12 @@ Context for AI coding agents working in this repository.
 
 ## What this project is
 
-**CacheOrchestrator** configures and coordinates three existing layers in ASP.NET Core — Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, FusionCache still holds the object, and the browser or CDN still honours `Cache-Control`.
+**CacheOrchestrator** configures and coordinates three layers — Output Cache (OC), **data cache** (DC; FusionCache or HybridCache), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, the data engine holds the object, and the browser or CDN still honours `Cache-Control`. Package composition: `docs/packages.md`.
 
 Internally it wires:
 
 1. **Output Cache** — full HTTP response caching (ASP.NET Core)  
-2. **FusionCache** — application object caching (ZiggyCreatures; L1 memory ± L2 distributed cache via pluggable backends)  
+2. **Data cache** — application object caching via `IDataCacheProvider` (FusionCache L1/L2 ± backplane, or HybridCache)  
 3. **Client Cache-Control** — browser/CDN headers (+ optional Client Cache Schedule)
 
 Domains are named groups of data that share TTLs, providers, client headers, and version stamps.
@@ -27,9 +27,9 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 
 ## Non-goals
 
-- Not a generic cache façade for non-HTTP apps without `HttpContext`  
-- Not a replacement for FusionCache features — it **configures and scopes** them  
+- Not a replacement for FusionCache / HybridCache features — it **configures and scopes** them  
 - Does not own Redis topology/ops beyond connection options  
+- Libraries prefer `ICacheOrchestrator` (Core); web happy path may use AspNetCore `IDomainFusionCache`
 
 ## Mental model
 
@@ -37,11 +37,11 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 Domain (config name)
   → DomainCacheOptions (resolved snapshot)
       → DomainOutputCachePolicy (HTTP)
-      → IDomainFusionCache.GetOrSetAsync / GetOrSetEntityAsync / GetOrSetEntitySetAsync (data)
+      → ICacheOrchestrator / IDomainFusionCache get-or-set (data)
       → EntityFootprint tags (domain + entity / entitykind; optional members / dependsOn / aliases)
 ```
 
-**Domain for FusionCache** (`IDomainFusionCache.GetOrSetAsync`):
+**Domain for data cache** (`IDomainFusionCache.GetOrSetAsync` HTTP path):
 
 1. Explicit overload `GetOrSetAsync(http, domain, factory)` — same name reuses the request snapshot; a different name **replaces** it.  
 2. Else options already on request (Output Cache policy usually set them via `.CacheOutputWithDomain` / `[CacheDomain]`).  
@@ -94,12 +94,15 @@ There is **no** `CacheOrchestrator.Abstractions` folder — interfaces sit besid
 
 ## Config vs runtime naming
 
-| JSON / options binding | Runtime `DomainCacheOptions` |
-|------------------------|------------------------------|
-| `OutputCacheTtlSeconds` (int) | `OutputTtl` (TimeSpan) |
-| `FusionCacheSoftTtlSeconds` (int) | `FusionCacheSoftTtl` (TimeSpan) |
-| `FusionCacheHardTtlSeconds` (int) | `FusionCacheHardTtl` (TimeSpan) |
-| `FusionCacheFailSafeSeconds` (int) | `FusionCacheFailSafe` (TimeSpan) |
+Nested JSON (TimeSpan strings) under `DataCache` / `OutputCache` / `ClientCache` / optional `FusionCache`. Runtime snapshot on Core:
+
+| JSON | Runtime `DomainCacheOptions` |
+|------|------------------------------|
+| `OutputCache:Ttl` | `OutputTtl` |
+| `DataCache:Ttl` | `DataCacheTtl` |
+| `ClientCache:Ttl` / `TtlMin` | `ClientTtlSeconds` / `ClientTtlMinSeconds` (still int seconds on snapshot) |
+
+Fusion-only knobs (`HardTtl`, `FailSafe`, factory timeouts, …) bind in the **FusionCache** package (`DomainFusionCacheSettings`), not on Core `DomainCacheOptions`. Root engines: `DataCacheInstances` (not `FusionCacheInstances`).
 
 Do not rename config property names without a breaking-change plan (bound from appsettings).
 
@@ -146,7 +149,7 @@ docs/
 Three tiers (do not put reference into the root README):
 
 - **Product:** `README.md` — overview and quick start only
-- **Guide:** `docs/guide/` (concepts, topologies, operations) + `docs/getting-started.md` + FAQ + Minimal sample
+- **Guide:** `docs/guide/` (concepts, topologies, operations) + `docs/getting-started.md` + `docs/packages.md` + FAQ + Minimal sample
 - **Reference:** topic pages under `docs/` (configuration, keys, deployment, …); hub: `docs/README.md`
 
 Contributor / security: `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`.  

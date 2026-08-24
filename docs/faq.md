@@ -64,10 +64,10 @@ Details: [fusion-cache.md](fusion-cache.md).
 | Goal | Config |
 |------|--------|
 | Keep safe default | leave flags as default |
-| Cache private per-user responses | `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, `ClientCacheability: Private` |
-| Public content that happens to send an API key | `AuthBypassMode: Never`, `VaryOutputCacheByUser: false`, careful `ClientCacheability` |
+| Cache private per-user responses | `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, `ClientCache.Cacheability: Private` |
+| Public content that happens to send an API key | `AuthBypassMode: Never`, `VaryOutputCacheByUser: false`, careful `ClientCache.Cacheability` |
 | Bypass only cookie/Identity auth | `AuthBypassMode: AuthenticatedIdentityOnly` |
-| Keep 2.1-like Fusion under Authorization while OC bypasses | `FusionRespectAuthBypass: false` (default is `true` = parity) |
+| Keep 2.1-like data cache under Authorization while OC bypasses | `DataCacheRespectAuthBypass: false` (default is `true` = parity) |
 
 Wrong settings can leak one user’s response to another (especially with shared CDNs).  
 Details: [vary.md](vary.md), [output-cache.md](output-cache.md#authenticated-traffic), [domain-profiles.md](domain-profiles.md#authenticated-traffic-auth-bypass).
@@ -86,11 +86,11 @@ Set `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, and `VaryByAuthClaim
 
 ---
 
-## Why does Fusion skip under Authorization now?
+## Why does the data cache skip under Authorization now?
 
-Default is **`FusionRespectAuthBypass: true`**: when Output Cache would auth-bypass, Fusion runs the factory uncached (OC↔Fusion parity). That fixes the old inconsistency where OC bypassed but Fusion still stored data.
+Default is **`DataCacheRespectAuthBypass: true`**: when Output Cache would auth-bypass, the data cache runs the factory uncached (OC↔DC parity). That fixes the old inconsistency where OC bypassed but Fusion still stored data.
 
-For **2.1-like** behaviour (Fusion still caches under Authorization while OC bypasses), set `"FusionRespectAuthBypass": false`.
+For **2.1-like** behaviour (data cache still caches under Authorization while OC bypasses), set `"DataCacheRespectAuthBypass": false`.
 
 ---
 
@@ -113,21 +113,21 @@ For complete details on each mode, see [ETag modes in domain-profiles.md](domain
 
 ---
 
-## Multiple Redis clusters / named Fusion instances
+## Multiple Redis clusters / named data-cache instances {#multiple-redis-clusters--named-data-cache-instances}
 
-Supported: map domains to named `FusionCacheInstances`, each with its own Redis connection.
+Supported: map domains to named `DataCacheInstances`, each with its own Redis connection. Domains select an instance via `DataCache.Instance`.
 
 ```json
-"FusionCacheInstances": {
+"DataCacheInstances": {
   "default": { "Provider": "Redis", "Redis": { "Configuration": "global:6379" } },
   "pii":     { "Provider": "Redis", "Redis": { "Configuration": "secure:6379" } }
 }
 ```
 
-Each instance gets a **keyed** `IDistributedCache` and multiplexer — the last registration must not overwrite L2 for others.
+Each Fusion-backed instance gets a **keyed** `IDistributedCache` and multiplexer — the last registration must not overwrite L2 for others.
 
 **Requires:** package `CacheOrchestrator.Redis` + `AddRedisBackend()`.  
-Details: [deployment.md](deployment.md#using-multiple-fusioncache-instances).
+Details: [deployment.md](deployment.md#using-multiple-datacache-instances).
 
 ---
 
@@ -137,21 +137,21 @@ Details: [deployment.md](deployment.md#using-multiple-fusioncache-instances).
 |---------|-------------------|
 | Root `Namespace` | `app-cache` |
 | Output Cache keys | `OutputCache.Namespace` ?? `{Namespace}-oc` |
-| Fusion `default` instance | `{Namespace}-fc` (**no** `-default` suffix) |
-| Fusion named instance `pii` | `{Namespace}-fc-pii` |
+| Data-cache `default` instance | `{Namespace}-fc` (**no** `-default` suffix; historical `-fc`) |
+| Data-cache named instance `pii` | `{Namespace}-fc-pii` |
 
 ---
 
 ## Custom backends (SQL Server, Memcached, …)
 
-`ICacheBackendRegistrar` is how you add a store the library does not ship. Register the registrar, then set `Provider` to its name. [backends.md](backends.md) has a full example of Fusion L2 on SQL Server (Output Cache stays InMemory or Redis).
+`ICacheBackendRegistrar` is how you add a store the library does not ship. Register the registrar, then set `Provider` under `OutputCache` or `DataCacheInstances`. [backends.md](backends.md) has a full example of Fusion L2 on SQL Server (Output Cache stays InMemory or Redis).
 
 ---
 
 ## Client Cache Schedule vs server TTL
 
-`ScheduledUpdateUtc` + client TTL fields change only **browser/CDN** `Cache-Control` (`max-age` ramp).  
-They do **not** change Output Cache or Fusion soft/hard TTLs.
+`ClientCache.ScheduledUpdateUtc` + client TTL fields change only **browser/CDN** `Cache-Control` (`max-age` ramp).  
+They do **not** change `OutputCache.Ttl` or `DataCache.Ttl` / Fusion hard / fail-safe.
 
 Phases appear on `X-Cache` as `phase=calm|approaching|hold|n/a`.  
 See [client-cache-schedule.md](client-cache-schedule.md).
@@ -162,13 +162,14 @@ See [client-cache-schedule.md](client-cache-schedule.md).
 
 | Package | Contains |
 |---------|----------|
-| `CacheOrchestrator` | Policy, InMemory, domain APIs, Null cluster bus |
+| `CacheOrchestrator` (meta) | AspNetCore + Fusion data provider |
+| `CacheOrchestrator.Core` / `.AspNetCore` / `.FusionCache` / `.HybridCache` | Policy, HTTP host, Fusion or Hybrid `IDataCacheProvider` — [packages.md](packages.md) |
 | `CacheOrchestrator.Redis` | Redis registrar, connection options, Redis health probe |
 | `CacheOrchestrator.HttpBus` | HTTP cluster command bus, Static / ServiceDiscovery membership |
 | `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation |
 
 Without Redis package + `AddRedisBackend()`, `"Provider": "Redis"` fails validation.  
-Without Bus package, multi-instance InMemory invalidation stays process-local (unless you build your own fan-out).  
+Without HttpBus package, multi-instance InMemory invalidation stays process-local (unless you build your own fan-out).  
 Without the EF package, `SaveChanges` does not purge cache; call the invalidator yourself.
 
 ---
@@ -187,10 +188,10 @@ These surfaces are for operators. Protect them with an API key and a private net
 | Goal | Prefer |
 |------|--------|
 | Shared Fusion L2 + automatic L1 drop on other nodes | **Redis** package (L2 + backplane) |
-| Multi-instance **InMemory**, purge / Version / TTL on all nodes | **Bus** package |
-| Both installed | Safe but often redundant for Fusion tag purge; Bus still useful for OC InMemory + runtime overlays |
+| Multi-instance **InMemory**, purge / Version / TTL on all nodes | **HttpBus** package |
+| Both installed | Safe but often redundant for Fusion tag purge; HttpBus still useful for OC InMemory + runtime overlays |
 
-Bus does **not** share cache payloads. Details: [cluster-bus.md](cluster-bus.md).
+HttpBus does **not** share cache payloads. Details: [cluster-bus.md](cluster-bus.md).
 
 ---
 

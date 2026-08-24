@@ -1,35 +1,38 @@
 # Architecture
 
-> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Packages: [packages.md](packages.md).
 
 How the library is put together.
 
-A **domain** is a named group of data (`products`, `reports`, …) with its own TTLs, flags, and Version. Output Cache, FusionCache, and client headers all resolve the same `DomainCacheOptions`.
+A **domain** is a named group of data (`products`, `reports`, …) with its own TTLs, flags, and Version. Output Cache, the **data cache** (`IDataCacheProvider`), and client headers all resolve the same `DomainCacheOptions`.
 
-1. **ASP.NET Core Output Caching** — full GET/HEAD responses.
-2. **FusionCache** — objects from your factory (L1 memory, optional L2, optional backplane; named instances for isolation).
+1. **ASP.NET Core Output Caching** — full GET/HEAD responses (AspNetCore package).
+2. **Data cache** — objects from your factory via `ICacheOrchestrator` / `IDomainFusionCache` (Fusion or Hybrid as `IDataCacheProvider`; L1 memory, optional L2 / backplane for Fusion).
 3. **Client Cache-Control** — browser and CDN headers, including Client Cache Schedule.
 
 ## Design principles
 
 - **Configuration over code** — change TTLs and providers without redeploying handlers.
-- **One domain model** — Output Cache and FusionCache share `DomainCacheOptions`.
-- **Safe defaults** — fail-safe, stampede protection, and jitter come from FusionCache and the domain defaults.
+- **One domain model** — Output Cache and the data cache share `DomainCacheOptions`.
+- **Pluggable engines** — Core owns portable `DataCache` policy; Fusion / Hybrid packages supply `IDataCacheProvider`.
+- **Safe defaults** — fail-safe, stampede protection, and jitter come from Fusion (when that provider is registered) and the domain defaults.
 - **Observable** — `X-Cache` (when enabled), meter and activity source `CacheOrchestrator`.
 
 ## High-level diagram
 
 ```
 ┌──────────────────────────── Application ────────────────────────────┐
-│  Minimal APIs  ·  Controllers  ·  Invalidation endpoints              │
+│  Minimal APIs  ·  Controllers  ·  Workers / libraries                 │
 └───────────────┬──────────────────────────────┬──────────────────────┘
                 │                              │
                 ▼                              ▼
-     DomainOutputCachePolicy          IDomainFusionCache
-     (IOutputCachePolicy)             DomainFusionCacheService
+     DomainOutputCachePolicy          IDomainFusionCache (HTTP)
+     (IOutputCachePolicy)             └─► ICacheOrchestrator (Core)
                 │                              │
                 ▼                              ▼
-     ASP.NET Output Cache              FusionCache (L1 ± L2 ± backplane)
+     ASP.NET Output Cache              IDataCacheProvider
+                                       (FusionDataCacheProvider
+                                        or HybridDataCacheProvider)
                 │                              │
                 └──────────┬───────────────────┘
                            ▼
@@ -38,32 +41,24 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
                            │
                            ▼
               CacheOrchestratorOptions (IOptionsMonitor)
+              DataCacheInstances + nested domain sections
 ```
 
-## Source layout (`src/CacheOrchestrator`)
+## Source layout (`src/`)
 
-| Folder | Responsibility |
-|--------|----------------|
-| `Configuration/` | Options, domain resolution, client headers, `X-Cache` |
-| `OutputCache/` | Policy, `[CacheDomain]`, Minimal API extensions, MVC convention |
-| `FusionCache/` | `IDomainFusionCache`, key generator, service |
-| `Vary/` | Shared OC↔Fusion vary materializer, `ICacheVaryContributor` |
-| `Backends/` | `ICacheBackendRegistrar` contracts + **InMemory** registrar (Redis lives in `CacheOrchestrator.Redis`) |
-| `Invalidation/` | Tag-based eviction across OC + FC |
-| `Cluster/` | Command bus contracts, Null bus/membership, InstanceId, handler (HTTP in HttpBus package) |
-| `Admin/` | Admin API (feature-flagged) |
-| `Diagnostics/` | Metrics, activities, health probes |
-| `DependencyInjection/` | `AddCacheOrchestrator`, `UseCacheOrchestrator`, `MapCacheOrchestratorAdmin` |
-| `Utilities/` | Domain templates, HTTP helpers |
-
-Companion packages:
-
-| Project | Role |
-|---------|------|
+| Project | Responsibility |
+|---------|----------------|
+| `CacheOrchestrator.Core` | Domains, Version, portable `DataCache` / nested settings, entity footprint, `ICacheOrchestrator`, invalidation and cluster **contracts**, diagnostics |
+| `CacheOrchestrator.FusionCache` | ZiggyCreatures Fusion as `IDataCacheProvider`; JSON `FusionCache` knobs |
+| `CacheOrchestrator.HybridCache` | Microsoft HybridCache as `IDataCacheProvider` |
+| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache-Control, vary, Admin API, `IDomainFusionCache`, host `AddCacheOrchestrator` |
+| `CacheOrchestrator` | Meta NuGet: AspNetCore + FusionCache |
 | `CacheOrchestrator.Redis` | Redis OC store + Fusion L2 + backplane |
 | `CacheOrchestrator.HttpBus` | HTTP cluster command bus + Static / ServiceDiscovery membership |
 | `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation — [ef-core-invalidation.md](ef-core-invalidation.md) |
-| `CacheOrchestrator.AdminConsole` | Admin Console App (operator UI); calls the Admin API on each instance. Not a NuGet package; Docker: `ghcr.io/amarinsek/cacheorchestrator-admin-console`. |
+| `CacheOrchestrator.AdminConsole` | Admin Console App (operator UI); not a NuGet package |
+
+Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion, Hybrid, Redis, HttpBus, or EF. Details: [packages.md](packages.md).
 
 ## Public API surface
 
@@ -72,6 +67,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | Public (stable contract) | Internal (not for app code) |
 |--------------------------|-----------------------------|
 | `AddCacheOrchestrator` / `UseCacheOrchestrator` / `ICacheOrchestratorBuilder` | `DefaultCacheOrchestratorBuilder` |
+| `ICacheOrchestrator`, `IDataCacheProvider` (**Core**) | Orchestrator / provider implementations |
 | `IDomainFusionCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainFusionCacheService` |
 | `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainName`, `ICacheOrchestratorFeature`, options types | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator`, `CacheOrchestratorFeature` |
 | `ICacheOrchestratorInvalidator`, `CacheInvalidationResult`, `ICacheInvalidationObserver`, `CacheTags` | `CacheOrchestratorInvalidator` |
@@ -79,7 +75,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | `NullClusterCommandBus`, `NullClusterMembership` | — |
 | `ICacheBackendRegistrar`, `InMemoryCacheBackendRegistrar` | — |
 | Redis: `AddRedisBackend` / `RedisCacheBackendRegistrar` (**CacheOrchestrator.Redis**) | `RedisCacheHealthProbe` |
-| Bus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` / `HttpClusterCommandBus` (**CacheOrchestrator.HttpBus**) | `ClusterEndpointAuth` |
+| HttpBus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` / `HttpClusterCommandBus` (**CacheOrchestrator.HttpBus**) | `ClusterEndpointAuth` |
 | `MapCacheOrchestratorAdmin`, `AdminLocalApi`, Admin API DTOs | `InMemoryAdminStatsCollector` |
 | `AuthBypassMode`, `DomainAuthEvaluator` | — |
 | `ICacheVaryContributor`, `CacheVaryMaterializer`, `ICacheVaryBuilder` | — |
@@ -101,34 +97,35 @@ Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features
 
 **Not cached:** non-GET/HEAD, `Cache-Control: no-store`, authenticated / `Authorization`, disabled domain, non-cacheable status codes, `Set-Cookie` responses.
 
-## Request flow — FusionCache
+## Request flow — data cache
 
-1. Code calls `IDomainFusionCache.GetOrSetAsync` (explicit domain argument first, else snapshot already on the request from Output Cache, else endpoint metadata).  
-2. If domain still missing or Fusion disabled → factory runs uncached.  
-3. Optional respect for request `no-store`.  
-4. Key from `IDomainKeyGenerator` (route/query/encoding/host + domain + version).  
-5. Domain config determines which **named FusionCache instance** to use (`default` by default).
-6. FusionCache L1 → L2 → factory with soft/hard factory timeouts, fail-safe, jitter.  
-7. Disposition (`Hit` / `Miss` / `Stale` / …) stored for `X-Cache`.  
+1. Code calls `IDomainFusionCache.GetOrSetAsync` or Core `ICacheOrchestrator.GetOrCreateAsync`.  
+2. If domain still missing or data cache disabled → factory runs uncached.  
+3. Optional respect for request `no-store` / auth bypass.  
+4. Key from `IDomainKeyGenerator` (HTTP) or caller-supplied key (orchestrator).  
+5. Domain config selects a named **`DataCacheInstances`** entry (`default` by default).  
+6. Registered `IDataCacheProvider` (Fusion: L1 → L2 → factory with soft/hard timeouts, fail-safe, jitter; Hybrid: expiration from `DataCache.Ttl`).  
+7. Disposition (`Hit` / `Miss` / `Stale` / …) stored for `X-Cache` (`dc=`).  
 
-See [fusion-cache.md](fusion-cache.md) for resolution order and the Fusion-only scenario.  
+See [fusion-cache.md](fusion-cache.md) for HTTP resolution order and entity identity.  
 
 ## Backends
 
-| Provider | Package | Output Cache | FusionCache |
-|----------|---------|--------------|-------------|
-| `InMemory` | **Core** | ASP.NET default store | L1 only |
+| Provider | Package | Output Cache | Data cache (Fusion path) |
+|----------|---------|--------------|--------------------------|
+| `InMemory` | Core / host | ASP.NET default store | L1 only |
 | `Redis` | **`CacheOrchestrator.Redis`** | StackExchange Redis store | Keyed L2 + Redis backplane per instance |
 | *(Custom)* | Your app | Custom | Keyed L2 recommended for multi-instance |
 
 Register Redis with `AddRedisBackend()` (see [backends.md](backends.md)). Custom backends use `ICacheBackendRegistrar` + `AddBackend`.
 
-Output and Fusion providers can differ (e.g. OC in-memory, FC Redis).
+Output and data-cache providers can differ (e.g. OC in-memory, Fusion Redis).
 
-**Multi-instance Redis:** each `FusionCacheInstances` entry gets a keyed `IConnectionMultiplexer` and keyed `IDistributedCache` under the instance name. Do not share one global `IDistributedCache` across named caches — the last registration would win and mis-route L2 writes.
+**Multi-instance Redis:** each `DataCacheInstances` entry gets a keyed `IConnectionMultiplexer` and keyed `IDistributedCache` under the instance name. Do not share one global `IDistributedCache` across named caches — the last registration would win and mis-route L2 writes.
 
 ## Related
 
+- [packages.md](packages.md)  
 - [Guide — concepts](guide/concepts.md)  
 - [cluster-bus.md](cluster-bus.md)  
 - [cache-keys.md](cache-keys.md)  

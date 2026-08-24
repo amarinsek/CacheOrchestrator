@@ -53,10 +53,10 @@ Existing flags stay: `FusionCacheVaryOnEncoding`, `EncodingNormalizationList`, `
 | `VaryByAuthClaims` | `null` | Claim types in auth-user material (e.g. `tenant_id`). App-specific. |
 | `AuthVaryIncludeAuthorizationHash` | `true` | Fallback hash of `Authorization` when no identity |
 | `TreatAuthorizationAsAuthSignal` | `true` | `Authorization` counts for OR-mode / vary (API keys / gateways) |
-| `FusionRespectAuthBypass` | **`true`** | Fusion skips cache when OC would auth-bypass (parity). Set `false` only for [shared Fusion under OC auth bypass](#shared-fusion-under-oc-auth-bypass). |
+| `DataCacheRespectAuthBypass` | **`true`** | Data cache skips when OC would auth-bypass (parity). Set `false` only for [shared data cache under OC auth bypass](#shared-data-cache-under-oc-auth-bypass). |
 | `ClientForcePrivateWhenAuthenticated` | `true` | Public → private clamp for signed-in Identity |
 
-There is no separate “OC respect Fusion” flag: Output Cache already owns bypass via `AuthBypassMode`. `FusionRespectAuthBypass` only answers whether Fusion follows that same signal.
+There is no separate “OC respect data cache” flag: Output Cache already owns bypass via `AuthBypassMode`. `DataCacheRespectAuthBypass` only answers whether the data cache follows that same signal.
 
 Fusion includes **auth-user** in the key only when `AuthBypassMode` is `Never` **or** `VaryByAuthClaims` is set (`ShouldIncludeAuthUserVary`). Output Cache still varies by `auth-user` whenever authenticated traffic is cached and `VaryOutputCacheByUser` is true.
 
@@ -76,29 +76,29 @@ Fusion includes **auth-user** in the key only when `AuthBypassMode` is `Never` *
   "AuthBypassMode": "Never",
   "VaryOutputCacheByUser": true,
   "VaryByAuthClaims": [ "tenant_id" ],
-  "ClientCacheability": "Private"
+  "ClientCache": { "Cacheability": "Private" }
 }
 ```
 
-### Shared Fusion under OC auth bypass
+### Shared data cache under OC auth bypass {#shared-data-cache-under-oc-auth-bypass}
 
-Default `FusionRespectAuthBypass: true` means: if Output Cache would auth-bypass, Fusion also runs the factory uncached. That is the safe parity default.
+Default `DataCacheRespectAuthBypass: true` means: if Output Cache would auth-bypass, the data cache also runs the factory uncached. That is the safe parity default.
 
-Set **`false`** when the HTTP response must not be OC-cached for authenticated traffic, but the **Fusion payload is shared** (same for every caller):
+Set **`false`** when the HTTP response must not be OC-cached for authenticated traffic, but the **data-cache payload is shared** (same for every caller):
 
 ```text
 Signed-in user (cookie / Identity)
   → AuthBypassMode = AuthenticatedOrAuthorization (default)
   → Output Cache: BYPASS  (do not store the full HTTP response)
-  → Fusion GetOrSet("products"): shared catalogue for everyone
+  → GetOrSet("products"): shared catalogue for everyone
 
-FusionRespectAuthBypass = true  → Fusion also BYPASS → factory on every request
-FusionRespectAuthBypass = false → OC still bypasses; Fusion keeps caching shared data
+DataCacheRespectAuthBypass = true  → data cache also BYPASS → factory on every request
+DataCacheRespectAuthBypass = false → OC still bypasses; data cache keeps caching shared data
 ```
 
 ```json
 "products": {
-  "FusionRespectAuthBypass": false
+  "DataCacheRespectAuthBypass": false
 }
 ```
 

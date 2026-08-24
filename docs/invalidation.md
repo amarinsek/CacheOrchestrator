@@ -204,11 +204,11 @@ List/index endpoints tagged only `domain:{name}` are not refreshed by row invali
 
 | Layer | Without Redis | With Redis (OC store and/or Fusion L2 + backplane) |
 |-------|---------------|-----------------------------------------------------|
-| Fusion L1 (memory) | Cleared only here (unless Bus peers apply too) | Cleared here; **other nodes** clear L1 via **backplane** |
+| Data-cache L1 (Fusion memory) | Cleared only here (unless HttpBus peers apply too) | Cleared here; **other nodes** clear L1 via **backplane** |
 | Fusion L2 | N/A or local only | Shared store purged |
-| Output Cache | In-process only (unless Bus peers apply too) | Shared if OC provider is Redis |
+| Output Cache | In-process only (unless HttpBus peers apply too) | Shared if OC provider is Redis |
 
-Without a distributed store, a backplane, or the Bus, invalidation applies on the calling process only.
+Without a distributed store, a backplane, or HttpBus, invalidation applies on the calling process only.
 
 Cluster **configuration** management (shared `appsettings.cache.json`, ConfigMap, env) does **not** by itself purge L1/L2 on other nodes. It only keeps **policy** in sync (Version, TTLs). See [deployment.md — Shared configuration](deployment.md#shared-configuration-across-instances).
 
@@ -220,13 +220,13 @@ Cluster **configuration** management (shared `appsettings.cache.json`, ConfigMap
 | **2. Redis Fusion L2 + backplane** (+ optional Redis OC) | Yes for Fusion L1 (backplane) + shared L2 | **Recommended production multi-instance** |
 | **3. CacheOrchestrator.HttpBus** (HTTP + Static / ServiceDiscovery) | Yes if every peer has receive endpoints | Multi-instance **InMemory**; also Version/TTL overlays via Admin `distribute`. Full guide: [cluster-bus.md](cluster-bus.md) |
 | **4. Rolling restart of all instances** | Yes (cold process) | Emergency only |
-| **5. Custom observer + external bus** | Yes if you implement it | Rare; prefer package Bus |
+| **5. Custom observer + external bus** | Yes if you implement it | Rare; prefer HttpBus package |
 
 ```text
 Recommended multi-instance (immediate invalidation):
 
   Invalidate* on any node
-       → local OC/FC
+       → local OC/DC
        → Redis L2 + pub/sub backplane
        → other nodes drop L1
 
@@ -278,9 +278,9 @@ app.MapCacheOrchestratorHttpBus(); // independent of Admin
 | Admin API mutations | `distribute: true` → peers; default is this process only |
 | Peers | `POST …/cluster/apply` ApplyLocal only (anti-echo) |
 
-Prefer Redis L2 and the backplane when instances share Fusion data. Use the Bus when stores are in-memory and you still need commands on every node, including runtime Version and TTL overlays.
+Prefer Redis L2 and the backplane when instances share Fusion data. Use HttpBus when stores are in-memory and you still need commands on every node, including runtime Version and TTL overlays.
 
-`ICacheInvalidationObserver` remains for **audit/webhooks only** — not a second cluster bus when Bus is registered.
+`ICacheInvalidationObserver` remains for **audit/webhooks only** — not a second cluster bus when HttpBus is registered.
 
 ### Choosing an approach (multi-instance)
 
@@ -289,7 +289,7 @@ Prefer Redis L2 and the backplane when instances share Fusion data. Use the Bus 
 | Monthly data cutover, long TTL | Shared config **Version** bump ([deployment.md](deployment.md)) |
 | Many nodes, shared cache, immediate purge | **Redis** L2 + backplane |
 | InMemory only, invalidate everywhere | **CacheOrchestrator.HttpBus** |
-| Runtime Version/TTL on all InMemory nodes | Bus + Admin `distribute: true` (or Admin Console App fan-out to each node) |
+| Runtime Version/TTL on all InMemory nodes | HttpBus + Admin `distribute: true` (or Admin Console App fan-out to each node) |
 | Sticky sessions + TTL-only | Local invalidation may be enough |
 
 ## Related

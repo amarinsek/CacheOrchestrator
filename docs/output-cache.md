@@ -119,7 +119,7 @@ app.MapGet(...).CacheOutputWithDomainAttribute();
 | Enabled | Lookup and store, locking, TTL from the domain |
 | Status not in `CacheableStatusCodes` | No store |
 | `Set-Cookie` or response `Authorization` | No store; client blocked |
-| Signed-in user and `ClientCacheability: Public` (when `ClientForcePrivateWhenAuthenticated`) | Client header forced to **private** |
+| Signed-in user and `ClientCache.Cacheability: Public` (when `ClientForcePrivateWhenAuthenticated`) | Client header forced to **private** |
 
 **Vary:** host, query keys (tracking omitted; optional allow/deny lists), `Accept-Encoding`, optional `Accept` / `Accept-Language` / headers / cookies, `data-version` from `Version`. When authenticated traffic is cached and `VaryOutputCacheByUser` is true, also **`auth-user`**. Full matrix: [vary.md](vary.md).
 
@@ -134,7 +134,7 @@ By default any signed-in user or `Authorization` header skips Output Cache (`Aut
 - **AuthBypassMode** — preferred control (`Never`, `AuthenticatedIdentityOnly`, `AuthorizationHeaderOnly`, `AuthenticatedOrAuthorization`).
 - **BypassWhenAuthenticated** — **obsolete**; still binds for compatibility (`true`/`false` map to `AuthenticatedOrAuthorization` / `Never` when `AuthBypassMode` is unset).
 - **VaryOutputCacheByUser** (default `true`) — when you allow caching, partition by user, claims, or API-key hash.
-- **FusionRespectAuthBypass** (default `true`) — Fusion also skips when OC would auth-bypass; set `false` for 2.1-like Fusion-under-Authorization.
+- **DataCacheRespectAuthBypass** (default `true`) — data cache also skips when OC would auth-bypass; set `false` for 2.1-like data-cache-under-Authorization.
 
 **Private dashboard (per-user server cache):**
 
@@ -142,9 +142,13 @@ By default any signed-in user or `Authorization` header skips Output Cache (`Aut
 "user-dashboard": {
   "AuthBypassMode": "Never",
   "VaryOutputCacheByUser": true,
-  "ClientCacheability": "Private",
-  "ClientTtlSeconds": 60,
-  "OutputCacheTtlSeconds": 30
+  "ClientCache": {
+    "Cacheability": "Private",
+    "Ttl": "00:01:00"
+  },
+  "OutputCache": {
+    "Ttl": "00:00:30"
+  }
 }
 ```
 
@@ -157,9 +161,13 @@ Alice and Bob both call `GET /api/me/summary`. The server stores two entries (`a
   "AuthBypassMode": "Never",
   "VaryOutputCacheByUser": false,
   "TreatAuthorizationAsAuthSignal": false,
-  "ClientCacheability": "Public",
-  "ClientTtlSeconds": 86400,
-  "OutputCacheTtlSeconds": 3600
+  "ClientCache": {
+    "Cacheability": "Public",
+    "Ttl": "1.00:00:00"
+  },
+  "OutputCache": {
+    "Ttl": "01:00:00"
+  }
 }
 ```
 

@@ -173,7 +173,7 @@ List rows show at most **two** chips; three or more hints collapse to the nav-st
 | **Warning** | Fault worth fixing soon |
 | **Info** | Expected temporary / operational note |
 
-**Factory share** = `factoryRuns / requests` (API: `factoryShare`; obsolete synonym `originShare`). **Factory** is also known as **origin** in CDN terms. Prefer factory share and factory failure rate over raw Fusion *layer* hit rate. A 0% FC layer rate with low factory share is often normal when Output Cache serves most traffic.
+**Factory share** = `factoryRuns / requests` (API: `factoryShare`; obsolete synonym `originShare`). **Factory** is also known as **origin** in CDN terms. Prefer factory share and factory failure rate over raw data-cache hit rate. A 0% DC layer rate with low factory share is often normal when Output Cache serves most traffic.
 
 ### Conditions
 

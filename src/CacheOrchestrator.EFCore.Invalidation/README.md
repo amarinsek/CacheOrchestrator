@@ -2,7 +2,7 @@
 
 EF Core hook for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
 
-Add this package when cached HTTP responses and Fusion entries should follow your database writes. You map an entity type to a cache domain; after a successful `SaveChanges`, the matching rows are dropped from the cache.
+Add this package when cached HTTP responses and data-cache entries should follow your database writes. You map an entity type to a cache domain; after a successful `SaveChanges`, the matching rows are dropped from the cache.
 
 ## Install
 

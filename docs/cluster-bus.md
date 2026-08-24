@@ -12,13 +12,13 @@ Package README: [src/CacheOrchestrator.HttpBus/README.md](../src/CacheOrchestrat
 
 | Situation | Prefer |
 |-----------|--------|
-| Multi-instance **InMemory** OC/FC, need immediate purge everywhere | **Bus** |
-| Runtime **Version / TTL** overlays on all InMemory nodes | **Bus** + Admin `distribute` (or Admin Console App auto mode) |
-| Shared Redis L2 + backplane | **Redis package** — Bus optional / redundant for tag invalidate |
+| Multi-instance **InMemory** OC/DC, need immediate purge everywhere | **HttpBus** |
+| Runtime **Version / TTL** overlays on all InMemory nodes | **HttpBus** + Admin `distribute` (or Admin Console App auto mode) |
+| Shared Redis L2 + backplane | **Redis package** — HttpBus optional / redundant for tag invalidate |
 | Sticky sessions + TTL-only expiry | Local invalidation may be enough |
-| Single instance | Do not install Bus (or leave `Enabled: false`) |
+| Single instance | Do not install HttpBus (or leave `Enabled: false`) |
 
-**Bus carries commands, not cache values.** Peers re-run local tag purge / override apply.
+**HttpBus carries commands, not cache values.** Peers re-run local tag purge / override apply.
 
 ```text
 Origin: Invalidate* / Admin distribute

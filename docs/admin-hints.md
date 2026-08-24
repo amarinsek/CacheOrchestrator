@@ -90,7 +90,7 @@ Full disable options and pack examples: [hints/README.md](../src/CacheOrchestrat
 | **Warning** | Fault worth fixing (high factory share, stale covering failures, drift, hard &lt; soft TTL, lingering hold) |
 | **Info** | Operational note (approaching cutover, recent hold, runtime overlay, frequent invalidations) |
 
-**Factory share** in Admin is `factoryRuns / requests` (API: `factoryShare`; obsolete synonym `originShare`). **Factory** is also known as **origin** in CDN terms. Prefer factory share / factory failure rate over raw Fusion layer hit rate. A 0% FC layer rate with low factory share is often normal when Output Cache absorbs traffic.
+**Factory share** in Admin is `factoryRuns / requests` (API: `factoryShare`; obsolete synonym `originShare`). **Factory** is also known as **origin** in CDN terms. Prefer factory share / factory failure rate over raw data-cache hit rate. A 0% DC layer rate with low factory share is often normal when Output Cache absorbs traffic.
 
 ---
 
