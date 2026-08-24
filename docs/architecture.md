@@ -71,7 +71,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | `IDomainDataCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainDataCacheService` |
 | `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainName`, `ICacheOrchestratorFeature`, options types | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator`, `CacheOrchestratorFeature` |
 | `ICacheOrchestratorInvalidator`, `CacheInvalidationResult`, `ICacheInvalidationObserver`, `CacheTags` | `CacheOrchestratorInvalidator` |
-| `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records (`InvalidateCommand`, `VersionBumpCommand`, `TtlPatchCommand`, `SettingsPatchCommand`, …) | `DefaultClusterCommandHandler` |
+| `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records (`InvalidateCommand`, `VersionBumpCommand`, `SettingsPatchCommand`, …) | `DefaultClusterCommandHandler` |
 | `NullClusterCommandBus`, `NullClusterMembership` | — |
 | `ICacheBackendRegistrar`, `InMemoryCacheBackendRegistrar` | — |
 | Redis: `AddRedisBackend` / `RedisCacheBackendRegistrar` (**CacheOrchestrator.Redis**) | `RedisCacheHealthProbe` |

@@ -26,26 +26,6 @@ public sealed class AdminConsoleVersionRequest
     public string? Version { get; set; }
 }
 
-/// <summary>
-/// TTL patch (cluster-wide).
-/// Prefer <see cref="AdminConsoleSettingsPatchRequest"/> / <c>PATCH /api/domains/{domain}/settings</c>.
-/// </summary>
-[Obsolete("Use AdminConsoleSettingsPatchRequest and PATCH /api/domains/{domain}/settings. This DTO remains for compatibility.")]
-public sealed class AdminConsoleTtlPatchRequest
-{
-    /// <summary>Output Cache TTL seconds.</summary>
-    public int? OutputCacheTtlSeconds { get; set; }
-
-    /// <summary>Data-cache TTL seconds.</summary>
-    public int? DataCacheTtlSeconds { get; set; }
-
-    /// <summary>Client TTL seconds.</summary>
-    public int? ClientTtlSeconds { get; set; }
-
-    /// <summary>Client min TTL seconds.</summary>
-    public int? ClientTtlMinSeconds { get; set; }
-}
-
 /// <summary>Sparse domain settings patch (cluster-wide).</summary>
 public sealed class AdminConsoleSettingsPatchRequest
 {

@@ -17,12 +17,6 @@ public interface IDomainRuntimeOverrideStore
     /// <summary>Merges a partial settings patch into the domain overlay.</summary>
     DomainRuntimeOverride PatchSettings(string domain, DomainSettingsPatch patch);
 
-    /// <summary>
-    /// Obsolete TTL-named merge. Prefer <see cref="PatchSettings"/>.
-    /// </summary>
-    [Obsolete("Use PatchSettings.")]
-    DomainRuntimeOverride PatchTtl(string domain, DomainTtlPatch patch);
-
     /// <summary>Clears all overlays for a domain.</summary>
     bool Clear(string domain);
 

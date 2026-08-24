@@ -137,19 +137,6 @@ public static class DomainSettingsPatchMapper
         };
     }
 
-    /// <summary>Maps a legacy TTL DTO onto <see cref="DomainSettingsPatch"/>.</summary>
-    public static DomainSettingsPatch FromTtlRequest(AdminTtlPatchRequest body) =>
-        new()
-        {
-            OutputCacheTtl = FromSeconds(body.OutputCacheTtlSeconds),
-            DataCacheTtl = FromSeconds(body.DataCacheTtlSeconds),
-            ClientTtl = FromSeconds(body.ClientTtlSeconds),
-            ClientTtlMin = FromSeconds(body.ClientTtlMinSeconds),
-        };
-
-    private static TimeSpan? FromSeconds(int? seconds) =>
-        seconds is int s ? TimeSpan.FromSeconds(s) : null;
-
     private static bool ReadBool(JsonElement el, string id) =>
         el.ValueKind switch
         {

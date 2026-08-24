@@ -76,22 +76,6 @@ public static class AdminConsoleApiExtensions
                     () => fanOut.SetVersionAsync(domain, body, cancellationToken))
                 .ConfigureAwait(false));
 
-#pragma warning disable CS0618 // TTL route + DTO kept as compatible wrappers
-        // Prefer PATCH /api/domains/{domain}/settings. This route remains for compatibility.
-        api.MapMethods("/domains/{domain}/ttl", ["PATCH"], async (
-            string domain,
-            AdminConsoleTtlPatchRequest body,
-            AdminFanOutService fanOut,
-            CancellationToken cancellationToken) =>
-            await ExecuteWriteAsync(
-                    () => fanOut.PatchTtlAsync(domain, body, cancellationToken))
-                .ConfigureAwait(false))
-            .WithSummary("Patch domain TTL (obsolete — use /domains/{domain}/settings)")
-            .WithDescription(
-                "Obsolete. Prefer PATCH /api/domains/{domain}/settings with a sparse settings map. " +
-                "This endpoint remains for compatibility and maps onto the same runtime overlay.");
-#pragma warning restore CS0618
-
         api.MapGet("/domain-settings/catalog", async (
             AdminFanOutService fanOut,
             CancellationToken cancellationToken) =>

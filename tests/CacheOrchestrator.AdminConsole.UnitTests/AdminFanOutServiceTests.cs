@@ -288,28 +288,6 @@ public class AdminFanOutServiceTests
     }
 
     [Fact]
-    public async Task PatchTtlAsync_FansOutWithDistributeFalse_WhenNoBus()
-    {
-        FakeLocalAdminClient client = new();
-        AdminFanOutService sut = CreateSut(client,
-            new AdminInstanceOptions { Id = "a", Url = "http://a" },
-            new AdminInstanceOptions { Id = "b", Url = "http://b" });
-
-        FanOutResultDto<object?> result = await sut.PatchTtlAsync(
-            "catalog",
-            new AdminConsoleTtlPatchRequest
-            {
-                OutputCacheTtlSeconds = 120,
-            },
-            TestContext.Current.CancellationToken);
-
-        result.DistributionMode.Should().Be(DistributionModes.FanOut);
-        client.TtlCalls.Should().BeEquivalentTo(["a:catalog", "b:catalog"]);
-        client.LastTtlBody!.OutputCacheTtlSeconds.Should().Be(120);
-        client.LastTtlBody.Distribute.Should().BeFalse();
-    }
-
-    [Fact]
     public async Task GetInstancesAsync_HttpOkButHealthyFalse_IsDegraded()
     {
         FakeLocalAdminClient client = new();
@@ -503,7 +481,6 @@ public class AdminFanOutServiceTests
         public Dictionary<string, int> HealthCallCountById { get; } = new(StringComparer.Ordinal);
         public List<string> InvalidateCalls { get; } = [];
         public List<string> VersionCalls { get; } = [];
-        public List<string> TtlCalls { get; } = [];
         public List<string> SettingsCalls { get; } = [];
         public Dictionary<string, LocalClusterInfoDto> ClusterInfo { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, IReadOnlyList<AdminDomainConfigDto>> DomainsById { get; } =
@@ -512,7 +489,6 @@ public class AdminFanOutServiceTests
             new(StringComparer.Ordinal);
         public AdminInvalidateRequest? LastInvalidateBody { get; private set; }
         public AdminVersionRequest? LastVersionBody { get; private set; }
-        public AdminTtlPatchRequest? LastTtlBody { get; private set; }
         public AdminSettingsPatchRequest? LastSettingsBody { get; private set; }
 
         public Task<InstanceCallOutcome<AdminHealthDto>> GetHealthAsync(
@@ -571,27 +547,6 @@ public class AdminFanOutServiceTests
                     Name = domain,
                     Version = body.Version ?? "generated",
                     DataCacheInstanceName = "default",
-                },
-            }));
-        }
-
-        public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchTtlAsync(
-            AdminInstanceOptions instance,
-            string domain,
-            AdminTtlPatchRequest body,
-            CancellationToken cancellationToken = default)
-        {
-            TtlCalls.Add(instance.Id + ":" + domain);
-            LastTtlBody = body;
-            return Task.FromResult(Ok(instance.Id, new AdminDomainMutationResultDto
-            {
-                Domain = domain,
-                Effective = new AdminDomainConfigDto
-                {
-                    Name = domain,
-                    Version = "1",
-                    DataCacheInstanceName = "default",
-                    OutputCacheTtlSeconds = body.OutputCacheTtlSeconds ?? 0,
                 },
             }));
         }

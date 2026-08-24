@@ -110,8 +110,7 @@ When the HTTP bus is enabled, Admin API mutation bodies accept **`distribute`** 
 |----------|---------------------|--------------------|
 | `POST …/invalidate` | This process only | Local + peers via bus |
 | `POST …/domains/{d}/version` | Local Version overlay | Local + `VersionBumpCommand` |
-| `PATCH …/domains/{d}/settings` | Local overlay | Local + `SettingsPatchCommand` (TTL-only patches still send `TtlPatchCommand` for older peers) |
-| `PATCH …/domains/{d}/ttl` (obsolete) | Local TTL overlay | Local + `TtlPatchCommand` |
+| `PATCH …/domains/{d}/settings` | Local overlay | Local + `SettingsPatchCommand` |
 
 With **`distribute: true`**, Local Admin applies the change on the origin first, then publishes to peers. If **any peer fails**, the HTTP response is **409 Conflict** with `localApplied: true` and `peerFailures[]` (cluster may already be inconsistent — no automatic rollback).
 
@@ -156,7 +155,6 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 | POST | `/invalidate` | Domain / entity invalidation |
 | POST | `/domains/{name}/version` | Runtime version overlay |
 | PATCH | `/domains/{name}/settings` | **Primary** runtime overlay (TTLs, vary, flags, …) |
-| PATCH | `/domains/{name}/ttl` | **Obsolete** TTL-only wrapper (still applied; prefer settings) |
 
 Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
@@ -184,7 +182,7 @@ factoryShare = factoryRuns / requests
 
 | Metric type | Question it answers |
 |-------------|---------------------|
-| **Request share** (`hitShare`, `factoryShare`, …) | Of **all** requests, what fraction? (`originShare` is an obsolete JSON synonym for `factoryShare`) |
+| **Request share** (`hitShare`, `factoryShare`, …) | Of **all** requests, what fraction? |
 | **Layer rate** (`hitRate`, …) | Of traffic that **reached that layer**, what fraction? |
 
 #### Factory share (also known as origin)
@@ -195,7 +193,7 @@ The miss path that runs your `GetOrSet` lambda / DB is the **factory**. Admin UI
 |-------------|------------------|---------|
 | **OC hit share** | `oc.hitShare` / pipeline `outputCacheHitShare` | `outputCacheHits / requests` |
 | **DC hit share** | `dataCache.hitShare` / pipeline `dataCacheHitShare` | `dataCacheHits / requests` (fresh hits only) |
-| **FA run / Factory share** | `fc.factoryShare` (obsolete synonym: `originShare`) | `factoryRuns / requests` |
+| **FA run / Factory share** | `fc.factoryShare` | `factoryRuns / requests` |
 | **DC stale %** (overlay) | `dataCache.staleShare` / pipeline `staleShare` | `stale / requests` (also included in FA run) |
 
 These three mix shares (OC hit, DC hit, FA run) use the same request denominator and are the exclusive pipeline bar. **DC stale %** is extra information, not a fourth bar segment. Layer **bypass** is auth / no-store skip (not “caching disabled”; disabled OC is `off`). **Layer rates** (e.g. DC miss rate = misses among traffic that reached data cache) stay on **detail** views. Prefer factory share for “how often did origin run?” — see [admin-hints.md](admin-hints.md).
@@ -362,7 +360,6 @@ Repo overview: [admin-hints.md](admin-hints.md).
 | POST | `/api/invalidate` | Invalidate (auto fan-out or bus-distribute) |
 | POST | `/api/domains/{domain}/version` | Version overlay write |
 | PATCH | `/api/domains/{domain}/settings` | **Primary** overlay write (Operations “Patch settings”) |
-| PATCH | `/api/domains/{domain}/ttl` | **Obsolete** TTL-only write |
 
 Write responses include `distributionMode`, `distribute`, `distributionSummary`, optional `busOriginInstanceId`, and per-instance `results[]`.
 

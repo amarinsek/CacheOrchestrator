@@ -189,14 +189,11 @@ export function staleShareHtml(fc, opts = {}) {
 }
 
 /**
- * Prefer factoryShare; fall back to obsolete originShare for older payloads.
- * @param {{ factoryShare?: number|null, originShare?: number|null }|null|undefined} o
+ * @param {{ factoryShare?: number|null }|null|undefined} o
  */
 export function factoryShareOf(o) {
   if (!o) return null;
-  if (o.factoryShare != null) return o.factoryShare;
-  if (o.originShare != null) return o.originShare;
-  return null;
+  return o.factoryShare != null ? o.factoryShare : null;
 }
 
 /** @param {{ impact?: { factoryAvoidance?: number|null }|null }|null|undefined} row */

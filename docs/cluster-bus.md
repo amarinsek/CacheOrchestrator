@@ -183,7 +183,6 @@ Wire type is polymorphic JSON (`commandType` discriminator):
 |---------------|------|-------------------|
 | `invalidate` | `InvalidateCommand` | Domain / entity / tags via invalidator |
 | `versionBump` | `VersionBumpCommand` | Runtime Version overlay |
-| `ttlPatch` | `TtlPatchCommand` | Runtime TTL overlay (legacy TTL-only patch) |
 | `settingsPatch` | `SettingsPatchCommand` | Sparse runtime overlay (same shape as Admin `PATCH …/domains/{d}/settings`) |
 
 Never carries response bodies or cache entries.
@@ -195,8 +194,7 @@ Never carries response bodies or cache entries.
 | `ICacheOrchestratorInvalidator.Invalidate*` | **Yes** when bus enabled (unless remote/local-only scope) |
 | Admin `POST …/invalidate` | Only if body `distribute: true` |
 | Admin `POST …/domains/{d}/version` | Only if body `distribute: true` |
-| Admin `PATCH …/domains/{d}/settings` | `distribute: true` → `settingsPatch`, **except** TTL-only patches (`IsTtlOnly`) which still send **`ttlPatch`** so older peers apply |
-| Admin `PATCH …/domains/{d}/ttl` | Obsolete TTL-only; `distribute: true` → `ttlPatch` |
+| Admin `PATCH …/domains/{d}/settings` | `distribute: true` → `settingsPatch` |
 | Peer `POST …/cluster/apply` | **Never** (ApplyLocal only) |
 
 `ClusterCommandScope`:
@@ -267,7 +265,7 @@ Meter: **`CacheOrchestrator`**
 
 | Instrument | Description |
 |------------|-------------|
-| `cache_orchestrator.cluster.commands_published` | Origin publish attempts (`command_type` is the **CLR name**: `InvalidateCommand`, `VersionBumpCommand`, `TtlPatchCommand`, `SettingsPatchCommand`) |
+| `cache_orchestrator.cluster.commands_published` | Origin publish attempts (`command_type` is the **CLR name**: `InvalidateCommand`, `VersionBumpCommand`, `SettingsPatchCommand`) |
 | `cache_orchestrator.cluster.commands_received` | Receive path entered |
 | `cache_orchestrator.cluster.commands_applied` | ApplyLocal success |
 | `cache_orchestrator.cluster.publish_failures` | Per-peer failure (`reason`: `http_status` / `timeout` / `transport` / `exception`) |

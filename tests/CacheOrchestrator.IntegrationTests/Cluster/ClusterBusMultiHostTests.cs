@@ -484,19 +484,19 @@ public class ClusterBusMultiHostTests
     }
 
     [Fact]
-    public async Task AdminDistributeTrue_TtlPatch_AppliesOnPeer()
+    public async Task AdminDistributeTrue_SettingsPatch_AppliesOnPeer()
     {
-        string ns = "it-ttl-" + Guid.NewGuid().ToString("N")[..8];
+        string ns = "it-settings-" + Guid.NewGuid().ToString("N")[..8];
         string domain = "reports";
         (ClusterHost a, ClusterHost b) = await StartPairAsync(ns, domain, "/api/r");
         await using (a)
         await using (b)
         {
             using StringContent body = new(
-                """{"outputCacheTtlSeconds":77,"distribute":true}""",
+                """{"settings":{"outputCache.ttl":77},"distribute":true}""",
                 Encoding.UTF8,
                 "application/json");
-            using HttpRequestMessage req = new(HttpMethod.Patch, $"/cache-admin/local/domains/{domain}/ttl")
+            using HttpRequestMessage req = new(HttpMethod.Patch, $"/cache-admin/local/domains/{domain}/settings")
             {
                 Content = body
             };

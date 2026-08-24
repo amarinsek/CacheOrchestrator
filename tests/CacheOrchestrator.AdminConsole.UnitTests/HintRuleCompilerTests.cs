@@ -21,10 +21,10 @@ public class HintRuleCompilerTests
                   "when": {
                     "all": [
                       { "path": "domain.requests", "op": ">=", "value": 20 },
-                      { "path": "domain.dataCache.originShare", "op": ">=", "value": 0.25 }
+                      { "path": "domain.dataCache.factoryShare", "op": ">=", "value": 0.25 }
                     ]
                   },
-                  "message": "Origin {domain.dataCache.originShare:p1} on {domain.name}"
+                  "message": "Origin {domain.dataCache.factoryShare:p1} on {domain.name}"
                 }
               ]
             }
@@ -130,10 +130,10 @@ public class HintRuleCompilerTests
                   "when": {
                     "all": [
                       { "path": "domain.requests", "op": ">=", "value": 20 },
-                      { "path": "domain.dataCache.originShare", "op": ">=", "value": 0.25 }
+                      { "path": "domain.dataCache.factoryShare", "op": ">=", "value": 0.25 }
                     ]
                   },
-                  "message": "Origin {domain.dataCache.originShare:p0}"
+                  "message": "Origin {domain.dataCache.factoryShare:p0}"
                 }
               ]
             }

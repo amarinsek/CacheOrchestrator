@@ -222,58 +222,6 @@ public static class AdminLocalApi
             return publishConflict ?? Results.Ok(ok);
         });
 
-#pragma warning disable CS0618 // AdminTtlPatchRequest / DomainTtlPatch kept for compatibility
-        group.MapMethods("/domains/{domain}/ttl", ["PATCH"], async (
-            string domain,
-            AdminTtlPatchRequest body,
-            IDomainRuntimeOverrideStore overrides,
-            AdminQueryService query,
-            IClusterCommandBus bus,
-            ClusterCommandFactory commands,
-            ILoggerFactory loggerFactory,
-            CancellationToken cancellationToken) =>
-        {
-            if (string.IsNullOrWhiteSpace(domain))
-                return Results.BadRequest(new { error = "domain is required." });
-            if (body is null)
-                return Results.BadRequest(new { error = "Request body is required." });
-
-            DomainSettingsPatch patch = DomainSettingsPatchMapper.FromTtlRequest(body);
-            if (!patch.HasAny)
-                return Results.BadRequest(new { error = "At least one TTL field is required." });
-
-            string? validationError = ValidateSettingsPatch(patch);
-            if (validationError is not null)
-                return Results.BadRequest(new { error = validationError });
-
-            overrides.PatchSettings(domain, patch);
-
-            IResult? publishConflict = null;
-            if (body.Distribute && bus.IsEnabled)
-            {
-                // Prefer legacy ttlPatch when TTL-only so older peers still apply.
-                DomainTtlPatch ttl = ToTtlPatch(patch);
-                TtlPatchCommand cmd = commands.CreateTtlPatch(domain, ttl);
-                publishConflict = await PublishMutationOrConflictAsync(
-                        bus,
-                        cmd,
-                        nameof(TtlPatchCommand),
-                        domain,
-                        loggerFactory,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            AdminDomainConfigDto effective = query.GetDomainConfig(DomainName.Normalize(domain));
-            AdminDomainMutationResultDto ok = new()
-            {
-                Domain = effective.Name,
-                Effective = effective
-            };
-            return publishConflict ?? Results.Ok(ok);
-        });
-#pragma warning restore CS0618
-
         group.MapGet("/domain-settings/catalog", () =>
             Results.Ok(new AdminDomainSettingsCatalogDto
             {
@@ -296,10 +244,9 @@ public static class AdminLocalApi
             if (body?.Settings is null || body.Settings.Count == 0)
                 return Results.BadRequest(new { error = "settings must contain at least one entry." });
 
-            DomainSettingsPatch patch;
             try
             {
-                patch = DomainSettingsPatchApplicator.Apply(
+                DomainSettingsPatchApplicator.Apply(
                     domain,
                     body.Settings,
                     overrides,
@@ -313,26 +260,11 @@ public static class AdminLocalApi
             IResult? publishConflict = null;
             if (body.Distribute && bus.IsEnabled)
             {
-                ClusterCommand cmd;
-                string metricName;
-                if (patch.IsTtlOnly)
-                {
-#pragma warning disable CS0618
-                    DomainTtlPatch ttl = ToTtlPatch(patch);
-                    cmd = commands.CreateTtlPatch(domain, ttl);
-#pragma warning restore CS0618
-                    metricName = nameof(TtlPatchCommand);
-                }
-                else
-                {
-                    cmd = commands.CreateSettingsPatch(domain, body.Settings);
-                    metricName = nameof(SettingsPatchCommand);
-                }
-
+                SettingsPatchCommand cmd = commands.CreateSettingsPatch(domain, body.Settings);
                 publishConflict = await PublishMutationOrConflictAsync(
                         bus,
                         cmd,
-                        metricName,
+                        nameof(SettingsPatchCommand),
                         domain,
                         loggerFactory,
                         cancellationToken)
@@ -413,40 +345,4 @@ public static class AdminLocalApi
             },
             statusCode: StatusCodes.Status409Conflict);
     }
-
-    private static string? ValidateSettingsPatch(DomainSettingsPatch patch)
-    {
-        static bool NegativeTs(TimeSpan? v) => v is { } t && t < TimeSpan.Zero;
-
-        if (NegativeTs(patch.OutputCacheTtl)
-            || NegativeTs(patch.DataCacheTtl)
-            || NegativeTs(patch.ClientTtl)
-            || NegativeTs(patch.ClientTtlMin))
-        {
-            return "Numeric settings must be non-negative.";
-        }
-
-        if (patch.ClientTtl is TimeSpan max
-            && patch.ClientTtlMin is TimeSpan min
-            && min > max)
-        {
-            return "clientCache.ttlMin must be <= clientCache.ttl when both are set.";
-        }
-
-        return null;
-    }
-
-#pragma warning disable CS0618
-    private static DomainTtlPatch ToTtlPatch(DomainSettingsPatch patch) =>
-        new()
-        {
-            OutputCacheTtlSeconds = ToSeconds(patch.OutputCacheTtl),
-            DataCacheTtlSeconds = ToSeconds(patch.DataCacheTtl),
-            ClientTtlSeconds = ToSeconds(patch.ClientTtl),
-            ClientTtlMinSeconds = ToSeconds(patch.ClientTtlMin),
-        };
-#pragma warning restore CS0618
-
-    private static int? ToSeconds(TimeSpan? value) =>
-        value is TimeSpan t ? (int)Math.Round(t.TotalSeconds) : null;
 }

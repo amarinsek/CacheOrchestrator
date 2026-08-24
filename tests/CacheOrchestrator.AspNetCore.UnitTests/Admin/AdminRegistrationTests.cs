@@ -96,7 +96,7 @@ public class AdminRegistrationTests
     }
 
     [Fact]
-    public async Task VersionAndTtlEndpoints_UpdateEffectiveDomainConfig()
+    public async Task VersionAndSettingsEndpoints_UpdateEffectiveDomainConfig()
     {
         using IHost host = await CreateHostAsync(enabled: true, apiKey: "k");
         HttpClient client = host.GetTestClient();
@@ -116,23 +116,23 @@ public class AdminRegistrationTests
         versionResult!.Effective.Version.Should().Be("admin-v2");
         versionResult.Effective.VersionIsRuntimeOverride.Should().BeTrue();
 
-        using StringContent ttlBody = new(
-            """{"outputCacheTtlSeconds":42,"clientTtlSeconds":7}""",
+        using StringContent settingsBody = new(
+            """{"settings":{"outputCache.ttl":42,"clientCache.ttl":7}}""",
             Encoding.UTF8,
             "application/json");
-        HttpRequestMessage ttlRequest = new(HttpMethod.Patch, "/cache-admin/local/domains/catalog/ttl")
+        HttpRequestMessage settingsRequest = new(HttpMethod.Patch, "/cache-admin/local/domains/catalog/settings")
         {
-            Content = ttlBody
+            Content = settingsBody
         };
-        HttpResponseMessage ttlResponse = await client.SendAsync(ttlRequest, Ct);
-        ttlResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        HttpResponseMessage settingsResponse = await client.SendAsync(settingsRequest, Ct);
+        settingsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        AdminDomainMutationResultDto? ttlResult =
-            await ttlResponse.Content.ReadFromJsonAsync<AdminDomainMutationResultDto>(cancellationToken: Ct);
-        ttlResult.Should().NotBeNull();
-        ttlResult!.Effective.OutputCacheTtlSeconds.Should().Be(42);
-        ttlResult.Effective.ClientTtlSeconds.Should().Be(7);
-        ttlResult.Effective.Version.Should().Be("admin-v2");
+        AdminDomainMutationResultDto? settingsResult =
+            await settingsResponse.Content.ReadFromJsonAsync<AdminDomainMutationResultDto>(cancellationToken: Ct);
+        settingsResult.Should().NotBeNull();
+        settingsResult!.Effective.OutputCacheTtlSeconds.Should().Be(42);
+        settingsResult.Effective.ClientTtlSeconds.Should().Be(7);
+        settingsResult.Effective.Version.Should().Be("admin-v2");
     }
 
     [Fact]

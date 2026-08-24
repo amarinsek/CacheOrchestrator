@@ -92,10 +92,6 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
                     ApplyVersionBump(bump);
                     break;
 
-                case TtlPatchCommand ttl:
-                    ApplyTtlPatch(ttl);
-                    break;
-
                 case SettingsPatchCommand settings:
                     ApplySettingsPatch(settings);
                     break;
@@ -185,31 +181,6 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
         _overrides.SetVersion(command.Domain, command.Version);
     }
 
-    private void ApplyTtlPatch(TtlPatchCommand command)
-    {
-        if (string.IsNullOrWhiteSpace(command.Domain))
-        {
-            _logger.LogWarning("TtlPatchCommand {CommandId} missing domain", command.CommandId);
-            return;
-        }
-
-        DomainSettingsPatch patch = new()
-        {
-            OutputCacheTtl = FromSeconds(command.OutputCacheTtlSeconds),
-            DataCacheTtl = FromSeconds(command.DataCacheTtlSeconds),
-            ClientTtl = FromSeconds(command.ClientTtlSeconds),
-            ClientTtlMin = FromSeconds(command.ClientTtlMinSeconds)
-        };
-
-        if (!patch.HasAny)
-        {
-            _logger.LogWarning("TtlPatchCommand {CommandId} has no TTL fields", command.CommandId);
-            return;
-        }
-
-        _overrides.PatchSettings(command.Domain, patch);
-    }
-
     private void ApplySettingsPatch(SettingsPatchCommand command)
     {
         if (string.IsNullOrWhiteSpace(command.Domain))
@@ -235,7 +206,4 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
                 ex.Message);
         }
     }
-
-    private static TimeSpan? FromSeconds(int? seconds) =>
-        seconds is int s ? TimeSpan.FromSeconds(s) : null;
 }

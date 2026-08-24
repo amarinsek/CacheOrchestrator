@@ -18,7 +18,6 @@ public static class HintPathCatalog
         "domain.outputCache.misses",
         "domain.dataCache.hitShare",
         "domain.dataCache.factoryShare",
-        "domain.dataCache.originShare", // obsolete synonym for factoryShare
         "domain.dataCache.staleShare",
         "domain.dataCache.stale",
         "domain.dataCache.hits",
@@ -39,8 +38,6 @@ public static class HintPathCatalog
         "domain.instanceSpread.outputCacheHitShare.sampleCount",
         "domain.instanceSpread.factoryShare.stdev",
         "domain.instanceSpread.factoryShare.sampleCount",
-        "domain.instanceSpread.originShare.stdev", // obsolete synonym
-        "domain.instanceSpread.originShare.sampleCount",
         "endpoint.route",
         "endpoint.requests",
         "endpoint.configuredDomain",
@@ -48,7 +45,6 @@ public static class HintPathCatalog
         "endpoint.outputCache.hitShare",
         "endpoint.dataCache.hitShare",
         "endpoint.dataCache.factoryShare",
-        "endpoint.dataCache.originShare", // obsolete synonym for factoryShare
         "endpoint.dataCache.staleShare",
         "endpoint.dataCache.stale",
         "endpoint.dataCache.factoryRuns",
@@ -65,8 +61,6 @@ public static class HintPathCatalog
         "endpoint.impact.lowDurationSample",
         "endpoint.instanceSpread.factoryShare.stdev",
         "endpoint.instanceSpread.factoryShare.sampleCount",
-        "endpoint.instanceSpread.originShare.stdev", // obsolete synonym
-        "endpoint.instanceSpread.originShare.sampleCount",
         "config.outputCacheTtlSeconds",
         "config.dataCacheTtlSeconds",
         "config.hardTtlSeconds",

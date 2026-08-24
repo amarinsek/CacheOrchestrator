@@ -38,7 +38,7 @@ public class DomainRuntimeOverrideStoreTests
     }
 
     [Fact]
-    public void PatchTtl_OverridesOnlyProvidedFields()
+    public void PatchSettings_OverridesOnlyProvidedFields()
     {
         DomainRuntimeOverrideStore store = new();
         using DomainCacheOptionsProvider provider = CreateProvider(store, new CacheOrchestratorOptions
@@ -55,10 +55,10 @@ public class DomainRuntimeOverrideStoreTests
             }
         });
 
-        store.PatchTtl("catalog", new DomainTtlPatch
+        store.PatchSettings("catalog", new DomainSettingsPatch
         {
-            OutputCacheTtlSeconds = 120,
-            ClientTtlSeconds = 15
+            OutputCacheTtl = TimeSpan.FromSeconds(120),
+            ClientTtl = TimeSpan.FromSeconds(15)
         });
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("catalog");
@@ -84,7 +84,7 @@ public class DomainRuntimeOverrideStoreTests
             }
         });
 
-        store.PatchTtl("catalog", new DomainTtlPatch { OutputCacheTtlSeconds = 99 });
+        store.PatchSettings("catalog", new DomainSettingsPatch { OutputCacheTtl = TimeSpan.FromSeconds(99) });
         store.SetVersion("catalog", "v9");
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("catalog");

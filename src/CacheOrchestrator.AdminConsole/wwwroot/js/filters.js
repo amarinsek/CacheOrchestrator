@@ -228,10 +228,7 @@ function cmpNumDesc(a, b) {
 function sortByTrafficMetrics(arr, sort, nameKey) {
   switch (sort) {
     case "factoryShare":
-    case "originShare":
-      arr.sort((a, b) => cmpNumDesc(
-        a.dataCache?.factoryShare ?? a.dataCache?.originShare,
-        b.dataCache?.factoryShare ?? b.dataCache?.originShare));
+      arr.sort((a, b) => cmpNumDesc(a.dataCache?.factoryShare, b.dataCache?.factoryShare));
       return true;
     case "staleShare":
       arr.sort((a, b) => cmpNumDesc(a.dataCache?.staleShare, b.dataCache?.staleShare));

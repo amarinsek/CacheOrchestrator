@@ -249,13 +249,6 @@ public class LiveStatsServiceTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchTtlAsync(
-            AdminInstanceOptions instance,
-            string domain,
-            AdminTtlPatchRequest body,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
         public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchSettingsAsync(
             AdminInstanceOptions instance,
             string domain,

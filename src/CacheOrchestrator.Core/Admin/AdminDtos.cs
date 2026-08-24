@@ -95,28 +95,11 @@ public sealed class AdminDataCacheLayerDto
     /// <summary>Request share: bypass / requests.</summary>
     public double? BypassShare { get; init; }
 
-    private double? _factoryShare;
-
     /// <summary>
     /// Request share: factoryRuns / requests (data-cache factory / miss path).
     /// Also known as origin share in CDN terms.
     /// </summary>
-    public double? FactoryShare
-    {
-        get => _factoryShare;
-        init => _factoryShare = value;
-    }
-
-    /// <summary>
-    /// Obsolete synonym for <see cref="FactoryShare"/> (JSON <c>originShare</c>).
-    /// Prefer <see cref="FactoryShare"/>. Kept for wire compatibility.
-    /// </summary>
-    [Obsolete("Use FactoryShare. OriginShare remains for JSON/wire compatibility.")]
-    public double? OriginShare
-    {
-        get => _factoryShare;
-        init => _factoryShare = value;
-    }
+    public double? FactoryShare { get; init; }
 
     /// <summary>
     /// True when the data-cache <strong>layer</strong> sample (hits+misses) is positive but below
@@ -152,28 +135,11 @@ public sealed class AdminPipelineDto
     /// </summary>
     public double? StaleShare { get; init; }
 
-    private double? _factoryShare;
-
     /// <summary>
     /// Factory callback share of requests (factoryRuns / requests), including data cache disabled.
     /// Also known as origin share. Exclusive mix sibling of OC hit and FC hit.
     /// </summary>
-    public double? FactoryShare
-    {
-        get => _factoryShare;
-        init => _factoryShare = value;
-    }
-
-    /// <summary>
-    /// Obsolete synonym for <see cref="FactoryShare"/> (JSON <c>originShare</c>).
-    /// Prefer <see cref="FactoryShare"/>.
-    /// </summary>
-    [Obsolete("Use FactoryShare. OriginShare remains for JSON/wire compatibility.")]
-    public double? OriginShare
-    {
-        get => _factoryShare;
-        init => _factoryShare = value;
-    }
+    public double? FactoryShare { get; init; }
 
     /// <summary>
     /// Auth / no-store bypass share (layer skip overlay; not part of the exclusive mix).
@@ -256,25 +222,8 @@ public sealed class AdminInstanceSpreadDto
     /// <summary>FC miss share across instances.</summary>
     public AdminShareSpreadDto? DataCacheMissShare { get; init; }
 
-    private AdminShareSpreadDto? _factoryShare;
-
     /// <summary>Factory share across instances (also known as origin share).</summary>
-    public AdminShareSpreadDto? FactoryShare
-    {
-        get => _factoryShare;
-        init => _factoryShare = value;
-    }
-
-    /// <summary>
-    /// Obsolete synonym for <see cref="FactoryShare"/> (JSON <c>originShare</c>).
-    /// Prefer <see cref="FactoryShare"/>.
-    /// </summary>
-    [Obsolete("Use FactoryShare. OriginShare remains for JSON/wire compatibility.")]
-    public AdminShareSpreadDto? OriginShare
-    {
-        get => _factoryShare;
-        init => _factoryShare = value;
-    }
+    public AdminShareSpreadDto? FactoryShare { get; init; }
 
     /// <summary>OC layer hit rate across instances.</summary>
     public AdminShareSpreadDto? OutputCacheHitRate { get; init; }
@@ -627,32 +576,6 @@ public sealed class AdminVersionRequest
     public bool Distribute { get; set; }
 }
 
-/// <summary>
-/// TTL patch request body (all fields optional).
-/// Prefer <see cref="AdminSettingsPatchRequest"/> for new clients.
-/// </summary>
-[Obsolete("Use AdminSettingsPatchRequest / PATCH …/settings. This DTO remains for compatibility.")]
-public sealed class AdminTtlPatchRequest
-{
-    /// <summary>Output Cache TTL seconds.</summary>
-    public int? OutputCacheTtlSeconds { get; set; }
-
-    /// <summary>Data-cache soft TTL seconds.</summary>
-    public int? DataCacheTtlSeconds { get; set; }
-
-    /// <summary>Client TTL seconds.</summary>
-    public int? ClientTtlSeconds { get; set; }
-
-    /// <summary>Client min TTL seconds.</summary>
-    public int? ClientTtlMinSeconds { get; set; }
-
-    /// <summary>
-    /// When <see langword="true"/> and the cluster bus is enabled, peers apply the same TTL overlay.
-    /// Default <see langword="false"/> = this process only.
-    /// </summary>
-    public bool Distribute { get; set; }
-}
-
 /// <summary>Sparse domain settings patch (camelCase keys from <see cref="Configuration.DomainSettingCatalog"/>).</summary>
 public sealed class AdminSettingsPatchRequest
 {
@@ -673,7 +596,7 @@ public sealed class AdminDomainSettingsCatalogDto
     public required IReadOnlyList<Configuration.DomainSettingCatalogEntry> Settings { get; init; }
 }
 
-/// <summary>Response after version or TTL mutation.</summary>
+/// <summary>Response after version or settings mutation.</summary>
 public sealed class AdminDomainMutationResultDto
 {
     /// <summary>Domain name.</summary>

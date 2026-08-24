@@ -103,26 +103,6 @@ public class DefaultClusterCommandHandlerTests
     }
 
     [Fact]
-    public async Task ApplyLocalAsync_TtlPatch_PatchesRuntimeOverride()
-    {
-        TtlPatchCommand cmd = new()
-        {
-            CommandId = Guid.NewGuid(),
-            OriginInstanceId = "remote-2",
-            Namespace = "app1",
-            TimestampUtc = DateTimeOffset.UtcNow,
-            Domain = "catalog",
-            OutputCacheTtlSeconds = 42
-        };
-
-        await _sut.ApplyLocalAsync(cmd, TestContext.Current.CancellationToken);
-
-        _overrides.Received(1).PatchSettings(
-            "catalog",
-            Arg.Is<DomainSettingsPatch>(p => p.OutputCacheTtl == TimeSpan.FromSeconds(42)));
-    }
-
-    [Fact]
     public async Task ApplyLocalAsync_DuplicateCommandId_IsIgnored()
     {
         Guid id = Guid.NewGuid();

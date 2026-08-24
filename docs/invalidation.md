@@ -235,7 +235,7 @@ Without Redis (optional Bus package):
   Invalidate* on node A
        → local purge on A
        → HttpClusterCommandBus → peers ApplyLocal
-  Version/TTL Admin with distribute:true → VersionBumpCommand / TtlPatchCommand
+  Version/settings Admin with distribute:true → VersionBumpCommand / SettingsPatchCommand
 ```
 
 ### Approach 1 — Version + shared config (no bus)

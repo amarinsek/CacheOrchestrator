@@ -173,7 +173,7 @@ List rows show at most **two** chips; three or more hints collapse to the nav-st
 | **Warning** | Fault worth fixing soon |
 | **Info** | Expected temporary / operational note |
 
-**Factory share** = `factoryRuns / requests` (API: `factoryShare`; obsolete synonym `originShare`). **Factory** is also known as **origin** in CDN terms. Prefer factory share and factory failure rate over raw data-cache hit rate. A 0% DC layer rate with low factory share is often normal when Output Cache serves most traffic.
+**Factory share** = `factoryRuns / requests` (API: `factoryShare`). **Factory** is also known as **origin** in CDN terms. Prefer factory share and factory failure rate over raw data-cache hit rate. A 0% DC layer rate with low factory share is often normal when Output Cache serves most traffic.
 
 ### Conditions
 
@@ -192,7 +192,7 @@ List rows show at most **two** chips; three or more hints collapse to the nav-st
 | Template | Result |
 |----------|--------|
 | `{domain.name}` | Domain name |
-| `{domain.dataCache.factoryShare:p1}` | e.g. `32.5%` (ratio × 100, 1 decimal); `originShare` still works |
+| `{domain.dataCache.factoryShare:p1}` | e.g. `32.5%` (ratio × 100, 1 decimal) |
 | `{domain.requests}` | Number as text |
 | `{path:0.#}` | Numeric format |
 
@@ -216,7 +216,6 @@ The compiler rejects unknown paths. Common ones:
 |------|---------|
 | `domain.requests` | Aggregated request count |
 | `domain.dataCache.factoryShare` | Factory share (also known as origin) = factory runs ÷ requests (0–1) |
-| `domain.dataCache.originShare` | Obsolete synonym for `factoryShare` |
 | `domain.dataCache.staleShare` | Stale share 0–1 |
 | `domain.dataCache.factoryRuns` / `factoryFailures` / `factoryFailureRate` | Factory health |
 | `domain.invalidations` / `domain.invalidationShare` | Invalidation pressure |

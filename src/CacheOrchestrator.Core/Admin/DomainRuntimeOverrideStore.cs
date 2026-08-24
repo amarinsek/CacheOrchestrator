@@ -56,14 +56,6 @@ internal sealed class DomainRuntimeOverrideStore : IDomainRuntimeOverrideStore
     }
 
     /// <inheritdoc />
-    [Obsolete("Use PatchSettings.")]
-    public DomainRuntimeOverride PatchTtl(string domain, DomainTtlPatch patch)
-    {
-        ArgumentNullException.ThrowIfNull(patch);
-        return PatchSettings(domain, patch.ToSettingsPatch());
-    }
-
-    /// <inheritdoc />
     public bool Clear(string domain)
     {
         string key = DomainName.Normalize(domain);
@@ -170,10 +162,6 @@ internal sealed class NullDomainRuntimeOverrideStore : IDomainRuntimeOverrideSto
         throw new InvalidOperationException("Admin runtime overrides are disabled.");
 
     public DomainRuntimeOverride PatchSettings(string domain, DomainSettingsPatch patch) =>
-        throw new InvalidOperationException("Admin runtime overrides are disabled.");
-
-    [Obsolete("Use PatchSettings.")]
-    public DomainRuntimeOverride PatchTtl(string domain, DomainTtlPatch patch) =>
         throw new InvalidOperationException("Admin runtime overrides are disabled.");
 
     public bool Clear(string domain) => false;

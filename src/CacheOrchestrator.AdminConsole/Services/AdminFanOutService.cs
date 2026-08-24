@@ -296,49 +296,6 @@ public sealed class AdminFanOutService
         }.WithWriteOutcome();
     }
 
-/// <summary>Obsolete TTL fan-out. Prefer <see cref="PatchSettingsAsync"/>.</summary>
-[Obsolete("Use PatchSettingsAsync / PATCH /api/domains/{domain}/settings.")]
-#pragma warning disable CS0618 // AdminTtlPatchRequest / AdminTtlPatchRequest retained for compatibility
-    public async Task<FanOutResultDto<object?>> PatchTtlAsync(
-        string domain,
-        AdminConsoleTtlPatchRequest request,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        AdminConsoleWriteValidators.Validate(request);
-        WriteDistributionPlan plan = await PlanWriteDistributionAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        AdminTtlPatchRequest body = new()
-        {
-            OutputCacheTtlSeconds = request.OutputCacheTtlSeconds,
-            DataCacheTtlSeconds = request.DataCacheTtlSeconds,
-            ClientTtlSeconds = request.ClientTtlSeconds,
-            ClientTtlMinSeconds = request.ClientTtlMinSeconds,
-            Distribute = plan.Distribute
-        };
-
-        List<InstanceCallOutcome<AdminDomainMutationResultDto>> outcomes =
-            await FanOutAsync(
-                    plan.Targets,
-                    (inst, ct) => _client.PatchTtlAsync(inst, domain, body, ct),
-                    cancellationToken,
-                    skipKnownDown: true)
-                .ConfigureAwait(false);
-        RecordDataOutcomes(outcomes);
-
-        return new FanOutResultDto<object?>
-        {
-            Data = outcomes.FirstOrDefault(o => o.Succeeded)?.Value,
-            Results = ExpandWriteResults(outcomes),
-            DistributionMode = plan.Mode,
-            DistributionSummary = plan.Summary,
-            BusOriginInstanceId = plan.BusOriginInstanceId,
-            Distribute = plan.Distribute
-        }.WithWriteOutcome();
-    }
-#pragma warning restore CS0618
-
     /// <summary>GET domain-settings catalog from the first healthy instance.</summary>
     public async Task<AdminDomainSettingsCatalogDto> GetDomainSettingsCatalogAsync(
         CancellationToken cancellationToken)

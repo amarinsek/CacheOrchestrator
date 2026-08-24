@@ -8,7 +8,6 @@ namespace CacheOrchestrator.Cluster;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "commandType")]
 [JsonDerivedType(typeof(InvalidateCommand), "invalidate")]
 [JsonDerivedType(typeof(VersionBumpCommand), "versionBump")]
-[JsonDerivedType(typeof(TtlPatchCommand), "ttlPatch")]
 [JsonDerivedType(typeof(SettingsPatchCommand), "settingsPatch")]
 public abstract record ClusterCommand
 {

@@ -56,20 +56,6 @@ internal sealed class ClusterCommandFactory
             Version = version
         };
 
-    public TtlPatchCommand CreateTtlPatch(string domain, Admin.DomainTtlPatch patch) =>
-        new()
-        {
-            CommandId = Guid.NewGuid(),
-            OriginInstanceId = _instanceId.InstanceId,
-            Namespace = _options.CurrentValue.Namespace ?? string.Empty,
-            TimestampUtc = DateTimeOffset.UtcNow,
-            Domain = domain,
-            OutputCacheTtlSeconds = patch.OutputCacheTtlSeconds,
-            DataCacheTtlSeconds = patch.DataCacheTtlSeconds,
-            ClientTtlSeconds = patch.ClientTtlSeconds,
-            ClientTtlMinSeconds = patch.ClientTtlMinSeconds
-        };
-
     public SettingsPatchCommand CreateSettingsPatch(string domain, Dictionary<string, System.Text.Json.JsonElement> settings) =>
         new()
         {

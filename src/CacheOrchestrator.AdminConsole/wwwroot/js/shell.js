@@ -249,7 +249,7 @@ export function renderHeader(o, windowStats = null) {
   const oc = share(pipe?.outputCacheHitShare ?? windowStats.outputCacheHitShare);
   const fc = share(pipe?.dataCacheHitShare ?? windowStats.dataCacheHitShare);
   const stale = share(pipe?.staleShare);
-  const fac = share(pipe?.factoryShare ?? pipe?.originShare ?? windowStats.factoryShare);
+  const fac = share(pipe?.factoryShare ?? windowStats.factoryShare);
   const fafcFails = promOk && !noData
     ? (windowStats.domains || []).reduce((s, d) => s + Number(d.dataCache?.factoryFailures || 0), 0)
     : null;
