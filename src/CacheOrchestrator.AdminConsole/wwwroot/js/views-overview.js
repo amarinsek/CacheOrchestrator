@@ -253,7 +253,7 @@ export function overviewKpiHtml(o, windowStats = null) {
   const clusterFc = hasTraffic
     ? {
         factoryFailures: (windowStats.domains || []).reduce(
-          (sum, d) => sum + (d.fc?.factoryFailures || 0), 0),
+          (sum, d) => sum + (d.dataCache?.factoryFailures || 0), 0),
       }
     : null;
 

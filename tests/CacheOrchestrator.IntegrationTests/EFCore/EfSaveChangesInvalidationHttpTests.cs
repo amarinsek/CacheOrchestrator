@@ -46,8 +46,8 @@ public class EfSaveChangesInvalidationHttpTests
             [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
             [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
-            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:DataCache:EagerRefreshRatio"] = "0",
         };
 
         IConfigurationRoot config = new ConfigurationBuilder()
@@ -474,8 +474,8 @@ public class EfSaveChangesInvalidationHttpTests
         [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
         [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
         [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-        [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
-        [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
+        [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+        [$"Cache:Domains:{domain}:DataCache:EagerRefreshRatio"] = "0",
     };
 
     private static WebApplicationBuilder CreateBuilder()

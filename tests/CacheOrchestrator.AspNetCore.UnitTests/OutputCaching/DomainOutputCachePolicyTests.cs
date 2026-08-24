@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -399,7 +399,7 @@ public class DomainOutputCachePolicyTests
 
         string xcache = http.Response.Headers["X-Cache"].ToString();
         xcache.Should().Contain("oc=hit");
-        xcache.Should().NotContain("fc=");
+        xcache.Should().NotContain("dc=");
         xcache.Should().NotContain("fa=");
         xcache.Should().NotContain("ms=");
         xcache.Should().Contain("phase=");

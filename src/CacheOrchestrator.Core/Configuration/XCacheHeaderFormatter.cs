@@ -13,25 +13,25 @@ public static class XCacheHeaderFormatter
     private const string PClient = "; client=";
     private const string PPhase = "; phase=";
     private const string POc = "; oc=";
-    private const string PFc = "; fc=";
+    private const string PDc = "; dc=";
     private const string PFa = "; fa=";
     private const string FaRun = "run";
     private const string PMs = "; ms=";
 
     /// <summary>
-    /// Formats domain, client class, schedule phase, OC/FC results, optional factory-run flag, and elapsed ms.
+    /// Formats domain, client class, schedule phase, OC/DC results, optional factory-run flag, and elapsed ms.
     /// </summary>
     /// <param name="domain">Normalized domain name.</param>
     /// <param name="client">Client cache class applied to the response.</param>
     /// <param name="output">Output Cache result (<c>oc=</c>).</param>
-    /// <param name="data">Optional data-cache result (<c>fc=</c> wire token; omitted on OC HIT).</param>
+    /// <param name="data">Optional data-cache result (<c>dc=</c> wire token; omitted on OC HIT).</param>
     /// <param name="ms">Optional elapsed milliseconds (omitted on OC HIT).</param>
     /// <param name="version">Domain version token.</param>
     /// <param name="phase">Client Cache Schedule phase used for <c>Cache-Control</c>.</param>
     /// <returns>Header value string.</returns>
     /// <remarks>
-    /// <c>fa=run</c> is written when <c>fc</c> is present and is not a fresh hit — the data-cache
-    /// factory callback ran. OC HIT omits <c>fc</c> and <c>fa</c> (handler/factory did not run).
+    /// <c>fa=run</c> is written when <c>dc</c> is present and is not a fresh hit — the data-cache
+    /// factory callback ran. OC HIT omits <c>dc</c> and <c>fa</c> (handler/factory did not run).
     /// </remarks>
     public static string Format(
         string domain,
@@ -49,9 +49,9 @@ public static class XCacheHeaderFormatter
         string phaseStr = PhaseToString(phase);
         string ocStr = OutputToString(output);
 
-        bool includeFc = output != OutputCacheResult.Hit && data is not null;
-        string? fcStr = includeFc ? DataToString(data!.Value) : null;
-        bool includeFa = includeFc && data!.Value != DataCacheResult.Hit;
+        bool includeDc = output != OutputCacheResult.Hit && data is not null;
+        string? dcStr = includeDc ? DataToString(data!.Value) : null;
+        bool includeFa = includeDc && data!.Value != DataCacheResult.Hit;
 
         bool includeMs = ms is not null && output != OutputCacheResult.Hit;
         string? msStr = includeMs
@@ -65,8 +65,8 @@ public static class XCacheHeaderFormatter
             + PPhase.Length + phaseStr.Length
             + POc.Length + ocStr.Length;
 
-        if (includeFc)
-            length += PFc.Length + fcStr!.Length;
+        if (includeDc)
+            length += PDc.Length + dcStr!.Length;
         if (includeFa)
             length += PFa.Length + FaRun.Length;
         if (includeMs)
@@ -75,7 +75,7 @@ public static class XCacheHeaderFormatter
         // Single allocation via string.Create (no StringBuilder intermediate buffer).
         return string.Create(
             length,
-            (domain, version, clientStr, phaseStr, ocStr, fcStr, includeFa, msStr),
+            (domain, version, clientStr, phaseStr, ocStr, dcStr, includeFa, msStr),
             static (span, s) =>
             {
                 int i = 0;
@@ -90,10 +90,10 @@ public static class XCacheHeaderFormatter
                 i = Write(span, i, POc);
                 i = Write(span, i, s.ocStr);
 
-                if (s.fcStr is not null)
+                if (s.dcStr is not null)
                 {
-                    i = Write(span, i, PFc);
-                    i = Write(span, i, s.fcStr);
+                    i = Write(span, i, PDc);
+                    i = Write(span, i, s.dcStr);
                 }
 
                 if (s.includeFa)

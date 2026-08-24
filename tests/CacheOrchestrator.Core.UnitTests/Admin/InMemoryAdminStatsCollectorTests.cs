@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Admin;
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using System.Diagnostics;
 
@@ -29,23 +29,23 @@ public class InMemoryAdminStatsCollectorTests
 
         AdminDomainStatsDto domain = snap.Domains.Single(d => d.Name == "catalog");
         domain.Requests.Should().Be(2); // OC hit + OC miss
-        domain.Oc.Hits.Should().Be(1);
-        domain.Oc.Misses.Should().Be(1);
-        domain.Oc.HitShare.Should().BeApproximately(0.5, 0.001);
-        domain.Oc.HitRate.Should().BeApproximately(0.5, 0.001);
-        domain.Fc.Hits.Should().Be(1);
-        domain.Fc.Misses.Should().Be(1);
-        domain.Fc.HitShare.Should().BeApproximately(0.5, 0.001);
-        domain.Fc.FactoryRuns.Should().Be(1);
+        domain.OutputCache.Hits.Should().Be(1);
+        domain.OutputCache.Misses.Should().Be(1);
+        domain.OutputCache.HitShare.Should().BeApproximately(0.5, 0.001);
+        domain.OutputCache.HitRate.Should().BeApproximately(0.5, 0.001);
+        domain.DataCache.Hits.Should().Be(1);
+        domain.DataCache.Misses.Should().Be(1);
+        domain.DataCache.HitShare.Should().BeApproximately(0.5, 0.001);
+        domain.DataCache.FactoryRuns.Should().Be(1);
         domain.Invalidations.Should().Be(1);
         domain.LastInvalidationUtc.Should().NotBeNull();
 
         AdminEndpointStatsDto? ep = snap.UnassignedEndpoints.SingleOrDefault(e => e.Route == "GET /api/products/{id}");
         ep.Should().NotBeNull();
-        ep!.Oc.Hits.Should().Be(1);
-        ep.Fc.Misses.Should().Be(1);
+        ep!.OutputCache.Hits.Should().Be(1);
+        ep.DataCache.Misses.Should().Be(1);
         ep.ConfiguredDomain.Should().Be("catalog");
-        ep.Pipeline.OcHitShare.Should().BeApproximately(0.5, 0.001);
+        ep.Pipeline.OutputCacheHitShare.Should().BeApproximately(0.5, 0.001);
     }
 
     [Fact]
@@ -69,10 +69,10 @@ public class InMemoryAdminStatsCollectorTests
         raw.InstanceId.Should().Be("raw-1");
         AdminDomainCountersDto domain = raw.Domains.Should().ContainSingle().Subject;
         domain.Name.Should().Be("catalog");
-        domain.OcHits.Should().Be(1);
-        domain.OcMisses.Should().Be(1);
-        domain.FcHits.Should().Be(1);
-        domain.FcMisses.Should().Be(1);
+        domain.OutputCacheHits.Should().Be(1);
+        domain.OutputCacheMisses.Should().Be(1);
+        domain.DataCacheHits.Should().Be(1);
+        domain.DataCacheMisses.Should().Be(1);
         domain.FactoryRuns.Should().Be(1);
         domain.Invalidations.Should().Be(1);
         domain.FactoryDurationCount.Should().Be(0);
@@ -80,7 +80,7 @@ public class InMemoryAdminStatsCollectorTests
 
         AdminEndpointCountersDto ep = raw.Endpoints.Should().ContainSingle().Subject;
         ep.Route.Should().Be("GET /api/products/{id}");
-        ep.OcHits.Should().Be(1);
+        ep.OutputCacheHits.Should().Be(1);
         ep.FactoryRuns.Should().Be(1);
     }
 
@@ -111,18 +111,18 @@ public class InMemoryAdminStatsCollectorTests
         AdminDomainStatsDto fd = v1.Domains.Single();
         AdminDomainStatsDto md = mapped.Domains.Single();
 
-        fd.Oc.Hits.Should().Be(rd.OcHits);
-        fd.Oc.Misses.Should().Be(rd.OcMisses);
-        fd.Oc.Bypass.Should().Be(rd.OcBypass);
-        fd.Fc.Hits.Should().Be(rd.FcHits);
-        fd.Fc.Misses.Should().Be(rd.FcMisses);
-        fd.Fc.Stale.Should().Be(rd.FcStale);
-        fd.Fc.Bypass.Should().Be(rd.FcBypass);
-        fd.Fc.FactoryRuns.Should().Be(rd.FactoryRuns);
-        fd.Fc.FactoryFailures.Should().Be(rd.FactoryFailures);
+        fd.OutputCache.Hits.Should().Be(rd.OutputCacheHits);
+        fd.OutputCache.Misses.Should().Be(rd.OutputCacheMisses);
+        fd.OutputCache.Bypass.Should().Be(rd.OutputCacheBypass);
+        fd.DataCache.Hits.Should().Be(rd.DataCacheHits);
+        fd.DataCache.Misses.Should().Be(rd.DataCacheMisses);
+        fd.DataCache.Stale.Should().Be(rd.DataCacheStale);
+        fd.DataCache.Bypass.Should().Be(rd.DataCacheBypass);
+        fd.DataCache.FactoryRuns.Should().Be(rd.FactoryRuns);
+        fd.DataCache.FactoryFailures.Should().Be(rd.FactoryFailures);
 
-        md.Oc.Hits.Should().Be(fd.Oc.Hits);
-        md.Fc.FactoryRuns.Should().Be(fd.Fc.FactoryRuns);
+        md.OutputCache.Hits.Should().Be(fd.OutputCache.Hits);
+        md.DataCache.FactoryRuns.Should().Be(fd.DataCache.FactoryRuns);
         md.Requests.Should().Be(fd.Requests);
         md.Pipeline.FactoryShare.Should().Be(fd.Pipeline.FactoryShare);
     }
@@ -169,9 +169,9 @@ public class InMemoryAdminStatsCollectorTests
         collector.RecordDataCache("GET /x", "d", "bypass");
 
         AdminDomainCountersDto d = collector.GetRawSnapshot().Domains.Single();
-        d.OcOff.Should().Be(1);
-        d.OcBypass.Should().Be(0);
-        d.FcBypass.Should().Be(1);
+        d.OutputCacheOff.Should().Be(1);
+        d.OutputCacheBypass.Should().Be(0);
+        d.DataCacheBypass.Should().Be(1);
         d.FactoryRuns.Should().Be(3);
         d.FactoryFailures.Should().Be(0);
     }
@@ -192,8 +192,8 @@ public class InMemoryAdminStatsCollectorTests
         collector.RecordDataCache("GET /x", "d", "fail");
 
         AdminDomainCountersDto d = collector.GetRawSnapshot().Domains.Single();
-        d.FcMisses.Should().Be(1);
-        d.FcStale.Should().Be(1);
+        d.DataCacheMisses.Should().Be(1);
+        d.DataCacheStale.Should().Be(1);
         d.FactoryRuns.Should().Be(3);
         d.FactoryFailures.Should().Be(2);
     }
@@ -221,7 +221,7 @@ public class InMemoryAdminStatsCollectorTests
     }
 
     [Fact]
-    public void OcHitsDominate_FcLayerMissRateIsNotShownAsRequestShare()
+    public void OutputCacheHitsDominate_FcLayerMissRateIsNotShownAsRequestShare()
     {
         InMemoryAdminStatsCollector collector = new(
             new CacheOrchestratorOptions.AdminOptions
@@ -237,9 +237,9 @@ public class InMemoryAdminStatsCollectorTests
         collector.RecordDataCache("GET /hello", "hello", "miss");
 
         AdminDomainStatsDto d = collector.GetSnapshot().Domains.Single();
-        d.Oc.HitShare.Should().BeApproximately(0.99, 0.001);
-        d.Fc.MissRate.Should().Be(1.0);
-        d.Fc.MissShare.Should().BeApproximately(0.01, 0.001);
+        d.OutputCache.HitShare.Should().BeApproximately(0.99, 0.001);
+        d.DataCache.MissRate.Should().Be(1.0);
+        d.DataCache.MissShare.Should().BeApproximately(0.01, 0.001);
     }
 
     [Fact]

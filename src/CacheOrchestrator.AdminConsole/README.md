@@ -10,7 +10,7 @@ It calls the **Admin API** on each instance you list (`Cache:Admin:Enabled`, `Ma
 
 **Stats (Prom-only):** Console **2.2+** traffic KPIs, domain/endpoint tables, impact, and hints come from **Prometheus** (`AdminConsole:Metrics` + `GET /api/stats/window`). Local Admin API is used for health, domain config, and operations (invalidate / Version / TTL) only. Instance process-lifetime `GET …/stats` remains for diagnostics but is **not** used by the stats UI.
 
-**Impact / charts:** Need Prometheus scrape of the `CacheOrchestrator` meter (e.g. `cache_orchestrator.fc.requests`, `cache_orchestrator.factory.duration`). Without Metrics store, statistics and charts are unavailable.
+**Impact / charts:** Need Prometheus scrape of the `CacheOrchestrator` meter (e.g. `cache_orchestrator.dc.requests`, `cache_orchestrator.factory.duration`). Without Metrics store, statistics and charts are unavailable.
 
 This host is **not** a NuGet package. It targets **.NET 10** only.  
 Monitored app instances may still run on **.NET 8** or **.NET 10** — Admin talks **HTTP only**, so Admin TFM does not need to match instance TFMs.
@@ -176,10 +176,10 @@ The Admin Console App evaluates **read-only rules** against aggregated live stat
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.30 }
+          { "path": "domain.dataCache.factoryShare", "op": ">=", "value": 0.30 }
         ]
       },
-      "message": "Factory is {domain.fc.factoryShare:p1} on {domain.name}."
+      "message": "Factory is {domain.dataCache.factoryShare:p1} on {domain.name}."
     }
   ]
 }

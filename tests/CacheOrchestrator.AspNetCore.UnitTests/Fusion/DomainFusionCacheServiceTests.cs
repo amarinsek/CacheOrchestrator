@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Admin;
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Entity;
 using CacheOrchestrator.FusionCache;
@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
-using CacheOrchestrator.AspNetCore.UnitTests.TestSupport;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.AspNetCore.UnitTests.Fusion;
@@ -20,7 +19,6 @@ public class DomainFusionCacheServiceTests
     private readonly IRequestDomainCacheOptions _domainConfig = Substitute.For<IRequestDomainCacheOptions>();
     private readonly IDomainKeyGenerator _keyGenerator = Substitute.For<IDomainKeyGenerator>();
     private readonly IDataCacheProvider _dataCache;
-    private readonly StubFusionDomainSettingsProvider _fusionSettings = new();
     private readonly DomainFusionCacheService _sut;
 
     public DomainFusionCacheServiceTests()
@@ -32,7 +30,6 @@ public class DomainFusionCacheServiceTests
             _domainConfig,
             _keyGenerator,
             _dataCache,
-            _fusionSettings,
             NullLogger<DomainFusionCacheService>.Instance);
     }
 
@@ -59,7 +56,7 @@ public class DomainFusionCacheServiceTests
         factoryCalled.Should().BeTrue();
         _domainConfig.DidNotReceive().EnsureDomainOptions(Arg.Any<HttpContext>(), Arg.Any<string>());
 
-        // Disposition records unresolved so X-Cache can show fc=unresolved
+        // Disposition records unresolved so X-Cache can show dc=unresolved
         http.Features.Get<ICacheOrchestratorFeature>()?.Disposition.Should().BeOfType<CacheDisposition>()
             .Which.Data.Should().Be(DataCacheResult.Unresolved);
     }
@@ -183,7 +180,6 @@ public class DomainFusionCacheServiceTests
             _domainConfig,
             _keyGenerator,
             _dataCache,
-            _fusionSettings,
             NullLogger<DomainFusionCacheService>.Instance,
             admin);
         var http = new DefaultHttpContext();
@@ -364,7 +360,7 @@ public class DomainFusionCacheServiceTests
         EntryOptionsCapture capture2 = StubGetOrSetAndCaptureOptions(returnValue: 2);
         await _sut.GetOrSetAsync(http, _ => Task.FromResult(2), TestContext.Current.CancellationToken);
 
-        FusionCacheEntryOptions expected = FusionEntryOptionsFactory.Create(cfg, _fusionSettings.Get(cfg.Domain));
+        FusionCacheEntryOptions expected = FusionEntryOptionsFactory.Create(cfg);
         capture1.Options.Should().NotBeNull();
         capture2.Options.Should().NotBeNull();
         capture1.Options!.Duration.Should().Be(expected.Duration);
@@ -427,7 +423,6 @@ public class DomainFusionCacheServiceTests
             _domainConfig,
             realKeys,
             _dataCache,
-            _fusionSettings,
             NullLogger<DomainFusionCacheService>.Instance);
 
         var keys = new List<string>();
@@ -477,7 +472,6 @@ public class DomainFusionCacheServiceTests
             _domainConfig,
             realKeys,
             _dataCache,
-            _fusionSettings,
             NullLogger<DomainFusionCacheService>.Instance);
 
         var entityKeys = new List<string>();
@@ -720,10 +714,8 @@ public class DomainFusionCacheServiceTests
         bool enabled = true,
         bool respectNoStore = false,
         bool fusionRespectAuthBypass = true,
-        TimeSpan? failSafe = null)
-    {
-        _fusionSettings.Current = StubFusionDomainSettingsProvider.CreateDefault(failSafe: failSafe);
-        return new()
+        TimeSpan? failSafe = null) =>
+        new()
         {
             Domain = domain,
             DataCacheEnabled = enabled,
@@ -731,8 +723,15 @@ public class DomainFusionCacheServiceTests
             DataCacheRespectAuthBypass = fusionRespectAuthBypass,
             Version = "1",
             DataCacheTtl = TimeSpan.FromMinutes(5),
+            DataCacheHardTtl = TimeSpan.FromHours(1),
+            DataCacheFailSafe = failSafe ?? TimeSpan.FromHours(24),
+            DataCacheJitter = TimeSpan.FromSeconds(30),
+            DataCacheEagerRefreshRatio = 0.9,
+            DataCacheFactorySoftTimeout = TimeSpan.FromSeconds(1),
+            DataCacheFactoryHardTimeout = TimeSpan.FromSeconds(5),
+            DataCacheAllowBackgroundDistributed = true,
+            DataCacheAllowBackgroundBackplane = true,
         };
-    }
 
     private FusionDataCacheProvider CreateFusionDataCacheProvider(IFusionCacheProvider fusionProvider)
     {
@@ -741,7 +740,6 @@ public class DomainFusionCacheServiceTests
         return new FusionDataCacheProvider(
             fusionProvider,
             options,
-            _fusionSettings,
             NullLogger<FusionDataCacheProvider>.Instance);
     }
 }

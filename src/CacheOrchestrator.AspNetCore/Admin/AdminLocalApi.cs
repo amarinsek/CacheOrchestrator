@@ -442,7 +442,7 @@ public static class AdminLocalApi
         }
 
         if (patch.EagerRefreshRatio is double r && (r < 0 || r >= 1))
-            return "fusionCache.eagerRefreshRatio must be in [0, 1).";
+            return "dataCache.eagerRefreshRatio must be in [0, 1).";
 
         return null;
     }

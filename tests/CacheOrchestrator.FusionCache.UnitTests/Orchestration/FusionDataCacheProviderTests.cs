@@ -1,9 +1,8 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using CacheOrchestrator.FusionCache.UnitTests.TestSupport;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.FusionCache.UnitTests.Orchestration;
@@ -29,7 +28,6 @@ public class FusionDataCacheProviderTests
         _sut = new FusionDataCacheProvider(
             _fusionProvider,
             _options,
-            new StubFusionDomainSettingsProvider(),
             NullLogger<FusionDataCacheProvider>.Instance);
     }
 

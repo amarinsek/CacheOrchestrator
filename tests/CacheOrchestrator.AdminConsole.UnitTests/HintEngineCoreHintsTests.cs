@@ -23,10 +23,10 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_HealthyOc_LowFcLayerRate_DoesNotWarn()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 32, ocMisses: 2, ocBypass: 0,
-                fcHits: 0, fcMisses: 2, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 32, outputCacheMisses: 2, outputCacheBypass: 0,
+                dataCacheHits: 0, dataCacheMisses: 2, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 2, factoryFailures: 0);
 
         AdminDomainStatsDto domain = new()
@@ -34,8 +34,8 @@ public class HintEngineCoreHintsTests
             Name = "maps",
             Version = "1",
             Requests = 34,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe
         };
 
@@ -47,18 +47,18 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateEndpoint_HighFactoryShare_EmitsWarning()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 20, ocMisses: 30, ocBypass: 0,
-                fcHits: 15, fcMisses: 15, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 20, outputCacheMisses: 30, outputCacheBypass: 0,
+                dataCacheHits: 15, dataCacheMisses: 15, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 15, factoryFailures: 0);
 
         AdminEndpointStatsDto ep = new()
         {
             Route = "GET /x",
             Requests = 50,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe
         };
 
@@ -69,10 +69,10 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_FactoryDominates_EmitsCritical()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 10, ocMisses: 40, ocBypass: 0,
-                fcHits: 5, fcMisses: 35, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 10, outputCacheMisses: 40, outputCacheBypass: 0,
+                dataCacheHits: 5, dataCacheMisses: 35, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 35, factoryFailures: 0);
 
         AdminDomainStatsDto domain = new()
@@ -80,8 +80,8 @@ public class HintEngineCoreHintsTests
             Name = "hot",
             Version = "1",
             Requests = 50,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe
         };
 
@@ -92,7 +92,7 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_ClientTtlMuchLargerThanOutput_WithoutSchedule_EmitsInfo()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
 
         AdminDomainStatsDto domain = new()
@@ -100,8 +100,8 @@ public class HintEngineCoreHintsTests
             Name = "catalog",
             Version = "1",
             Requests = 50,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe
         };
 
@@ -122,7 +122,7 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_ClientTtlLargerThanOutput_WithSchedule_DoesNotEmit()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
 
         AdminDomainStatsDto domain = new()
@@ -130,8 +130,8 @@ public class HintEngineCoreHintsTests
             Name = "tiles",
             Version = "1",
             Requests = 50,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe
         };
 
@@ -153,7 +153,7 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_ApproachingSchedule_EmitsInfo()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
 
         AdminDomainConfigDto cfg = new()
@@ -166,7 +166,7 @@ public class HintEngineCoreHintsTests
         };
 
         IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
-            new() { Name = "tiles", Version = "1", Requests = 50, Oc = oc, Fc = fc, Pipeline = pipe },
+            new() { Name = "tiles", Version = "1", Requests = 50, OutputCache = outputCache, DataCache = dataCache, Pipeline = pipe },
             cfg);
 
         hints.Should().Contain(h => h.Code == "schedule-approaching" && h.Severity == "Info");
@@ -177,7 +177,7 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_HoldLongerThanADay_EmitsWarning()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
 
         AdminDomainConfigDto cfg = new()
@@ -190,7 +190,7 @@ public class HintEngineCoreHintsTests
         };
 
         IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
-            new() { Name = "tiles", Version = "1", Requests = 50, Oc = oc, Fc = fc, Pipeline = pipe },
+            new() { Name = "tiles", Version = "1", Requests = 50, OutputCache = outputCache, DataCache = dataCache, Pipeline = pipe },
             cfg);
 
         hints.Should().Contain(h => h.Code == "schedule-hold-lingering" && h.Severity == "Warning");
@@ -200,10 +200,10 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_FactoryFailures_EmitsWarning()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 80, ocMisses: 20, ocBypass: 0,
-                fcHits: 5, fcMisses: 15, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 80, outputCacheMisses: 20, outputCacheBypass: 0,
+                dataCacheHits: 5, dataCacheMisses: 15, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 20, factoryFailures: 4);
 
         AdminDomainStatsDto domain = new()
@@ -211,8 +211,8 @@ public class HintEngineCoreHintsTests
             Name = "catalog",
             Version = "1",
             Requests = 100,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe
         };
 
@@ -223,10 +223,10 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_MostFactoryRunsFail_EmitsCritical()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 80, ocMisses: 20, ocBypass: 0,
-                fcHits: 2, fcMisses: 18, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 80, outputCacheMisses: 20, outputCacheBypass: 0,
+                dataCacheHits: 2, dataCacheMisses: 18, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 20, factoryFailures: 14);
 
         AdminDomainStatsDto domain = new()
@@ -234,8 +234,8 @@ public class HintEngineCoreHintsTests
             Name = "catalog",
             Version = "1",
             Requests = 100,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe
         };
 
@@ -246,10 +246,10 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_FewFactoryFailures_DoesNotHint()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 80, ocMisses: 20, ocBypass: 0,
-                fcHits: 18, fcMisses: 2, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 80, outputCacheMisses: 20, outputCacheBypass: 0,
+                dataCacheHits: 18, dataCacheMisses: 2, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 20, factoryFailures: 1);
 
         AdminDomainStatsDto domain = new()
@@ -257,8 +257,8 @@ public class HintEngineCoreHintsTests
             Name = "catalog",
             Version = "1",
             Requests = 100,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe
         };
 
@@ -270,7 +270,7 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_RuntimeVersionOverride_EmitsInfo()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
 
         AdminDomainStatsDto domain = new()
@@ -279,8 +279,8 @@ public class HintEngineCoreHintsTests
             Version = "bump-1",
             VersionIsRuntimeOverride = true,
             Requests = 50,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe
         };
 
@@ -291,7 +291,7 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_FusionHardShorterThanSoft_EmitsWarning()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
 
         AdminDomainConfigDto cfg = new()
@@ -304,7 +304,7 @@ public class HintEngineCoreHintsTests
         };
 
         IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
-            new() { Name = "catalog", Version = "1", Requests = 50, Oc = oc, Fc = fc, Pipeline = pipe },
+            new() { Name = "catalog", Version = "1", Requests = 50, OutputCache = outputCache, DataCache = dataCache, Pipeline = pipe },
             cfg);
 
         hints.Should().Contain(h => h.Code == "fusion-hard-lt-soft" && h.Severity == "Warning");
@@ -313,7 +313,7 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_ScheduleCannotRamp_EmitsInfo()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
 
         AdminDomainConfigDto cfg = new()
@@ -328,7 +328,7 @@ public class HintEngineCoreHintsTests
         };
 
         IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
-            new() { Name = "tiles", Version = "1", Requests = 50, Oc = oc, Fc = fc, Pipeline = pipe },
+            new() { Name = "tiles", Version = "1", Requests = 50, OutputCache = outputCache, DataCache = dataCache, Pipeline = pipe },
             cfg);
 
         hints.Should().Contain(h => h.Code == "schedule-flat" && h.Severity == "Info");
@@ -337,7 +337,7 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void EvaluateDomain_HoldSchedule_EmitsInfo()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
 
         AdminDomainConfigDto cfg = new()
@@ -350,7 +350,7 @@ public class HintEngineCoreHintsTests
         };
 
         IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
-            new() { Name = "tiles", Version = "1", Requests = 50, Oc = oc, Fc = fc, Pipeline = pipe },
+            new() { Name = "tiles", Version = "1", Requests = 50, OutputCache = outputCache, DataCache = dataCache, Pipeline = pipe },
             cfg);
 
         hints.Should().Contain(h => h.Code == "schedule-phase" && h.Severity == "Info");
@@ -359,10 +359,10 @@ public class HintEngineCoreHintsTests
     [Fact]
     public void Summarize_And_CollectFromStats_AggregateAttachedHints()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 10, ocMisses: 40, ocBypass: 0,
-                fcHits: 5, fcMisses: 35, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 10, outputCacheMisses: 40, outputCacheBypass: 0,
+                dataCacheHits: 5, dataCacheMisses: 35, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 35, factoryFailures: 0);
 
         AdminDomainStatsDto withHints = _engine.WithHints(new AdminDomainStatsDto
@@ -370,8 +370,8 @@ public class HintEngineCoreHintsTests
             Name = "hot",
             Version = "1",
             Requests = 50,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe
         });
 

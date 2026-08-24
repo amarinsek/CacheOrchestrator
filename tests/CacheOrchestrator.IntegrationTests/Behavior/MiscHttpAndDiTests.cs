@@ -37,7 +37,7 @@ public class MiscHttpAndDiTests
         [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
         [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
         [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-        [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+        [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
     };
 
     // -------------------------------------------------------------------------
@@ -56,14 +56,14 @@ public class MiscHttpAndDiTests
         {
             if (instrument.Meter.Name != CacheOrchestratorMetrics.MeterName)
                 return;
-            if (instrument.Name is "cache_orchestrator.oc.requests" or "cache_orchestrator.fc.requests")
+            if (instrument.Name is "cache_orchestrator.oc.requests" or "cache_orchestrator.dc.requests")
                 l.EnableMeasurementEvents(instrument);
         };
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
             if (instrument.Name == "cache_orchestrator.oc.requests")
                 Interlocked.Add(ref ocCount, measurement);
-            if (instrument.Name == "cache_orchestrator.fc.requests")
+            if (instrument.Name == "cache_orchestrator.dc.requests")
                 Interlocked.Add(ref fcCount, measurement);
         });
         listener.Start();
@@ -184,7 +184,7 @@ public class MiscHttpAndDiTests
                 ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
                 [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-                [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+                [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
             })
             .Build();
 

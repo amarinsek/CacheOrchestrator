@@ -16,24 +16,24 @@ public static class AdminStatsMath
 
     /// <summary>
     /// Request denominator: prefer Output Cache outcomes (one per OC-managed request);
-    /// fall back to Fusion outcomes for Fusion-only traffic, then factory runs (Fusion off).
+    /// fall back to data-cache outcomes for data-cache-only traffic, then factory runs (data cache off).
     /// </summary>
     public static long Requests(
-        long ocHits,
-        long ocMisses,
-        long ocBypass,
-        long fcHits,
-        long fcMisses,
-        long fcStale,
-        long fcBypass,
-        long ocOff = 0,
+        long outputCacheHits,
+        long outputCacheMisses,
+        long outputCacheBypass,
+        long dataCacheHits,
+        long dataCacheMisses,
+        long dataCacheStale,
+        long dataCacheBypass,
+        long outputCacheOff = 0,
         long factoryRuns = 0)
     {
-        long oc = ocHits + ocMisses + ocBypass + ocOff;
+        long oc = outputCacheHits + outputCacheMisses + outputCacheBypass + outputCacheOff;
         if (oc > 0)
             return oc;
 
-        long fc = fcHits + fcMisses + fcStale + fcBypass;
+        long fc = dataCacheHits + dataCacheMisses + dataCacheStale + dataCacheBypass;
         if (fc > 0)
             return fc;
 
@@ -58,7 +58,7 @@ public static class AdminStatsMath
     public static double? Share(long count, long requests) =>
         requests <= 0 ? null : (double)count / requests;
 
-    public static AdminLayerDto BuildOc(
+    public static AdminLayerDto BuildOutputCache(
         long hits,
         long misses,
         long bypass,
@@ -85,7 +85,7 @@ public static class AdminStatsMath
         };
     }
 
-    public static AdminFusionLayerDto BuildFc(
+    public static AdminDataCacheLayerDto BuildDataCache(
         long hits,
         long misses,
         long stale,
@@ -96,7 +96,7 @@ public static class AdminStatsMath
     {
         long layerSample = hits + misses;
         long layerWithStale = hits + misses + stale;
-        return new AdminFusionLayerDto
+        return new AdminDataCacheLayerDto
         {
             Hits = hits,
             Misses = misses,
@@ -123,44 +123,44 @@ public static class AdminStatsMath
     /// <summary>Builds OC+FC DTOs and pipeline shares from raw counters.</summary>
     public static (
         long Requests,
-        AdminLayerDto Oc,
-        AdminFusionLayerDto Fc,
+        AdminLayerDto OutputCache,
+        AdminDataCacheLayerDto DataCache,
         AdminPipelineDto Pipeline) BuildAll(
-        long ocHits,
-        long ocMisses,
-        long ocBypass,
-        long fcHits,
-        long fcMisses,
-        long fcStale,
-        long fcBypass,
+        long outputCacheHits,
+        long outputCacheMisses,
+        long outputCacheBypass,
+        long dataCacheHits,
+        long dataCacheMisses,
+        long dataCacheStale,
+        long dataCacheBypass,
         long factoryRuns,
         long factoryFailures,
-        long ocOff = 0)
+        long outputCacheOff = 0)
     {
         long requests = Requests(
-            ocHits, ocMisses, ocBypass, fcHits, fcMisses, fcStale, fcBypass, ocOff, factoryRuns);
-        AdminLayerDto oc = BuildOc(ocHits, ocMisses, ocBypass, requests, ocOff);
-        AdminFusionLayerDto fc = BuildFc(
-            fcHits, fcMisses, fcStale, fcBypass, factoryRuns, factoryFailures, requests);
+            outputCacheHits, outputCacheMisses, outputCacheBypass, dataCacheHits, dataCacheMisses, dataCacheStale, dataCacheBypass, outputCacheOff, factoryRuns);
+        AdminLayerDto outputCache = BuildOutputCache(outputCacheHits, outputCacheMisses, outputCacheBypass, requests, outputCacheOff);
+        AdminDataCacheLayerDto dataCache = BuildDataCache(
+            dataCacheHits, dataCacheMisses, dataCacheStale, dataCacheBypass, factoryRuns, factoryFailures, requests);
 
         // Auth / no-store bypass is a layer skip reason, not an exclusive serving-mix bucket.
         // Exclusive mix: OC hit + FC fresh hit + factory invocations (FA run includes stale).
-        long ocTraffic = ocHits + ocMisses + ocBypass + ocOff;
-        long pipelineBypass = ocTraffic > 0 ? ocBypass : fcBypass;
+        long ocTraffic = outputCacheHits + outputCacheMisses + outputCacheBypass + outputCacheOff;
+        long pipelineBypass = ocTraffic > 0 ? outputCacheBypass : dataCacheBypass;
 
         AdminPipelineDto pipeline = new()
         {
-            OcHitShare = oc.HitShare,
-            FcHitShare = fc.HitShare,
-            StaleShare = fc.StaleShare,
-            FactoryShare = fc.FactoryShare,
+            OutputCacheHitShare = outputCache.HitShare,
+            DataCacheHitShare = dataCache.HitShare,
+            StaleShare = dataCache.StaleShare,
+            FactoryShare = dataCache.FactoryShare,
             BypassShare = Share(pipelineBypass, requests),
             OtherShare = requests <= 0
                 ? null
-                : Share(Math.Max(0, requests - ocHits - fcHits - factoryRuns), requests)
+                : Share(Math.Max(0, requests - outputCacheHits - dataCacheHits - factoryRuns), requests)
         };
 
-        return (requests, oc, fc, pipeline);
+        return (requests, outputCache, dataCache, pipeline);
     }
 
     /// <summary>min / max / mean / stdev over a set of optional ratios (instance breakdown).</summary>

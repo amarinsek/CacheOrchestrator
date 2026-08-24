@@ -19,9 +19,9 @@ public static class CacheOrchestratorMetrics
 
     private static readonly Meter Meter = new(MeterName, "1.0.0");
 
-    private static readonly Counter<long> FcRequests =
+    private static readonly Counter<long> DcRequests =
         Meter.CreateCounter<long>(
-            "cache_orchestrator.fc.requests",
+            "cache_orchestrator.dc.requests",
             unit: "{request}",
             description: "Data cache operations by domain and result");
 
@@ -37,9 +37,9 @@ public static class CacheOrchestratorMetrics
             unit: "{invalidation}",
             description: "Domain invalidation calls");
 
-    private static readonly Histogram<double> FcDurationMs =
+    private static readonly Histogram<double> DcDurationMs =
         Meter.CreateHistogram<double>(
-            "cache_orchestrator.fc.duration",
+            "cache_orchestrator.dc.duration",
             unit: "ms",
             description: "Data-cache get-or-set duration in milliseconds (legacy; all results with a duration). Prefer factory.duration for factory cost.");
 
@@ -107,12 +107,12 @@ public static class CacheOrchestratorMetrics
         long? resultSizeBytes = null)
     {
         TagList tags = BuildDomainResultTags(domain, result, route);
-        FcRequests.Add(1, tags);
+        DcRequests.Add(1, tags);
 
         if (durationMs is double ms)
         {
             // Legacy: all timed GetOrSet outcomes (dashboards may still use this).
-            FcDurationMs.Record(ms, tags);
+            DcDurationMs.Record(ms, tags);
 
             // Canonical factory cost: factory callback ran (including data cache disabled / unresolved / bypass).
             if (IsFactoryInvocation(result))

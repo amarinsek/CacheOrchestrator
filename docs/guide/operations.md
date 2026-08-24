@@ -22,12 +22,12 @@ How to see what the cache is doing, and which Admin document to open. This page 
 On domain endpoints, with `EmitDiagnosticsHeaders` at its default of `true`:
 
 ```http
-X-Cache: domain=catalog; version=1; client=public; phase=n/a; oc=miss; fc=miss; fa=run; ms=12
+X-Cache: domain=catalog; version=1; client=public; phase=n/a; oc=miss; dc=miss; fa=run; ms=12
 ```
 
 - **oc** — Output Cache `miss`, `hit`, `bypass`, or `off`.
 - **fc** — Fusion (`hit`, `miss`, …). Omitted when Output Cache already hit.
-- **fa** — `run` when `fc` is present and is not `hit` (factory callback ran).
+- **fa** — `run` when `dc` is present and is not `hit` (factory callback ran).
 - **phase** — Client Cache Schedule, or `n/a`.
 
 Hide the header from clients with `"EmitDiagnosticsHeaders": false`. Metrics continue.

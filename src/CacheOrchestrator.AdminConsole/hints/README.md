@@ -100,10 +100,10 @@ Example: `hints/team-ops.json`
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.30 }
+          { "path": "domain.dataCache.factoryShare", "op": ">=", "value": 0.30 }
         ]
       },
-      "message": "Factory is {domain.fc.factoryShare:p1} of {domain.requests} requests on {domain.name} — check TTL and key cardinality."
+      "message": "Factory is {domain.dataCache.factoryShare:p1} of {domain.requests} requests on {domain.name} — check TTL and key cardinality."
     }
   ]
 }
@@ -192,7 +192,7 @@ List rows show at most **two** chips; three or more hints collapse to the nav-st
 | Template | Result |
 |----------|--------|
 | `{domain.name}` | Domain name |
-| `{domain.fc.factoryShare:p1}` | e.g. `32.5%` (ratio × 100, 1 decimal); `originShare` still works |
+| `{domain.dataCache.factoryShare:p1}` | e.g. `32.5%` (ratio × 100, 1 decimal); `originShare` still works |
 | `{domain.requests}` | Number as text |
 | `{path:0.#}` | Numeric format |
 
@@ -215,15 +215,15 @@ The compiler rejects unknown paths. Common ones:
 | Path | Meaning |
 |------|---------|
 | `domain.requests` | Aggregated request count |
-| `domain.fc.factoryShare` | Factory share (also known as origin) = factory runs ÷ requests (0–1) |
-| `domain.fc.originShare` | Obsolete synonym for `factoryShare` |
-| `domain.fc.staleShare` | Stale share 0–1 |
-| `domain.fc.factoryRuns` / `factoryFailures` / `factoryFailureRate` | Factory health |
+| `domain.dataCache.factoryShare` | Factory share (also known as origin) = factory runs ÷ requests (0–1) |
+| `domain.dataCache.originShare` | Obsolete synonym for `factoryShare` |
+| `domain.dataCache.staleShare` | Stale share 0–1 |
+| `domain.dataCache.factoryRuns` / `factoryFailures` / `factoryFailureRate` | Factory health |
 | `domain.invalidations` / `domain.invalidationShare` | Invalidation pressure |
 | `domain.schedulePhase` | e.g. `approaching`, `hold` |
 | `domain.versionIsRuntimeOverride` | Runtime Version overlay |
-| `domain.instanceSpread.ocHitShare.stdev` | Cross-instance OC drift |
-| `endpoint.route` / `endpoint.requests` / `endpoint.fc.*` | Per-route facts |
+| `domain.instanceSpread.outputCacheHitShare.stdev` | Cross-instance OC drift |
+| `endpoint.route` / `endpoint.requests` / `endpoint.dataCache.*` | Per-route facts |
 | `config.outputCacheTtlSeconds` / `clientTtlSeconds` / … | Effective config |
 | `config.hasSchedule` | Computed |
 | `config.holdAgeHours` | Hours since `ScheduledUpdateUtc` |

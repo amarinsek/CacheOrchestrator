@@ -48,7 +48,7 @@ app.MapGet("/", () => Results.Content(
       <h1>CacheOrchestrator · Minimal sample</h1>
       <p>Call <a href="/hello"><code>/hello</code></a> twice and compare the <code>X-Cache</code> header.</p>
       <ol>
-        <li>First request → <code>oc=miss</code> (or <code>fc=miss; fa=run</code>) — factory runs (~200&nbsp;ms).</li>
+        <li>First request → <code>oc=miss</code> (or <code>dc=miss; fa=run</code>) — factory runs (~200&nbsp;ms).</li>
         <li>Second request → <code>oc=hit</code> — served from Output Cache (fast).</li>
       </ol>
       <pre>curl -i http://localhost:5290/hello</pre>

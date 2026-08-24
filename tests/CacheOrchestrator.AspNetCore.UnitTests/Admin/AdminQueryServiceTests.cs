@@ -1,4 +1,3 @@
-﻿using CacheOrchestrator.AspNetCore.UnitTests.TestSupport;
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
@@ -92,7 +91,6 @@ public class AdminQueryServiceTests
             Substitute.For<IAdminEndpointCatalog>(),
             Substitute.For<IDomainCacheOptionsProvider>(),
             Substitute.For<IDomainRuntimeOverrideStore>(),
-            new StubFusionDomainSettingsProvider(),
             options,
             TimeProvider.System,
             probes);

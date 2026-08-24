@@ -4,7 +4,7 @@
  * Layout (see index.html):
  * 1) brand / logo
  * 2) header metrics strip (`#headerMetrics`):
- *    instances + metrics status · gap · Req / Inv / pipeline / OC / FC / FA run / FAFC / FAD / FC stale / EFTS · right-aligned N dom N ep
+ *    instances + metrics status · gap · Req / Inv / pipeline / OC / FC / FA run / FAFC / FAD / DC stale / EFTS · right-aligned N dom N ep
  * 3) menu strip
  *
  * Soft refresh (route({ soft: true })) repaints without a full "Loading…" flash.
@@ -245,16 +245,16 @@ export function renderHeader(o, windowStats = null) {
   const pipe = promOk && !noData ? windowStats.pipeline : null;
   const dashTip = promOk ? "No samples yet" : "Metrics offline";
   const share = (v) => (promOk && !noData && v != null ? pct(v) : noDataHtml(dashTip));
-  // Exclusive mix: OC hit · FC hit · FA run. FC stale is an overlay.
-  const oc = share(pipe?.ocHitShare ?? windowStats.ocHitShare);
-  const fc = share(pipe?.fcHitShare ?? windowStats.fcHitShare);
+  // Exclusive mix: OC hit · DC hit · FA run. DC stale is an overlay.
+  const oc = share(pipe?.outputCacheHitShare ?? windowStats.outputCacheHitShare);
+  const fc = share(pipe?.dataCacheHitShare ?? windowStats.dataCacheHitShare);
   const stale = share(pipe?.staleShare);
   const fac = share(pipe?.factoryShare ?? pipe?.originShare ?? windowStats.factoryShare);
   const fafcFails = promOk && !noData
-    ? (windowStats.domains || []).reduce((s, d) => s + Number(d.fc?.factoryFailures || 0), 0)
+    ? (windowStats.domains || []).reduce((s, d) => s + Number(d.dataCache?.factoryFailures || 0), 0)
     : null;
   const fafcRuns = promOk && !noData
-    ? (windowStats.domains || []).reduce((s, d) => s + Number(d.fc?.factoryRuns || 0), 0)
+    ? (windowStats.domains || []).reduce((s, d) => s + Number(d.dataCache?.factoryRuns || 0), 0)
     : 0;
   const fafcRate = fafcRuns > 0 && fafcFails != null ? fafcFails / fafcRuns : null;
   const fafcCls = fafcFails > 0
@@ -292,12 +292,12 @@ export function renderHeader(o, windowStats = null) {
       <span class="hm" title="${esc(METRIC_TITLES.req)}">Req <strong>${req}</strong></span>
       <span class="hm" title="${esc(METRIC_TITLES.inv)}">Inv <strong>${inv}</strong></span>
       <span class="hm" title="${esc(METRIC_TITLES.pipeline)}">${pipelineBar(pipe, false, { title: false })}</span>
-      <span class="hm" title="${esc(METRIC_TITLES.ocHitShare)}">OC hit % <strong>${oc}</strong></span>
-      <span class="hm" title="${esc(METRIC_TITLES.fcHitShare)}">FC hit % <strong>${fc}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.outputCacheHitShare)}">OC hit % <strong>${oc}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.dataCacheHitShare)}">DC hit % <strong>${fc}</strong></span>
       <span class="hm" title="${esc(METRIC_TITLES.factoryShare)}">FA run % <strong>${fac}</strong></span>
       <span class="hm" title="${esc(METRIC_TITLES.factoryFailures)}">FAFC ${fafc}</span>
       <span class="hm" title="${esc(METRIC_TITLES.avgFactoryDuration)}">FAD <strong>${fad}</strong></span>
-      <span class="hm" title="${esc(METRIC_TITLES.staleShare)}">FC stale % <strong>${stale}</strong></span>
+      <span class="hm" title="${esc(METRIC_TITLES.staleShare)}">DC stale % <strong>${stale}</strong></span>
       <span class="hm" title="${esc(METRIC_TITLES.estTimeSaved)}">EFTS <strong>${timeSaved}</strong></span>
       ${alerts}
     </div>

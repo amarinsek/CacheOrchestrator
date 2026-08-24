@@ -21,10 +21,10 @@ public class HintRuleCompilerTests
                   "when": {
                     "all": [
                       { "path": "domain.requests", "op": ">=", "value": 20 },
-                      { "path": "domain.fc.originShare", "op": ">=", "value": 0.25 }
+                      { "path": "domain.dataCache.originShare", "op": ">=", "value": 0.25 }
                     ]
                   },
-                  "message": "Origin {domain.fc.originShare:p1} on {domain.name}"
+                  "message": "Origin {domain.dataCache.originShare:p1} on {domain.name}"
                 }
               ]
             }
@@ -130,10 +130,10 @@ public class HintRuleCompilerTests
                   "when": {
                     "all": [
                       { "path": "domain.requests", "op": ">=", "value": 20 },
-                      { "path": "domain.fc.originShare", "op": ">=", "value": 0.25 }
+                      { "path": "domain.dataCache.originShare", "op": ">=", "value": 0.25 }
                     ]
                   },
-                  "message": "Origin {domain.fc.originShare:p0}"
+                  "message": "Origin {domain.dataCache.originShare:p0}"
                 }
               ]
             }
@@ -143,10 +143,10 @@ public class HintRuleCompilerTests
         compiled.Success.Should().BeTrue();
         IHintRule rule = compiled.Rules[0];
 
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 20, ocMisses: 30, ocBypass: 0,
-                fcHits: 15, fcMisses: 15, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 20, outputCacheMisses: 30, outputCacheBypass: 0,
+                dataCacheHits: 15, dataCacheMisses: 15, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 15, factoryFailures: 0);
 
         var ctx = new HintEvaluationContext
@@ -157,8 +157,8 @@ public class HintRuleCompilerTests
                 Name = "maps",
                 Version = "1",
                 Requests = 50,
-                Oc = oc,
-                Fc = fc,
+                OutputCache = outputCache,
+                DataCache = dataCache,
                 Pipeline = pipe
             }
         };
@@ -224,8 +224,8 @@ public class HintRuleCompilerTests
                 Name = "maps",
                 Version = "1",
                 Requests = 1,
-                Oc = new AdminLayerDto(),
-                Fc = new AdminFusionLayerDto(),
+                OutputCache = new AdminLayerDto(),
+                DataCache = new AdminDataCacheLayerDto(),
                 Pipeline = new AdminPipelineDto(),
             },
         };

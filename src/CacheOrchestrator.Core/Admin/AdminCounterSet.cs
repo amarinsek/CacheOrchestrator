@@ -5,17 +5,17 @@ namespace CacheOrchestrator.Admin;
 /// <summary>Mutable layer counters (Interlocked updates). Raw only — no derived rates.</summary>
 internal sealed class AdminCounterSet
 {
-    public long OcHits;
-    public long OcMisses;
-    public long OcBypass;
-    public long OcOff;
+    public long OutputCacheHits;
+    public long OutputCacheMisses;
+    public long OutputCacheBypass;
+    public long OutputCacheOff;
 
-    public long FcHits;
-    public long FcMisses;
-    public long FcStale;
-    public long FcBypass;
-    public long FcFactoryRuns;
-    public long FcFactoryFailures;
+    public long DataCacheHits;
+    public long DataCacheMisses;
+    public long DataCacheStale;
+    public long DataCacheBypass;
+    public long DataCacheFactoryRuns;
+    public long DataCacheFactoryFailures;
 
     /// <summary>Sum of factory-path Stopwatch ticks (miss/stale), when TrackLatency is on.</summary>
     public long FactorySumTicks;
@@ -45,16 +45,16 @@ internal sealed class AdminCounterSet
         long sizeCount = Interlocked.Read(ref FactoryResultSizeCount);
 
         return new AdminCounterSnapshot(
-            OcHits: Interlocked.Read(ref OcHits),
-            OcMisses: Interlocked.Read(ref OcMisses),
-            OcBypass: Interlocked.Read(ref OcBypass),
-            OcOff: Interlocked.Read(ref OcOff),
-            FcHits: Interlocked.Read(ref FcHits),
-            FcMisses: Interlocked.Read(ref FcMisses),
-            FcStale: Interlocked.Read(ref FcStale),
-            FcBypass: Interlocked.Read(ref FcBypass),
-            FactoryRuns: Interlocked.Read(ref FcFactoryRuns),
-            FactoryFailures: Interlocked.Read(ref FcFactoryFailures),
+            OutputCacheHits: Interlocked.Read(ref OutputCacheHits),
+            OutputCacheMisses: Interlocked.Read(ref OutputCacheMisses),
+            OutputCacheBypass: Interlocked.Read(ref OutputCacheBypass),
+            OutputCacheOff: Interlocked.Read(ref OutputCacheOff),
+            DataCacheHits: Interlocked.Read(ref DataCacheHits),
+            DataCacheMisses: Interlocked.Read(ref DataCacheMisses),
+            DataCacheStale: Interlocked.Read(ref DataCacheStale),
+            DataCacheBypass: Interlocked.Read(ref DataCacheBypass),
+            FactoryRuns: Interlocked.Read(ref DataCacheFactoryRuns),
+            FactoryFailures: Interlocked.Read(ref DataCacheFactoryFailures),
             FactoryDurationSumMs: sumMs,
             FactoryDurationCount: count,
             FactoryResultSizeSumBytes: sizeCount > 0 ? sizeSum : null,
@@ -66,14 +66,14 @@ internal sealed class AdminCounterSet
 
 /// <summary>Immutable counter snapshot for mapping to raw or v1 DTOs.</summary>
 internal readonly record struct AdminCounterSnapshot(
-    long OcHits,
-    long OcMisses,
-    long OcBypass,
-    long OcOff,
-    long FcHits,
-    long FcMisses,
-    long FcStale,
-    long FcBypass,
+    long OutputCacheHits,
+    long OutputCacheMisses,
+    long OutputCacheBypass,
+    long OutputCacheOff,
+    long DataCacheHits,
+    long DataCacheMisses,
+    long DataCacheStale,
+    long DataCacheBypass,
     long FactoryRuns,
     long FactoryFailures,
     double? FactoryDurationSumMs,

@@ -24,7 +24,7 @@ public static class DomainSettingCatalog
         new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Registers an additional attributed settings type (e.g. Fusion engine knobs) under a fixed id prefix.
+    /// Registers an additional attributed settings type under a fixed id prefix.
     /// Clears the catalog cache so subsequent reads include the section.
     /// </summary>
     public static void RegisterSection(Type settingsType, string idPrefix, string propertyPrefix)

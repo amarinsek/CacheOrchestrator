@@ -49,7 +49,7 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        // FusionDomainSettingsProvider (and similar) resolve IConfiguration from DI.
+        // Backend registrars and options monitors resolve IConfiguration from DI.
         // Host builders usually register it; bare ServiceCollection unit tests do not.
         services.TryAddSingleton(configuration);
 

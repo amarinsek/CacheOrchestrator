@@ -70,12 +70,12 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
         long? resultSizeBytes = null)
     {
         if (!string.IsNullOrEmpty(domain))
-            ApplyFusion(GetDomain(domain), result, elapsedTicks, resultSizeBytes);
+            ApplyDataCache(GetDomain(domain), result, elapsedTicks, resultSizeBytes);
 
         if (TrackEndpoints && !string.IsNullOrEmpty(endpointKey))
         {
             AdminCounterSet ep = GetEndpoint(endpointKey);
-            ApplyFusion(ep, result, elapsedTicks, resultSizeBytes);
+            ApplyDataCache(ep, result, elapsedTicks, resultSizeBytes);
             RememberEndpointDomain(endpointKey, domain);
         }
     }
@@ -149,23 +149,23 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
         switch (result)
         {
             case "hit":
-                Interlocked.Increment(ref set.OcHits);
+                Interlocked.Increment(ref set.OutputCacheHits);
                 break;
             case "miss":
-                Interlocked.Increment(ref set.OcMisses);
+                Interlocked.Increment(ref set.OutputCacheMisses);
                 break;
             case "bypass":
-                Interlocked.Increment(ref set.OcBypass);
+                Interlocked.Increment(ref set.OutputCacheBypass);
                 break;
             case "off":
-                Interlocked.Increment(ref set.OcOff);
+                Interlocked.Increment(ref set.OutputCacheOff);
                 break;
             default:
                 break;
         }
     }
 
-    private void ApplyFusion(
+    private void ApplyDataCache(
         AdminCounterSet set,
         string result,
         long? elapsedTicks,
@@ -174,29 +174,29 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
         switch (result)
         {
             case "hit":
-                Interlocked.Increment(ref set.FcHits);
+                Interlocked.Increment(ref set.DataCacheHits);
                 break;
             case "miss":
-                Interlocked.Increment(ref set.FcMisses);
-                Interlocked.Increment(ref set.FcFactoryRuns);
+                Interlocked.Increment(ref set.DataCacheMisses);
+                Interlocked.Increment(ref set.DataCacheFactoryRuns);
                 break;
             case "stale":
-                Interlocked.Increment(ref set.FcStale);
-                Interlocked.Increment(ref set.FcFactoryRuns);
-                Interlocked.Increment(ref set.FcFactoryFailures);
+                Interlocked.Increment(ref set.DataCacheStale);
+                Interlocked.Increment(ref set.DataCacheFactoryRuns);
+                Interlocked.Increment(ref set.DataCacheFactoryFailures);
                 break;
             case "fail":
                 // Hard factory throw (no fail-safe value returned). Factory still ran.
-                Interlocked.Increment(ref set.FcFactoryRuns);
-                Interlocked.Increment(ref set.FcFactoryFailures);
+                Interlocked.Increment(ref set.DataCacheFactoryRuns);
+                Interlocked.Increment(ref set.DataCacheFactoryFailures);
                 break;
             case "bypass":
-                Interlocked.Increment(ref set.FcBypass);
-                Interlocked.Increment(ref set.FcFactoryRuns);
+                Interlocked.Increment(ref set.DataCacheBypass);
+                Interlocked.Increment(ref set.DataCacheFactoryRuns);
                 break;
             case "off":
             case "unresolved":
-                Interlocked.Increment(ref set.FcFactoryRuns);
+                Interlocked.Increment(ref set.DataCacheFactoryRuns);
                 break;
             default:
                 break;
@@ -222,7 +222,7 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
         }
     }
 
-    /// <summary>Results where the value factory ran (including Fusion disabled / unresolved / bypass).</summary>
+    /// <summary>Results where the value factory ran (including data cache disabled / unresolved / bypass).</summary>
     internal static bool IsFactoryPathResult(string result) =>
         result is "miss" or "stale" or "fail" or "off" or "unresolved" or "bypass";
 
@@ -242,14 +242,14 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
             Version = string.Empty,
             LastInvalidationUtc = lastInv,
             Invalidations = c.Invalidations,
-            OcHits = c.OcHits,
-            OcMisses = c.OcMisses,
-            OcBypass = c.OcBypass,
-            OcOff = c.OcOff,
-            FcHits = c.FcHits,
-            FcMisses = c.FcMisses,
-            FcStale = c.FcStale,
-            FcBypass = c.FcBypass,
+            OutputCacheHits = c.OutputCacheHits,
+            OutputCacheMisses = c.OutputCacheMisses,
+            OutputCacheBypass = c.OutputCacheBypass,
+            OutputCacheOff = c.OutputCacheOff,
+            DataCacheHits = c.DataCacheHits,
+            DataCacheMisses = c.DataCacheMisses,
+            DataCacheStale = c.DataCacheStale,
+            DataCacheBypass = c.DataCacheBypass,
             FactoryRuns = c.FactoryRuns,
             FactoryFailures = c.FactoryFailures,
             FactoryDurationSumMs = c.FactoryDurationSumMs,
@@ -270,14 +270,14 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
             Route = route,
             InstanceId = instanceId,
             ConfiguredDomain = configuredDomain,
-            OcHits = c.OcHits,
-            OcMisses = c.OcMisses,
-            OcBypass = c.OcBypass,
-            OcOff = c.OcOff,
-            FcHits = c.FcHits,
-            FcMisses = c.FcMisses,
-            FcStale = c.FcStale,
-            FcBypass = c.FcBypass,
+            OutputCacheHits = c.OutputCacheHits,
+            OutputCacheMisses = c.OutputCacheMisses,
+            OutputCacheBypass = c.OutputCacheBypass,
+            OutputCacheOff = c.OutputCacheOff,
+            DataCacheHits = c.DataCacheHits,
+            DataCacheMisses = c.DataCacheMisses,
+            DataCacheStale = c.DataCacheStale,
+            DataCacheBypass = c.DataCacheBypass,
             FactoryRuns = c.FactoryRuns,
             FactoryFailures = c.FactoryFailures,
             FactoryDurationSumMs = c.FactoryDurationSumMs,

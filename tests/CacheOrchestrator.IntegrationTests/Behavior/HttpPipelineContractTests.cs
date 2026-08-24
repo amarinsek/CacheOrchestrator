@@ -62,7 +62,7 @@ public class HttpPipelineContractTests
             [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
             [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
         };
         extra?.Invoke(d);
         return d;

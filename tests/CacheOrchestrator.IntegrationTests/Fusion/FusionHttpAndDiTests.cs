@@ -41,8 +41,8 @@ public class FusionHttpAndDiTests
             [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
             [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
-            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:DataCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -135,7 +135,7 @@ public class FusionHttpAndDiTests
             b1.Should().Be("happy-payload");
             x1.Should().Contain($"domain={domain}");
             x1.Should().Contain("oc=miss");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
@@ -180,13 +180,13 @@ public class FusionHttpAndDiTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("from-meta");
             x1.Should().Contain("oc=off");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("from-meta");
-            x2.Should().Contain("fc=hit");
+            x2.Should().Contain("dc=hit");
             x2.Should().NotContain("fa=");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
         }
@@ -256,7 +256,7 @@ public class FusionHttpAndDiTests
                 ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
                 [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-                [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+                [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
             })
             .Build();
 
@@ -307,8 +307,8 @@ public class FusionHttpAndDiTests
             [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
             [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
-            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:DataCache:EagerRefreshRatio"] = "0",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(initial);
@@ -346,14 +346,14 @@ public class FusionHttpAndDiTests
         {
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("gen-1");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             x1.Should().Contain("fa=run");
             x1.Should().Contain("version=v1");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("gen-1");
-            x2.Should().Contain("fc=hit");
+            x2.Should().Contain("dc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             reloadSource.Provider.Should().NotBeNull();
@@ -362,14 +362,14 @@ public class FusionHttpAndDiTests
 
             (HttpResponseMessage r3, string x3, string b3) = await GetAsync(client, "/x");
             b3.Should().Be("gen-2");
-            x3.Should().Contain("fc=miss", "Version bump must change Fusion key space");
+            x3.Should().Contain("dc=miss", "Version bump must change Fusion key space");
             x3.Should().Contain("fa=run");
             x3.Should().Contain("version=v2");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
 
             (HttpResponseMessage r4, string x4, string b4) = await GetAsync(client, "/x");
             b4.Should().Be("gen-2");
-            x4.Should().Contain("fc=hit");
+            x4.Should().Contain("dc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
         }
         finally
@@ -402,7 +402,7 @@ public class FusionHttpAndDiTests
     }
 
     // =========================================================================
-    // B18 — Fail-safe stale over HTTP + X-Cache fc=stale
+    // B18 — Fail-safe stale over HTTP + X-Cache dc=stale
     // =========================================================================
 
     [Fact]
@@ -415,12 +415,12 @@ public class FusionHttpAndDiTests
         {
             d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
             d[$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:00:01";
-            d[$"Cache:Domains:{domain}:FusionCache:HardTtl"] = "01:00:00";
-            d[$"Cache:Domains:{domain}:FusionCache:FailSafe"] = "1.00:00:00";
-            d[$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00";
-            d[$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0";
-            d[$"Cache:Domains:{domain}:FusionCache:FactorySoftTimeout"] = "00:00:05";
-            d[$"Cache:Domains:{domain}:FusionCache:FactoryHardTimeout"] = "00:00:10";
+            d[$"Cache:Domains:{domain}:DataCache:HardTtl"] = "01:00:00";
+            d[$"Cache:Domains:{domain}:DataCache:FailSafe"] = "1.00:00:00";
+            d[$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00";
+            d[$"Cache:Domains:{domain}:DataCache:EagerRefreshRatio"] = "0";
+            d[$"Cache:Domains:{domain}:DataCache:FactorySoftTimeout"] = "00:00:05";
+            d[$"Cache:Domains:{domain}:DataCache:FactoryHardTimeout"] = "00:00:10";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
@@ -443,7 +443,7 @@ public class FusionHttpAndDiTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             r1.IsSuccessStatusCode.Should().BeTrue();
             b1.Should().Be("good");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             x1.Should().Contain("fa=run");
 
             await Task.Delay(TimeSpan.FromMilliseconds(1200), TestContext.Current.CancellationToken);
@@ -451,7 +451,7 @@ public class FusionHttpAndDiTests
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             r2.IsSuccessStatusCode.Should().BeTrue();
             b2.Should().Be("good", "fail-safe must return last good value");
-            x2.Should().Contain("fc=stale");
+            x2.Should().Contain("dc=stale");
             x2.Should().Contain("fa=run");
             Volatile.Read(ref phase[0]).Should().Be(2, "factory must re-run after soft expiry");
         }
@@ -477,9 +477,9 @@ public class FusionHttpAndDiTests
                 ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
                 [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-                [$"Cache:Domains:{domain}:FusionCache:VaryOnEncoding"] = "true",
-                [$"Cache:Domains:{domain}:FusionCache:VaryOnPublicAddress"] = "false",
-                [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+                [$"Cache:Domains:{domain}:DataCache:VaryOnEncoding"] = "true",
+                [$"Cache:Domains:{domain}:DataCache:VaryOnPublicAddress"] = "false",
+                [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
             })
             .Build();
 
@@ -561,13 +561,13 @@ public class FusionHttpAndDiTests
         {
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("n1");
-            x1.Should().Contain("fc=off");
+            x1.Should().Contain("dc=off");
             x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("n2");
-            x2.Should().Contain("fc=off");
+            x2.Should().Contain("dc=off");
             x2.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
         }

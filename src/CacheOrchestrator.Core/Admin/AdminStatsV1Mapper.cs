@@ -13,12 +13,12 @@ public static class AdminStatsV1Mapper
     {
         ArgumentNullException.ThrowIfNull(raw);
 
-        (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
+        (long requests, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipeline) =
             AdminStatsMath.BuildAll(
-                raw.OcHits, raw.OcMisses, raw.OcBypass,
-                raw.FcHits, raw.FcMisses, raw.FcStale, raw.FcBypass,
+                raw.OutputCacheHits, raw.OutputCacheMisses, raw.OutputCacheBypass,
+                raw.DataCacheHits, raw.DataCacheMisses, raw.DataCacheStale, raw.DataCacheBypass,
                 raw.FactoryRuns, raw.FactoryFailures,
-                raw.OcOff);
+                raw.OutputCacheOff);
 
         return new AdminDomainStatsDto
         {
@@ -30,8 +30,8 @@ public static class AdminStatsV1Mapper
             LastInvalidationUtc = raw.LastInvalidationUtc,
             Invalidations = raw.Invalidations,
             Requests = requests,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipeline,
             Endpoints = endpoints ?? []
         };
@@ -42,12 +42,12 @@ public static class AdminStatsV1Mapper
     {
         ArgumentNullException.ThrowIfNull(raw);
 
-        (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipeline) =
+        (long requests, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipeline) =
             AdminStatsMath.BuildAll(
-                raw.OcHits, raw.OcMisses, raw.OcBypass,
-                raw.FcHits, raw.FcMisses, raw.FcStale, raw.FcBypass,
+                raw.OutputCacheHits, raw.OutputCacheMisses, raw.OutputCacheBypass,
+                raw.DataCacheHits, raw.DataCacheMisses, raw.DataCacheStale, raw.DataCacheBypass,
                 raw.FactoryRuns, raw.FactoryFailures,
-                raw.OcOff);
+                raw.OutputCacheOff);
 
         return new AdminEndpointStatsDto
         {
@@ -55,8 +55,8 @@ public static class AdminStatsV1Mapper
             InstanceId = raw.InstanceId,
             ConfiguredDomain = raw.ConfiguredDomain,
             Requests = requests,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipeline
         };
     }
@@ -103,12 +103,12 @@ public static class AdminStatsV1Mapper
     /// <summary>Builds fat layer DTOs from a counter snapshot (collector / tests).</summary>
     internal static (
         long Requests,
-        AdminLayerDto Oc,
-        AdminFusionLayerDto Fc,
+        AdminLayerDto OutputCache,
+        AdminDataCacheLayerDto DataCache,
         AdminPipelineDto Pipeline) ToLayerStats(in AdminCounterSnapshot c) =>
         AdminStatsMath.BuildAll(
-            c.OcHits, c.OcMisses, c.OcBypass,
-            c.FcHits, c.FcMisses, c.FcStale, c.FcBypass,
+            c.OutputCacheHits, c.OutputCacheMisses, c.OutputCacheBypass,
+            c.DataCacheHits, c.DataCacheMisses, c.DataCacheStale, c.DataCacheBypass,
             c.FactoryRuns, c.FactoryFailures,
-            c.OcOff);
+            c.OutputCacheOff);
 }

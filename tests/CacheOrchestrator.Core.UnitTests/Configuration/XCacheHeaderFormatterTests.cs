@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 
 namespace CacheOrchestrator.Core.UnitTests.Configuration;
 
@@ -16,7 +16,7 @@ public class XCacheHeaderFormatterTests
             "v1",
             ClientCacheSchedulePhase.Calm);
 
-        header.Should().Be("domain=catalog; version=v1; client=public; phase=calm; oc=miss; fc=hit; ms=12");
+        header.Should().Be("domain=catalog; version=v1; client=public; phase=calm; oc=miss; dc=hit; ms=12");
         header.Should().NotContain("fa=");
     }
 
@@ -33,7 +33,7 @@ public class XCacheHeaderFormatterTests
             ClientCacheSchedulePhase.Approaching);
 
         header.Should().Be("domain=products; version=v2; client=private; phase=approaching; oc=hit");
-        header.Should().NotContain("fc=");
+        header.Should().NotContain("dc=");
         header.Should().NotContain("fa=");
         header.Should().NotContain("ms=");
     }
@@ -60,7 +60,7 @@ public class XCacheHeaderFormatterTests
         header.Should().Contain("phase=n/a");
         header.Should().Contain("version=1");
         header.Should().Contain("oc=bypass");
-        header.Should().NotContain("fc=");
+        header.Should().NotContain("dc=");
         header.Should().NotContain("fa=");
     }
 
@@ -76,7 +76,7 @@ public class XCacheHeaderFormatterTests
             "1");
 
         header.Should().Contain("oc=off");
-        header.Should().Contain("fc=off");
+        header.Should().Contain("dc=off");
         header.Should().Contain("fa=run");
         header.Should().Contain("ms=8");
     }
@@ -93,7 +93,7 @@ public class XCacheHeaderFormatterTests
             "1",
             ClientCacheSchedulePhase.NotApplicable);
 
-        header.Should().Contain("fc=unresolved");
+        header.Should().Contain("dc=unresolved");
         header.Should().Contain("fa=run");
     }
 
@@ -115,7 +115,7 @@ public class XCacheHeaderFormatterTests
             "1");
 
         header.Should().Contain("oc=miss");
-        header.Should().Contain($"fc={XCacheDataToken(data)}");
+        header.Should().Contain($"dc={XCacheDataToken(data)}");
         if (expectFa)
             header.Should().Contain("fa=run");
         else

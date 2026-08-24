@@ -23,7 +23,7 @@ public sealed class HintEvaluationContext
         new Dictionary<string, AdminDomainConfigDto>(StringComparer.Ordinal);
 
     /// <summary>
-    /// Resolves a dotted path used by declarative rules (e.g. <c>domain.fc.factoryShare</c>).
+    /// Resolves a dotted path used by declarative rules (e.g. <c>domain.dataCache.factoryShare</c>).
     /// Returns <see langword="null"/> when missing (comparisons treat null as not matching).
     /// </summary>
     public object? ResolvePath(string path)
@@ -79,8 +79,8 @@ public sealed class HintEvaluationContext
                 return !string.IsNullOrEmpty(domain.SchedulePhase)
                     && !string.Equals(domain.SchedulePhase, "n/a", StringComparison.OrdinalIgnoreCase);
             if (name.Equals("factoryFailureRate", StringComparison.OrdinalIgnoreCase))
-                return domain.Fc.FactoryRuns > 0
-                    ? (double)domain.Fc.FactoryFailures / domain.Fc.FactoryRuns
+                return domain.DataCache.FactoryRuns > 0
+                    ? (double)domain.DataCache.FactoryFailures / domain.DataCache.FactoryRuns
                     : null;
             if (name.Equals("invalidationShare", StringComparison.OrdinalIgnoreCase))
                 return domain.Requests > 0
@@ -91,8 +91,8 @@ public sealed class HintEvaluationContext
         if (target is AdminEndpointStatsDto ep)
         {
             if (name.Equals("factoryFailureRate", StringComparison.OrdinalIgnoreCase))
-                return ep.Fc.FactoryRuns > 0
-                    ? (double)ep.Fc.FactoryFailures / ep.Fc.FactoryRuns
+                return ep.DataCache.FactoryRuns > 0
+                    ? (double)ep.DataCache.FactoryFailures / ep.DataCache.FactoryRuns
                     : null;
         }
 
@@ -117,20 +117,21 @@ public sealed class HintEvaluationContext
             if (name.Equals("clientTtlCannotRamp", StringComparison.OrdinalIgnoreCase))
                 return config.ClientTtlSeconds > 0
                     && config.ClientTtlMinSeconds >= config.ClientTtlSeconds;
-            if (name.Equals("fusionHardLtSoft", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals("dataCacheHardLtSoft", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("fusionHardLtSoft", StringComparison.OrdinalIgnoreCase))
                 return config.HardTtlSeconds > 0
                     && config.DataCacheTtlSeconds > config.HardTtlSeconds;
         }
 
-        if (target is AdminFusionLayerDto fc)
+        if (target is AdminDataCacheLayerDto dataCache)
         {
             if (name.Equals("factoryFailureRate", StringComparison.OrdinalIgnoreCase))
-                return fc.FactoryRuns > 0 ? (double)fc.FactoryFailures / fc.FactoryRuns : null;
+                return dataCache.FactoryRuns > 0 ? (double)dataCache.FactoryFailures / dataCache.FactoryRuns : null;
         }
 
         if (target is AdminShareSpreadDto spread)
         {
-            // domain.instanceSpread.ocHitShare → nested; stdev via .stdev
+            // domain.instanceSpread.outputCacheHitShare → nested; stdev via .stdev
         }
 
         System.Reflection.PropertyInfo? prop = target.GetType()

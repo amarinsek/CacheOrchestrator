@@ -32,7 +32,7 @@ public sealed class DomainRuntimeOverride
     /// <summary>Override auth vary Authorization hash.</summary>
     public bool? AuthVaryIncludeAuthorizationHash { get; init; }
 
-    /// <summary>Override Fusion respects auth bypass.</summary>
+    /// <summary>Override data cache respects auth bypass.</summary>
     public bool? DataCacheRespectAuthBypass { get; init; }
 
     /// <summary>Override force-private-when-authenticated.</summary>
@@ -92,16 +92,16 @@ public sealed class DomainRuntimeOverride
     /// <summary>Override data cache TTL.</summary>
     public TimeSpan? DataCacheTtl { get; init; }
 
-    /// <summary>Override Fusion hard TTL.</summary>
+    /// <summary>Override data-cache hard TTL.</summary>
     public TimeSpan? HardTtl { get; init; }
 
-    /// <summary>Override Fusion fail-safe.</summary>
+    /// <summary>Override data-cache fail-safe.</summary>
     public TimeSpan? FailSafe { get; init; }
 
     /// <summary>Override eager refresh ratio.</summary>
     public double? EagerRefreshRatio { get; init; }
 
-    /// <summary>Override Fusion jitter.</summary>
+    /// <summary>Override data-cache jitter.</summary>
     public TimeSpan? Jitter { get; init; }
 
     /// <summary>Override factory soft timeout.</summary>
@@ -199,7 +199,7 @@ public sealed class DomainSettingsPatch
     /// <summary>Auth vary include Authorization hash.</summary>
     public bool? AuthVaryIncludeAuthorizationHash { get; init; }
 
-    /// <summary>Fusion respects auth bypass.</summary>
+    /// <summary>Data cache respects auth bypass.</summary>
     public bool? DataCacheRespectAuthBypass { get; init; }
 
     /// <summary>Force private when authenticated.</summary>
@@ -259,16 +259,16 @@ public sealed class DomainSettingsPatch
     /// <summary>Data cache TTL.</summary>
     public TimeSpan? DataCacheTtl { get; init; }
 
-    /// <summary>Fusion hard TTL.</summary>
+    /// <summary>Data-cache hard TTL.</summary>
     public TimeSpan? HardTtl { get; init; }
 
-    /// <summary>Fusion fail-safe.</summary>
+    /// <summary>Data-cache fail-safe.</summary>
     public TimeSpan? FailSafe { get; init; }
 
     /// <summary>Eager refresh ratio.</summary>
     public double? EagerRefreshRatio { get; init; }
 
-    /// <summary>Fusion jitter.</summary>
+    /// <summary>Data-cache jitter.</summary>
     public TimeSpan? Jitter { get; init; }
 
     /// <summary>Factory soft timeout.</summary>
@@ -394,13 +394,13 @@ public sealed class DomainTtlPatch
     /// <summary>Output Cache TTL seconds.</summary>
     public int? OutputCacheTtlSeconds { get; init; }
 
-    /// <summary>Data / Fusion soft TTL seconds.</summary>
+    /// <summary>Data-cache soft TTL seconds.</summary>
     public int? DataCacheTtlSeconds { get; init; }
 
-    /// <summary>Fusion hard TTL seconds.</summary>
+    /// <summary>Data-cache hard TTL seconds.</summary>
     public int? HardTtlSeconds { get; init; }
 
-    /// <summary>Fusion fail-safe seconds.</summary>
+    /// <summary>Data-cache fail-safe seconds.</summary>
     public int? FailSafeSeconds { get; init; }
 
     /// <summary>Client TTL seconds.</summary>

@@ -1,11 +1,7 @@
-using CacheOrchestrator.Admin;
-using CacheOrchestrator.Configuration;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.Orchestration;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.DependencyInjection;
 
@@ -15,31 +11,20 @@ namespace CacheOrchestrator.DependencyInjection;
 public static class CacheOrchestratorFusionCacheServiceExtensions
 {
     /// <summary>
-    /// Registers <see cref="FusionDataCacheProvider"/> as the default <see cref="IDataCacheProvider"/>
-    /// and Fusion domain settings resolution (<c>{configSection}:…:FusionCache</c> sections).
+    /// Registers <see cref="FusionDataCacheProvider"/> as the default <see cref="IDataCacheProvider"/>.
     /// Named FusionCache instances must still be registered by the host (e.g. via AspNetCore <c>AddCacheOrchestrator</c>).
+    /// Fusion-specific knobs bind from <c>DataCache</c> on each domain (see <c>DomainDataCacheSettings</c>).
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configSection">Root configuration section (default <c>Cache</c>).</param>
+    /// <param name="configSection">Root configuration section (default <c>Cache</c>); retained for call-site compatibility.</param>
     /// <returns>The same <paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddCacheOrchestratorFusionCache(
         this IServiceCollection services,
         string configSection = "Cache")
     {
         ArgumentNullException.ThrowIfNull(services);
+        _ = configSection;
 
-        DomainSettingCatalog.RegisterSection(
-            typeof(DomainFusionCacheSettings),
-            idPrefix: "fusionCache",
-            propertyPrefix: "FusionCache");
-
-        string section = string.IsNullOrWhiteSpace(configSection) ? "Cache" : configSection;
-        services.TryAddSingleton<IFusionDomainSettingsProvider>(sp =>
-            new FusionDomainSettingsProvider(
-                sp.GetRequiredService<IConfiguration>(),
-                sp.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>(),
-                sp.GetService<IDomainRuntimeOverrideStore>(),
-                section));
         services.TryAddSingleton<IDataCacheProvider, FusionDataCacheProvider>();
         return services;
     }

@@ -171,8 +171,8 @@ Still available for curl/scripts: process-lifetime counters projected into a fat
 Request denominator (same model as window rows):
 
 ```text
-requests = (ocHits+ocMisses+ocBypass) if > 0
-         else (fcHits+fcMisses+fcStale+fcBypass)
+requests = (outputCacheHits+outputCacheMisses+outputCacheBypass) if > 0
+         else (dataCacheHits+dataCacheMisses+dataCacheStale+dataCacheBypass)
 factoryShare = factoryRuns / requests
 ```
 
@@ -193,8 +193,8 @@ The miss path that runs your `GetOrSet` lambda / DB is the **factory**. Admin UI
 
 | Admin label | API / JSON field | Formula |
 |-------------|------------------|---------|
-| **OC hit share** | `oc.hitShare` / pipeline `ocHitShare` | `ocHits / requests` |
-| **FC hit share** | `fc.hitShare` / pipeline `fcHitShare` | `fcHits / requests` (fresh hits only) |
+| **OC hit share** | `oc.hitShare` / pipeline `outputCacheHitShare` | `outputCacheHits / requests` |
+| **FC hit share** | `fc.hitShare` / pipeline `dataCacheHitShare` | `dataCacheHits / requests` (fresh hits only) |
 | **FA run / Factory share** | `fc.factoryShare` (obsolete synonym: `originShare`) | `factoryRuns / requests` |
 | **FC stale %** (overlay) | `fc.staleShare` / pipeline `staleShare` | `stale / requests` (also included in FA run) |
 

@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using System.Diagnostics.Metrics;
 
@@ -18,7 +18,7 @@ public class CacheOrchestratorMetricsTests
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
             if (instrument.Meter.Name == CacheOrchestratorMetrics.MeterName &&
-                instrument.Name == "cache_orchestrator.fc.requests")
+                instrument.Name == "cache_orchestrator.dc.requests")
             {
                 meterListener.EnableMeasurementEvents(instrument);
             }
@@ -54,7 +54,7 @@ public class CacheOrchestratorMetricsTests
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
             if (instrument.Meter.Name == CacheOrchestratorMetrics.MeterName &&
-                instrument.Name == "cache_orchestrator.fc.duration")
+                instrument.Name == "cache_orchestrator.dc.duration")
             {
                 meterListener.EnableMeasurementEvents(instrument);
             }
@@ -89,7 +89,7 @@ public class CacheOrchestratorMetricsTests
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
             if (instrument.Meter.Name == CacheOrchestratorMetrics.MeterName &&
-                instrument.Name == "cache_orchestrator.fc.requests")
+                instrument.Name == "cache_orchestrator.dc.requests")
             {
                 meterListener.EnableMeasurementEvents(instrument);
             }

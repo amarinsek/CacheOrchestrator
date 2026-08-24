@@ -53,7 +53,7 @@ public class RedisMultiNodeTests
             [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
             [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
         };
 
     private static async Task<(HttpClient Client, WebApplication App, HitCounter Hits)> StartHostAsync(
@@ -155,7 +155,7 @@ public class RedisMultiNodeTests
                     ["Cache:Redis:Configuration"] = _redis.ConnectionString,
                     [$"Cache:Domains:{domain}:Version"] = "v1",
                     [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-                    [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+                    [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
                 })
                 .Build();
 
@@ -229,7 +229,7 @@ public class RedisMultiNodeTests
                     ["Cache:Redis:Configuration"] = _redis.ConnectionString,
                     [$"Cache:Domains:{domain}:Version"] = "v1",
                     [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-                    [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+                    [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
                 })
                 .Build();
 

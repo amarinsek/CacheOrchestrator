@@ -95,8 +95,8 @@ public class OutputCacheHttpLifecycleTests
             [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
             [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
-            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:DataCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -171,7 +171,7 @@ public class OutputCacheHttpLifecycleTests
         {
             d[$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:00:01";
             d[$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00";
-            d[$"Cache:Domains:{domain}:FusionCache:HardTtl"] = "01:00:00";
+            d[$"Cache:Domains:{domain}:DataCache:HardTtl"] = "01:00:00";
         });
 
         (HttpClient? client, WebApplication? app) = await StartAsync(config, a =>
@@ -194,7 +194,7 @@ public class OutputCacheHttpLifecycleTests
             r1.IsSuccessStatusCode.Should().BeTrue();
             b1.Should().Be("payload");
             x1.Should().Contain("oc=miss");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
@@ -211,7 +211,7 @@ public class OutputCacheHttpLifecycleTests
             r3.IsSuccessStatusCode.Should().BeTrue();
             b3.Should().Be("payload");
             x3.Should().Contain("oc=miss");
-            x3.Should().Contain("fc=hit");
+            x3.Should().Contain("dc=hit");
             x3.Should().NotContain("fa=");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1,

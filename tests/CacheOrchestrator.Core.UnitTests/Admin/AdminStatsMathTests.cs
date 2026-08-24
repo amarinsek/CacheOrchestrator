@@ -1,60 +1,60 @@
-﻿using CacheOrchestrator.Admin;
+using CacheOrchestrator.Admin;
 
 namespace CacheOrchestrator.Core.UnitTests.Admin;
 
 public class AdminStatsMathTests
 {
     [Fact]
-    public void OcHitDominates_FcMissShareIsSmallNotOne()
+    public void OutputCacheHitDominates_DataCacheMissShareIsSmallNotOne()
     {
-        (long requests, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (long requests, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 99, ocMisses: 1, ocBypass: 0,
-                fcHits: 0, fcMisses: 1, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 99, outputCacheMisses: 1, outputCacheBypass: 0,
+                dataCacheHits: 0, dataCacheMisses: 1, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 1, factoryFailures: 0);
 
         requests.Should().Be(100);
-        oc.HitShare.Should().BeApproximately(0.99, 0.0001);
-        fc.MissRate.Should().BeApproximately(1.0, 0.0001);
-        fc.MissShare.Should().BeApproximately(0.01, 0.0001);
-        fc.FactoryShare.Should().BeApproximately(0.01, 0.0001);
-        pipe.OcHitShare.Should().BeApproximately(0.99, 0.0001);
+        outputCache.HitShare.Should().BeApproximately(0.99, 0.0001);
+        dataCache.MissRate.Should().BeApproximately(1.0, 0.0001);
+        dataCache.MissShare.Should().BeApproximately(0.01, 0.0001);
+        dataCache.FactoryShare.Should().BeApproximately(0.01, 0.0001);
+        pipe.OutputCacheHitShare.Should().BeApproximately(0.99, 0.0001);
 
-        oc.LowRequestSample.Should().BeFalse();
-        fc.LowRequestSample.Should().BeFalse();
-        oc.LowSample.Should().BeFalse();
-        fc.LowSample.Should().BeTrue();
+        outputCache.LowRequestSample.Should().BeFalse();
+        dataCache.LowRequestSample.Should().BeFalse();
+        outputCache.LowSample.Should().BeFalse();
+        dataCache.LowSample.Should().BeTrue();
     }
 
     [Fact]
     public void FewRequests_LowRequestSampleOnShares()
     {
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, _) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, _) =
             AdminStatsMath.BuildAll(
-                ocHits: 5, ocMisses: 2, ocBypass: 0,
-                fcHits: 1, fcMisses: 1, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 5, outputCacheMisses: 2, outputCacheBypass: 0,
+                dataCacheHits: 1, dataCacheMisses: 1, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 1, factoryFailures: 0);
 
-        oc.LowRequestSample.Should().BeTrue();
-        fc.LowRequestSample.Should().BeTrue();
-        oc.LowSample.Should().BeTrue();
-        fc.LowSample.Should().BeTrue();
+        outputCache.LowRequestSample.Should().BeTrue();
+        dataCache.LowRequestSample.Should().BeTrue();
+        outputCache.LowSample.Should().BeTrue();
+        dataCache.LowSample.Should().BeTrue();
     }
 
     [Fact]
     public void Pipeline_stale_is_overlay_inside_factory_share()
     {
-        (_, _, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, _, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 80, ocMisses: 20, ocBypass: 0,
-                fcHits: 10, fcMisses: 5, fcStale: 5, fcBypass: 0,
+                outputCacheHits: 80, outputCacheMisses: 20, outputCacheBypass: 0,
+                dataCacheHits: 10, dataCacheMisses: 5, dataCacheStale: 5, dataCacheBypass: 0,
                 factoryRuns: 10, factoryFailures: 5);
 
-        fc.StaleShare.Should().BeApproximately(0.05, 0.0001);
+        dataCache.StaleShare.Should().BeApproximately(0.05, 0.0001);
         pipe.StaleShare.Should().BeApproximately(0.05, 0.0001);
         pipe.FactoryShare.Should().BeApproximately(0.10, 0.0001);
-        pipe.OcHitShare.Should().BeApproximately(0.80, 0.0001);
-        pipe.FcHitShare.Should().BeApproximately(0.10, 0.0001);
+        pipe.OutputCacheHitShare.Should().BeApproximately(0.80, 0.0001);
+        pipe.DataCacheHitShare.Should().BeApproximately(0.10, 0.0001);
         // Exclusive: 80 OC hit + 10 FC hit + 10 FA run = 100
         (pipe.OtherShare ?? 0).Should().BeApproximately(0, 0.0001);
     }
@@ -62,18 +62,18 @@ public class AdminStatsMathTests
     [Fact]
     public void BothLayersOff_WithFactoryRuns_IsAllFaRun()
     {
-        (long requests, AdminLayerDto oc, _, AdminPipelineDto pipe) =
+        (long requests, AdminLayerDto outputCache, _, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 0, ocMisses: 0, ocBypass: 0,
-                fcHits: 0, fcMisses: 0, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 0, outputCacheMisses: 0, outputCacheBypass: 0,
+                dataCacheHits: 0, dataCacheMisses: 0, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 50, factoryFailures: 0,
-                ocOff: 50);
+                outputCacheOff: 50);
 
         requests.Should().Be(50);
-        oc.Off.Should().Be(50);
-        oc.OffShare.Should().BeApproximately(1.0, 0.0001);
-        pipe.OcHitShare.Should().BeApproximately(0, 0.0001);
-        pipe.FcHitShare.Should().BeApproximately(0, 0.0001);
+        outputCache.Off.Should().Be(50);
+        outputCache.OffShare.Should().BeApproximately(1.0, 0.0001);
+        pipe.OutputCacheHitShare.Should().BeApproximately(0, 0.0001);
+        pipe.DataCacheHitShare.Should().BeApproximately(0, 0.0001);
         pipe.FactoryShare.Should().BeApproximately(1.0, 0.0001);
         (pipe.OtherShare ?? 0).Should().BeApproximately(0, 0.0001);
     }
@@ -83,8 +83,8 @@ public class AdminStatsMathTests
     {
         (long requests, _, _, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 0, ocMisses: 0, ocBypass: 100,
-                fcHits: 0, fcMisses: 0, fcStale: 0, fcBypass: 100,
+                outputCacheHits: 0, outputCacheMisses: 0, outputCacheBypass: 100,
+                dataCacheHits: 0, dataCacheMisses: 0, dataCacheStale: 0, dataCacheBypass: 100,
                 factoryRuns: 100, factoryFailures: 0);
 
         requests.Should().Be(100);
@@ -98,8 +98,8 @@ public class AdminStatsMathTests
     {
         (long requests, _, _, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 0, ocMisses: 0, ocBypass: 0,
-                fcHits: 0, fcMisses: 0, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 0, outputCacheMisses: 0, outputCacheBypass: 0,
+                dataCacheHits: 0, dataCacheMisses: 0, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 25, factoryFailures: 0);
 
         requests.Should().Be(25);

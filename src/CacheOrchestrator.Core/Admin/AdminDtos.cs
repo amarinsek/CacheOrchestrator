@@ -50,8 +50,8 @@ public sealed class AdminLayerDto
     public bool LowRequestSample { get; init; }
 }
 
-/// <summary>Data-cache layer counters with layer rates and request shares (wire <c>fc</c>).</summary>
-public sealed class AdminFusionLayerDto
+/// <summary>Data-cache layer counters with layer rates and request shares (wire <c>dc</c>).</summary>
+public sealed class AdminDataCacheLayerDto
 {
     /// <summary>Cache hits.</summary>
     public long Hits { get; init; }
@@ -141,10 +141,10 @@ public sealed class AdminFusionLayerDto
 public sealed class AdminPipelineDto
 {
     /// <summary>Served entirely from Output Cache.</summary>
-    public double? OcHitShare { get; init; }
+    public double? OutputCacheHitShare { get; init; }
 
     /// <summary>Served from data cache without factory (fresh hit).</summary>
-    public double? FcHitShare { get; init; }
+    public double? DataCacheHitShare { get; init; }
 
     /// <summary>
     /// Fail-safe stale serve share of requests (<c>stale / requests</c>).
@@ -248,13 +248,13 @@ public sealed class AdminShareSpreadDto
 public sealed class AdminInstanceSpreadDto
 {
     /// <summary>OC hit share across instances.</summary>
-    public AdminShareSpreadDto? OcHitShare { get; init; }
+    public AdminShareSpreadDto? OutputCacheHitShare { get; init; }
 
     /// <summary>FC hit share across instances.</summary>
-    public AdminShareSpreadDto? FcHitShare { get; init; }
+    public AdminShareSpreadDto? DataCacheHitShare { get; init; }
 
     /// <summary>FC miss share across instances.</summary>
-    public AdminShareSpreadDto? FcMissShare { get; init; }
+    public AdminShareSpreadDto? DataCacheMissShare { get; init; }
 
     private AdminShareSpreadDto? _factoryShare;
 
@@ -277,10 +277,10 @@ public sealed class AdminInstanceSpreadDto
     }
 
     /// <summary>OC layer hit rate across instances.</summary>
-    public AdminShareSpreadDto? OcHitRate { get; init; }
+    public AdminShareSpreadDto? OutputCacheHitRate { get; init; }
 
     /// <summary>FC layer hit rate across instances.</summary>
-    public AdminShareSpreadDto? FcHitRate { get; init; }
+    public AdminShareSpreadDto? DataCacheHitRate { get; init; }
 }
 
 /// <summary>Full live stats payload from one instance.</summary>
@@ -338,10 +338,10 @@ public sealed class AdminDomainStatsDto
     public double? PeakRequestRate { get; init; }
 
     /// <summary>Output Cache counters + rates/shares.</summary>
-    public required AdminLayerDto Oc { get; init; }
+    public required AdminLayerDto OutputCache { get; init; }
 
-    /// <summary>Data-cache counters + rates/shares (wire <c>fc</c>).</summary>
-    public required AdminFusionLayerDto Fc { get; init; }
+    /// <summary>Data-cache counters + rates/shares (wire <c>dc</c>).</summary>
+    public required AdminDataCacheLayerDto DataCache { get; init; }
 
     /// <summary>Pipeline shares of requests.</summary>
     public AdminPipelineDto Pipeline { get; init; } = new();
@@ -387,10 +387,10 @@ public sealed class AdminEndpointStatsDto
     public double? PeakRequestRate { get; init; }
 
     /// <summary>Output Cache layer.</summary>
-    public required AdminLayerDto Oc { get; init; }
+    public required AdminLayerDto OutputCache { get; init; }
 
-    /// <summary>Data-cache layer (wire <c>fc</c>).</summary>
-    public required AdminFusionLayerDto Fc { get; init; }
+    /// <summary>Data-cache layer (wire <c>dc</c>).</summary>
+    public required AdminDataCacheLayerDto DataCache { get; init; }
 
     /// <summary>Pipeline shares.</summary>
     public AdminPipelineDto Pipeline { get; init; } = new();

@@ -36,13 +36,13 @@ This playground can write `appsettings.json` from the browser. That is for this 
   - **approaching** — `max-age` falls toward the floor
   - **hold** — the scheduled time has passed; `max-age` stays at the floor
 - **Disable browser HTTP cache** (header, default on) — bypass browser cache only; uncheck to demo BROWSER-CACHE.
-- **Badges** on a response (from `X-Cache` `oc=` / `fc=` / `fa=`):
+- **Badges** on a response (from `X-Cache` `oc=` / `dc=` / `fa=`):
   - **BROWSER-CACHE** — client cache served the response (only when **Disable browser HTTP cache** is off)
-  - **OC-HIT** — Output Cache served the HTTP response (`oc=hit`; `fc`/`fa` omitted)
-  - **OC-MISS FC-HIT** — handler ran; FusionCache had the object (`fc=hit`, no `fa`)
-  - **OC-MISS FC-STALE FACTORY** — fail-safe stale from Fusion (`fc=stale; fa=run`)
-  - **OC-MISS FC-MISS FACTORY** — both layers missed; Fusion factory ran (`fc=miss; fa=run`)
-  - **OC-OFF** / **FC-OFF** — that layer is disabled for the domain. **FACTORY** still appears whenever `fc` is present and is not `hit` (`fa=run`)
+  - **OC-HIT** — Output Cache served the HTTP response (`oc=hit`; `dc`/`fa` omitted)
+  - **OC-MISS FC-HIT** — handler ran; FusionCache had the object (`dc=hit`, no `fa`)
+  - **OC-MISS FC-STALE FACTORY** — fail-safe stale from Fusion (`dc=stale; fa=run`)
+  - **OC-MISS FC-MISS FACTORY** — both layers missed; Fusion factory ran (`dc=miss; fa=run`)
+  - **OC-OFF** / **FC-OFF** — that layer is disabled for the domain. **FACTORY** still appears whenever `dc` is present and is not `hit` (`fa=run`)
 - **Extra query params** (optional): e.g. `page=2` usually creates a **different** cache key. Tracking params such as `utm_source=demo` are omitted from keys (same entry as without them) — see [cache-keys.md](../../docs/cache-keys.md).
 
 ## CRUD (entity invalidation)

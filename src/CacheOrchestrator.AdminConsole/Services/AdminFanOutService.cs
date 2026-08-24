@@ -114,7 +114,7 @@ public sealed class AdminFanOutService
             TotalRequests = 0,
             TotalInvalidations = 0,
             Pipeline = new AdminPipelineDto(),
-            OcHitShare = null,
+            OutputCacheHitShare = null,
             FactoryShare = null,
             Alerts = alerts,
             TopDomains = [],

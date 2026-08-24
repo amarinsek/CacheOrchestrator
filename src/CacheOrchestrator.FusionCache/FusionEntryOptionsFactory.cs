@@ -4,28 +4,27 @@ using ZiggyCreatures.Caching.Fusion;
 namespace CacheOrchestrator.FusionCache;
 
 /// <summary>
-/// Builds <see cref="FusionCacheEntryOptions"/> from domain options + Fusion engine settings.
+/// Builds <see cref="FusionCacheEntryOptions"/> from resolved <see cref="DomainCacheOptions"/>.
 /// </summary>
 internal static class FusionEntryOptionsFactory
 {
     /// <summary>
-    /// Creates Fusion entry options. Data TTL comes from <paramref name="opts"/>;
-    /// hard TTL / fail-safe / jitter / factory timeouts come from <paramref name="fusion"/>.
+    /// Creates Fusion entry options from data-cache fields on <paramref name="opts"/>.
+    /// Unsupported Hybrid-only consumers ignore these via their own provider.
     /// </summary>
-    public static FusionCacheEntryOptions Create(DomainCacheOptions opts, DomainFusionCacheSettings fusion)
+    public static FusionCacheEntryOptions Create(DomainCacheOptions opts)
     {
         ArgumentNullException.ThrowIfNull(opts);
-        ArgumentNullException.ThrowIfNull(fusion);
 
-        TimeSpan hardTtl = fusion.HardTtl ?? TimeSpan.Zero;
-        TimeSpan failSafe = fusion.FailSafe ?? TimeSpan.Zero;
-        TimeSpan jitter = fusion.Jitter ?? TimeSpan.Zero;
-        TimeSpan factorySoftTimeout = fusion.FactorySoftTimeout ?? TimeSpan.Zero;
-        TimeSpan factoryHardTimeout = fusion.FactoryHardTimeout ?? TimeSpan.Zero;
-        double eagerRefresh = fusion.EagerRefreshRatio ?? 0;
-        int maxItemBytes = fusion.MaxItemBytes ?? 0;
-        bool allowBackgroundDistributed = fusion.AllowBackgroundDistributed ?? true;
-        bool allowBackgroundBackplane = fusion.AllowBackgroundBackplane ?? true;
+        TimeSpan hardTtl = opts.DataCacheHardTtl;
+        TimeSpan failSafe = opts.DataCacheFailSafe;
+        TimeSpan jitter = opts.DataCacheJitter;
+        TimeSpan factorySoftTimeout = opts.DataCacheFactorySoftTimeout;
+        TimeSpan factoryHardTimeout = opts.DataCacheFactoryHardTimeout;
+        double eagerRefresh = opts.DataCacheEagerRefreshRatio;
+        int maxItemBytes = opts.DataCacheMaxItemBytes;
+        bool allowBackgroundDistributed = opts.DataCacheAllowBackgroundDistributed;
+        bool allowBackgroundBackplane = opts.DataCacheAllowBackgroundBackplane;
 
         // Soft/data duration; cap by hard TTL when hard is shorter (defensive).
         TimeSpan duration = opts.DataCacheTtl;

@@ -150,6 +150,17 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
         TimeSpan clientTtlMin = overlay?.ClientTtlMin
             ?? Pick(dom.ClientCache?.TtlMin, defaults.ClientCache?.TtlMin, TimeSpan.FromSeconds(60));
 
+        TimeSpan dataCacheHardTtl = overlay?.HardTtl
+            ?? Pick(dom.DataCache?.HardTtl, defaults.DataCache?.HardTtl, TimeSpan.FromSeconds(43200));
+        TimeSpan dataCacheFailSafe = overlay?.FailSafe
+            ?? Pick(dom.DataCache?.FailSafe, defaults.DataCache?.FailSafe, TimeSpan.FromSeconds(86400));
+        TimeSpan dataCacheJitter = overlay?.Jitter
+            ?? Pick(dom.DataCache?.Jitter, defaults.DataCache?.Jitter, TimeSpan.FromSeconds(60));
+        TimeSpan dataCacheFactorySoft = overlay?.FactorySoftTimeout
+            ?? Pick(dom.DataCache?.FactorySoftTimeout, defaults.DataCache?.FactorySoftTimeout, TimeSpan.FromSeconds(1));
+        TimeSpan dataCacheFactoryHard = overlay?.FactoryHardTimeout
+            ?? Pick(dom.DataCache?.FactoryHardTimeout, defaults.DataCache?.FactoryHardTimeout, TimeSpan.FromSeconds(5));
+
         AuthBypassMode authBypassMode = ResolveAuthBypassMode(overlay, dom, defaults);
 
         string[]? acceptNormalization = overlay?.AcceptNormalizationList
@@ -232,6 +243,19 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
 
             OutputTtl = outputTtl < TimeSpan.Zero ? TimeSpan.Zero : outputTtl,
             DataCacheTtl = dataCacheTtl,
+            DataCacheHardTtl = dataCacheHardTtl < TimeSpan.Zero ? TimeSpan.Zero : dataCacheHardTtl,
+            DataCacheFailSafe = dataCacheFailSafe < TimeSpan.Zero ? TimeSpan.Zero : dataCacheFailSafe,
+            DataCacheEagerRefreshRatio = overlay?.EagerRefreshRatio
+                ?? Pick(dom.DataCache?.EagerRefreshRatio, defaults.DataCache?.EagerRefreshRatio, 0.9),
+            DataCacheJitter = dataCacheJitter < TimeSpan.Zero ? TimeSpan.Zero : dataCacheJitter,
+            DataCacheFactorySoftTimeout = dataCacheFactorySoft < TimeSpan.Zero ? TimeSpan.Zero : dataCacheFactorySoft,
+            DataCacheFactoryHardTimeout = dataCacheFactoryHard < TimeSpan.Zero ? TimeSpan.Zero : dataCacheFactoryHard,
+            DataCacheMaxItemBytes = overlay?.MaxItemBytes
+                ?? Pick(dom.DataCache?.MaxItemBytes, defaults.DataCache?.MaxItemBytes, 0),
+            DataCacheAllowBackgroundDistributed = overlay?.AllowBackgroundDistributed
+                ?? Pick(dom.DataCache?.AllowBackgroundDistributed, defaults.DataCache?.AllowBackgroundDistributed, true),
+            DataCacheAllowBackgroundBackplane = overlay?.AllowBackgroundBackplane
+                ?? Pick(dom.DataCache?.AllowBackgroundBackplane, defaults.DataCache?.AllowBackgroundBackplane, true),
 
             OutputCacheNamespace = options.OutputNamespace,
             DataCacheNamespace = options.DataCacheInstances.TryGetValue(instanceName, out CacheOrchestratorOptions.DataCacheInstanceOptions? inst)

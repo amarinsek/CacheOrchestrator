@@ -1,6 +1,5 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
-using CacheOrchestrator.FusionCache;
 using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.Admin;
@@ -15,7 +14,6 @@ internal sealed class AdminQueryService
     private readonly IAdminEndpointCatalog _endpoints;
     private readonly IDomainCacheOptionsProvider _domainOptions;
     private readonly IDomainRuntimeOverrideStore _overrides;
-    private readonly IFusionDomainSettingsProvider _fusionDomainSettings;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly TimeProvider _time;
     private readonly ICacheOrchestratorHealthProbe[] _probes;
@@ -25,7 +23,6 @@ internal sealed class AdminQueryService
         IAdminEndpointCatalog endpoints,
         IDomainCacheOptionsProvider domainOptions,
         IDomainRuntimeOverrideStore overrides,
-        IFusionDomainSettingsProvider fusionDomainSettings,
         IOptionsMonitor<CacheOrchestratorOptions> options,
         TimeProvider? timeProvider = null,
         IEnumerable<ICacheOrchestratorHealthProbe>? probes = null)
@@ -34,14 +31,12 @@ internal sealed class AdminQueryService
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(domainOptions);
         ArgumentNullException.ThrowIfNull(overrides);
-        ArgumentNullException.ThrowIfNull(fusionDomainSettings);
         ArgumentNullException.ThrowIfNull(options);
 
         _stats = stats;
         _endpoints = endpoints;
         _domainOptions = domainOptions;
         _overrides = overrides;
-        _fusionDomainSettings = fusionDomainSettings;
         _options = options;
         _time = timeProvider ?? TimeProvider.System;
         _probes = probes is null ? [] : [.. probes];
@@ -248,9 +243,6 @@ internal sealed class AdminQueryService
     {
         DomainCacheOptions opts = _domainOptions.GetOrCreateDomainOptions(normalizedDomain);
         DomainRuntimeOverride? ov = _overrides.Get(normalizedDomain);
-        DomainFusionCacheSettings fusion = _fusionDomainSettings.Get(normalizedDomain);
-        TimeSpan hardTtl = fusion.HardTtl ?? TimeSpan.Zero;
-        TimeSpan failSafe = fusion.FailSafe ?? TimeSpan.Zero;
 
         return new AdminDomainConfigDto
         {
@@ -262,8 +254,8 @@ internal sealed class AdminQueryService
             DataCacheInstanceName = opts.DataCacheInstanceName,
             OutputCacheTtlSeconds = (int)opts.OutputTtl.TotalSeconds,
             DataCacheTtlSeconds = (int)opts.DataCacheTtl.TotalSeconds,
-            HardTtlSeconds = (int)hardTtl.TotalSeconds,
-            FailSafeSeconds = (int)failSafe.TotalSeconds,
+            HardTtlSeconds = (int)opts.DataCacheHardTtl.TotalSeconds,
+            FailSafeSeconds = (int)opts.DataCacheFailSafe.TotalSeconds,
             ClientTtlSeconds = opts.ClientTtlSeconds,
             ClientTtlMinSeconds = opts.ClientTtlMinSeconds,
             ScheduledUpdateUtc = opts.ScheduledUpdateUtc,
@@ -291,14 +283,14 @@ internal sealed class AdminQueryService
         AdminDomainCountersDto? counters,
         List<AdminEndpointCountersDto> epList)
     {
-        long ocH = counters?.OcHits ?? 0;
-        long ocM = counters?.OcMisses ?? 0;
-        long ocB = counters?.OcBypass ?? 0;
-        long ocOff = counters?.OcOff ?? 0;
-        long fcH = counters?.FcHits ?? 0;
-        long fcM = counters?.FcMisses ?? 0;
-        long fcS = counters?.FcStale ?? 0;
-        long fcB = counters?.FcBypass ?? 0;
+        long ocH = counters?.OutputCacheHits ?? 0;
+        long ocM = counters?.OutputCacheMisses ?? 0;
+        long ocB = counters?.OutputCacheBypass ?? 0;
+        long outputCacheOff = counters?.OutputCacheOff ?? 0;
+        long fcH = counters?.DataCacheHits ?? 0;
+        long fcM = counters?.DataCacheMisses ?? 0;
+        long fcS = counters?.DataCacheStale ?? 0;
+        long fcB = counters?.DataCacheBypass ?? 0;
         long runs = counters?.FactoryRuns ?? 0;
         long fails = counters?.FactoryFailures ?? 0;
         double? durationSum = counters?.FactoryDurationSumMs;
@@ -306,12 +298,12 @@ internal sealed class AdminQueryService
         long? sizeSum = counters?.FactoryResultSizeSumBytes;
         long sizeCount = counters?.FactoryResultSizeCount ?? 0;
 
-        long domainRequests = AdminStatsMath.Requests(ocH, ocM, ocB, fcH, fcM, fcS, fcB, ocOff, runs);
+        long domainRequests = AdminStatsMath.Requests(ocH, ocM, ocB, fcH, fcM, fcS, fcB, outputCacheOff, runs);
 
         // If domain counters empty but endpoints have traffic, rebuild from endpoint sums.
         if (domainRequests == 0 && epList.Count > 0)
         {
-            ocH = ocM = ocB = ocOff = fcH = fcM = fcS = fcB = runs = fails = 0;
+            ocH = ocM = ocB = outputCacheOff = fcH = fcM = fcS = fcB = runs = fails = 0;
             durationSum = null;
             durationCount = 0;
             sizeSum = null;
@@ -322,14 +314,14 @@ internal sealed class AdminQueryService
             long sumSizeCount = 0;
             foreach (AdminEndpointCountersDto e in epList)
             {
-                ocH += e.OcHits;
-                ocM += e.OcMisses;
-                ocB += e.OcBypass;
-                ocOff += e.OcOff;
-                fcH += e.FcHits;
-                fcM += e.FcMisses;
-                fcS += e.FcStale;
-                fcB += e.FcBypass;
+                ocH += e.OutputCacheHits;
+                ocM += e.OutputCacheMisses;
+                ocB += e.OutputCacheBypass;
+                outputCacheOff += e.OutputCacheOff;
+                fcH += e.DataCacheHits;
+                fcM += e.DataCacheMisses;
+                fcS += e.DataCacheStale;
+                fcB += e.DataCacheBypass;
                 runs += e.FactoryRuns;
                 fails += e.FactoryFailures;
                 if (e.FactoryDurationCount > 0 && e.FactoryDurationSumMs is double ms)
@@ -367,14 +359,14 @@ internal sealed class AdminQueryService
             SchedulePhase = ResolveSchedulePhase(opts),
             LastInvalidationUtc = counters?.LastInvalidationUtc,
             Invalidations = counters?.Invalidations ?? 0,
-            OcHits = ocH,
-            OcMisses = ocM,
-            OcBypass = ocB,
-            OcOff = ocOff,
-            FcHits = fcH,
-            FcMisses = fcM,
-            FcStale = fcS,
-            FcBypass = fcB,
+            OutputCacheHits = ocH,
+            OutputCacheMisses = ocM,
+            OutputCacheBypass = ocB,
+            OutputCacheOff = outputCacheOff,
+            DataCacheHits = fcH,
+            DataCacheMisses = fcM,
+            DataCacheStale = fcS,
+            DataCacheBypass = fcB,
             FactoryRuns = runs,
             FactoryFailures = fails,
             FactoryDurationSumMs = durationSum,
@@ -404,14 +396,14 @@ internal sealed class AdminQueryService
             Route = ep.Route,
             InstanceId = instanceId,
             ConfiguredDomain = domain,
-            OcHits = ep.OcHits,
-            OcMisses = ep.OcMisses,
-            OcBypass = ep.OcBypass,
-            OcOff = ep.OcOff,
-            FcHits = ep.FcHits,
-            FcMisses = ep.FcMisses,
-            FcStale = ep.FcStale,
-            FcBypass = ep.FcBypass,
+            OutputCacheHits = ep.OutputCacheHits,
+            OutputCacheMisses = ep.OutputCacheMisses,
+            OutputCacheBypass = ep.OutputCacheBypass,
+            OutputCacheOff = ep.OutputCacheOff,
+            DataCacheHits = ep.DataCacheHits,
+            DataCacheMisses = ep.DataCacheMisses,
+            DataCacheStale = ep.DataCacheStale,
+            DataCacheBypass = ep.DataCacheBypass,
             FactoryRuns = ep.FactoryRuns,
             FactoryFailures = ep.FactoryFailures,
             FactoryDurationSumMs = ep.FactoryDurationSumMs,
@@ -430,13 +422,13 @@ internal sealed class AdminQueryService
 
     private static long RequestDenominator(AdminDomainCountersDto d) =>
         AdminStatsMath.Requests(
-            d.OcHits, d.OcMisses, d.OcBypass,
-            d.FcHits, d.FcMisses, d.FcStale, d.FcBypass,
-            d.OcOff, d.FactoryRuns);
+            d.OutputCacheHits, d.OutputCacheMisses, d.OutputCacheBypass,
+            d.DataCacheHits, d.DataCacheMisses, d.DataCacheStale, d.DataCacheBypass,
+            d.OutputCacheOff, d.FactoryRuns);
 
     private static long RequestDenominator(AdminEndpointCountersDto e) =>
         AdminStatsMath.Requests(
-            e.OcHits, e.OcMisses, e.OcBypass,
-            e.FcHits, e.FcMisses, e.FcStale, e.FcBypass,
-            e.OcOff, e.FactoryRuns);
+            e.OutputCacheHits, e.OutputCacheMisses, e.OutputCacheBypass,
+            e.DataCacheHits, e.DataCacheMisses, e.DataCacheStale, e.DataCacheBypass,
+            e.OutputCacheOff, e.FactoryRuns);
 }

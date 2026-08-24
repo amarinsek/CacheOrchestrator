@@ -105,7 +105,7 @@ public class ClusterBusMultiHostTests
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
             [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
             [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
@@ -261,7 +261,7 @@ public class ClusterBusMultiHostTests
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:01:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:02:00",
-            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
         };
 
         async Task<ClusterHost> Build(string instanceId, int port)

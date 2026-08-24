@@ -198,9 +198,9 @@ public sealed class MetricsWindowStatsService
                     {
                         spread = new AdminInstanceSpreadDto
                         {
-                            OcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Oc.HitShare)),
-                            FcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.HitShare)),
-                            FactoryShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.FactoryShare)),
+                            OutputCacheHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.OutputCache.HitShare)),
+                            DataCacheHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.DataCache.HitShare)),
+                            FactoryShare = AdminStatsMath.Spread(byInstance.Select(x => x.DataCache.FactoryShare)),
                         };
                     }
                 }
@@ -239,9 +239,9 @@ public sealed class MetricsWindowStatsService
                     {
                         spread = new AdminInstanceSpreadDto
                         {
-                            OcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Oc.HitShare)),
-                            FcHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.HitShare)),
-                            FactoryShare = AdminStatsMath.Spread(byInstance.Select(x => x.Fc.FactoryShare)),
+                            OutputCacheHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.OutputCache.HitShare)),
+                            DataCacheHitShare = AdminStatsMath.Spread(byInstance.Select(x => x.DataCache.HitShare)),
+                            FactoryShare = AdminStatsMath.Spread(byInstance.Select(x => x.DataCache.FactoryShare)),
                         };
                     }
                 }
@@ -260,8 +260,8 @@ public sealed class MetricsWindowStatsService
                 ConfiguredDomain = ep.ConfiguredDomain,
                 Requests = ep.Requests,
                 PeakRequestRate = peakByRoute.TryGetValue(ep.Route, out double pr) ? pr : null,
-                Oc = ep.Oc,
-                Fc = ep.Fc,
+                OutputCache = ep.OutputCache,
+                DataCache = ep.DataCache,
                 Pipeline = ep.Pipeline,
                 ByInstance = ep.ByInstance,
                 InstanceSpread = ep.InstanceSpread,
@@ -299,8 +299,8 @@ public sealed class MetricsWindowStatsService
                     Invalidations = d.Invalidations,
                     Requests = d.Requests,
                     PeakRequestRate = peakByDomain.TryGetValue(d.Name, out double pd) ? pd : null,
-                    Oc = d.Oc,
-                    Fc = d.Fc,
+                    OutputCache = d.OutputCache,
+                    DataCache = d.DataCache,
                     Pipeline = d.Pipeline,
                     Impact = d.Impact,
                     Hints = d.Hints,
@@ -339,8 +339,8 @@ public sealed class MetricsWindowStatsService
                 StatsWindow = statsWindow,
                 TotalRequests = req,
                 TotalInvalidations = domains.Values.Sum(d => d.Invalidations),
-                OcHitShare = oc.HitShare,
-                FcHitShare = fc.HitShare,
+                OutputCacheHitShare = oc.HitShare,
+                DataCacheHitShare = fc.HitShare,
                 FactoryShare = fc.FactoryShare,
                 Pipeline = pipe,
                 Impact = impact,
@@ -569,23 +569,23 @@ public sealed class MetricsWindowStatsService
         {
             switch (result)
             {
-                case "hit": b.OcHits += n; break;
-                case "miss": b.OcMisses += n; break;
-                case "bypass": b.OcBypass += n; break;
-                case "off": b.OcOff += n; break;
+                case "hit": b.OutputCacheHits += n; break;
+                case "miss": b.OutputCacheMisses += n; break;
+                case "bypass": b.OutputCacheBypass += n; break;
+                case "off": b.OutputCacheOff += n; break;
             }
         }
         else
         {
             switch (result)
             {
-                case "hit": b.FcHits += n; break;
+                case "hit": b.DataCacheHits += n; break;
                 case "miss":
-                    b.FcMisses += n;
+                    b.DataCacheMisses += n;
                     b.FactoryRuns += n;
                     break;
                 case "stale":
-                    b.FcStale += n;
+                    b.DataCacheStale += n;
                     b.FactoryRuns += n;
                     b.FactoryFailures += n;
                     break;
@@ -594,7 +594,7 @@ public sealed class MetricsWindowStatsService
                     b.FactoryFailures += n;
                     break;
                 case "bypass":
-                    b.FcBypass += n;
+                    b.DataCacheBypass += n;
                     b.FactoryRuns += n;
                     break;
                 case "off":
@@ -641,7 +641,7 @@ public sealed class MetricsWindowStatsService
         IReadOnlyList<AdminDomainStatsDto>? byInstance = null,
         AdminInstanceSpreadDto? spread = null)
     {
-        var (req, oc, fc, pipe) = b.BuildLayers();
+        var (req, outputCache, dataCache, pipe) = b.BuildLayers();
         return new AdminDomainStatsDto
         {
             Name = name,
@@ -651,8 +651,8 @@ public sealed class MetricsWindowStatsService
             SchedulePhase = null,
             Invalidations = b.Invalidations,
             Requests = req,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe,
             Impact = ImpactMath.Compute(req, b.FactoryRuns, b.FactoryDurationSumMs, b.FactoryDurationCount),
             Endpoints = [],
@@ -670,15 +670,15 @@ public sealed class MetricsWindowStatsService
         IReadOnlyList<AdminEndpointStatsDto>? byInstance = null,
         AdminInstanceSpreadDto? spread = null)
     {
-        var (req, oc, fc, pipe) = b.BuildLayers();
+        var (req, outputCache, dataCache, pipe) = b.BuildLayers();
         return new AdminEndpointStatsDto
         {
             Route = route,
             InstanceId = instanceId,
             ConfiguredDomain = string.IsNullOrEmpty(domain) ? null : domain,
             Requests = req,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe,
             Impact = ImpactMath.Compute(req, b.FactoryRuns, b.FactoryDurationSumMs, b.FactoryDurationCount),
             ByInstance = byInstance,
@@ -752,14 +752,14 @@ public sealed class MetricsWindowStatsService
 
     private sealed class LayerBucket
     {
-        public long OcHits;
-        public long OcMisses;
-        public long OcBypass;
-        public long OcOff;
-        public long FcHits;
-        public long FcMisses;
-        public long FcStale;
-        public long FcBypass;
+        public long OutputCacheHits;
+        public long OutputCacheMisses;
+        public long OutputCacheBypass;
+        public long OutputCacheOff;
+        public long DataCacheHits;
+        public long DataCacheMisses;
+        public long DataCacheStale;
+        public long DataCacheBypass;
         public long FactoryRuns;
         public long FactoryFailures;
         public long Invalidations;
@@ -768,18 +768,18 @@ public sealed class MetricsWindowStatsService
 
         public long Requests =>
             AdminStatsMath.Requests(
-                OcHits, OcMisses, OcBypass, FcHits, FcMisses, FcStale, FcBypass, OcOff, FactoryRuns);
+                OutputCacheHits, OutputCacheMisses, OutputCacheBypass, DataCacheHits, DataCacheMisses, DataCacheStale, DataCacheBypass, OutputCacheOff, FactoryRuns);
 
         public LayerBucket Add(LayerBucket o)
         {
-            OcHits += o.OcHits;
-            OcMisses += o.OcMisses;
-            OcBypass += o.OcBypass;
-            OcOff += o.OcOff;
-            FcHits += o.FcHits;
-            FcMisses += o.FcMisses;
-            FcStale += o.FcStale;
-            FcBypass += o.FcBypass;
+            OutputCacheHits += o.OutputCacheHits;
+            OutputCacheMisses += o.OutputCacheMisses;
+            OutputCacheBypass += o.OutputCacheBypass;
+            OutputCacheOff += o.OutputCacheOff;
+            DataCacheHits += o.DataCacheHits;
+            DataCacheMisses += o.DataCacheMisses;
+            DataCacheStale += o.DataCacheStale;
+            DataCacheBypass += o.DataCacheBypass;
             FactoryRuns += o.FactoryRuns;
             FactoryFailures += o.FactoryFailures;
             Invalidations += o.Invalidations;
@@ -788,11 +788,11 @@ public sealed class MetricsWindowStatsService
             return this;
         }
 
-        public (long Requests, AdminLayerDto Oc, AdminFusionLayerDto Fc, AdminPipelineDto Pipeline) BuildLayers() =>
+        public (long Requests, AdminLayerDto OutputCache, AdminDataCacheLayerDto DataCache, AdminPipelineDto Pipeline) BuildLayers() =>
             AdminStatsMath.BuildAll(
-                OcHits, OcMisses, OcBypass,
-                FcHits, FcMisses, FcStale, FcBypass,
+                OutputCacheHits, OutputCacheMisses, OutputCacheBypass,
+                DataCacheHits, DataCacheMisses, DataCacheStale, DataCacheBypass,
                 FactoryRuns, FactoryFailures,
-                OcOff);
+                OutputCacheOff);
     }
 }

@@ -87,7 +87,7 @@ static int ClientMaxAge(
 Invalidation without CacheOrchestrator:
 
 ```csharp
-await fusionCache.RemoveByTagAsync("domain:osm-tiles", cancellationToken);
+await dataCache.RemoveByTagAsync("domain:osm-tiles", cancellationToken);
 await outputCache.EvictByTagAsync("domain:osm-tiles", cancellationToken);
 ```
 

@@ -166,10 +166,10 @@ public sealed class MetricsSummaryDto
     public double? RequestRate { get; init; }
 
     /// <summary>OC hit share 0–1, latest sample.</summary>
-    public double? OcHitShare { get; init; }
+    public double? OutputCacheHitShare { get; init; }
 
     /// <summary>FC hit rate 0–1 among FC ops, latest sample.</summary>
-    public double? FcHitRate { get; init; }
+    public double? DataCacheHitRate { get; init; }
 
     /// <summary>Invalidations per second, latest sample.</summary>
     public double? InvalidationRate { get; init; }

@@ -53,10 +53,10 @@ public class HintRuleRegistryAndDisableStoreTests
         using TestHintHost host = TestHintHost.Create();
         await host.Disable.SetEnabledAsync("critical-factory-share", enabled: false, TestContext.Current.CancellationToken);
 
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) =
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
             AdminStatsMath.BuildAll(
-                ocHits: 10, ocMisses: 40, ocBypass: 0,
-                fcHits: 5, fcMisses: 35, fcStale: 0, fcBypass: 0,
+                outputCacheHits: 10, outputCacheMisses: 40, outputCacheBypass: 0,
+                dataCacheHits: 5, dataCacheMisses: 35, dataCacheStale: 0, dataCacheBypass: 0,
                 factoryRuns: 35, factoryFailures: 0);
 
         IReadOnlyList<AdminHintDto> hints = host.Engine.EvaluateDomain(
@@ -65,8 +65,8 @@ public class HintRuleRegistryAndDisableStoreTests
                 Name = "hot",
                 Version = "1",
                 Requests = 50,
-                Oc = oc,
-                Fc = fc,
+                OutputCache = outputCache,
+                DataCache = dataCache,
                 Pipeline = pipe,
             },
             config: null);

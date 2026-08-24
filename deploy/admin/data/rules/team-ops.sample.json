@@ -10,10 +10,10 @@
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.30 }
+          { "path": "domain.dataCache.factoryShare", "op": ">=", "value": 0.30 }
         ]
       },
-      "message": "Factory is {domain.fc.factoryShare:p1} on {domain.name}."
+      "message": "Factory is {domain.dataCache.factoryShare:p1} on {domain.name}."
     }
   ]
 }

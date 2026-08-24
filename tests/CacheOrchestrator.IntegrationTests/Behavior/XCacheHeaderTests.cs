@@ -126,12 +126,12 @@ public class XCacheHeaderTests
         xCache.Should().Contain($"oc={output}");
         if (data is null)
         {
-            xCache.Should().NotContain("fc=");
+            xCache.Should().NotContain("dc=");
             xCache.Should().NotContain("fa=");
         }
         else
         {
-            xCache.Should().Contain($"fc={data}");
+            xCache.Should().Contain($"dc={data}");
             if (data == "hit")
                 xCache.Should().NotContain("fa=");
             else
@@ -140,7 +140,7 @@ public class XCacheHeaderTests
     }
 
     // =========================================================================
-    // 1) First request ? oc=miss; fc=miss; fa=run
+    // 1) First request ? oc=miss; dc=miss; fa=run
     // =========================================================================
 
     [Fact]
@@ -305,7 +305,7 @@ public class XCacheHeaderTests
     }
 
     // =========================================================================
-    // 5) OC disabled but policy attached ? oc=off; second call fc=hit
+    // 5) OC disabled but policy attached ? oc=off; second call dc=hit
     // =========================================================================
 
     [Fact]

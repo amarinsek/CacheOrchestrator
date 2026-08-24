@@ -47,28 +47,28 @@ public sealed class AdminDomainCountersDto
     public long Invalidations { get; init; }
 
     /// <summary>Output Cache hits.</summary>
-    public long OcHits { get; init; }
+    public long OutputCacheHits { get; init; }
 
     /// <summary>Output Cache misses.</summary>
-    public long OcMisses { get; init; }
+    public long OutputCacheMisses { get; init; }
 
     /// <summary>Output Cache bypasses (auth / no-store).</summary>
-    public long OcBypass { get; init; }
+    public long OutputCacheBypass { get; init; }
 
     /// <summary>Output Cache disabled for the domain.</summary>
-    public long OcOff { get; init; }
+    public long OutputCacheOff { get; init; }
 
-    /// <summary>Fusion hits.</summary>
-    public long FcHits { get; init; }
+    /// <summary>Data cache hits.</summary>
+    public long DataCacheHits { get; init; }
 
-    /// <summary>Fusion misses (factory ran).</summary>
-    public long FcMisses { get; init; }
+    /// <summary>Data cache misses (factory ran).</summary>
+    public long DataCacheMisses { get; init; }
 
-    /// <summary>Fusion fail-safe stale serves.</summary>
-    public long FcStale { get; init; }
+    /// <summary>Data cache fail-safe stale serves.</summary>
+    public long DataCacheStale { get; init; }
 
-    /// <summary>Fusion bypasses.</summary>
-    public long FcBypass { get; init; }
+    /// <summary>Data cache bypasses.</summary>
+    public long DataCacheBypass { get; init; }
 
     /// <summary>Times the value factory ran.</summary>
     public long FactoryRuns { get; init; }
@@ -110,28 +110,28 @@ public sealed class AdminEndpointCountersDto
     public string? ConfiguredDomain { get; init; }
 
     /// <summary>Output Cache hits.</summary>
-    public long OcHits { get; init; }
+    public long OutputCacheHits { get; init; }
 
     /// <summary>Output Cache misses.</summary>
-    public long OcMisses { get; init; }
+    public long OutputCacheMisses { get; init; }
 
     /// <summary>Output Cache bypasses (auth / no-store).</summary>
-    public long OcBypass { get; init; }
+    public long OutputCacheBypass { get; init; }
 
     /// <summary>Output Cache disabled for the domain.</summary>
-    public long OcOff { get; init; }
+    public long OutputCacheOff { get; init; }
 
-    /// <summary>Fusion hits.</summary>
-    public long FcHits { get; init; }
+    /// <summary>Data cache hits.</summary>
+    public long DataCacheHits { get; init; }
 
-    /// <summary>Fusion misses.</summary>
-    public long FcMisses { get; init; }
+    /// <summary>Data cache misses.</summary>
+    public long DataCacheMisses { get; init; }
 
-    /// <summary>Fusion stale serves.</summary>
-    public long FcStale { get; init; }
+    /// <summary>Data cache stale serves.</summary>
+    public long DataCacheStale { get; init; }
 
-    /// <summary>Fusion bypasses.</summary>
-    public long FcBypass { get; init; }
+    /// <summary>Data cache bypasses.</summary>
+    public long DataCacheBypass { get; init; }
 
     /// <summary>Times the value factory ran.</summary>
     public long FactoryRuns { get; init; }

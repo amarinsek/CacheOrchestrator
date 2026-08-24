@@ -47,7 +47,7 @@ internal static class LiveHintProjector
     public static AdminDomainStatsDto ToDomainStats(LiveEntityRateDto e, AdminDomainConfigDto? config = null)
     {
         long requests = EstimateRequests(e.RequestRate);
-        var (oc, fc, pipe) = BuildLayers(requests, e);
+        var (outputCache, dataCache, pipe) = BuildLayers(requests, e);
         return new AdminDomainStatsDto
         {
             Name = e.Name,
@@ -55,8 +55,8 @@ internal static class LiveHintProjector
             VersionIsRuntimeOverride = config?.VersionIsRuntimeOverride ?? false,
             Requests = requests,
             PeakRequestRate = e.RequestRate,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe,
         };
     }
@@ -65,15 +65,15 @@ internal static class LiveHintProjector
     public static AdminEndpointStatsDto ToEndpointStats(LiveEntityRateDto e)
     {
         long requests = EstimateRequests(e.RequestRate);
-        var (oc, fc, pipe) = BuildLayers(requests, e);
+        var (outputCache, dataCache, pipe) = BuildLayers(requests, e);
         return new AdminEndpointStatsDto
         {
             Route = e.Name,
             ConfiguredDomain = e.Domain,
             Requests = requests,
             PeakRequestRate = e.RequestRate,
-            Oc = oc,
-            Fc = fc,
+            OutputCache = outputCache,
+            DataCache = dataCache,
             Pipeline = pipe,
         };
     }
@@ -87,8 +87,8 @@ internal static class LiveHintProjector
             VersionIsRuntimeOverride = config.VersionIsRuntimeOverride,
             Requests = 0,
             PeakRequestRate = 0,
-            Oc = new AdminLayerDto(),
-            Fc = new AdminFusionLayerDto(),
+            OutputCache = new AdminLayerDto(),
+            DataCache = new AdminDataCacheLayerDto(),
             Pipeline = new AdminPipelineDto(),
         };
 
@@ -100,8 +100,8 @@ internal static class LiveHintProjector
         {
             Name = "(cluster)",
             RequestRate = cluster.RequestRate ?? 0,
-            OcHitShare = cluster.OcHitShare,
-            FcHitShare = cluster.FcHitShare,
+            OutputCacheHitShare = cluster.OutputCacheHitShare,
+            DataCacheHitShare = cluster.DataCacheHitShare,
             FactoryShare = cluster.FactoryShare,
             FactoryFailShare = cluster.FactoryFailShare,
         };
@@ -111,28 +111,28 @@ internal static class LiveHintProjector
     public static long EstimateRequests(double requestRate) =>
         Math.Max(0, (long)Math.Round(Math.Max(0, requestRate) * LookbackSeconds));
 
-    private static (AdminLayerDto Oc, AdminFusionLayerDto Fc, AdminPipelineDto Pipeline) BuildLayers(
+    private static (AdminLayerDto OutputCache, AdminDataCacheLayerDto DataCache, AdminPipelineDto Pipeline) BuildLayers(
         long requests,
         LiveEntityRateDto e)
     {
         // Prefer share-based projection so factory/hit rules see the same ratios as Live KPIs.
-        double ocHit = Clamp01(e.OcHitShare) ?? 0;
-        double fcHit = Clamp01(e.FcHitShare) ?? 0;
+        double outputCacheHit = Clamp01(e.OutputCacheHitShare) ?? 0;
+        double dataCacheHit = Clamp01(e.DataCacheHitShare) ?? 0;
         double factory = Clamp01(e.FactoryShare) ?? 0;
         double fail = Clamp01(e.FactoryFailShare) ?? 0;
 
-        long ocHits = (long)Math.Round(requests * ocHit);
-        long ocMisses = Math.Max(0, requests - ocHits);
-        long fcHits = (long)Math.Round(requests * fcHit);
+        long outputCacheHits = (long)Math.Round(requests * outputCacheHit);
+        long outputCacheMisses = Math.Max(0, requests - outputCacheHits);
+        long dataCacheHits = (long)Math.Round(requests * dataCacheHit);
         long factoryRuns = (long)Math.Round(requests * factory);
         long factoryFailures = (long)Math.Round(requests * fail);
-        long fcMisses = Math.Max(factoryRuns, 0);
+        long dataCacheMisses = Math.Max(factoryRuns, 0);
 
-        (_, AdminLayerDto oc, AdminFusionLayerDto fc, AdminPipelineDto pipe) = AdminStatsMath.BuildAll(
-            ocHits, ocMisses, ocBypass: 0,
-            fcHits, fcMisses, fcStale: 0, fcBypass: 0,
+        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) = AdminStatsMath.BuildAll(
+            outputCacheHits, outputCacheMisses, outputCacheBypass: 0,
+            dataCacheHits, dataCacheMisses, dataCacheStale: 0, dataCacheBypass: 0,
             factoryRuns, factoryFailures);
-        return (oc, fc, pipe);
+        return (outputCache, dataCache, pipe);
     }
 
     private static double? Clamp01(double? v) =>

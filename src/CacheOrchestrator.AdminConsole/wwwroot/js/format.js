@@ -68,15 +68,15 @@ export function num(n) {
 export const METRIC_TITLES = {
   req: "Req - Number of cache-accounted requests in the selected time range.",
   pipeline:
-    "Pipeline - Exclusive mix of requests: OC hit, FC hit (fresh), or FA run (factory invoked). FC stale is an overlay, not a mix segment.",
+    "Pipeline - Exclusive mix of requests: OC hit, DC hit (fresh), or FA run (factory invoked). DC stale is an overlay, not a mix segment.",
   oc: "OC - Output Cache (full HTTP response cache).",
-  fc: "FC - FusionCache (application data cache; in-process memory, optional distributed L2).",
-  ocHitShare:
+  dc: "DC - data cache (application data cache; in-process memory, optional distributed L2).",
+  outputCacheHitShare:
     "OC hit % - Share of requests served from Output Cache (full HTTP response) in the selected time range.",
-  fcHitShare:
-    "FC hit % - Share of requests served from FusionCache without running the factory in the selected time range.",
+  dataCacheHitShare:
+    "DC hit % - Share of requests served from data cache without running the factory in the selected time range.",
   factoryShare:
-    "FA run % - Share of requests where the value factory ran (including Fusion disabled, unresolved, bypass, miss, and stale).",
+    "FA run % - Share of requests where the value factory ran (including data cache disabled, unresolved, bypass, miss, and stale).",
   factoryAvoidance:
     "Factory avoidance - Share of requests that did not run the factory in the selected time range.",
   estTimeSaved:
@@ -93,12 +93,12 @@ export const METRIC_TITLES = {
   factoryFailures:
     "FAFC - Factory failure count in the selected time range (hard factory throw and/or fail-safe after factory issues).",
   factoryFailureRate: "FA failure rate - Factory failures divided by factory runs in the selected time range.",
-  fcMissRate: "FC miss rate - Miss rate among requests that reached FusionCache (layer rate).",
-  fcMissShare: "FC miss % - FusionCache misses as a share of all requests in the selected time range.",
-  fcHitRate: "FC hit rate - Hit rate among requests that reached FusionCache (layer rate).",
+  dcMissRate: "DC miss rate - Miss rate among requests that reached data cache (layer rate).",
+  dcMissShare: "DC miss % - data cache misses as a share of all requests in the selected time range.",
+  dataCacheHitRate: "DC hit rate - Hit rate among requests that reached data cache (layer rate).",
   stale: "Stale - Fail-safe stale serves (an older value was returned after factory or timeout issues).",
-  staleShare: "FC stale % - Fail-safe stale serves as a share of all requests (overlay; also counted in FA run %).",
-  staleRate: "Stale rate - Stale rate among traffic that reached FusionCache (layer rate).",
+  staleShare: "DC stale % - Fail-safe stale serves as a share of all requests (overlay; also counted in FA run %).",
+  staleRate: "Stale rate - Stale rate among traffic that reached data cache (layer rate).",
   inv: "Inv - Successful invalidations in the selected time range.",
   invShare: "Inv share - Invalidations relative to request volume in the selected time range.",
   version: "Version - Domain version stamp used in cache keys. Change it to cut over to new keys.",
@@ -111,23 +111,23 @@ export const METRIC_TITLES = {
   instance: "Instance - Instance id (Cache:InstanceId).",
   url: "URL - Base URL used to reach this instance.",
   error: "Error - Last health-check or connection error.",
-  ocHitWindow: "OC hit % - Output Cache hit share in the selected time range.",
-  fcHitRateWindow: "FC hit rate - Fusion hit rate in the selected time range.",
+  outputCacheHitWindow: "OC hit % - Output Cache hit share in the selected time range.",
+  dataCacheHitRateWindow: "DC hit rate - Data-cache hit rate in the selected time range.",
   invRate: "Inv / s - Invalidation rate in the selected time range.",
   schedule: "Schedule - Client Cache Schedule (adjusts browser/CDN max-age toward a planned cutover).",
   outputTtl: "Output TTL - Output Cache TTL for this domain.",
-  softTtl: "Fusion soft - Fusion soft TTL (preferred freshness window).",
-  hardTtl: "Fusion hard - Fusion hard TTL (absolute maximum age).",
-  failSafe: "Fail-safe - Fail-safe window (may serve stale data if the factory fails).",
+  softTtl: "Data soft TTL - Preferred freshness window for the data cache.",
+  hardTtl: "Data hard TTL - Absolute maximum age for the data cache (when the provider supports it).",
+  failSafe: "Fail-safe - Window that may serve stale data if the factory fails (provider-dependent).",
   clientTtl: "Client TTL / min - Client Cache-Control max-age (browser/CDN), separate from server TTLs.",
   schedulePhase: "Schedule phase - Client Cache Schedule phase currently applied for this domain.",
-  fcInstance: "FC instance - FusionCache named instance used by this domain.",
+  dcInstance: "DC instance - data cache named instance used by this domain.",
   bus: "Bus - Cluster bus (instances apply commands to peers over HTTP).",
   fanout: "Fan-out - Admin calls each instance directly to apply the operation.",
   overlay: "Overlay - Runtime Version/TTL override on this process (not from config file).",
   metricsStore: "Metrics - Metrics backend used for Live, tables, and charts.",
-  l1: "L1 - Fusion L1 (in-process memory cache).",
-  l2: "L2 - Fusion L2 (optional distributed cache, for example Redis).",
+  l1: "L1 - Data-cache L1 (in-process memory).",
+  l2: "L2 - Data-cache L2 (optional distributed store, for example Redis).",
   entities: "Traffic entities - Domains and endpoints with traffic in the selected time range.",
   avgFactoryDuration: "FAD - Average factory duration (ms) in the selected time range.",
   timeSavedRatio: "Time-saved ratio - EFTS / (EFTS + factory duration paid).",
@@ -135,22 +135,22 @@ export const METRIC_TITLES = {
   payloadOffload: "Est. payload offload - Avoided factory calls × avg result size.",
   durationSamples: "Duration samples - Factory duration samples (0 if TrackLatency is off).",
   sizeSamples: "Size samples - Factory result size samples (0 if TrackResultSize is off).",
-  ocHits: "Hits - Output Cache hits in the selected time range.",
-  ocMisses: "Misses - Output Cache misses in the selected time range.",
-  ocBypass: "Bypass - Output Cache skipped this request (auth / no-store).",
-  ocOff: "Off - Output Cache disabled for the domain.",
-  ocOffShare: "OC off % - Share of requests while Output Cache was disabled.",
+  outputCacheHits: "Hits - Output Cache hits in the selected time range.",
+  outputCacheMisses: "Misses - Output Cache misses in the selected time range.",
+  outputCacheBypass: "Bypass - Output Cache skipped this request (auth / no-store).",
+  outputCacheOff: "Off - Output Cache disabled for the domain.",
+  outputCacheOffShare: "OC off % - Share of requests while Output Cache was disabled.",
   ocLayerN: "Layer n - Samples that reached the Output Cache layer.",
   ocMissShare: "OC miss % - Output Cache miss share of all requests.",
-  ocBypassShare: "OC bypass % - Auth / no-store skip share of all requests.",
-  ocHitRate: "OC hit rate - Hit rate of traffic that reached Output Cache (layer rate).",
+  outputCacheBypassShare: "OC bypass % - Auth / no-store skip share of all requests.",
+  outputCacheHitRate: "OC hit rate - Hit rate of traffic that reached Output Cache (layer rate).",
   ocMissRate: "OC miss rate - Miss rate of traffic that reached Output Cache (layer rate).",
-  fcHits: "Hits - FusionCache hits in the selected time range.",
-  fcMisses: "Misses - FusionCache misses in the selected time range.",
-  fcBypass: "Bypass - FusionCache bypass in the selected time range.",
-  fcLayerN: "Layer n - Samples that reached the Fusion layer.",
-  factoryRate: "Factory / s - Factory callback rate over the lookback window (including Fusion disabled).",
-  factoryFailShare: "Fail % - FC fail + stale share of requests over the lookback window.",
+  dataCacheHits: "Hits - data cache hits in the selected time range.",
+  dataCacheMisses: "Misses - data cache misses in the selected time range.",
+  dataCacheBypass: "Bypass - data cache bypass in the selected time range.",
+  dcLayerN: "Layer n - Samples that reached the data-cache layer.",
+  factoryRate: "Factory / s - Factory callback rate over the lookback window (including data cache disabled).",
+  factoryFailShare: "Fail % - Data-cache fail + stale share of requests over the lookback window.",
   bypassShare: "Bypass % - Auth / no-store skip at a cache layer (not an exclusive pipeline mix bucket).",
 };
 
@@ -173,7 +173,7 @@ export function fafcHtml(fc, opts = {}) {
 }
 
 /**
- * FC stale % cell (request share of fail-safe stale serves).
+ * DC stale % cell (request share of fail-safe stale serves).
  * No title — table tooltips live on headers only.
  * @param {{ staleShare?: number|null, lowRequestSample?: boolean }|null|undefined} fc
  * @param {{ tag?: "td"|"span" }} [opts]
@@ -265,7 +265,7 @@ export function thMetric(label, title, opts = {}) {
 }
 
 /**
- * Horizontal request-pipeline share bar (exclusive mix: OC hit · FC hit · FA run).
+ * Horizontal request-pipeline share bar (exclusive mix: OC hit · DC hit · FA run).
  * @param {object|null} p Pipeline DTO with *Share fields
  * @param {boolean} [large] Wider/taller bar for detail pages
  * @param {{ title?: boolean, segmentTips?: boolean }} [opts]
@@ -278,8 +278,8 @@ export function pipelineBar(p, large, opts = {}) {
   const showSegTips = opts.segmentTips !== false;
   const factoryShare = factoryShareOf(p);
   const parts = [
-    ["oc", p.ocHitShare, "OC hit"],
-    ["fc", p.fcHitShare, "FC hit"],
+    ["oc", p.outputCacheHitShare, "OC hit"],
+    ["dc", p.dataCacheHitShare, "DC hit"],
     ["origin", factoryShare, "FA run"],
   ].filter(([, v]) => v != null && v > 0.0005);
   if (!parts.length) return `<div class="pipe empty${large ? " lg" : ""}"></div>`;
@@ -295,7 +295,7 @@ export function pipelineBar(p, large, opts = {}) {
 }
 
 /**
- * Pipeline panel: exclusive mix only (OC hit · FC hit · FA run).
+ * Pipeline panel: exclusive mix only (OC hit · DC hit · FA run).
  * No separate heading — "Pipeline" is the first column header.
  * @param {object|null|undefined} p Pipeline DTO
  */
@@ -307,16 +307,16 @@ export function pipelinePanelHtml(p) {
         <thead>
           <tr>
             ${thMetric("Pipeline", "pipeline", { fromKey: true, className: "col-pipe" })}
-            ${thMetric("OC hit %", "ocHitShare", { fromKey: true, className: "col-num" })}
-            ${thMetric("FC hit %", "fcHitShare", { fromKey: true, className: "col-num" })}
+            ${thMetric("OC hit %", "outputCacheHitShare", { fromKey: true, className: "col-num" })}
+            ${thMetric("DC hit %", "dataCacheHitShare", { fromKey: true, className: "col-num" })}
             ${thMetric("FA run %", "factoryShare", { fromKey: true, className: "col-num" })}
           </tr>
         </thead>
         <tbody>
           <tr>
             <td class="col-pipe">${bar}</td>
-            <td class="col-num">${pct(p?.ocHitShare)}</td>
-            <td class="col-num">${pct(p?.fcHitShare)}</td>
+            <td class="col-num">${pct(p?.outputCacheHitShare)}</td>
+            <td class="col-num">${pct(p?.dataCacheHitShare)}</td>
             <td class="col-num">${pct(factoryShareOf(p))}</td>
           </tr>
         </tbody>

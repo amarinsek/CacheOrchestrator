@@ -30,7 +30,7 @@ public sealed class OverviewDto
     public AdminPipelineDto Pipeline { get; init; } = new();
 
     /// <summary>Cluster OC hit share.</summary>
-    public double? OcHitShare { get; init; }
+    public double? OutputCacheHitShare { get; init; }
 
     private double? _factoryShare;
 

@@ -277,7 +277,7 @@ public class ConfigBehaviorTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:Domains:nostore:FusionCache:RespectNoStore"] = "true",
+                ["Cache:Domains:nostore:DataCache:RespectNoStore"] = "true",
                 ["Cache:Domains:nostore:DataCache:Ttl"] = "00:05:00",
                 ["Cache:Domains:nostore:Version"] = "v1"
             })

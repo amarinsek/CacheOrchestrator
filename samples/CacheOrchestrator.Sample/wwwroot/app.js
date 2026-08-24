@@ -166,7 +166,7 @@ function cacheTag(xcache) {
     if (!xcache) return '';
 
     const oc = xcacheToken(xcache, 'oc') || xcacheToken(xcache, 'output');
-    const fc = xcacheToken(xcache, 'fc') || xcacheToken(xcache, 'data');
+    const fc = xcacheToken(xcache, 'dc') || xcacheToken(xcache, 'data') || xcacheToken(xcache, 'fc');
     const faRun = xcacheToken(xcache, 'fa') === 'run'
         || (!!fc && fc !== 'hit');
 
