@@ -48,27 +48,13 @@ InvalidateEntitiesAsync  or  InvalidateEntityKindAsync (OnBulk)
 
 ---
 
-## Install
+## Install and composition
+
+Full **packages + registration + config + endpoint** samples (in-app EF, and EF inside a class library): [packages.md §8–§9](packages.md).
 
 ```bash
 dotnet add package CacheOrchestrator
 dotnet add package CacheOrchestrator.EFCore.Invalidation
-```
-
-## Register
-
-```csharp
-using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.EFCore;
-
-builder.Services.AddCacheOrchestrator(builder.Configuration);
-builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration);
-
-builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
-{
-    opt.UseSqlServer(connectionString);
-    opt.AddCacheOrchestratorInvalidation(sp);
-});
 ```
 
 | API | Notes |
@@ -77,7 +63,7 @@ builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
 | `AddEfCoreInvalidation` | Same registration on `ICacheOrchestratorBuilder` |
 | `AddCacheOrchestratorInvalidation` | Attaches the interceptor to **this** `DbContext` only |
 
-`AddCacheOrchestratorEfCoreInvalidation` binds options and registers the interceptor as a singleton. `AddCacheOrchestratorInvalidation` attaches that interceptor to **this** `DbContext` only. Call it on each options builder that should invalidate.
+`AddCacheOrchestratorInvalidation` attaches that interceptor to **this** `DbContext` only. Call it on each options builder that should invalidate.
 
 ---
 
@@ -116,13 +102,7 @@ builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration, o
 });
 ```
 
-The HTTP cache path must use the **same** domain and `entityKind`:
-
-```csharp
-.CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products")
-await cache.GetOrSetEntityAsync(http, factory, cancellationToken);
-// with .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products")
-```
+The HTTP / library cache path must use the **same** domain and `entityKind` as the mapping — see [packages.md §8–§9](packages.md).
 
 Primary keys: stringify each PK part with invariant culture, join composite keys with `:`, then `DomainName.NormalizeResourceId`. Route `resourceRouteKey` must produce the same string. Entity kinds use `DomainName.NormalizeEntityKind` (garbage such as `!!!` is empty, not `default`).
 
@@ -150,39 +130,24 @@ TPH: Fluent `CacheInvalidate` and `Map<T>` match the **exact** `ClrType` — map
 
 ---
 
-## HTTP + EF (end to end)
+## SaveChanges vs `Execute*`
 
-### Tracked save — interceptor only
+Composition samples (GET + PUT): [packages.md §8–§9](packages.md).
 
-Load a tracked entity, mutate it, `SaveChangesAsync`. Do **not** call `Invalidate*`.
-
-```csharp
-product.Price = body.Price;
-await db.SaveChangesAsync(cancellationToken);
-// SaveChangesAsync uses ChangeTracker, so the interceptor invalidates automatically.
-```
-
-Next `GET` for that id is a MISS on OC + Fusion entity tags. Sibling ids stay cached.
-
-### `Execute*` — manual invalidation
-
-`ExecuteUpdateAsync` does **not** use `ChangeTracker`, so the interceptor does **not** run.
+| Path | Invalidation |
+|------|----------------|
+| Tracked entity + `SaveChangesAsync` | Interceptor only — do **not** call `Invalidate*` |
+| `ExecuteUpdate` / `ExecuteDelete` / `ExecuteInsert` | Manual `InvalidateEntitiesAsync` / `InvalidateEntityKindAsync` (no ChangeTracker) |
 
 ```csharp
-List<int> ids = await db.Products
-    .Where(p => p.CategoryId == categoryId)
-    .Select(p => p.Id)
-    .ToListAsync(cancellationToken);
-
 await db.Products
     .Where(p => ids.Contains(p.Id))
     .ExecuteUpdateAsync(s => s.SetProperty(p => p.Price, p => p.Price * 0.8m), cancellationToken);
 
-await invalidator.InvalidateEntitiesAsync(
-    "store", "products", ids, cancellationToken);
+await invalidator.InvalidateEntitiesAsync("catalog", "products", ids, cancellationToken);
 ```
 
-Unknown / too many ids: `InvalidateEntityKindAsync("store", "products")`.
+Unknown / too many ids: `InvalidateEntityKindAsync("catalog", "products")`.
 
 ---
 

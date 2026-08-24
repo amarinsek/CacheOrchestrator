@@ -42,8 +42,10 @@ Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion
 | **5** | Web | Hybrid | yes | AspNetCore + HybridCache |
 | **6** | Web | Fusion | yes (dynamic domain) | Meta *(or AspNetCore + Fusion)* |
 | **7** | Library + web / worker | Fusion | yes / n/a | Core in library; Meta (or Fusion) in host |
+| **8** | Web + EF invalidation | Fusion | yes | Meta + EFCore.Invalidation |
+| **9** | Library (EF) + web host | Fusion | yes | Core (+ EF) in library; Meta + EFCore.Invalidation in host |
 
-Each scenario below uses the **same product endpoint shape** where possible. Differences are in **packages**, **registration**, and **config**. Base Output Cache policy is `NoCache` — without `.CacheOutputWithDomain` there is no OC entry.
+Each scenario below uses the **same product endpoint shape** where possible. Differences are in **packages**, **registration**, and **config**. Base Output Cache policy is `NoCache` — without `.CacheOutputWithDomain` there is no OC entry. EF mapping and SaveChanges behaviour: [ef-core-invalidation.md](ef-core-invalidation.md).
 
 ---
 
@@ -447,6 +449,185 @@ await catalog.GetProductAsync(domain, job.ProductId, cancellationToken);
 
 ---
 
+## 8. EF Core invalidation — all in the web app
+
+Same read path as §1, plus SaveChanges → automatic entity tag purge. Domain and `entityKind` on the GET must match the EF mapping (`[CacheEntity]`, Fluent `CacheInvalidate`, or `Map<T>`). Details: [ef-core-invalidation.md](ef-core-invalidation.md).
+
+**Packages**
+
+```bash
+dotnet add package CacheOrchestrator
+dotnet add package CacheOrchestrator.EFCore.Invalidation
+```
+
+**Registration**
+
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration);
+builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration);
+
+builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
+{
+    opt.UseSqlServer(connectionString);
+    opt.AddCacheOrchestratorInvalidation(sp);
+});
+```
+
+**Config** (same shape as §1)
+
+```json
+{
+  "Cache": {
+    "OutputCache": { "Provider": "InMemory" },
+    "DataCacheInstances": { "default": { "Provider": "InMemory" } },
+    "Domains": {
+      "catalog": {
+        "Version": "1",
+        "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
+        "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
+        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+      }
+    }
+  }
+}
+```
+
+**Code**
+
+```csharp
+[CacheEntity("catalog", "products")]
+public class Product { public int Id { get; set; } public decimal Price { get; set; } }
+
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, AppDbContext db) =>
+{
+    var data = await cache.GetOrSetEntityAsync(http, async ct =>
+    {
+        Product? p = await db.Products.AsNoTracking().FirstOrDefaultAsync(x => x.Id.ToString() == id, ct);
+        return p is null ? null : new ProductDto(p.Id, p.Price);
+    });
+    return data is null ? Results.NotFound() : Results.Json(data);
+})
+.CacheOutputWithDomain("catalog", resourceRouteKey: "id", entityKind: "products");
+
+app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, AppDbContext db, CancellationToken ct) =>
+{
+    Product product = await db.Products.SingleAsync(x => x.Id.ToString() == id, ct);
+    product.Price = body.Price;
+    await db.SaveChangesAsync(ct); // interceptor invalidates entity tags — no manual Invalidate*
+    return Results.NoContent();
+});
+```
+
+---
+
+## 9. EF Core in a class library + web host
+
+Library owns DbContext usage and cache reads/writes. Host wires CacheOrchestrator, the EF interceptor, and HTTP. Keep the same domain / `entityKind` in mapping, `CacheDomainContext`, and `.CacheOutputWithDomain`.
+
+**Library packages**
+
+```bash
+dotnet add package CacheOrchestrator.Core
+dotnet add package Microsoft.EntityFrameworkCore
+```
+
+**Library**
+
+```csharp
+public sealed class CatalogService(ICacheOrchestrator cache, AppDbContext db)
+{
+    public ValueTask<ProductDto?> GetProductAsync(
+        CacheDomainContext cacheDomain,
+        string id,
+        CancellationToken cancellationToken) =>
+        cache.GetOrCreateEntityAsync(
+            cacheDomain,
+            logicalKey: $"product:{id}",
+            resourceId: id,
+            async ct =>
+            {
+                Product? p = await db.Products.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id.ToString() == id, ct);
+                return p is null ? null : new ProductDto(p.Id, p.Price);
+            },
+            defaultEntityKind: "products",
+            cancellationToken);
+
+    public async Task UpdatePriceAsync(string id, decimal price, CancellationToken cancellationToken)
+    {
+        Product product = await db.Products.SingleAsync(x => x.Id.ToString() == id, cancellationToken);
+        product.Price = price;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+}
+```
+
+Map the entity in the library model (or let the host call `Map<Product>`):
+
+```csharp
+modelBuilder.Entity<Product>().CacheInvalidate("catalog", "products");
+```
+
+**Host packages**
+
+```bash
+dotnet add package CacheOrchestrator
+dotnet add package CacheOrchestrator.EFCore.Invalidation
+```
+
+**Registration**
+
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration);
+builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration);
+builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
+{
+    opt.UseSqlServer(connectionString);
+    opt.AddCacheOrchestratorInvalidation(sp);
+});
+builder.Services.AddScoped<CatalogService>();
+```
+
+**Config** (same shape as §1 / §8)
+
+```json
+{
+  "Cache": {
+    "OutputCache": { "Provider": "InMemory" },
+    "DataCacheInstances": { "default": { "Provider": "InMemory" } },
+    "Domains": {
+      "catalog": {
+        "Version": "1",
+        "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
+        "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
+        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+      }
+    }
+  }
+}
+```
+
+**Code**
+
+```csharp
+var catalogDomain = new CacheDomainContext("catalog", entityKind: "products");
+
+app.MapGet("/api/products/{id}", async (string id, CatalogService catalog, CancellationToken ct) =>
+{
+    var data = await catalog.GetProductAsync(catalogDomain, id, ct);
+    return data is null ? Results.NotFound() : Results.Json(data);
+})
+.CacheOutputWithDomain(catalogDomain.Domain, resourceRouteKey: "id", entityKind: "products");
+
+app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, CatalogService catalog, CancellationToken ct) =>
+{
+    await catalog.UpdatePriceAsync(id, body.Price, ct);
+    return Results.NoContent();
+});
+```
+
+---
+
 ## Config layers (nested)
 
 | JSON section | Portable? | Meaning |
@@ -479,3 +660,5 @@ Root engines: `OutputCache` + **`DataCacheInstances`**. Default key namespace su
 - [Architecture](architecture.md)  
 - [Getting started](getting-started.md)  
 - [Configuration](configuration.md)  
+- [EF Core invalidation](ef-core-invalidation.md) — mapping, SaveChanges rules, options  
+

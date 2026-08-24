@@ -21,7 +21,7 @@ README.md  →  docs/guide/  →  docs/<topic>.md
 Orientation after the product README. Summaries plus links into reference — not the `appsettings` schema.
 
 1. [Getting started](getting-started.md) — install, first endpoint, `X-Cache`.
-2. [Packages and composition](packages.md) — NuGet map, endpoint scenarios, `CacheDomainContext` libraries.
+2. [Packages and composition](packages.md) — NuGet map, endpoint/library/EF scenarios (registration + config + code).
 3. [Concepts](guide/concepts.md) — domain, three layers, Version vs TTL vs tags.
 4. [Topologies](guide/topologies.md) — InMemory, Redis, HttpBus, mixed; which package.
 5. [Operations](guide/operations.md) — `X-Cache`, meter, Admin API vs Console vs Docker.

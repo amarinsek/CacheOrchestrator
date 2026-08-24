@@ -133,7 +133,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 
 ## Next
 
-- [Packages](packages.md) — compose packages; endpoint scenarios; `CacheDomainContext` libraries
+- [Packages](packages.md) — compose packages (OC/DC/Redis/Hybrid/library/EF scenarios)
 - [Guide](guide/README.md) — concepts, topologies, operations
 - [Playground sample](../samples/CacheOrchestrator.Sample) — TTLs and schedule in a UI
 - [Domain profiles](domain-profiles.md) — published datasets versus changing records
@@ -141,7 +141,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 - [Invalidation](invalidation.md) — Version, tags, a single id
 - [Admin](admin.md) — Admin API on one process; Admin Console App across instances
 - [Cluster bus](cluster-bus.md) — commands to every instance
-- [EF Core](ef-core-invalidation.md) — purge after `SaveChanges`
+- [EF Core](ef-core-invalidation.md) — mapping and SaveChanges rules (composition samples in [packages.md](packages.md))
 - [Output Cache](output-cache.md) — authenticated traffic
 - [Configuration](configuration.md) — full settings list
 - [Comparison](comparison.md) — the usual stack versus CacheOrchestrator
