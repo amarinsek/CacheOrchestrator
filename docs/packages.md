@@ -38,43 +38,58 @@ Libraries should take **`ICacheOrchestrator`** (and/or `ICacheOrchestratorInvali
 
 `IDomainDataCache` is not a second cache. Output Cache and Client Cache-Control are separate layers applied by the ASP.NET host; they are not invoked through either interface.
 
-### Domain name on the library call
+### Who chooses the domain name
 
-`.CacheOutputWithDomain("catalog")` and `[CacheDomain]` attach the domain to an **HTTP endpoint**. Core has no ambient request: a library passes the domain (and entity identity) **explicitly** in the orchestrator call. That keeps the library usable from workers and tests without `HttpContext`.
+`.CacheOutputWithDomain(...)` / `[CacheDomain]` attach a domain to an **HTTP endpoint**. `ICacheOrchestrator` has no ambient request: the library must pass a domain string into each call. The library author typically **does not** hard-code that name — the **host** supplies it (environment / product mapping). Keep the library Http-free: inject options, not `HttpContext`.
+
+`Configure<TOptions>` is the usual .NET Options pattern. A library can wrap it in one extension for a shorter host line, for example `AddCatalogCache(o => o.Domain = "catalog")` that calls `Configure` + `AddScoped<CatalogService>` internally. Binding from configuration (`Configure<CatalogCacheOptions>(config.GetSection("CatalogCache"))`) is equivalent.
 
 ### Library + web host (shared domain config)
 
-One domain block in configuration can hold **DataCache**, **OutputCache**, and **ClientCache**. The library consumes the data-cache policy (and Version). The host applies Output Cache and client headers for the same domain name around the library call.
+One domain block under `Cache:Domains` can hold **DataCache**, **OutputCache**, and **ClientCache**. The library uses the data-cache policy (and Version). The host applies Output Cache and client headers for the **same** domain name around the library call.
 
-**Library** (references Core only):
+**Library** (references Core only — no domain literal):
 
 ```csharp
-public sealed class CatalogService(ICacheOrchestrator cache)
+public sealed class CatalogCacheOptions
 {
-    public ValueTask<CatalogDto?> GetAllAsync(CancellationToken cancellationToken) =>
-        cache.GetOrCreateAsync(
-            new CacheEntryRequest { Domain = "catalog", Key = "all" },
-            async ct => await LoadFromDbAsync(ct),
-            cancellationToken);
+    /// <summary>Maps to Cache:Domains:{Domain}. Required — set by the host.</summary>
+    public string Domain { get; set; } = "";
+}
 
-    public ValueTask<ProductDto?> GetProductAsync(string id, CancellationToken cancellationToken) =>
-        cache.GetOrCreateEntityAsync(
-            domain: "catalog",
-            logicalKey: $"product:{id}",
-            primary: new EntityRef("products", id),
+public sealed class CatalogService(
+    ICacheOrchestrator cache,
+    IOptions<CatalogCacheOptions> options)
+{
+    public ValueTask<ProductDto?> GetProductAsync(string id, CancellationToken cancellationToken)
+    {
+        string domain = options.Value.Domain;
+        if (string.IsNullOrWhiteSpace(domain))
+            throw new InvalidOperationException("CatalogCacheOptions.Domain must be set by the host.");
+
+        return cache.GetOrCreateAsync(
+            new CacheEntryRequest { Domain = domain, Key = $"product:{id}" },
             async ct => await LoadProductAsync(id, ct),
             cancellationToken);
+    }
 }
 ```
 
-**Host registration** (meta package = AspNetCore + Fusion; or AspNetCore + Hybrid without Fusion):
+**Host** — one place decides the name; Options and Output Cache both use it:
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
+
+const string catalogDomain = "catalog";
+builder.Services.Configure<CatalogCacheOptions>(o => o.Domain = catalogDomain);
 builder.Services.AddScoped<CatalogService>();
+
+app.MapGet("/api/products/{id}", async (string id, CatalogService catalog, CancellationToken ct) =>
+    Results.Json(await catalog.GetProductAsync(id, ct)))
+.CacheOutputWithDomain(catalogDomain);
 ```
 
-**Configuration** (same domain for all three layers):
+**Configuration** (policy for that domain name):
 
 ```json
 "Domains": {
@@ -87,15 +102,9 @@ builder.Services.AddScoped<CatalogService>();
 }
 ```
 
-**Endpoint** — Output Cache on the route; data cache via the library:
+With several modules, register several options types (each with its own `Domain`). Multiple domains in `Cache:Domains` are independent policies; each library options instance points at one of them.
 
-```csharp
-app.MapGet("/api/catalog", async (CatalogService catalog, CancellationToken ct) =>
-    Results.Json(await catalog.GetAllAsync(ct)))
-.CacheOutputWithDomain("catalog");
-```
-
-Request path: client headers → Output Cache → handler → `CatalogService` → `ICacheOrchestrator` → Fusion or Hybrid. Layer TTLs may differ; coordination is the shared domain name and Version (and tag invalidation). A worker host without AspNetCore still runs the same library against data cache only — Output/Client sections simply do not apply in that process.
+Request path: client headers → Output Cache → handler → `CatalogService` → `ICacheOrchestrator` → Fusion or Hybrid. Layer TTLs may differ; coordination is the shared domain name and Version (and tag invalidation). A worker host sets the same `CatalogCacheOptions.Domain` and skips `.CacheOutputWithDomain` — Output/Client sections simply do not apply in that process.
 
 ---
 
@@ -118,24 +127,16 @@ Same domain policy idea in every row. What changes is **which packages you insta
 
 ## Invariant call site (rows A–D)
 
-Application or library code that loads domain data:
+Library code that loads domain data (domain name from host options — see above):
 
 ```csharp
-public sealed class CatalogService(ICacheOrchestrator cache)
-{
-    public ValueTask<CatalogDto?> GetAsync(CancellationToken cancellationToken) =>
-        cache.GetOrCreateAsync(
-            new CacheEntryRequest
-            {
-                Domain = "catalog",
-                Key = "all",
-            },
-            async ct => await LoadCatalogAsync(ct),
-            cancellationToken);
-}
+cache.GetOrCreateAsync(
+    new CacheEntryRequest { Domain = options.Value.Domain, Key = $"product:{id}" },
+    async ct => await LoadProductAsync(id, ct),
+    cancellationToken);
 ```
 
-This is the same for Fusion and Hybrid. The registered `IDataCacheProvider` is what differs.
+This call is the same for Fusion and Hybrid. The registered `IDataCacheProvider` is what differs.
 
 ### Registration diffs
 
