@@ -1,6 +1,6 @@
 # CacheOrchestrator.Redis
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application data cache, and client `Cache-Control` under one domain model. It does not replace those systems or own a store.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
 
 This package adds **Redis** backends: Output Cache store, Fusion data-cache **L2**, Fusion **backplane**, and a connection health probe. Use it when several app instances must share cache data.
 
@@ -10,18 +10,7 @@ This package adds **Redis** backends: Output Cache store, Fusion data-cache **L2
 dotnet add package CacheOrchestrator.Redis
 ```
 
-## Example
-
-Typical web host with the meta package (or AspNetCore + Fusion) plus Redis:
-
-```bash
-dotnet add package CacheOrchestrator
-dotnet add package CacheOrchestrator.Redis
-```
-
-```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBackend());
-```
+## Config
 
 ```json
 {
@@ -34,6 +23,17 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 ```
 
 Default connection: `Cache:Redis`. Overrides: `Cache:OutputCache:Redis`, `Cache:DataCacheInstances:{name}:Redis`. Set `"OutputCache": { "Provider": "Redis" }` to store full HTTP responses in Redis as well.
+
+## Example
+
+```bash
+dotnet add package CacheOrchestrator
+dotnet add package CacheOrchestrator.Redis
+```
+
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBackend());
+```
 
 ## Related packages
 

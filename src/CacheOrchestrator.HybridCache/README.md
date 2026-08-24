@@ -1,6 +1,6 @@
 # CacheOrchestrator.HybridCache
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application data cache, and client `Cache-Control` under one domain model. It does not replace those systems or own a store.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
 
 This package registers Microsoft **HybridCache** as the **`IDataCacheProvider`**. It uses portable **`DataCache.Ttl`** only. Fusion-specific options (fail-safe, hard TTL, factory timeouts, named data-cache instances) are not applied.
 
@@ -9,6 +9,22 @@ This package registers Microsoft **HybridCache** as the **`IDataCacheProvider`**
 ```bash
 dotnet add package CacheOrchestrator.HybridCache
 dotnet add package Microsoft.Extensions.Caching.Hybrid
+```
+
+## Config
+
+```json
+{
+  "Cache": {
+    "DataCacheInstances": { "default": { "Provider": "InMemory" } },
+    "Domains": {
+      "catalog": {
+        "Version": "1",
+        "DataCache": { "Ttl": "00:05:00" }
+      }
+    }
+  }
+}
 ```
 
 ## Example

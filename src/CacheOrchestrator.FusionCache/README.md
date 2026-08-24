@@ -1,6 +1,6 @@
 # CacheOrchestrator.FusionCache
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application data cache, and client `Cache-Control` under one domain model. It does not replace those systems or own a store.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
 
 This package registers ZiggyCreatures **FusionCache** as the **`IDataCacheProvider`** (data cache / DC). It wires named engines from `DataCacheInstances` and owns nested JSON **`FusionCache`** settings (hard TTL, fail-safe, factory timeouts, …). Portable TTL stays under **`DataCache`**.
 
@@ -8,6 +8,26 @@ This package registers ZiggyCreatures **FusionCache** as the **`IDataCacheProvid
 
 ```bash
 dotnet add package CacheOrchestrator.FusionCache
+```
+
+## Config
+
+```json
+{
+  "Cache": {
+    "DataCacheInstances": { "default": { "Provider": "InMemory" } },
+    "Domains": {
+      "catalog": {
+        "Version": "1",
+        "DataCache": { "Ttl": "00:05:00" },
+        "FusionCache": {
+          "HardTtl": "00:10:00",
+          "FailSafe": "01:00:00"
+        }
+      }
+    }
+  }
+}
 ```
 
 ## Example

@@ -1,6 +1,6 @@
 # CacheOrchestrator.HttpBus
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application data cache, and client `Cache-Control` under one domain model. It does not replace those systems or own a store.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
 
 This package is the HTTP **cluster command bus**: it delivers invalidate, Version, and settings patches to every configured peer. Use it when you run more than one instance and need those **commands** everywhere (it does not share Redis cache payloads by itself).
 
@@ -10,20 +10,7 @@ This package is the HTTP **cluster command bus**: it delivers invalidate, Versio
 dotnet add package CacheOrchestrator.HttpBus
 ```
 
-## Example
-
-```bash
-dotnet add package CacheOrchestrator
-dotnet add package CacheOrchestrator.HttpBus
-```
-
-```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClusterBus());
-
-var app = builder.Build();
-app.UseCacheOrchestrator();
-app.MapCacheOrchestratorHttpBus();
-```
+## Config
 
 ```json
 {
@@ -48,6 +35,21 @@ app.MapCacheOrchestratorHttpBus();
 ```
 
 `Membership` may also be `ServiceDiscovery`. Peers authenticate `POST …/cluster/apply` with `X-Cache-Admin-Key` (`Cache:Cluster:Bus:ApiKey`, or `Cache:Admin:ApiKey` if empty).
+
+## Example
+
+```bash
+dotnet add package CacheOrchestrator
+dotnet add package CacheOrchestrator.HttpBus
+```
+
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClusterBus());
+
+var app = builder.Build();
+app.UseCacheOrchestrator();
+app.MapCacheOrchestratorHttpBus();
+```
 
 ## Related packages
 

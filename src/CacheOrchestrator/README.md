@@ -1,6 +1,6 @@
 # CacheOrchestrator
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application data cache, and client `Cache-Control` under one domain model in ASP.NET Core. It does not replace those systems or own a store.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
 
 This **meta** package is the usual starting point for web apps: it includes **AspNetCore** + **FusionCache**.
 
@@ -12,21 +12,7 @@ Targets **.NET 8** and **.NET 10**.
 dotnet add package CacheOrchestrator
 ```
 
-## Example
-
-```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration);
-
-var app = builder.Build();
-app.UseCacheOrchestrator();
-
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
-{
-    var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
-    return Results.Json(data);
-})
-.CacheOutputWithDomain("catalog");
-```
+## Config
 
 ```json
 {
@@ -43,6 +29,22 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
     }
   }
 }
+```
+
+## Example
+
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration);
+
+var app = builder.Build();
+app.UseCacheOrchestrator();
+
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+{
+    var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
+    return Results.Json(data);
+})
+.CacheOutputWithDomain("catalog");
 ```
 
 More layouts (Redis, Hybrid, libraries, EF): [packages.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md).
