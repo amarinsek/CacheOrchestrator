@@ -15,15 +15,15 @@ app.UseCacheOrchestrator();
 
 ## Base policy and endpoints without a domain
 
-ASP.NET Core Output Caching is **policy-driven**. CacheOrchestrator registers a **base policy of `NoStore`**: responses are **not** stored unless an endpoint opts in.
+ASP.NET Core Output Caching is **policy-driven**. CacheOrchestrator registers a **base policy of `NoCache`**: responses are **not** cached unless an endpoint opts in.
 
 | Endpoint | Output Cache |
 |----------|----------------|
 | `.CacheOutputWithDomain("…")` / `[CacheDomain("…")]` | **Yes** — domain policy (TTL, tags, client headers, diagnostics; encoding vary from domain settings) |
-| No domain metadata | **No** — base `NoStore` |
-| Explicit `.CacheOutput(p => p.NoStore())` / `OutputCacheAttribute { NoStore = true }` | **No** — redundant with the base policy, still fine on Admin / metrics / ops routes |
+| No domain metadata | **No** — base `NoCache` |
+| Explicit `.CacheOutput(p => p.NoCache())` / `OutputCacheAttribute { NoStore = true }` | **No** — redundant with the base policy, still fine on Admin / metrics / ops routes |
 
-**Without `.CacheOutputWithDomain` / `[CacheDomain]`, there is no Output Cache entry.** You do not need a separate `.NoCache()` for that. Built-in Admin and sample `/metrics` may still set `NoStore` explicitly; that is harmless.
+**Without `.CacheOutputWithDomain` / `[CacheDomain]`, there is no Output Cache entry.** You do not need a separate `.NoCache()` / `NoStore` for that. Built-in Admin and sample `/metrics` may still set `NoStore` explicitly; that is harmless.
 
 Data cache is separate: `IDomainDataCache` / `ICacheOrchestrator` still need a domain (endpoint metadata, explicit overload, or `CacheDomainContext`) or the factory runs uncached — see [FAQ](faq.md#fusion-runs-uncached--why).
 

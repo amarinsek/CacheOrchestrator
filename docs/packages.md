@@ -101,7 +101,7 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
     var data = await cache.GetOrSetAsync(http, "catalog", ct => LoadProductAsync(id, ct));
     return Results.Json(data);
 });
-// no .CacheOutputWithDomain — base Output Cache policy is NoStore (no OC entry)
+// no .CacheOutputWithDomain — base Output Cache policy is NoCache (no OC entry)
 ```
 
 Pass the domain name into `GetOrSetAsync` when there is no endpoint domain metadata. Without a domain Output Cache policy, client `Cache-Control` from the domain is also not applied on that route.

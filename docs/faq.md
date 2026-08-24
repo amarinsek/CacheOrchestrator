@@ -20,9 +20,9 @@ Call `InvalidateEntitiesAsync` or `InvalidateEntityKindAsync` yourself. Details:
 
 ## Why is a route cached when I never set a domain?
 
-It should not be. CacheOrchestrator’s **base** Output Cache policy is **`NoStore`**. Full-response caching applies only with `.CacheOutputWithDomain` / `[CacheDomain]` (or your own explicit Output Cache policy).
+It should not be. CacheOrchestrator’s **base** Output Cache policy is **`NoCache`**. Full-response caching applies only with `.CacheOutputWithDomain` / `[CacheDomain]` (or your own explicit Output Cache policy).
 
-If a route still looks cached, check for a host-added `AddBasePolicy` / `.CacheOutput(...)`, a CDN/browser cache, or a domain policy you forgot. Explicit `NoStore` on Admin/metrics is optional redundancy, not required for plain endpoints.
+If a route still looks cached, check for a host-added `AddBasePolicy` / `.CacheOutput(...)`, a CDN/browser cache, or a domain policy you forgot. Explicit `NoStore` / `NoCache` on Admin/metrics is optional redundancy, not required for plain endpoints.
 
 Details: [output-cache.md — Base policy](output-cache.md#base-policy-and-endpoints-without-a-domain).
 

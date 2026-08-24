@@ -196,8 +196,8 @@ public static class ServiceCollectionExtensions
 
         List<Action<OutputCacheOptions>> optionConfigurators = [];
 
-        // Base policy: no store. Output Cache is opt-in via .CacheOutputWithDomain / [CacheDomain].
-        optionConfigurators.Add(o => o.AddBasePolicy(b => b.NoStore()));
+        // Base policy: no cache. Output Cache is opt-in via .CacheOutputWithDomain / [CacheDomain].
+        optionConfigurators.Add(o => o.AddBasePolicy(b => b.NoCache()));
 
         OutputCacheRegistrationContext context = new(
             services,

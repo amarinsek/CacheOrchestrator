@@ -153,7 +153,7 @@ public class HttpPipelineContractTests
             (HttpResponseMessage r2, string x2, string _) = await GetAsync(client, "/data");
             r2.IsSuccessStatusCode.Should().BeTrue();
             x2.Should().NotContain("oc=hit",
-                "empty dynamic domain must disable Output Cache (base policy is NoStore; domain policy opts in)");
+                "empty dynamic domain must disable Output Cache (base policy is NoCache; domain policy opts in)");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
         finally
