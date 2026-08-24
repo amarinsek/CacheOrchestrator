@@ -133,7 +133,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 
 ## Next
 
-- [Packages](packages.md) — compose Core / Fusion / Hybrid / AspNetCore
+- [Packages](packages.md) — compose Core / Fusion / Hybrid / AspNetCore; library `ICacheOrchestrator` + web Output/Client Cache
 - [Guide](guide/README.md) — concepts, topologies, operations
 - [Playground sample](../samples/CacheOrchestrator.Sample) — TTLs and schedule in a UI
 - [Domain profiles](domain-profiles.md) — published datasets versus changing records

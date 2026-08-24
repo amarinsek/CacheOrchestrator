@@ -15,7 +15,7 @@ Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion
 | [**CacheOrchestrator.Core**](../src/CacheOrchestrator.Core/README.md) | Domains, Version, portable `DataCache` policy, entity footprint/tags, `ICacheOrchestrator`, invalidation and cluster **contracts** |
 | [**CacheOrchestrator.FusionCache**](../src/CacheOrchestrator.FusionCache/README.md) | ZiggyCreatures FusionCache as `IDataCacheProvider`; owns JSON `FusionCache` knobs (hard TTL, fail-safe, factory timeouts, …) |
 | [**CacheOrchestrator.HybridCache**](../src/CacheOrchestrator.HybridCache/README.md) | Microsoft HybridCache as `IDataCacheProvider` (portable `DataCache.Ttl` only; no fail-safe) |
-| [**CacheOrchestrator.AspNetCore**](../src/CacheOrchestrator.AspNetCore/README.md) | Output Cache, Client Cache-Control, HTTP `IDomainDataCache`, Local Admin API, `AddCacheOrchestratorAspNetCore` |
+| [**CacheOrchestrator.AspNetCore**](../src/CacheOrchestrator.AspNetCore/README.md) | Output Cache, Client Cache-Control, HTTP `IDomainDataCache`, Admin API, `AddCacheOrchestratorAspNetCore` |
 | [**CacheOrchestrator**](../src/CacheOrchestrator/README.md) (meta) | Convenience: AspNetCore + FusionCache; `AddCacheOrchestrator` wires both |
 | [**CacheOrchestrator.Redis**](../src/CacheOrchestrator.Redis/README.md) | Redis Output Cache store and Fusion L2 / backplane |
 | [**CacheOrchestrator.HttpBus**](../src/CacheOrchestrator.HttpBus/README.md) | HTTP cluster command bus (invalidate, Version, settings) |
@@ -24,6 +24,78 @@ Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion
 **Admin Console App** (`src/CacheOrchestrator.AdminConsole`) is a separate host, not a NuGet package. [admin.md](admin.md) · [deploy/admin](../deploy/admin/README.md).
 
 Libraries should take **`ICacheOrchestrator`** (and/or `ICacheOrchestratorInvalidator`) from Core (including entity/footprint helpers). Web endpoints often use AspNetCore’s **`IDomainDataCache`** + `.CacheOutputWithDomain` / `[CacheDomain]` — a thin HTTP projection over the same orchestrator (no Ziggy dependency in AspNetCore).
+
+---
+
+## `ICacheOrchestrator` vs `IDomainDataCache`
+
+| | `ICacheOrchestrator` | `IDomainDataCache` |
+|--|----------------------|--------------------|
+| Package | Core | AspNetCore |
+| Typical caller | Class libraries, workers | Minimal APIs / controllers |
+| Input | `CacheEntryRequest` or domain + key / entity args — **no** `HttpContext` | `HttpContext` (domain and entity identity from the request) |
+| Role | Domain policy, Version keying, tags, get-or-create via `IDataCacheProvider` | Resolve domain / vary key / auth from HTTP, then call `ICacheOrchestrator` |
+
+`IDomainDataCache` is not a second cache. Output Cache and Client Cache-Control are separate layers applied by the ASP.NET host; they are not invoked through either interface.
+
+### Domain name on the library call
+
+`.CacheOutputWithDomain("catalog")` and `[CacheDomain]` attach the domain to an **HTTP endpoint**. Core has no ambient request: a library passes the domain (and entity identity) **explicitly** in the orchestrator call. That keeps the library usable from workers and tests without `HttpContext`.
+
+### Library + web host (shared domain config)
+
+One domain block in configuration can hold **DataCache**, **OutputCache**, and **ClientCache**. The library consumes the data-cache policy (and Version). The host applies Output Cache and client headers for the same domain name around the library call.
+
+**Library** (references Core only):
+
+```csharp
+public sealed class CatalogService(ICacheOrchestrator cache)
+{
+    public ValueTask<CatalogDto?> GetAllAsync(CancellationToken cancellationToken) =>
+        cache.GetOrCreateAsync(
+            new CacheEntryRequest { Domain = "catalog", Key = "all" },
+            async ct => await LoadFromDbAsync(ct),
+            cancellationToken);
+
+    public ValueTask<ProductDto?> GetProductAsync(string id, CancellationToken cancellationToken) =>
+        cache.GetOrCreateEntityAsync(
+            domain: "catalog",
+            logicalKey: $"product:{id}",
+            primary: new EntityRef("products", id),
+            async ct => await LoadProductAsync(id, ct),
+            cancellationToken);
+}
+```
+
+**Host registration** (meta package = AspNetCore + Fusion; or AspNetCore + Hybrid without Fusion):
+
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration);
+builder.Services.AddScoped<CatalogService>();
+```
+
+**Configuration** (same domain for all three layers):
+
+```json
+"Domains": {
+  "catalog": {
+    "Version": "1",
+    "DataCache": { "Ttl": "00:05:00" },
+    "OutputCache": { "Ttl": "00:01:00" },
+    "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+  }
+}
+```
+
+**Endpoint** — Output Cache on the route; data cache via the library:
+
+```csharp
+app.MapGet("/api/catalog", async (CatalogService catalog, CancellationToken ct) =>
+    Results.Json(await catalog.GetAllAsync(ct)))
+.CacheOutputWithDomain("catalog");
+```
+
+Request path: client headers → Output Cache → handler → `CatalogService` → `ICacheOrchestrator` → Fusion or Hybrid. Layer TTLs may differ; coordination is the shared domain name and Version (and tag invalidation). A worker host without AspNetCore still runs the same library against data cache only — Output/Client sections simply do not apply in that process.
 
 ---
 

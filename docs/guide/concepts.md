@@ -26,7 +26,9 @@ Details: [domain-profiles.md](../domain-profiles.md), [configuration.md](../conf
 
 All three resolve the same `DomainCacheOptions`. If lifetimes and invalidation disagree, one layer undoes the other.
 
-Libraries take **`ICacheOrchestrator`** from Core. Web endpoints usually use AspNetCore’s **`IDomainDataCache`** + `.CacheOutputWithDomain` / `[CacheDomain]` — the HTTP projection over the same orchestrator. Which engine backs the data layer is an `IDataCacheProvider` (Fusion by default; Hybrid optional).
+Libraries take **`ICacheOrchestrator`** from Core and pass the domain (and entity identity) in the call. Web endpoints usually use AspNetCore’s **`IDomainDataCache`** + `.CacheOutputWithDomain` / `[CacheDomain]` — the HTTP projection over the same orchestrator. Which engine backs the data layer is an `IDataCacheProvider` (Fusion by default; Hybrid optional).
+
+The same domain name in configuration can define DataCache, OutputCache, and ClientCache together. Library code only exercises the data-cache policy; the host applies Output Cache and client headers for that domain around the call. Worked example: [packages.md — library + web host](../packages.md#library--web-host-shared-domain-config).
 
 The core package is Http-free policy and contracts. ASP.NET Output Cache / client headers, Redis, the cluster HttpBus, and EF hooks are separate packages — [packages.md](../packages.md), [topologies](topologies.md).
 
