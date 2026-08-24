@@ -1,5 +1,4 @@
 using CacheOrchestrator.Admin;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
@@ -58,42 +57,6 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
 
     /// <inheritdoc />
     public void Dispose() => _changeRegistration?.Dispose();
-
-    /// <inheritdoc />
-    public DomainCacheOptions EnsureDomainOptions(HttpContext http, string domain)
-    {
-        ArgumentNullException.ThrowIfNull(http);
-
-        string normalized = DomainName.Normalize(domain);
-        ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
-
-        // L1: per-request feature — reuse only when the domain matches.
-        if (feature.DomainOptions is { } cached)
-        {
-            if (string.Equals(cached.Domain, normalized, StringComparison.Ordinal))
-                return cached;
-
-            if (_logger.IsEnabled(LogLevel.Warning))
-            {
-                _logger.LogWarning(
-                    "Replacing request domain snapshot '{PreviousDomain}' with '{Domain}'.",
-                    cached.Domain,
-                    normalized);
-            }
-        }
-
-        // L2: process-wide ConcurrentDictionary
-        DomainCacheOptions resolved = GetOrCreateDomainOptions(normalized);
-        feature.DomainOptions = resolved;
-        return resolved;
-    }
-
-    /// <inheritdoc />
-    public DomainCacheOptions? GetDomainOptions(HttpContext http)
-    {
-        ArgumentNullException.ThrowIfNull(http);
-        return http.Features.Get<ICacheOrchestratorFeature>()?.DomainOptions;
-    }
 
     /// <inheritdoc />
     public DomainCacheOptions GetOrCreateDomainOptions(string domain)

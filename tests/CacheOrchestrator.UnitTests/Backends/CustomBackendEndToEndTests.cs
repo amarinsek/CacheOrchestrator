@@ -150,7 +150,7 @@ public class CustomBackendEndToEndTests
         // --- Host A: cold L1 + empty L2 → factory once, write L2 ---
         await using ServiceProvider hostA = BuildHost(sharedL2);
         IDomainFusionCache cacheA = hostA.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainsA = hostA.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domainsA = hostA.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext httpA = new();
         httpA.Request.Method = "GET";
@@ -174,7 +174,7 @@ public class CustomBackendEndToEndTests
         // --- Host B: new process-like DI (empty L1), same shared L2 dictionary ---
         await using ServiceProvider hostB = BuildHost(sharedL2);
         IDomainFusionCache cacheB = hostB.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainsB = hostB.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domainsB = hostB.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext httpB = new();
         httpB.Request.Method = "GET";

@@ -13,6 +13,9 @@
     <Project Path="src/CacheOrchestrator.Bus/CacheOrchestrator.Bus.csproj" />
     <Project Path="src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj" />
     <Project Path="src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj" />
+    <Project Path="src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj" />
+    <Project Path="src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj" />
+    <Project Path="src/CacheOrchestrator.AspNetCore/CacheOrchestrator.AspNetCore.csproj" />
     <Project Path="src/CacheOrchestrator/CacheOrchestrator.csproj" />
   </Folder>
   <Folder Name="/tests/">

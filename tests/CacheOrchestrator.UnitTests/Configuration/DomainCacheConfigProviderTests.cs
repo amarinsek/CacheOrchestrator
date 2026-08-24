@@ -279,7 +279,7 @@ public class DomainCacheConfigProviderTests
             }
         };
 
-        using DomainCacheOptionsProvider provider = CreateProvider(initial, out TestOptionsMonitor monitor);
+        var provider = CreateProvider(initial, out TestOptionsMonitor monitor);
 
         DomainCacheOptions before = provider.GetOrCreateDomainOptions("catalog");
         before.Version.Should().Be("v1");
@@ -325,7 +325,7 @@ public class DomainCacheConfigProviderTests
             Domains = { ["orders"] = new() { Version = "gen-a" } }
         };
 
-        using DomainCacheOptionsProvider provider = CreateProvider(initial, out TestOptionsMonitor monitor);
+        var provider = CreateProvider(initial, out TestOptionsMonitor monitor);
 
         DomainCacheOptions firstRequest = provider.EnsureDomainOptions(new DefaultHttpContext(), "orders");
         firstRequest.Version.Should().Be("gen-a");
@@ -351,7 +351,7 @@ public class DomainCacheConfigProviderTests
             Domains = { ["live"] = new() { Version = "1" } }
         };
 
-        using DomainCacheOptionsProvider provider = CreateProvider(initial, out TestOptionsMonitor monitor);
+        var provider = CreateProvider(initial, out TestOptionsMonitor monitor);
 
         DefaultHttpContext http = new();
         DomainCacheOptions pinned = provider.EnsureDomainOptions(http, "live");
@@ -385,7 +385,7 @@ public class DomainCacheConfigProviderTests
             }
         };
 
-        using DomainCacheOptionsProvider provider = CreateProvider(initial, out TestOptionsMonitor monitor);
+        var provider = CreateProvider(initial, out TestOptionsMonitor monitor);
 
         DomainCacheOptions a1 = provider.GetOrCreateDomainOptions("a");
         DomainCacheOptions b1 = provider.GetOrCreateDomainOptions("b");
@@ -412,18 +412,18 @@ public class DomainCacheConfigProviderTests
     // Helpers
     // =========================
 
-    private static DomainCacheOptionsProvider CreateProvider(CacheOrchestratorOptions options)
+    private static IRequestDomainCacheOptions CreateProvider(CacheOrchestratorOptions options)
     {
         var monitor = new TestOptionsMonitor(options);
-        return new DomainCacheOptionsProvider(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
+        DomainCacheOptionsProvider inner = new(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
+        return new RequestDomainCacheOptionsProvider(inner, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
     }
 
-    private static DomainCacheOptionsProvider CreateProvider(
-        CacheOrchestratorOptions options,
-        out TestOptionsMonitor monitor)
+    private static IRequestDomainCacheOptions CreateProvider(CacheOrchestratorOptions options, out TestOptionsMonitor monitor)
     {
         monitor = new TestOptionsMonitor(options);
-        return new DomainCacheOptionsProvider(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
+        DomainCacheOptionsProvider inner = new(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
+        return new RequestDomainCacheOptionsProvider(inner, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
     }
 
     private sealed class TestOptionsMonitor : IOptionsMonitor<CacheOrchestratorOptions>

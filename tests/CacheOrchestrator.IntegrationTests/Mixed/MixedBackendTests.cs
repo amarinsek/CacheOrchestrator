@@ -66,7 +66,7 @@ public class MixedBackendTests
         app.UseRouting();
         app.UseCacheOrchestrator();
 
-        app.MapGet(basePath, async (HttpContext http, IDomainFusionCache cache, IDomainCacheOptionsProvider domains, HitCounter hits) =>
+        app.MapGet(basePath, async (HttpContext http, IDomainFusionCache cache, IRequestDomainCacheOptions domains, HitCounter hits) =>
         {
             domains.EnsureDomainOptions(http, domain);
             string value = await cache.GetOrSetAsync(http, _ =>
@@ -146,7 +146,7 @@ public class MixedBackendTests
         app.UseRouting();
         app.UseCacheOrchestrator();
 
-        app.MapGet(basePath, async (HttpContext http, IDomainFusionCache cache, IDomainCacheOptionsProvider domains, HitCounter hits) =>
+        app.MapGet(basePath, async (HttpContext http, IDomainFusionCache cache, IRequestDomainCacheOptions domains, HitCounter hits) =>
         {
             domains.EnsureDomainOptions(http, domain);
             string value = await cache.GetOrSetAsync(http, _ =>

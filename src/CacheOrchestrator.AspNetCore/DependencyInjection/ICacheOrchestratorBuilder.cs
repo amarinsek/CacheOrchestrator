@@ -8,17 +8,8 @@ namespace CacheOrchestrator.DependencyInjection;
 /// <summary>
 /// A builder for configuring CacheOrchestrator and registering custom backend providers.
 /// </summary>
-public interface ICacheOrchestratorBuilder
+public interface ICacheOrchestratorBuilder : ICacheOrchestratorServiceBuilder
 {
-    /// <summary>
-    /// The service collection.
-    /// </summary>
-    IServiceCollection Services { get; }
-
-    /// <summary>
-    /// The application configuration.
-    /// </summary>
-    IConfiguration Configuration { get; }
 
     /// <summary>
     /// Registers a custom backend provider registrar.

@@ -32,6 +32,7 @@ public class ServiceCollectionExtensionsTests
         using var sp = services.BuildServiceProvider();
 
         sp.GetService<IDomainCacheOptionsProvider>().Should().NotBeNull();
+        sp.GetService<IRequestDomainCacheOptions>().Should().NotBeNull();
         sp.GetService<IDomainFusionCache>().Should().NotBeNull();
         sp.GetService<ICacheOrchestrator>().Should().NotBeNull();
         sp.GetService<IDataCacheProvider>().Should().NotBeNull();

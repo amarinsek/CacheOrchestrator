@@ -384,7 +384,7 @@ public class FusionHttpAndDiTests
         string domain,
         string expectedVersion)
     {
-        IDomainCacheOptionsProvider domains = services.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = services.GetRequiredService<IRequestDomainCacheOptions>();
         IOptionsMonitor<CacheOrchestratorOptions> monitor =
             services.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>();
 
@@ -489,7 +489,7 @@ public class FusionHttpAndDiTests
         await using ServiceProvider sp = services.BuildServiceProvider();
 
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         int factoryCalls = 0;
 
         DefaultHttpContext gzip = CreateHttp("/api/enc");

@@ -11,8 +11,9 @@
 		<!-- NuGet.org shows this file (not the root GitHub README — HTML/logo-friendly for GitHub only). -->
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>logo-small.png</PackageIcon>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<NoWarn>$(NoWarn);1591</NoWarn>
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
+		<IncludeBuildOutput>false</IncludeBuildOutput>
+		<NoWarn>$(NoWarn);NU5128</NoWarn>
 		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 	</PropertyGroup>
 
@@ -22,23 +23,9 @@
 		<None Include="..\..\docs\assets\logo-small.png" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
+	<!-- Meta package: NuGet dependency on AspNetCore (+ Fusion via AspNetCore). -->
 	<ItemGroup>
-		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-	</ItemGroup>
-
-	<!-- Core packages only (no Redis). Redis backends: CacheOrchestrator.Redis. -->
-	<ItemGroup>
-		<PackageReference Include="ZiggyCreatures.FusionCache" Version="2.6.0" />
-		<PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.6.0" />
-		<PackageReference Include="System.IO.Hashing" Version="10.0.10" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<InternalsVisibleTo Include="CacheOrchestrator.UnitTests" />
-		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
-		<InternalsVisibleTo Include="CacheOrchestrator.Bus.UnitTests" />
-		<InternalsVisibleTo Include="CacheOrchestrator.EFCore.Invalidation.UnitTests" />
-		<InternalsVisibleTo Include="CacheOrchestrator.Benchmarks" />
-		<InternalsVisibleTo Include="CacheOrchestrator.Bus" />
+		<ProjectReference Include="..\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
+		<ProjectReference Include="..\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
 	</ItemGroup>
 </Project>

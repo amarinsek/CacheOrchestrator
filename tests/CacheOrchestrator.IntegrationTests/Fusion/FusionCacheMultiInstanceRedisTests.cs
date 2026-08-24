@@ -94,7 +94,7 @@ public sealed class FusionCacheMultiInstanceRedisTests : IAsyncLifetime
         await using ServiceProvider sp = BuildProvider();
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
         ICacheOrchestratorInvalidator invalidator = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext productsHttp = new();
         productsHttp.Request.Method = "GET";

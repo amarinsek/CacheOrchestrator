@@ -170,8 +170,8 @@ public class RedisMultiNodeTests
 
         IDomainFusionCache cacheA = spA.GetRequiredService<IDomainFusionCache>();
         IDomainFusionCache cacheB = spB.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainsA = spA.GetRequiredService<IDomainCacheOptionsProvider>();
-        IDomainCacheOptionsProvider domainsB = spB.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domainsA = spA.GetRequiredService<IRequestDomainCacheOptions>();
+        IRequestDomainCacheOptions domainsB = spB.GetRequiredService<IRequestDomainCacheOptions>();
 
         int factoryA = 0;
         int factoryB = 0;
@@ -244,10 +244,10 @@ public class RedisMultiNodeTests
 
         IDomainFusionCache cacheA = spA.GetRequiredService<IDomainFusionCache>();
         IDomainFusionCache cacheB = spB.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainsA = spA.GetRequiredService<IDomainCacheOptionsProvider>();
-        IDomainCacheOptionsProvider domainsB = spB.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domainsA = spA.GetRequiredService<IRequestDomainCacheOptions>();
+        IRequestDomainCacheOptions domainsB = spB.GetRequiredService<IRequestDomainCacheOptions>();
 
-        DefaultHttpContext MakeHttp(IDomainCacheOptionsProvider domains)
+        DefaultHttpContext MakeHttp(IRequestDomainCacheOptions domains)
         {
             DefaultHttpContext http = new();
             http.Request.Method = "GET";

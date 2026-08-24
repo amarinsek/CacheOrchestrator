@@ -214,7 +214,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         }
 
         DomainCacheOptions opts = http.RequestServices
-            .GetRequiredService<IDomainCacheOptionsProvider>()
+            .GetRequiredService<IRequestDomainCacheOptions>()
             .EnsureDomainOptions(http, domain);
 
         context.EnableOutputCaching = false;
@@ -535,7 +535,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         };
         IAdminStatsCollector? adminStats = httpContext.RequestServices.GetService<IAdminStatsCollector>();
         bool adminOn = adminStats is { IsEnabled: true };
-        CacheOrchestratorMetrics.ResolveEndpointKeys(
+        CacheOrchestratorMetricsHttpExtensions.ResolveEndpointKeys(
             httpContext,
             forAdminStats: adminOn,
             out string? endpointKey,

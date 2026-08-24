@@ -33,7 +33,7 @@ public class FusionCacheEntityInvalidationTests
     {
         await using ServiceProvider sp = BuildProvider();
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         ICacheOrchestratorInvalidator inv = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
 
         DefaultHttpContext http1 = new();
@@ -99,7 +99,7 @@ public class FusionCacheEntityInvalidationTests
     {
         await using ServiceProvider sp = BuildProvider();
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         ICacheOrchestratorInvalidator inv = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
 
         DefaultHttpContext http = new();

@@ -159,8 +159,8 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
         if (settings.FusionCache?.EagerRefreshRatio is double ratio && (ratio < 0 || ratio >= 1))
             failures.Add($"{label}: FusionCache.EagerRefreshRatio must be 0 (disabled) or in (0, 1).");
 
-        ValidateAllowlist(label, "VaryByHeaders", settings.VaryByHeaders, Vary.CacheVaryMaterializer.MaxVaryByHeaders, failures, allowEmpty: true);
-        ValidateAllowlist(label, "VaryByCookies", settings.VaryByCookies, Vary.CacheVaryMaterializer.MaxVaryByCookies, failures, allowEmpty: true);
+        ValidateAllowlist(label, "VaryByHeaders", settings.VaryByHeaders, Admin.DomainSettingsPatchMapper.MaxVaryByHeaders, failures, allowEmpty: true);
+        ValidateAllowlist(label, "VaryByCookies", settings.VaryByCookies, Admin.DomainSettingsPatchMapper.MaxVaryByCookies, failures, allowEmpty: true);
         ValidateAllowlist(label, "VaryByQueryKeys", settings.VaryByQueryKeys, max: 32, failures, allowEmpty: true);
         ValidateAllowlist(label, "IgnoreQueryKeys", settings.IgnoreQueryKeys, max: 32, failures, allowEmpty: true);
         ValidateAllowlist(label, "VaryByAuthClaims", settings.VaryByAuthClaims, max: 16, failures, allowEmpty: true);

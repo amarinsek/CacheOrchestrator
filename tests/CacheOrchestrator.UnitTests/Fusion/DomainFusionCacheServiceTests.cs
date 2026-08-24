@@ -15,7 +15,7 @@ public class DomainFusionCacheServiceTests
 {
     private readonly IFusionCacheProvider _fusionProvider = Substitute.For<IFusionCacheProvider>();
     private readonly IFusionCache _fusionCache = Substitute.For<IFusionCache>();
-    private readonly IDomainCacheOptionsProvider _domainConfig = Substitute.For<IDomainCacheOptionsProvider>();
+    private readonly IRequestDomainCacheOptions _domainConfig = Substitute.For<IRequestDomainCacheOptions>();
     private readonly IDomainKeyGenerator _keyGenerator = Substitute.For<IDomainKeyGenerator>();
     private readonly IDataCacheProvider _dataCache;
     private readonly DomainFusionCacheService _sut;

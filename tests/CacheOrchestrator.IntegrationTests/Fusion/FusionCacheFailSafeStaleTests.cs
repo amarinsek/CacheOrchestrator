@@ -40,7 +40,7 @@ public class FusionCacheFailSafeStaleTests
         return services.BuildServiceProvider();
     }
 
-    private static DefaultHttpContext CreateHttp(IDomainCacheOptionsProvider domains, string path)
+    private static DefaultHttpContext CreateHttp(IRequestDomainCacheOptions domains, string path)
     {
         DefaultHttpContext http = new();
         http.Request.Method = "GET";
@@ -57,7 +57,7 @@ public class FusionCacheFailSafeStaleTests
     {
         await using ServiceProvider sp = BuildProvider();
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         // --- Seed: successful factory → MISS ---
         DefaultHttpContext http1 = CreateHttp(domains, "/api/stale/item");
@@ -98,7 +98,7 @@ public class FusionCacheFailSafeStaleTests
     {
         await using ServiceProvider sp = BuildProvider();
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = CreateHttp(domains, "/api/stale/cold");
 
@@ -135,7 +135,7 @@ public class FusionCacheFailSafeStaleTests
         await using ServiceProvider sp = services.BuildServiceProvider();
 
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext seedHttp = new();
         seedHttp.Request.Method = "GET";

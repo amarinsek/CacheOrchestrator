@@ -194,7 +194,7 @@ public class MiscHttpAndDiTests
         await using ServiceProvider sp = services.BuildServiceProvider();
 
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         int factoryCalls = 0;
 
         async Task<string> OneAsync()

@@ -101,7 +101,7 @@ public class ConfigReloadAndValidationTests
         services.AddCacheOrchestrator(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         DefaultHttpContext http = new();
         DomainCacheOptions pinned = domains.EnsureDomainOptions(http, "pin");
         pinned.Version.Should().Be("1");
@@ -216,7 +216,7 @@ public class ConfigReloadAndValidationTests
 
     private static async Task WaitForClientTtlAsync(IServiceProvider services, string domain, int expected)
     {
-        IDomainCacheOptionsProvider domains = services.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = services.GetRequiredService<IRequestDomainCacheOptions>();
         IOptionsMonitor<CacheOrchestratorOptions> monitor =
             services.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>();
 

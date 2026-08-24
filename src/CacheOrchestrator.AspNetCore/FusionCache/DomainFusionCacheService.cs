@@ -18,7 +18,7 @@ namespace CacheOrchestrator.FusionCache;
 internal sealed class DomainFusionCacheService : IDomainFusionCache
 {
     private readonly IFusionCacheProvider _fusionProvider;
-    private readonly IDomainCacheOptionsProvider _domainConfig;
+    private readonly IRequestDomainCacheOptions _domainConfig;
     private readonly IDomainKeyGenerator _keyGenerator;
     private readonly IDataCacheProvider _dataCache;
     private readonly ILogger<DomainFusionCacheService> _logger;
@@ -29,7 +29,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
     /// </summary>
     public DomainFusionCacheService(
         IFusionCacheProvider fusionProvider,
-        IDomainCacheOptionsProvider domainConfig,
+        IRequestDomainCacheOptions domainConfig,
         IDomainKeyGenerator keyGenerator,
         IDataCacheProvider dataCache,
         ILogger<DomainFusionCacheService> logger,
@@ -884,7 +884,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         long? elapsedTicks,
         long? resultSizeBytes = null)
     {
-        CacheOrchestratorMetrics.ResolveEndpointKeys(
+        CacheOrchestratorMetricsHttpExtensions.ResolveEndpointKeys(
             http,
             forAdminStats: _adminStats.IsEnabled,
             out string? endpointKey,

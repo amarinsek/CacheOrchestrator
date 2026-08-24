@@ -127,7 +127,7 @@ public class ConfigBehaviorTests
         string domain,
         string expectedVersion)
     {
-        IDomainCacheOptionsProvider domains = services.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = services.GetRequiredService<IRequestDomainCacheOptions>();
         IOptionsMonitor<CacheOrchestratorOptions> monitor =
             services.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>();
 
@@ -177,7 +177,7 @@ public class ConfigBehaviorTests
             await using ServiceProvider sp = services.BuildServiceProvider();
 
             IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-            IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+            IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
             DefaultHttpContext http = new();
             http.Request.Method = "GET";
@@ -289,7 +289,7 @@ public class ConfigBehaviorTests
         await using ServiceProvider sp = services.BuildServiceProvider();
 
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = new();
         http.Request.Method = "GET";
@@ -396,7 +396,7 @@ public class ConfigBehaviorTests
         services.AddCacheOrchestrator(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         DefaultHttpContext http = new();
 
         DomainCacheOptions cfg = domains.EnsureDomainOptions(http, "unknown-domain-xyz");

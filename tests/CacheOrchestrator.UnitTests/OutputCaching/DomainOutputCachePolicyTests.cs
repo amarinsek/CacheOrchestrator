@@ -535,7 +535,7 @@ public class DomainOutputCachePolicyTests
             clientTtlSeconds,
             clientTtlMinSeconds);
 
-        var domainConfig = Substitute.For<IDomainCacheOptionsProvider>();
+        var domainConfig = Substitute.For<IRequestDomainCacheOptions>();
         domainConfig.EnsureDomainOptions(http, Arg.Any<string>()).Returns(call =>
         {
             http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });

@@ -18,7 +18,7 @@ public interface IDomainFusionCache
     /// <item>Endpoint metadata (<see cref="OutputCache.DomainOutputCachePolicy"/> / <see cref="OutputCache.CacheDomainAttribute"/>)</item>
     /// <item>If still missing, runs the factory uncached and logs a Warning with metric
     /// <c>result=unresolved</c> (Fusion-only endpoints should use the domain overload or
-    /// <see cref="Configuration.IDomainCacheOptionsProvider.EnsureDomainOptions"/>).</item>
+    /// <see cref="Configuration.IRequestDomainCacheOptions.EnsureDomainOptions"/>).</item>
     /// </list>
     /// When <c>.CacheOutputWithDomain(...)</c> or <c>[CacheDomain]</c> is used, the Output Cache policy usually
     /// already called <c>EnsureDomainOptions</c> before the handler runs.
@@ -37,7 +37,7 @@ public interface IDomainFusionCache
     /// Gets a cached value for the specified <paramref name="domain"/>, ensuring domain options on the request first.
     /// </summary>
     /// <remarks>
-    /// Prefer this overload (or <see cref="Configuration.IDomainCacheOptionsProvider.EnsureDomainOptions"/>)
+    /// Prefer this overload (or <see cref="Configuration.IRequestDomainCacheOptions.EnsureDomainOptions"/>)
     /// for <strong>Fusion-only</strong> endpoints that do not use Output Cache / <c>CacheOutputWithDomain</c>.
     /// If options for the same domain are already on the request, they are reused.
     /// A different explicit domain replaces the request snapshot so

@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CacheOrchestrator\CacheOrchestrator.csproj" />
+    <ProjectReference Include="..\..\src\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
   </ItemGroup>
 
 </Project>

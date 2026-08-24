@@ -38,7 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CacheOrchestrator\CacheOrchestrator.csproj" />
+    <ProjectReference Include="..\..\src\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\CacheOrchestrator.Bus\CacheOrchestrator.Bus.csproj" />
   </ItemGroup>
 

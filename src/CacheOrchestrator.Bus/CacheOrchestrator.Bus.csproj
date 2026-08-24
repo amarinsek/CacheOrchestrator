@@ -24,7 +24,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\CacheOrchestrator\CacheOrchestrator.csproj" />
+		<ProjectReference Include="..\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -33,7 +33,7 @@ public class FusionCacheInMemoryTests
     {
         await using ServiceProvider sp = BuildProvider();
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainConfig = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = new();
         http.Request.Method = "GET";
@@ -77,7 +77,7 @@ public class FusionCacheInMemoryTests
         await using ServiceProvider sp = services.BuildServiceProvider();
 
         IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainConfig = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = new();
         http.Request.Path = "/api/products/1";

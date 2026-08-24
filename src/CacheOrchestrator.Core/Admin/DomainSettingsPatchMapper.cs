@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.Vary;
 
 namespace CacheOrchestrator.Admin;
 
@@ -10,6 +9,12 @@ namespace CacheOrchestrator.Admin;
 /// </summary>
 public static class DomainSettingsPatchMapper
 {
+    /// <summary>Maximum entries allowed in <c>VaryByHeaders</c> (aligned with AspNet vary materializer).</summary>
+    public const int MaxVaryByHeaders = 8;
+
+    /// <summary>Maximum entries allowed in <c>VaryByCookies</c> (aligned with AspNet vary materializer).</summary>
+    public const int MaxVaryByCookies = 8;
+
     /// <summary>
     /// Builds a patch from wire values. Unknown keys or non-overlay settings throw
     /// <see cref="ArgumentException"/>.
@@ -83,10 +88,10 @@ public static class DomainSettingsPatchMapper
                 case "emitResponseVary": emitResponseVary = ReadBool(el, id); break;
                 case "acceptNormalizationList": acceptNormalizationList = ReadStringArray(el, id, max: 16); break;
                 case "acceptLanguageNormalizationList": acceptLanguageNormalizationList = ReadStringArray(el, id, max: 16); break;
-                case "varyByHeaders": varyByHeaders = ReadStringArray(el, id, max: CacheVaryMaterializer.MaxVaryByHeaders); break;
+                case "varyByHeaders": varyByHeaders = ReadStringArray(el, id, max: MaxVaryByHeaders); break;
                 case "varyByQueryKeys": varyByQueryKeys = ReadStringArray(el, id, max: 32); break;
                 case "ignoreQueryKeys": ignoreQueryKeys = ReadStringArray(el, id, max: 32); break;
-                case "varyByCookies": varyByCookies = ReadStringArray(el, id, max: CacheVaryMaterializer.MaxVaryByCookies); break;
+                case "varyByCookies": varyByCookies = ReadStringArray(el, id, max: MaxVaryByCookies); break;
                 case "varyByAuthClaims": varyByAuthClaims = ReadStringArray(el, id, max: 16); break;
                 case "outputCache.eTagMode": eTagMode = ReadEnum<ETagMode>(el, id); break;
                 case "clientCache.cacheability": clientCacheability = ReadEnum<ClientCacheability>(el, id); break;
