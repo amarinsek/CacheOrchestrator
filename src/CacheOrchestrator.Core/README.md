@@ -1,8 +1,8 @@
 # CacheOrchestrator.Core
 
-Http-free contracts and orchestration: domains, Version, portable `DataCache` policy, entity footprint/tags, **`ICacheOrchestrator`**, **`CacheDomainContext`**, invalidation, and cluster command contracts.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) configures Output Cache, application **data cache**, and client `Cache-Control` under one **domain** model. It does not replace those systems or own a store.
 
-Add this package for **class libraries** and workers. It does not reference ASP.NET, FusionCache, or HybridCache.
+This package is the **Http-free core**: domain options, Version, portable `DataCache` policy, entity footprint/tags, **`ICacheOrchestrator`**, **`CacheDomainContext`**, invalidation, and cluster **contracts**. Use it from class libraries and workers. It does not reference ASP.NET or a concrete cache engine.
 
 ## Install
 
@@ -10,7 +10,7 @@ Add this package for **class libraries** and workers. It does not reference ASP.
 dotnet add package CacheOrchestrator.Core
 ```
 
-## Quick start
+## Example
 
 ```csharp
 public sealed class CatalogService(ICacheOrchestrator cache)
@@ -27,21 +27,24 @@ public sealed class CatalogService(ICacheOrchestrator cache)
 }
 ```
 
-The host supplies `CacheDomainContext` and registers a data provider (Fusion or Hybrid) plus optional AspNetCore for Output Cache.
+The host application chooses the domain name (`new CacheDomainContext("catalog")` or a per-request value), registers a data provider (Fusion or Hybrid), and optionally AspNetCore for Output Cache / client headers.
 
 ## Related packages
 
 | Package | Role |
 |---------|------|
-| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/) | Fusion `IDataCacheProvider` |
-| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/) | Hybrid `IDataCacheProvider` |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/) | HTTP OC / Client Cache / Admin |
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/) | Meta (AspNetCore + Fusion) |
+| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/) | Meta package (AspNetCore + Fusion) for typical web apps |
+| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/) | Output Cache, Client Cache, Admin API, `IDomainDataCache` |
+| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/) | FusionCache data-cache provider |
+| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/) | Microsoft HybridCache data-cache provider |
+| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) | Redis Output Cache store / Fusion L2 / backplane |
+| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) | Multi-instance invalidate / Version / settings bus |
+| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) | Invalidate after EF `SaveChanges` |
 
 ## Documentation
 
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md) (library scenarios)
-- [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md)
+- [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License
 
