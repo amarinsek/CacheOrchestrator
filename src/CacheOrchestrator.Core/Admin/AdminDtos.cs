@@ -520,12 +520,6 @@ public sealed class AdminDomainConfigDto
     /// <summary>Data-cache soft TTL seconds.</summary>
     public int DataCacheTtlSeconds { get; init; }
 
-    /// <summary>Data-cache hard TTL seconds.</summary>
-    public int HardTtlSeconds { get; init; }
-
-    /// <summary>Data-cache fail-safe seconds.</summary>
-    public int FailSafeSeconds { get; init; }
-
     /// <summary>Client TTL seconds.</summary>
     public int ClientTtlSeconds { get; init; }
 
@@ -553,12 +547,6 @@ public sealed class AdminRuntimeOverrideFlagsDto
 
     /// <summary>Data-cache soft TTL overridden.</summary>
     public bool DataCacheTtl { get; init; }
-
-    /// <summary>Data-cache hard TTL overridden.</summary>
-    public bool HardTtl { get; init; }
-
-    /// <summary>Data-cache fail-safe overridden.</summary>
-    public bool FailSafe { get; init; }
 
     /// <summary>Client TTL overridden.</summary>
     public bool ClientTtl { get; init; }
@@ -651,12 +639,6 @@ public sealed class AdminTtlPatchRequest
 
     /// <summary>Data-cache soft TTL seconds.</summary>
     public int? DataCacheTtlSeconds { get; set; }
-
-    /// <summary>Data-cache hard TTL seconds.</summary>
-    public int? HardTtlSeconds { get; set; }
-
-    /// <summary>Data-cache fail-safe seconds.</summary>
-    public int? FailSafeSeconds { get; set; }
 
     /// <summary>Client TTL seconds.</summary>
     public int? ClientTtlSeconds { get; set; }

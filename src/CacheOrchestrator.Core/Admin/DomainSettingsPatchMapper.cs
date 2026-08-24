@@ -17,7 +17,8 @@ public static class DomainSettingsPatchMapper
 
     /// <summary>
     /// Builds a patch from wire values. Unknown keys or non-overlay settings throw
-    /// <see cref="ArgumentException"/>.
+    /// <see cref="ArgumentException"/>. Package-owned keys (e.g. <c>fusionCache.*</c>) must be
+    /// routed via <see cref="DomainSettingsPatchApplicator"/> / <see cref="IDomainSettingsPatchContributor"/>.
     /// </summary>
     public static DomainSettingsPatch FromDictionary(IReadOnlyDictionary<string, JsonElement> settings)
     {
@@ -31,7 +32,7 @@ public static class DomainSettingsPatchMapper
         bool? varyOutputCacheByUser = null;
         bool? treatAuthorizationAsAuthSignal = null;
         bool? authVaryIncludeAuthorizationHash = null;
-        bool? fusionRespectAuthBypass = null;
+        bool? dataCacheRespectAuthBypass = null;
         bool? clientForcePrivateWhenAuthenticated = null;
         bool? varyByAccept = null;
         bool? varyByAcceptLanguage = null;
@@ -51,18 +52,9 @@ public static class DomainSettingsPatchMapper
         bool? clientMustRevalidateNearUpdate = null;
         TimeSpan? outputCacheTtl = null;
         TimeSpan? dataCacheTtl = null;
-        TimeSpan? fusionCacheHardTtl = null;
-        TimeSpan? fusionCacheFailSafe = null;
-        double? fusionCacheEagerRefreshRatio = null;
-        TimeSpan? fusionCacheJitter = null;
-        TimeSpan? fusionCacheFactorySoftTimeout = null;
-        TimeSpan? fusionCacheFactoryHardTimeout = null;
-        int? fusionCacheMaxItemBytes = null;
-        bool? fusionCacheRespectNoStore = null;
-        bool? fusionCacheAllowBackgroundDistributed = null;
-        bool? fusionCacheAllowBackgroundBackplane = null;
-        bool? fusionCacheVaryOnPublicAddress = null;
-        bool? fusionCacheVaryOnEncoding = null;
+        bool? dataCacheRespectNoStore = null;
+        bool? dataCacheVaryOnPublicAddress = null;
+        bool? dataCacheVaryOnEncoding = null;
         bool? outputCacheVaryByHost = null;
 
         foreach ((string rawKey, JsonElement el) in settings)
@@ -81,7 +73,7 @@ public static class DomainSettingsPatchMapper
                 case "varyOutputCacheByUser": varyOutputCacheByUser = ReadBool(el, id); break;
                 case "treatAuthorizationAsAuthSignal": treatAuthorizationAsAuthSignal = ReadBool(el, id); break;
                 case "authVaryIncludeAuthorizationHash": authVaryIncludeAuthorizationHash = ReadBool(el, id); break;
-                case "dataCacheRespectAuthBypass": fusionRespectAuthBypass = ReadBool(el, id); break;
+                case "dataCacheRespectAuthBypass": dataCacheRespectAuthBypass = ReadBool(el, id); break;
                 case "clientCache.forcePrivateWhenAuthenticated": clientForcePrivateWhenAuthenticated = ReadBool(el, id); break;
                 case "varyByAccept": varyByAccept = ReadBool(el, id); break;
                 case "varyByAcceptLanguage": varyByAcceptLanguage = ReadBool(el, id); break;
@@ -101,18 +93,9 @@ public static class DomainSettingsPatchMapper
                 case "clientCache.mustRevalidateNearUpdate": clientMustRevalidateNearUpdate = ReadBool(el, id); break;
                 case "outputCache.ttl": outputCacheTtl = ReadNonNegTimeSpan(el, id); break;
                 case "dataCache.ttl": dataCacheTtl = ReadNonNegTimeSpan(el, id); break;
-                case "dataCache.hardTtl": fusionCacheHardTtl = ReadNonNegTimeSpan(el, id); break;
-                case "dataCache.failSafe": fusionCacheFailSafe = ReadNonNegTimeSpan(el, id); break;
-                case "dataCache.eagerRefreshRatio": fusionCacheEagerRefreshRatio = ReadDouble(el, id); break;
-                case "dataCache.jitter": fusionCacheJitter = ReadNonNegTimeSpan(el, id); break;
-                case "dataCache.factorySoftTimeout": fusionCacheFactorySoftTimeout = ReadNonNegTimeSpan(el, id); break;
-                case "dataCache.factoryHardTimeout": fusionCacheFactoryHardTimeout = ReadNonNegTimeSpan(el, id); break;
-                case "dataCache.maxItemBytes": fusionCacheMaxItemBytes = ReadNonNegInt(el, id); break;
-                case "dataCache.respectNoStore": fusionCacheRespectNoStore = ReadBool(el, id); break;
-                case "dataCache.allowBackgroundDistributed": fusionCacheAllowBackgroundDistributed = ReadBool(el, id); break;
-                case "dataCache.allowBackgroundBackplane": fusionCacheAllowBackgroundBackplane = ReadBool(el, id); break;
-                case "dataCache.varyOnPublicAddress": fusionCacheVaryOnPublicAddress = ReadBool(el, id); break;
-                case "dataCache.varyOnEncoding": fusionCacheVaryOnEncoding = ReadBool(el, id); break;
+                case "dataCache.respectNoStore": dataCacheRespectNoStore = ReadBool(el, id); break;
+                case "dataCache.varyOnPublicAddress": dataCacheVaryOnPublicAddress = ReadBool(el, id); break;
+                case "dataCache.varyOnEncoding": dataCacheVaryOnEncoding = ReadBool(el, id); break;
                 case "outputCache.varyByHost": outputCacheVaryByHost = ReadBool(el, id); break;
                 default:
                     throw new ArgumentException($"Setting '{id}' is not mapped for overlay.", nameof(settings));
@@ -127,7 +110,7 @@ public static class DomainSettingsPatchMapper
             VaryOutputCacheByUser = varyOutputCacheByUser,
             TreatAuthorizationAsAuthSignal = treatAuthorizationAsAuthSignal,
             AuthVaryIncludeAuthorizationHash = authVaryIncludeAuthorizationHash,
-            DataCacheRespectAuthBypass = fusionRespectAuthBypass,
+            DataCacheRespectAuthBypass = dataCacheRespectAuthBypass,
             ClientForcePrivateWhenAuthenticated = clientForcePrivateWhenAuthenticated,
             VaryByAccept = varyByAccept,
             VaryByAcceptLanguage = varyByAcceptLanguage,
@@ -147,18 +130,9 @@ public static class DomainSettingsPatchMapper
             ClientMustRevalidateNearUpdate = clientMustRevalidateNearUpdate,
             OutputCacheTtl = outputCacheTtl,
             DataCacheTtl = dataCacheTtl,
-            HardTtl = fusionCacheHardTtl,
-            FailSafe = fusionCacheFailSafe,
-            EagerRefreshRatio = fusionCacheEagerRefreshRatio,
-            Jitter = fusionCacheJitter,
-            FactorySoftTimeout = fusionCacheFactorySoftTimeout,
-            FactoryHardTimeout = fusionCacheFactoryHardTimeout,
-            MaxItemBytes = fusionCacheMaxItemBytes,
-            DataCacheRespectNoStore = fusionCacheRespectNoStore,
-            AllowBackgroundDistributed = fusionCacheAllowBackgroundDistributed,
-            AllowBackgroundBackplane = fusionCacheAllowBackgroundBackplane,
-            DataCacheVaryOnPublicAddress = fusionCacheVaryOnPublicAddress,
-            DataCacheVaryOnEncoding = fusionCacheVaryOnEncoding,
+            DataCacheRespectNoStore = dataCacheRespectNoStore,
+            DataCacheVaryOnPublicAddress = dataCacheVaryOnPublicAddress,
+            DataCacheVaryOnEncoding = dataCacheVaryOnEncoding,
             OutputCacheVaryByHost = outputCacheVaryByHost,
         };
     }
@@ -169,8 +143,6 @@ public static class DomainSettingsPatchMapper
         {
             OutputCacheTtl = FromSeconds(body.OutputCacheTtlSeconds),
             DataCacheTtl = FromSeconds(body.DataCacheTtlSeconds),
-            HardTtl = FromSeconds(body.HardTtlSeconds),
-            FailSafe = FromSeconds(body.FailSafeSeconds),
             ClientTtl = FromSeconds(body.ClientTtlSeconds),
             ClientTtlMin = FromSeconds(body.ClientTtlMinSeconds),
         };
@@ -186,19 +158,6 @@ public static class DomainSettingsPatchMapper
             JsonValueKind.String when bool.TryParse(el.GetString(), out bool b) => b,
             _ => throw new ArgumentException($"Setting '{id}' must be a boolean.", id),
         };
-
-    private static int ReadNonNegInt(JsonElement el, string id)
-    {
-        int v = el.ValueKind switch
-        {
-            JsonValueKind.Number when el.TryGetInt32(out int n) => n,
-            JsonValueKind.String when int.TryParse(el.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) => n,
-            _ => throw new ArgumentException($"Setting '{id}' must be an integer.", id),
-        };
-        if (v < 0)
-            throw new ArgumentException($"Setting '{id}' must be >= 0.", id);
-        return v;
-    }
 
     private static TimeSpan ReadNonNegTimeSpan(JsonElement el, string id)
     {
@@ -228,14 +187,6 @@ public static class DomainSettingsPatchMapper
 
         return false;
     }
-
-    private static double ReadDouble(JsonElement el, string id) =>
-        el.ValueKind switch
-        {
-            JsonValueKind.Number => el.GetDouble(),
-            JsonValueKind.String when double.TryParse(el.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double d) => d,
-            _ => throw new ArgumentException($"Setting '{id}' must be a number.", id),
-        };
 
     private static DateTimeOffset ReadDateTimeOffset(JsonElement el, string id)
     {

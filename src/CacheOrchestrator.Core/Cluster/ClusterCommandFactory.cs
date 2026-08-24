@@ -66,8 +66,6 @@ internal sealed class ClusterCommandFactory
             Domain = domain,
             OutputCacheTtlSeconds = patch.OutputCacheTtlSeconds,
             DataCacheTtlSeconds = patch.DataCacheTtlSeconds,
-            HardTtlSeconds = patch.HardTtlSeconds,
-            FailSafeSeconds = patch.FailSafeSeconds,
             ClientTtlSeconds = patch.ClientTtlSeconds,
             ClientTtlMinSeconds = patch.ClientTtlMinSeconds
         };

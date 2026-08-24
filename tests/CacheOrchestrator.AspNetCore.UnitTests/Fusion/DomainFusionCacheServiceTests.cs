@@ -18,18 +18,21 @@ public class DomainFusionCacheServiceTests
     private readonly IFusionCache _fusionCache = Substitute.For<IFusionCache>();
     private readonly IRequestDomainCacheOptions _domainConfig = Substitute.For<IRequestDomainCacheOptions>();
     private readonly IDomainKeyGenerator _keyGenerator = Substitute.For<IDomainKeyGenerator>();
+    private readonly IFusionDomainSettingsProvider _fusionSettings = Substitute.For<IFusionDomainSettingsProvider>();
     private readonly IDataCacheProvider _dataCache;
     private readonly DomainFusionCacheService _sut;
 
     public DomainFusionCacheServiceTests()
     {
         _fusionProvider.GetCache(Arg.Any<string>()).Returns(_fusionCache);
+        _fusionSettings.Get(Arg.Any<string>()).Returns(_ => CreateFusionSettings());
         _dataCache = CreateFusionDataCacheProvider(_fusionProvider);
         _sut = new DomainFusionCacheService(
             _fusionProvider,
             _domainConfig,
             _keyGenerator,
             _dataCache,
+            _fusionSettings,
             NullLogger<DomainFusionCacheService>.Instance);
     }
 
@@ -155,7 +158,8 @@ public class DomainFusionCacheServiceTests
     public async Task GetOrSetAsync_WhenFusionCacheDisabled_CallsFactoryDirectly()
     {
         var http = new DefaultHttpContext();
-        _domainConfig.GetDomainOptions(http).Returns(CreateConfig(enabled: false));
+        DomainCacheOptions cfg = CreateConfig(enabled: false);
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
 
         bool factoryCalled = false;
         int result = await _sut.GetOrSetAsync(http, _ =>
@@ -180,10 +184,12 @@ public class DomainFusionCacheServiceTests
             _domainConfig,
             _keyGenerator,
             _dataCache,
+            _fusionSettings,
             NullLogger<DomainFusionCacheService>.Instance,
             admin);
         var http = new DefaultHttpContext();
-        _domainConfig.GetDomainOptions(http).Returns(CreateConfig(enabled: false));
+        DomainCacheOptions cfg = CreateConfig(enabled: false);
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
 
         await sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
 
@@ -202,7 +208,8 @@ public class DomainFusionCacheServiceTests
         http.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.Name, "alice")],
             authenticationType: "test"));
-        _domainConfig.GetDomainOptions(http).Returns(CreateConfig(fusionRespectAuthBypass: true));
+        DomainCacheOptions cfg = CreateConfig(fusionRespectAuthBypass: true);
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
 
         bool factoryCalled = false;
         int result = await _sut.GetOrSetAsync(http, _ =>
@@ -243,7 +250,8 @@ public class DomainFusionCacheServiceTests
     {
         var http = new DefaultHttpContext();
         http.Request.Headers.CacheControl = "no-store";
-        _domainConfig.GetDomainOptions(http).Returns(CreateConfig(respectNoStore: true));
+        DomainCacheOptions cfg = CreateConfig(respectNoStore: true);
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
 
         bool factoryCalled = false;
         int result = await _sut.GetOrSetAsync(http, _ =>
@@ -360,7 +368,7 @@ public class DomainFusionCacheServiceTests
         EntryOptionsCapture capture2 = StubGetOrSetAndCaptureOptions(returnValue: 2);
         await _sut.GetOrSetAsync(http, _ => Task.FromResult(2), TestContext.Current.CancellationToken);
 
-        FusionCacheEntryOptions expected = FusionEntryOptionsFactory.Create(cfg);
+        FusionCacheEntryOptions expected = FusionEntryOptionsFactory.Create(cfg, CreateFusionSettings());
         capture1.Options.Should().NotBeNull();
         capture2.Options.Should().NotBeNull();
         capture1.Options!.Duration.Should().Be(expected.Duration);
@@ -423,6 +431,7 @@ public class DomainFusionCacheServiceTests
             _domainConfig,
             realKeys,
             _dataCache,
+            _fusionSettings,
             NullLogger<DomainFusionCacheService>.Instance);
 
         var keys = new List<string>();
@@ -472,6 +481,7 @@ public class DomainFusionCacheServiceTests
             _domainConfig,
             realKeys,
             _dataCache,
+            _fusionSettings,
             NullLogger<DomainFusionCacheService>.Instance);
 
         var entityKeys = new List<string>();
@@ -559,7 +569,8 @@ public class DomainFusionCacheServiceTests
     public async Task GetOrSetEntityAsync_WhenIdentityMissing_Throws()
     {
         var http = new DefaultHttpContext();
-        _domainConfig.GetDomainOptions(http).Returns(CreateConfig());
+        DomainCacheOptions cfg = CreateConfig();
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
 
         var act = () => _sut.GetOrSetEntityAsync(
             http,
@@ -709,13 +720,20 @@ public class DomainFusionCacheServiceTests
     // Helpers
     // =========================
 
+    /// <summary>
+    /// Builds domain options and stubs Fusion settings for <paramref name="domain"/>.
+    /// Do not nest this inside another substitute <c>.Returns(...)</c> call — configure fusion first, then return.
+    /// </summary>
     private DomainCacheOptions CreateConfig(
         string domain = "products",
         bool enabled = true,
         bool respectNoStore = false,
         bool fusionRespectAuthBypass = true,
-        TimeSpan? failSafe = null) =>
-        new()
+        TimeSpan? failSafe = null)
+    {
+        DomainFusionCacheSettings fusion = CreateFusionSettings(failSafe);
+        _fusionSettings.Get(domain).Returns(fusion);
+        return new()
         {
             Domain = domain,
             DataCacheEnabled = enabled,
@@ -723,14 +741,20 @@ public class DomainFusionCacheServiceTests
             DataCacheRespectAuthBypass = fusionRespectAuthBypass,
             Version = "1",
             DataCacheTtl = TimeSpan.FromMinutes(5),
-            DataCacheHardTtl = TimeSpan.FromHours(1),
-            DataCacheFailSafe = failSafe ?? TimeSpan.FromHours(24),
-            DataCacheJitter = TimeSpan.FromSeconds(30),
-            DataCacheEagerRefreshRatio = 0.9,
-            DataCacheFactorySoftTimeout = TimeSpan.FromSeconds(1),
-            DataCacheFactoryHardTimeout = TimeSpan.FromSeconds(5),
-            DataCacheAllowBackgroundDistributed = true,
-            DataCacheAllowBackgroundBackplane = true,
+        };
+    }
+
+    private static DomainFusionCacheSettings CreateFusionSettings(TimeSpan? failSafe = null) =>
+        new()
+        {
+            HardTtl = TimeSpan.FromHours(1),
+            FailSafe = failSafe ?? TimeSpan.FromHours(24),
+            Jitter = TimeSpan.FromSeconds(30),
+            EagerRefreshRatio = 0.9,
+            FactorySoftTimeout = TimeSpan.FromSeconds(1),
+            FactoryHardTimeout = TimeSpan.FromSeconds(5),
+            AllowBackgroundDistributed = true,
+            AllowBackgroundBackplane = true,
         };
 
     private FusionDataCacheProvider CreateFusionDataCacheProvider(IFusionCacheProvider fusionProvider)
@@ -740,6 +764,7 @@ public class DomainFusionCacheServiceTests
         return new FusionDataCacheProvider(
             fusionProvider,
             options,
+            _fusionSettings,
             NullLogger<FusionDataCacheProvider>.Instance);
     }
 }

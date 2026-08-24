@@ -13,19 +13,23 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
 {
     private readonly IFusionCacheProvider _fusionProvider;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
+    private readonly IFusionDomainSettingsProvider _fusionDomainSettings;
     private readonly ILogger<FusionDataCacheProvider> _logger;
 
     public FusionDataCacheProvider(
         IFusionCacheProvider fusionProvider,
         IOptionsMonitor<CacheOrchestratorOptions> options,
+        IFusionDomainSettingsProvider fusionDomainSettings,
         ILogger<FusionDataCacheProvider> logger)
     {
         ArgumentNullException.ThrowIfNull(fusionProvider);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(fusionDomainSettings);
         ArgumentNullException.ThrowIfNull(logger);
 
         _fusionProvider = fusionProvider;
         _options = options;
+        _fusionDomainSettings = fusionDomainSettings;
         _logger = logger;
     }
 
@@ -42,7 +46,8 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         ArgumentNullException.ThrowIfNull(factory);
 
         IFusionCache fusion = _fusionProvider.GetCache(request.InstanceName);
-        FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(request.DomainOptions);
+        DomainFusionCacheSettings fusionSettings = _fusionDomainSettings.Get(request.DomainOptions.Domain);
+        FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(request.DomainOptions, fusionSettings);
         string[] tags = request.Tags as string[] ?? [.. request.Tags];
 
         T result = await fusion.GetOrSetAsync<T>(

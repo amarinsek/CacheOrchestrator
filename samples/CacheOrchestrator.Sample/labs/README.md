@@ -47,7 +47,7 @@ If behaviour looks surprising, see **[Troubleshooting](#troubleshooting)** (brow
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "InMemory" }
     },
     "Cluster": {
@@ -106,7 +106,7 @@ One app process with full **ops surface**: Admin API (health, config, invalidate
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "Redis" }
     },
     "Redis": {
@@ -168,7 +168,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml up 
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "Redis" }
     },
     "Redis": {
@@ -241,7 +241,7 @@ That gap is real multi-instance behaviour with OC InMemory and no command bus. S
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "Redis" }
     },
     "Redis": {
@@ -317,7 +317,7 @@ Redis L2 + backplane handle **data / Fusion L1**. The **bus** carries **commands
       "Provider": "Redis",
       "Redis": { "Configuration": "redis-oc:6379" }
     },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": {
         "Provider": "Redis",
         "Redis": { "Configuration": "redis-fc:6379" }
@@ -367,7 +367,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/05-dual-redis-bu
 | Apply **commands** everywhere | HTTP bus |
 | Operate | Admin Console + Prometheus |
 
-Shared OC store ≠ bus: Redis OC shares **payloads**; the bus still distributes **commands** (Version/TTL overlays, Admin distribute, other process-local state). Two Redis instances in the lab so you **see** separate roles — production may use one Redis (keys/DBs) or two (isolation). Per-layer connection strings: `OutputCache:Redis` vs `FusionCacheInstances:…:Redis`.
+Shared OC store ≠ bus: Redis OC shares **payloads**; the bus still distributes **commands** (Version/TTL overlays, Admin distribute, other process-local state). Two Redis instances in the lab so you **see** separate roles — production may use one Redis (keys/DBs) or two (isolation). Per-layer connection strings: `OutputCache:Redis` vs `DataCacheInstances:…:Redis`.
 
 Host/port vary is off in multi-instance labs (same note as Stage 03).
 

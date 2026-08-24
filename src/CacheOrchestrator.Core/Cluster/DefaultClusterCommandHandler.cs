@@ -17,6 +17,7 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
     private readonly IInstanceIdProvider _instanceId;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly ClusterCommandDedupeStore _dedupe;
+    private readonly IEnumerable<IDomainSettingsPatchContributor> _settingsContributors;
     private readonly ILogger<DefaultClusterCommandHandler> _logger;
 
     public DefaultClusterCommandHandler(
@@ -25,7 +26,8 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
         IInstanceIdProvider instanceId,
         IOptionsMonitor<CacheOrchestratorOptions> options,
         ClusterCommandDedupeStore dedupe,
-        ILogger<DefaultClusterCommandHandler> logger)
+        ILogger<DefaultClusterCommandHandler> logger,
+        IEnumerable<IDomainSettingsPatchContributor>? settingsContributors = null)
     {
         ArgumentNullException.ThrowIfNull(invalidator);
         ArgumentNullException.ThrowIfNull(overrides);
@@ -39,6 +41,7 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
         _instanceId = instanceId;
         _options = options;
         _dedupe = dedupe;
+        _settingsContributors = settingsContributors ?? [];
         _logger = logger;
     }
 
@@ -194,8 +197,6 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
         {
             OutputCacheTtl = FromSeconds(command.OutputCacheTtlSeconds),
             DataCacheTtl = FromSeconds(command.DataCacheTtlSeconds),
-            HardTtl = FromSeconds(command.HardTtlSeconds),
-            FailSafe = FromSeconds(command.FailSafeSeconds),
             ClientTtl = FromSeconds(command.ClientTtlSeconds),
             ClientTtlMin = FromSeconds(command.ClientTtlMinSeconds)
         };
@@ -219,8 +220,11 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
 
         try
         {
-            DomainSettingsPatch patch = DomainSettingsPatchMapper.FromDictionary(command.Settings);
-            _overrides.PatchSettings(command.Domain, patch);
+            DomainSettingsPatchApplicator.Apply(
+                command.Domain,
+                command.Settings,
+                _overrides,
+                _settingsContributors);
         }
         catch (ArgumentException ex)
         {

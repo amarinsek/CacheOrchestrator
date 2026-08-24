@@ -14,12 +14,6 @@ public sealed record TtlPatchCommand : ClusterCommand
     /// <summary>Data-cache TTL seconds.</summary>
     public int? DataCacheTtlSeconds { get; init; }
 
-    /// <summary>Hard TTL seconds (Fusion engine).</summary>
-    public int? HardTtlSeconds { get; init; }
-
-    /// <summary>Fail-safe seconds (Fusion engine).</summary>
-    public int? FailSafeSeconds { get; init; }
-
     /// <summary>Client TTL seconds.</summary>
     public int? ClientTtlSeconds { get; init; }
 

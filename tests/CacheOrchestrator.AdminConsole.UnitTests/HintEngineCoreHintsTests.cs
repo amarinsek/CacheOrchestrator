@@ -288,27 +288,7 @@ public class HintEngineCoreHintsTests
         hints.Should().Contain(h => h.Code == "runtime-override" && h.Severity == "Info");
     }
 
-    [Fact]
-    public void EvaluateDomain_FusionHardShorterThanSoft_EmitsWarning()
-    {
-        (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
-            AdminStatsMath.BuildAll(50, 0, 0, 0, 0, 0, 0, 0, 0);
 
-        AdminDomainConfigDto cfg = new()
-        {
-            Name = "catalog",
-            Version = "1",
-            DataCacheInstanceName = "default",
-            DataCacheTtlSeconds = 3600,
-            HardTtlSeconds = 600
-        };
-
-        IReadOnlyList<AdminHintDto> hints = _engine.EvaluateDomain(
-            new() { Name = "catalog", Version = "1", Requests = 50, OutputCache = outputCache, DataCache = dataCache, Pipeline = pipe },
-            cfg);
-
-        hints.Should().Contain(h => h.Code == "fusion-hard-lt-soft" && h.Severity == "Warning");
-    }
 
     [Fact]
     public void EvaluateDomain_ScheduleCannotRamp_EmitsInfo()

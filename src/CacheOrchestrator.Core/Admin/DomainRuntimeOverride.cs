@@ -92,35 +92,8 @@ public sealed class DomainRuntimeOverride
     /// <summary>Override data cache TTL.</summary>
     public TimeSpan? DataCacheTtl { get; init; }
 
-    /// <summary>Override data-cache hard TTL.</summary>
-    public TimeSpan? HardTtl { get; init; }
-
-    /// <summary>Override data-cache fail-safe.</summary>
-    public TimeSpan? FailSafe { get; init; }
-
-    /// <summary>Override eager refresh ratio.</summary>
-    public double? EagerRefreshRatio { get; init; }
-
-    /// <summary>Override data-cache jitter.</summary>
-    public TimeSpan? Jitter { get; init; }
-
-    /// <summary>Override factory soft timeout.</summary>
-    public TimeSpan? FactorySoftTimeout { get; init; }
-
-    /// <summary>Override factory hard timeout.</summary>
-    public TimeSpan? FactoryHardTimeout { get; init; }
-
-    /// <summary>Override max item bytes.</summary>
-    public int? MaxItemBytes { get; init; }
-
     /// <summary>Override respect no-store.</summary>
     public bool? DataCacheRespectNoStore { get; init; }
-
-    /// <summary>Override background distributed ops.</summary>
-    public bool? AllowBackgroundDistributed { get; init; }
-
-    /// <summary>Override background backplane ops.</summary>
-    public bool? AllowBackgroundBackplane { get; init; }
 
     /// <summary>Override vary on public address.</summary>
     public bool? DataCacheVaryOnPublicAddress { get; init; }
@@ -160,16 +133,7 @@ public sealed class DomainRuntimeOverride
         || ClientMustRevalidateNearUpdate is not null
         || OutputCacheTtl is not null
         || DataCacheTtl is not null
-        || HardTtl is not null
-        || FailSafe is not null
-        || EagerRefreshRatio is not null
-        || Jitter is not null
-        || FactorySoftTimeout is not null
-        || FactoryHardTimeout is not null
-        || MaxItemBytes is not null
         || DataCacheRespectNoStore is not null
-        || AllowBackgroundDistributed is not null
-        || AllowBackgroundBackplane is not null
         || DataCacheVaryOnPublicAddress is not null
         || DataCacheVaryOnEncoding is not null
         || OutputCacheVaryByHost is not null;
@@ -259,35 +223,8 @@ public sealed class DomainSettingsPatch
     /// <summary>Data cache TTL.</summary>
     public TimeSpan? DataCacheTtl { get; init; }
 
-    /// <summary>Data-cache hard TTL.</summary>
-    public TimeSpan? HardTtl { get; init; }
-
-    /// <summary>Data-cache fail-safe.</summary>
-    public TimeSpan? FailSafe { get; init; }
-
-    /// <summary>Eager refresh ratio.</summary>
-    public double? EagerRefreshRatio { get; init; }
-
-    /// <summary>Data-cache jitter.</summary>
-    public TimeSpan? Jitter { get; init; }
-
-    /// <summary>Factory soft timeout.</summary>
-    public TimeSpan? FactorySoftTimeout { get; init; }
-
-    /// <summary>Factory hard timeout.</summary>
-    public TimeSpan? FactoryHardTimeout { get; init; }
-
-    /// <summary>Max item bytes.</summary>
-    public int? MaxItemBytes { get; init; }
-
     /// <summary>Respect no-store.</summary>
     public bool? DataCacheRespectNoStore { get; init; }
-
-    /// <summary>Background distributed ops.</summary>
-    public bool? AllowBackgroundDistributed { get; init; }
-
-    /// <summary>Background backplane ops.</summary>
-    public bool? AllowBackgroundBackplane { get; init; }
 
     /// <summary>Vary on public address.</summary>
     public bool? DataCacheVaryOnPublicAddress { get; init; }
@@ -326,21 +263,12 @@ public sealed class DomainSettingsPatch
         || ClientMustRevalidateNearUpdate is not null
         || OutputCacheTtl is not null
         || DataCacheTtl is not null
-        || HardTtl is not null
-        || FailSafe is not null
-        || EagerRefreshRatio is not null
-        || Jitter is not null
-        || FactorySoftTimeout is not null
-        || FactoryHardTimeout is not null
-        || MaxItemBytes is not null
         || DataCacheRespectNoStore is not null
-        || AllowBackgroundDistributed is not null
-        || AllowBackgroundBackplane is not null
         || DataCacheVaryOnPublicAddress is not null
         || DataCacheVaryOnEncoding is not null
         || OutputCacheVaryByHost is not null;
 
-    /// <summary>True when this patch only touches the legacy TTL six-pack (safe for old <c>ttlPatch</c> peers).</summary>
+    /// <summary>True when this patch only touches portable TTL fields (safe for old <c>ttlPatch</c> peers).</summary>
     public bool IsTtlOnly =>
         HasAny
         && OutputCacheEnabled is null
@@ -365,21 +293,12 @@ public sealed class DomainSettingsPatch
         && ClientCacheability is null
         && ScheduledUpdateUtc is null
         && ClientMustRevalidateNearUpdate is null
-        && EagerRefreshRatio is null
-        && Jitter is null
-        && FactorySoftTimeout is null
-        && FactoryHardTimeout is null
-        && MaxItemBytes is null
         && DataCacheRespectNoStore is null
-        && AllowBackgroundDistributed is null
-        && AllowBackgroundBackplane is null
         && DataCacheVaryOnPublicAddress is null
         && DataCacheVaryOnEncoding is null
         && OutputCacheVaryByHost is null
         && (OutputCacheTtl is not null
             || DataCacheTtl is not null
-            || HardTtl is not null
-            || FailSafe is not null
             || ClientTtl is not null
             || ClientTtlMin is not null);
 }
@@ -397,12 +316,6 @@ public sealed class DomainTtlPatch
     /// <summary>Data-cache soft TTL seconds.</summary>
     public int? DataCacheTtlSeconds { get; init; }
 
-    /// <summary>Data-cache hard TTL seconds.</summary>
-    public int? HardTtlSeconds { get; init; }
-
-    /// <summary>Data-cache fail-safe seconds.</summary>
-    public int? FailSafeSeconds { get; init; }
-
     /// <summary>Client TTL seconds.</summary>
     public int? ClientTtlSeconds { get; init; }
 
@@ -417,8 +330,6 @@ public sealed class DomainTtlPatch
     {
         OutputCacheTtl = FromSeconds(OutputCacheTtlSeconds),
         DataCacheTtl = FromSeconds(DataCacheTtlSeconds),
-        HardTtl = FromSeconds(HardTtlSeconds),
-        FailSafe = FromSeconds(FailSafeSeconds),
         ClientTtl = FromSeconds(ClientTtlSeconds),
         ClientTtlMin = FromSeconds(ClientTtlMinSeconds),
     };

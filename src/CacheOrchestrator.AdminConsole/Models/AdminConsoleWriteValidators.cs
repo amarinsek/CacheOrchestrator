@@ -69,8 +69,6 @@ public static class AdminConsoleWriteValidators
         bool any =
             request.OutputCacheTtlSeconds is not null
             || request.DataCacheTtlSeconds is not null
-            || request.HardTtlSeconds is not null
-            || request.FailSafeSeconds is not null
             || request.ClientTtlSeconds is not null
             || request.ClientTtlMinSeconds is not null;
 
@@ -79,8 +77,6 @@ public static class AdminConsoleWriteValidators
 
         ValidateNonNegative(request.OutputCacheTtlSeconds, nameof(request.OutputCacheTtlSeconds));
         ValidateNonNegative(request.DataCacheTtlSeconds, nameof(request.DataCacheTtlSeconds));
-        ValidateNonNegative(request.HardTtlSeconds, nameof(request.HardTtlSeconds));
-        ValidateNonNegative(request.FailSafeSeconds, nameof(request.FailSafeSeconds));
         ValidateNonNegative(request.ClientTtlSeconds, nameof(request.ClientTtlSeconds));
         ValidateNonNegative(request.ClientTtlMinSeconds, nameof(request.ClientTtlMinSeconds));
     }

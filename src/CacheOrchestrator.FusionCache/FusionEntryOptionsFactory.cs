@@ -4,27 +4,49 @@ using ZiggyCreatures.Caching.Fusion;
 namespace CacheOrchestrator.FusionCache;
 
 /// <summary>
-/// Builds <see cref="FusionCacheEntryOptions"/> from resolved <see cref="DomainCacheOptions"/>.
+/// Builds <see cref="FusionCacheEntryOptions"/> from domain options + Fusion engine settings.
 /// </summary>
 internal static class FusionEntryOptionsFactory
 {
     /// <summary>
-    /// Creates Fusion entry options from data-cache fields on <paramref name="opts"/>.
-    /// Unsupported Hybrid-only consumers ignore these via their own provider.
+    /// Creates Fusion entry options. Data TTL comes from <paramref name="opts"/>;
+    /// hard TTL / fail-safe / jitter / factory timeouts come from <paramref name="fusion"/>
+    /// (already merged with optional <paramref name="overlay"/> when provided separately).
     /// </summary>
-    public static FusionCacheEntryOptions Create(DomainCacheOptions opts)
+    public static FusionCacheEntryOptions Create(
+        DomainCacheOptions opts,
+        DomainFusionCacheSettings? fusion = null,
+        FusionDomainRuntimeOverride? overlay = null)
     {
         ArgumentNullException.ThrowIfNull(opts);
 
-        TimeSpan hardTtl = opts.DataCacheHardTtl;
-        TimeSpan failSafe = opts.DataCacheFailSafe;
-        TimeSpan jitter = opts.DataCacheJitter;
-        TimeSpan factorySoftTimeout = opts.DataCacheFactorySoftTimeout;
-        TimeSpan factoryHardTimeout = opts.DataCacheFactoryHardTimeout;
-        double eagerRefresh = opts.DataCacheEagerRefreshRatio;
-        int maxItemBytes = opts.DataCacheMaxItemBytes;
-        bool allowBackgroundDistributed = opts.DataCacheAllowBackgroundDistributed;
-        bool allowBackgroundBackplane = opts.DataCacheAllowBackgroundBackplane;
+        TimeSpan hardTtl = overlay?.HardTtl
+            ?? fusion?.HardTtl
+            ?? TimeSpan.FromSeconds(43200);
+        TimeSpan failSafe = overlay?.FailSafe
+            ?? fusion?.FailSafe
+            ?? TimeSpan.FromSeconds(86400);
+        TimeSpan jitter = overlay?.Jitter
+            ?? fusion?.Jitter
+            ?? TimeSpan.FromSeconds(60);
+        TimeSpan factorySoftTimeout = overlay?.FactorySoftTimeout
+            ?? fusion?.FactorySoftTimeout
+            ?? TimeSpan.FromSeconds(1);
+        TimeSpan factoryHardTimeout = overlay?.FactoryHardTimeout
+            ?? fusion?.FactoryHardTimeout
+            ?? TimeSpan.FromSeconds(5);
+        double eagerRefresh = overlay?.EagerRefreshRatio
+            ?? fusion?.EagerRefreshRatio
+            ?? 0.9;
+        int maxItemBytes = overlay?.MaxItemBytes
+            ?? fusion?.MaxItemBytes
+            ?? 0;
+        bool allowBackgroundDistributed = overlay?.AllowBackgroundDistributed
+            ?? fusion?.AllowBackgroundDistributed
+            ?? true;
+        bool allowBackgroundBackplane = overlay?.AllowBackgroundBackplane
+            ?? fusion?.AllowBackgroundBackplane
+            ?? true;
 
         // Soft/data duration; cap by hard TTL when hard is shorter (defensive).
         TimeSpan duration = opts.DataCacheTtl;

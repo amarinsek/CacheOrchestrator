@@ -11,8 +11,9 @@ public class DomainSettingCatalogTests
         Assert.NotEmpty(all);
         Assert.Contains(all, e => e.Id == "outputCache.ttl" && e.RuntimeOverlay);
         Assert.Contains(all, e => e.Id == "dataCache.enabled" && e.RuntimeOverlay);
-        Assert.Contains(all, e => e.Id == "dataCache.hardTtl" && e.RuntimeOverlay);
-        Assert.Contains(all, e => e.Id == "dataCache.failSafe" && e.RuntimeOverlay);
+        Assert.Contains(all, e => e.Id == "dataCache.ttl" && e.RuntimeOverlay);
+        Assert.DoesNotContain(all, e => e.Id == "dataCache.hardTtl");
+        Assert.DoesNotContain(all, e => e.Id == "dataCache.failSafe");
         Assert.Contains(all, e => e.Id == "clientCache.scheduledUpdateUtc" && e.RuntimeOverlay);
         Assert.Contains(all, e => e.Id == "dataCache.instance" && !e.RuntimeOverlay);
         Assert.DoesNotContain(all, e => e.Id.StartsWith("fusionCache.", StringComparison.OrdinalIgnoreCase));

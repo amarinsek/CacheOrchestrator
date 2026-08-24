@@ -313,8 +313,6 @@ public sealed class AdminFanOutService
         {
             OutputCacheTtlSeconds = request.OutputCacheTtlSeconds,
             DataCacheTtlSeconds = request.DataCacheTtlSeconds,
-            HardTtlSeconds = request.HardTtlSeconds,
-            FailSafeSeconds = request.FailSafeSeconds,
             ClientTtlSeconds = request.ClientTtlSeconds,
             ClientTtlMinSeconds = request.ClientTtlMinSeconds,
             Distribute = plan.Distribute

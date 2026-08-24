@@ -22,6 +22,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
     private readonly IRequestDomainCacheOptions _domainConfig;
     private readonly IDomainKeyGenerator _keyGenerator;
     private readonly IDataCacheProvider _dataCache;
+    private readonly IFusionDomainSettingsProvider _fusionDomainSettings;
     private readonly ILogger<DomainFusionCacheService> _logger;
     private readonly IAdminStatsCollector _adminStats;
 
@@ -33,6 +34,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         IRequestDomainCacheOptions domainConfig,
         IDomainKeyGenerator keyGenerator,
         IDataCacheProvider dataCache,
+        IFusionDomainSettingsProvider fusionDomainSettings,
         ILogger<DomainFusionCacheService> logger,
         IAdminStatsCollector? adminStats = null)
     {
@@ -40,12 +42,14 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         ArgumentNullException.ThrowIfNull(domainConfig);
         ArgumentNullException.ThrowIfNull(keyGenerator);
         ArgumentNullException.ThrowIfNull(dataCache);
+        ArgumentNullException.ThrowIfNull(fusionDomainSettings);
         ArgumentNullException.ThrowIfNull(logger);
 
         _fusionProvider = fusionProvider;
         _domainConfig = domainConfig;
         _keyGenerator = keyGenerator;
         _dataCache = dataCache;
+        _fusionDomainSettings = fusionDomainSettings;
         _logger = logger;
         _adminStats = adminStats ?? NoOpAdminStatsCollector.Instance;
     }
@@ -258,7 +262,8 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
                 feature.ResourceId = previousId;
         }
 
-        FusionCacheEntryOptions options = FusionEntryOptionsFactory.Create(opts);
+        DomainFusionCacheSettings fusionSettings = _fusionDomainSettings.Get(opts.Domain);
+        FusionCacheEntryOptions options = FusionEntryOptionsFactory.Create(opts, fusionSettings);
         IFusionCache fusion = _fusionProvider.GetCache(opts.DataCacheInstanceName);
         // Early tags (mutable — factory may append before Fusion Set reads them).
         List<string> tags = [CacheTags.Domain(opts.Domain)];

@@ -148,33 +148,6 @@ public sealed class DomainCacheOptions
     /// <summary>Logical data-cache TTL (Fusion soft duration / Hybrid expiration).</summary>
     public TimeSpan DataCacheTtl { get; init; }
 
-    /// <summary>Hard (absolute) duration cap for data cache (Fusion; Hybrid ignores).</summary>
-    public TimeSpan DataCacheHardTtl { get; init; }
-
-    /// <summary>Fail-safe max duration for data cache (Fusion; Hybrid ignores).</summary>
-    public TimeSpan DataCacheFailSafe { get; init; }
-
-    /// <summary>Eager refresh threshold ratio (0–1 exclusive). 0 = disabled (Fusion; Hybrid ignores).</summary>
-    public double DataCacheEagerRefreshRatio { get; init; }
-
-    /// <summary>Max jitter added to data-cache duration (Fusion; Hybrid ignores).</summary>
-    public TimeSpan DataCacheJitter { get; init; }
-
-    /// <summary>Factory soft timeout (Fusion; Hybrid ignores).</summary>
-    public TimeSpan DataCacheFactorySoftTimeout { get; init; }
-
-    /// <summary>Factory hard timeout (Fusion; Hybrid ignores).</summary>
-    public TimeSpan DataCacheFactoryHardTimeout { get; init; }
-
-    /// <summary>Optional max item size for memory cache (bytes). 0 = unlimited (Fusion; Hybrid ignores).</summary>
-    public int DataCacheMaxItemBytes { get; init; }
-
-    /// <summary>Allow background distributed cache operations (Fusion; Hybrid ignores). Default: true.</summary>
-    public bool DataCacheAllowBackgroundDistributed { get; init; } = true;
-
-    /// <summary>Allow background backplane operations (Fusion; Hybrid ignores). Default: true.</summary>
-    public bool DataCacheAllowBackgroundBackplane { get; init; } = true;
-
     /// <summary>Key prefix / namespace for Output Cache.</summary>
     public string OutputCacheNamespace { get; init; } = string.Empty;
 

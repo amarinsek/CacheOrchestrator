@@ -42,7 +42,7 @@ public class FusionHttpAndDiTests
             [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
             [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
-            [$"Cache:Domains:{domain}:DataCache:EagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -308,7 +308,7 @@ public class FusionHttpAndDiTests
             [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
             [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
-            [$"Cache:Domains:{domain}:DataCache:EagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(initial);
@@ -415,11 +415,11 @@ public class FusionHttpAndDiTests
         {
             d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
             d[$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:00:01";
-            d[$"Cache:Domains:{domain}:DataCache:HardTtl"] = "01:00:00";
-            d[$"Cache:Domains:{domain}:DataCache:FailSafe"] = "1.00:00:00";
+            d[$"Cache:Domains:{domain}:FusionCache:HardTtl"] = "01:00:00";
+            d[$"Cache:Domains:{domain}:FusionCache:FailSafe"] = "1.00:00:00";
             d[$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00";
-            d[$"Cache:Domains:{domain}:DataCache:EagerRefreshRatio"] = "0";
-            d[$"Cache:Domains:{domain}:DataCache:FactorySoftTimeout"] = "00:00:05";
+            d[$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0";
+            d[$"Cache:Domains:{domain}:FusionCache:FactorySoftTimeout"] = "00:00:05";
             d[$"Cache:Domains:{domain}:DataCache:FactoryHardTimeout"] = "00:00:10";
         });
 

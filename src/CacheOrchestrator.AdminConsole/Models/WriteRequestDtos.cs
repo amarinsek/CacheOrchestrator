@@ -36,14 +36,8 @@ public sealed class AdminConsoleTtlPatchRequest
     /// <summary>Output Cache TTL seconds.</summary>
     public int? OutputCacheTtlSeconds { get; set; }
 
-    /// <summary>Fusion soft TTL seconds.</summary>
+    /// <summary>Data-cache TTL seconds.</summary>
     public int? DataCacheTtlSeconds { get; set; }
-
-    /// <summary>Fusion hard TTL seconds.</summary>
-    public int? HardTtlSeconds { get; set; }
-
-    /// <summary>Fusion fail-safe seconds.</summary>
-    public int? FailSafeSeconds { get; set; }
 
     /// <summary>Client TTL seconds.</summary>
     public int? ClientTtlSeconds { get; set; }

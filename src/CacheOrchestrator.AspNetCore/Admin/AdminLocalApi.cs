@@ -284,6 +284,7 @@ public static class AdminLocalApi
             string domain,
             AdminSettingsPatchRequest body,
             IDomainRuntimeOverrideStore overrides,
+            IEnumerable<IDomainSettingsPatchContributor> settingsContributors,
             AdminQueryService query,
             IClusterCommandBus bus,
             ClusterCommandFactory commands,
@@ -298,18 +299,16 @@ public static class AdminLocalApi
             DomainSettingsPatch patch;
             try
             {
-                patch = DomainSettingsPatchMapper.FromDictionary(body.Settings);
+                patch = DomainSettingsPatchApplicator.Apply(
+                    domain,
+                    body.Settings,
+                    overrides,
+                    settingsContributors);
             }
             catch (ArgumentException ex)
             {
                 return Results.BadRequest(new { error = ex.Message });
             }
-
-            string? validationError = ValidateSettingsPatch(patch);
-            if (validationError is not null)
-                return Results.BadRequest(new { error = validationError });
-
-            overrides.PatchSettings(domain, patch);
 
             IResult? publishConflict = null;
             if (body.Distribute && bus.IsEnabled)
@@ -418,18 +417,11 @@ public static class AdminLocalApi
     private static string? ValidateSettingsPatch(DomainSettingsPatch patch)
     {
         static bool NegativeTs(TimeSpan? v) => v is { } t && t < TimeSpan.Zero;
-        static bool Negative(int? v) => v is < 0;
 
         if (NegativeTs(patch.OutputCacheTtl)
             || NegativeTs(patch.DataCacheTtl)
-            || NegativeTs(patch.HardTtl)
-            || NegativeTs(patch.FailSafe)
             || NegativeTs(patch.ClientTtl)
-            || NegativeTs(patch.ClientTtlMin)
-            || NegativeTs(patch.Jitter)
-            || NegativeTs(patch.FactorySoftTimeout)
-            || NegativeTs(patch.FactoryHardTimeout)
-            || Negative(patch.MaxItemBytes))
+            || NegativeTs(patch.ClientTtlMin))
         {
             return "Numeric settings must be non-negative.";
         }
@@ -441,9 +433,6 @@ public static class AdminLocalApi
             return "clientCache.ttlMin must be <= clientCache.ttl when both are set.";
         }
 
-        if (patch.EagerRefreshRatio is double r && (r < 0 || r >= 1))
-            return "dataCache.eagerRefreshRatio must be in [0, 1).";
-
         return null;
     }
 
@@ -453,8 +442,6 @@ public static class AdminLocalApi
         {
             OutputCacheTtlSeconds = ToSeconds(patch.OutputCacheTtl),
             DataCacheTtlSeconds = ToSeconds(patch.DataCacheTtl),
-            HardTtlSeconds = ToSeconds(patch.HardTtl),
-            FailSafeSeconds = ToSeconds(patch.FailSafe),
             ClientTtlSeconds = ToSeconds(patch.ClientTtl),
             ClientTtlMinSeconds = ToSeconds(patch.ClientTtlMin),
         };

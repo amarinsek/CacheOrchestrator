@@ -96,7 +96,7 @@ public class OutputCacheHttpLifecycleTests
             [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
             [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
             [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
-            [$"Cache:Domains:{domain}:DataCache:EagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -171,7 +171,7 @@ public class OutputCacheHttpLifecycleTests
         {
             d[$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:00:01";
             d[$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00";
-            d[$"Cache:Domains:{domain}:DataCache:HardTtl"] = "01:00:00";
+            d[$"Cache:Domains:{domain}:FusionCache:HardTtl"] = "01:00:00";
         });
 
         (HttpClient? client, WebApplication? app) = await StartAsync(config, a =>

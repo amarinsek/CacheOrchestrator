@@ -254,8 +254,6 @@ internal sealed class AdminQueryService
             DataCacheInstanceName = opts.DataCacheInstanceName,
             OutputCacheTtlSeconds = (int)opts.OutputTtl.TotalSeconds,
             DataCacheTtlSeconds = (int)opts.DataCacheTtl.TotalSeconds,
-            HardTtlSeconds = (int)opts.DataCacheHardTtl.TotalSeconds,
-            FailSafeSeconds = (int)opts.DataCacheFailSafe.TotalSeconds,
             ClientTtlSeconds = opts.ClientTtlSeconds,
             ClientTtlMinSeconds = opts.ClientTtlMinSeconds,
             ScheduledUpdateUtc = opts.ScheduledUpdateUtc,
@@ -267,8 +265,6 @@ internal sealed class AdminQueryService
                     Version = ov.Version is not null,
                     OutputCacheTtl = ov.OutputCacheTtl is not null,
                     DataCacheTtl = ov.DataCacheTtl is not null,
-                    HardTtl = ov.HardTtl is not null,
-                    FailSafe = ov.FailSafe is not null,
                     ClientTtl = ov.ClientTtl is not null,
                     ClientTtlMin = ov.ClientTtlMin is not null
                 }

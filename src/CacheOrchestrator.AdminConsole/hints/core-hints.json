@@ -187,20 +187,6 @@
       "message": "Client min TTL ({config.clientTtlMinSeconds}s) is not below max ({config.clientTtlSeconds}s) — the schedule cannot ramp. Lower ClientTtlMinSeconds or raise ClientTtlSeconds."
     },
     {
-      "code": "fusion-hard-lt-soft",
-      "badge": "TTL",
-      "severity": "Warning",
-      "category": "TTL",
-      "scope": "domain",
-      "description": "Fusion hard TTL shorter than soft TTL.",
-      "when": {
-        "all": [
-          { "path": "config.fusionHardLtSoft", "op": "eq", "value": true }
-        ]
-      },
-      "message": "Data-cache hard TTL ({config.hardTtlSeconds}s) is shorter than soft ({config.dataCacheTtlSeconds}s) — hard wins. Raise hard or lower soft."
-    },
-    {
       "code": "runtime-override",
       "badge": "OVR",
       "severity": "Info",

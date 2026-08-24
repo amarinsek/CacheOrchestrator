@@ -117,10 +117,10 @@ public sealed class HintEvaluationContext
             if (name.Equals("clientTtlCannotRamp", StringComparison.OrdinalIgnoreCase))
                 return config.ClientTtlSeconds > 0
                     && config.ClientTtlMinSeconds >= config.ClientTtlSeconds;
+            // Fusion hard/soft comparison is owned by the Fusion package; Core Admin DTO no longer carries HardTtl.
             if (name.Equals("dataCacheHardLtSoft", StringComparison.OrdinalIgnoreCase)
                 || name.Equals("fusionHardLtSoft", StringComparison.OrdinalIgnoreCase))
-                return config.HardTtlSeconds > 0
-                    && config.DataCacheTtlSeconds > config.HardTtlSeconds;
+                return false;
         }
 
         if (target is AdminDataCacheLayerDto dataCache)

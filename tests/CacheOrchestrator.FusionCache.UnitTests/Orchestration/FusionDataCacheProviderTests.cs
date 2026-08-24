@@ -13,6 +13,7 @@ public class FusionDataCacheProviderTests
     private readonly IFusionCache _fusionCache = Substitute.For<IFusionCache>();
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options =
         Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
+    private readonly IFusionDomainSettingsProvider _fusionSettings = Substitute.For<IFusionDomainSettingsProvider>();
     private readonly FusionDataCacheProvider _sut;
 
     public FusionDataCacheProviderTests()
@@ -25,9 +26,11 @@ public class FusionDataCacheProviderTests
                 ["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions()
             }
         });
+        _fusionSettings.Get(Arg.Any<string>()).Returns(new DomainFusionCacheSettings());
         _sut = new FusionDataCacheProvider(
             _fusionProvider,
             _options,
+            _fusionSettings,
             NullLogger<FusionDataCacheProvider>.Instance);
     }
 

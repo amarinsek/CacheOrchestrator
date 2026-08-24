@@ -127,7 +127,7 @@ public class CustomBackendEndToEndTests
                 ["Cache:Domains:catalog:Version"] = "v1",
                 ["Cache:Domains:catalog:DataCache:Ttl"] = "00:02:00",
                 // Keep L2 writes on the request path so the second host can read them reliably.
-                ["Cache:Domains:catalog:DataCache:AllowBackgroundDistributed"] = "false",
+                ["Cache:Domains:catalog:FusionCache:AllowBackgroundDistributed"] = "false",
             })
             .Build();
 

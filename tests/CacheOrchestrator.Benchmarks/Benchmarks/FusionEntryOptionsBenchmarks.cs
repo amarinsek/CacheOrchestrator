@@ -13,21 +13,23 @@ namespace CacheOrchestrator.Benchmarks.Benchmarks;
 public class FusionEntryOptionsBenchmarks
 {
     private DomainCacheOptions _warm = null!;
+    private DomainFusionCacheSettings _fusion = null!;
 
     [GlobalSetup]
     public void Setup()
     {
         _warm = CreateOptions();
-        _ = FusionEntryOptionsFactory.Create(_warm);
+        _fusion = CreateFusion();
+        _ = FusionEntryOptionsFactory.Create(_warm, _fusion);
     }
 
     [Benchmark(Baseline = true)]
     public FusionCacheEntryOptions Get_Warm_Reuse()
-        => FusionEntryOptionsFactory.Create(_warm);
+        => FusionEntryOptionsFactory.Create(_warm, _fusion);
 
     [Benchmark]
     public FusionCacheEntryOptions Get_Cold_NewSnapshot()
-        => FusionEntryOptionsFactory.Create(CreateOptions());
+        => FusionEntryOptionsFactory.Create(CreateOptions(), CreateFusion());
 
     private static DomainCacheOptions CreateOptions() => new()
     {
@@ -35,12 +37,6 @@ public class FusionEntryOptionsBenchmarks
         Version = "1",
         VersionHex = "01",
         DataCacheTtl = TimeSpan.FromSeconds(300),
-        DataCacheHardTtl = TimeSpan.FromHours(12),
-        DataCacheFailSafe = TimeSpan.FromHours(24),
-        DataCacheJitter = TimeSpan.FromSeconds(60),
-        DataCacheEagerRefreshRatio = 0.9,
-        DataCacheAllowBackgroundDistributed = true,
-        DataCacheAllowBackgroundBackplane = true,
         OutputCacheEnabled = true,
         DataCacheEnabled = true,
         ClientCacheability = ClientCacheability.Public,
@@ -49,5 +45,15 @@ public class FusionEntryOptionsBenchmarks
         OutputTtl = TimeSpan.FromSeconds(60),
         CacheableStatusCodes = [200],
         OutputCacheNamespace = "b",
+    };
+
+    private static DomainFusionCacheSettings CreateFusion() => new()
+    {
+        HardTtl = TimeSpan.FromHours(12),
+        FailSafe = TimeSpan.FromHours(24),
+        Jitter = TimeSpan.FromSeconds(60),
+        EagerRefreshRatio = 0.9,
+        AllowBackgroundDistributed = true,
+        AllowBackgroundBackplane = true,
     };
 }
