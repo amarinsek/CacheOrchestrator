@@ -1,8 +1,6 @@
 # CacheOrchestrator.EFCore.Invalidation
 
-EF Core hook for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
-
-Add this package when cached HTTP responses and data-cache entries should follow your database writes. You map an entity type to a cache domain; after a successful `SaveChanges`, the matching rows are dropped from the cache.
+EF Core **SaveChanges** hook for CacheOrchestrator. Map a CLR type to `(domain, entityKind)`; after a successful save, matching entity tags are purged via `ICacheOrchestratorInvalidator`.
 
 ## Install
 
@@ -11,7 +9,7 @@ dotnet add package CacheOrchestrator
 dotnet add package CacheOrchestrator.EFCore.Invalidation
 ```
 
-## Register
+## Quick start
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
@@ -19,44 +17,23 @@ builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
 {
-    opt.UseSqlServer(cs);
+    opt.UseSqlServer(connectionString);
     opt.AddCacheOrchestratorInvalidation(sp);
 });
 ```
 
-Attach the interceptor on each `DbContext` with `AddCacheOrchestratorInvalidation`.
-
-## Map and use
-
 ```csharp
-protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-    modelBuilder.Entity<Product>().CacheInvalidate("store", "products");
-}
+modelBuilder.Entity<Product>().CacheInvalidate("catalog", "products");
+// or [CacheEntity("catalog", "products")] / Map<T> at DI
 ```
 
-Use the same domain and kind on the HTTP path:
+Use the **same** domain and `entityKind` on the HTTP / library cache path. Tracked `SaveChanges` invalidates automatically; `ExecuteUpdate` / `ExecuteDelete` require manual `Invalidate*`.
 
-```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, int id, IDomainDataCache cache, AppDbContext db, CancellationToken cancellationToken) =>
-{
-    var product = await cache.GetOrSetEntityAsync(
-        http,
-        ct => db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct),
-        cancellationToken);
+## Documentation
 
-    return product is null ? Results.NotFound() : Results.Ok(product);
-})
-.CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
-```
-
-The interceptor relies on the **EF Core Change Tracker**. When you call `SaveChanges` or `SaveChangesAsync`, it automatically finds any mapped entities in the `Added`, `Modified`, or `Deleted` state and invalidates them from the cache upon a successful save.
-
-> [!WARNING]
-> **Bulk operations skip the Change Tracker!**
-> If you use `ExecuteUpdateAsync()` or `ExecuteDeleteAsync()`, the interceptor will **not** detect those changes because the entities are never loaded into memory. In these cases, you must manually trigger the cache invalidation by calling `ICacheOrchestratorInvalidator.InvalidateEntitiesAsync()` yourself.
-
-Attribute and `Map<T>` registration, bulk options, and further examples: [ef-core-invalidation.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/ef-core-invalidation.md). Orientation: [Guide — topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md).
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md) (§8–§9)
+- [EF Core invalidation](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/ef-core-invalidation.md)
+- [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)
 
 ## License
 

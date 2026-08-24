@@ -1,8 +1,8 @@
 # CacheOrchestrator.HttpBus
 
-Cluster command bus for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
+HTTP **cluster command bus** for CacheOrchestrator: deliver invalidate, Version, and settings patches to every configured peer.
 
-Add this package when you run more than one instance and you need an invalidation, a Version change, or a TTL change to take effect on every node. You get an HTTP bus that delivers those commands to the peers you configure.
+Add this when you run more than one instance and need those commands (not Redis L2 payloads) on all nodes.
 
 ## Install
 
@@ -11,18 +11,15 @@ dotnet add package CacheOrchestrator
 dotnet add package CacheOrchestrator.HttpBus
 ```
 
-## Register
+## Quick start
 
 ```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
-{
-    o.AddHttpClusterBus();
-});
+builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClusterBus());
 
+var app = builder.Build();
+app.UseCacheOrchestrator();
 app.MapCacheOrchestratorHttpBus();
 ```
-
-## Configure
 
 ```json
 {
@@ -46,9 +43,14 @@ app.MapCacheOrchestratorHttpBus();
 }
 ```
 
-`Membership` may also be `ServiceDiscovery` (`Microsoft.Extensions.ServiceDiscovery`). Peers authenticate `POST …/cluster/apply` with `X-Cache-Admin-Key` (`Cache:Cluster:Bus:ApiKey`, or `Cache:Admin:ApiKey` if the bus key is empty).
+`Membership` may also be `ServiceDiscovery`. Peers authenticate `POST …/cluster/apply` with `X-Cache-Admin-Key` (`Cache:Cluster:Bus:ApiKey`, or `Cache:Admin:ApiKey` if empty).
 
-Orientation: [Guide — topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md). Reference: [cluster-bus.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md). Overview: [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme).
+## Documentation
+
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md)
+- [Cluster bus](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/cluster-bus.md)
+- [Topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md)
+- [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)
 
 ## License
 

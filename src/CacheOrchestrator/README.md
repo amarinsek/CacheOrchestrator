@@ -1,8 +1,8 @@
 # CacheOrchestrator
 
-**CacheOrchestrator** configures and coordinates Output Cache (OC), **data cache** (DC — FusionCache or HybridCache), and client Cache-Control (CC) under one **domain** model. This meta package pulls **AspNetCore + FusionCache** for typical web apps.
+Meta package for typical ASP.NET Core apps: **AspNetCore** (Output Cache, Client Cache-Control, Admin API, `IDomainDataCache`) + **FusionCache** (data-cache provider).
 
-It does not own a store: ASP.NET holds the HTTP response, FusionCache holds the object, and the browser or CDN honours `Cache-Control`.
+Coordinates OC, data cache (DC), and client headers under one **domain** model. It does not own a store.
 
 Targets **.NET 8** and **.NET 10**.
 
@@ -12,55 +12,55 @@ Targets **.NET 8** and **.NET 10**.
 dotnet add package CacheOrchestrator
 ```
 
-Compose other packages when needed — [packages and composition](../../docs/packages.md):
+## Quick start
 
-- [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/) — `ICacheOrchestrator`, domains (libraries)
-- [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/) — Hybrid instead of Fusion
-- [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) — Redis OC / Fusion L2
-- [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) — cluster commands
-- [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) — invalidate after `SaveChanges`
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration);
+var app = builder.Build();
+app.UseCacheOrchestrator();
 
-## Configure
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+{
+    var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
+    return Results.Json(data);
+})
+.CacheOutputWithDomain("catalog");
+```
 
 ```json
 {
   "Cache": {
-    "Namespace": "my-app",
     "OutputCache": { "Provider": "InMemory" },
-    "DataCacheInstances": {
-      "default": { "Provider": "InMemory" }
-    },
+    "DataCacheInstances": { "default": { "Provider": "InMemory" } },
     "Domains": {
       "catalog": {
         "Version": "1",
         "DataCache": { "Ttl": "00:05:00" },
-        "OutputCache": { "Ttl": "00:02:00" },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:01:00" }
+        "OutputCache": { "Ttl": "00:01:00" },
+        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
       }
     }
   }
 }
 ```
 
-## Register
+## Related packages
 
-```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration);
-var app = builder.Build();
-app.UseCacheOrchestrator();
-```
+| Package | When |
+|---------|------|
+| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/) | Libraries / workers (`ICacheOrchestrator`) |
+| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/) | Hybrid instead of Fusion |
+| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) | Shared Redis OC / Fusion L2 |
+| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) | Multi-instance commands |
+| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) | Invalidate after `SaveChanges` |
 
-## Apply
+## Documentation
 
-```csharp
-app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
-{
-    var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
-    return Results.Json(data);
-})
-.CacheOutputWithDomain("catalog");
-```
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md)
+- [Getting started](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/getting-started.md)
+- [Configuration](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/configuration.md)
+- [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)
 
-Libraries can inject `ICacheOrchestrator` from Core instead of `IDomainDataCache`.
+## License
 
-Docs: [getting started](../../docs/getting-started.md) · [packages](../../docs/packages.md) · [configuration](../../docs/configuration.md).
+MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)

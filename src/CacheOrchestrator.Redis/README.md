@@ -1,8 +1,8 @@
 # CacheOrchestrator.Redis
 
-Redis backends for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
+Redis backends for CacheOrchestrator: Output Cache store, Fusion data-cache **L2**, Fusion **backplane**, and a connection health probe.
 
-Add this package when several application instances must share cache data. You get Redis as the Output Cache store, as Fusion data-cache L2, and as the Fusion backplane, plus a health probe for the connection.
+Add this when several instances must share OC payloads and/or Fusion L2 data.
 
 ## Install
 
@@ -11,35 +11,30 @@ dotnet add package CacheOrchestrator
 dotnet add package CacheOrchestrator.Redis
 ```
 
-## Register
+## Quick start
 
 ```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
-{
-    o.AddRedisBackend();
-});
+builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBackend());
 ```
-
-## Configure
 
 ```json
 {
   "Cache": {
-    "Namespace": "my-app",
-    "OutputCache": { "Provider": "Redis" },
-    "DataCacheInstances": {
-      "default": { "Provider": "Redis" }
-    },
-    "Redis": {
-      "Configuration": "localhost:6379"
-    }
+    "OutputCache": { "Provider": "InMemory" },
+    "DataCacheInstances": { "default": { "Provider": "Redis" } },
+    "Redis": { "Configuration": "localhost:6379" }
   }
 }
 ```
 
-A connection under `Cache:Redis` is the default. Output Cache may use `Cache:OutputCache:Redis`; a named data-cache instance may use `Cache:DataCacheInstances:{name}:Redis`.
+Default connection: `Cache:Redis`. Overrides: `Cache:OutputCache:Redis`, `Cache:DataCacheInstances:{name}:Redis`.
 
-Orientation: [Guide — topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md). Reference: [backends.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/backends.md). Overview: [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme).
+## Documentation
+
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md)
+- [Backends](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/backends.md)
+- [Topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md)
+- [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)
 
 ## License
 
