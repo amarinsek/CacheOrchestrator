@@ -38,7 +38,7 @@ public sealed class WindowStatsDto
     /// <summary>Cluster OC hit share in the window.</summary>
     public double? OutputCacheHitShare { get; init; }
 
-    /// <summary>Cluster FC hit share of requests in the window.</summary>
+    /// <summary>Cluster DC hit share of requests in the window.</summary>
     public double? DataCacheHitShare { get; init; }
 
     /// <summary>Cluster factory share in the window.</summary>

@@ -78,7 +78,7 @@ public sealed class MetricsWindowStatsService
                 WindowCountBy("route,result,domain", MetricsPanelCatalog.OcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> fcRouteTask = QueryAsync(
-                WindowCountBy("route,result,domain", MetricsPanelCatalog.FcRequests, rw, domainFilter),
+                WindowCountBy("route,result,domain", MetricsPanelCatalog.DcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facSumRouteTask = QueryAsync(
                 WindowCountBy("route,domain", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),
@@ -91,7 +91,7 @@ public sealed class MetricsWindowStatsService
                 WindowCountBy("domain,result,instance_id", MetricsPanelCatalog.OcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> fcInstTask = QueryAsync(
-                WindowCountBy("domain,result,instance_id", MetricsPanelCatalog.FcRequests, rw, domainFilter),
+                WindowCountBy("domain,result,instance_id", MetricsPanelCatalog.DcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> invInstTask = QueryAsync(
                 WindowCountBy("domain,instance_id", MetricsPanelCatalog.Invalidations, rw, domainFilter),
@@ -101,7 +101,7 @@ public sealed class MetricsWindowStatsService
                 WindowCountBy("route,result,instance_id", MetricsPanelCatalog.OcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> fcRouteInstTask = QueryAsync(
-                WindowCountBy("route,result,instance_id", MetricsPanelCatalog.FcRequests, rw, domainFilter),
+                WindowCountBy("route,result,instance_id", MetricsPanelCatalog.DcRequests, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facSumRouteInstTask = QueryAsync(
                 WindowCountBy("route,instance_id", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),

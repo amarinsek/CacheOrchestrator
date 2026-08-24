@@ -36,7 +36,7 @@
                 </div>
             </div>
             <div class="header-meta">
-                <label class="check header-check" title="Disable browser HTTP cache to see server OC/FC hits or misses.">
+                <label class="check header-check" title="Disable browser HTTP cache to see server OC/DC hits or misses.">
                     <input type="checkbox" id="disableBrowserCache" checked />
                     Disable browser HTTP cache
                 </label>
@@ -64,7 +64,7 @@
                 <p class="panel-lead">
                     Config-driven GET routes (<code>Demo:Endpoints</code>) plus <strong>Vary demo</strong>
                     (<code>vary-demo</code>: try <em>Accept</em> (JSON vs XML) and <code>?lang=</code> (allowlisted; <code>utm_*</code> ignored).
-                    Also TTLs, OC/FC hits, Client Cache Schedule, and domain invalidate.
+                    Also TTLs, OC/DC hits, Client Cache Schedule, and domain invalidate.
                 </p>
                 <div class="playground-controls">
                     <div class="control-row">
@@ -123,7 +123,7 @@
                 </div>
                 <p class="panel-foot muted">
                     Suggested: Fetch → Fetch twice (OC-HIT) → Invalidate entity → Fetch (MISS, same price) → Update price → Fetch (MISS, new price).
-                    Keep header <em>Disable browser HTTP cache</em> checked to see server OC/FC clearly.
+                    Keep header <em>Disable browser HTTP cache</em> checked to see server OC/DC clearly.
                 </p>
             </div>
         </section>

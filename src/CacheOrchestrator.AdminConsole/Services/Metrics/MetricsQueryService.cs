@@ -300,7 +300,7 @@ public sealed class MetricsQueryService
         {
             Task<double?> requestRateTask = InstantValueAsync("request_rate", rateWindow, cancellationToken);
             Task<double?> outputCacheHitTask = InstantValueAsync("oc_hit_share", rateWindow, cancellationToken);
-            Task<double?> dataCacheHitTask = InstantValueAsync("fc_hit_rate", rateWindow, cancellationToken);
+            Task<double?> dataCacheHitTask = InstantValueAsync("dc_hit_rate", rateWindow, cancellationToken);
             Task<double?> invTask = InstantValueAsync("invalidation_rate", rateWindow, cancellationToken);
             Task<double?> factoryShareTask = InstantValueAsync("factory_share", rateWindow, cancellationToken);
 

@@ -71,8 +71,8 @@ public class MetricsPanelCatalogTests
         Assert.Contains(MetricsPanelCatalog.OcRequests, share, StringComparison.Ordinal);
         Assert.Contains(MetricsPanelCatalog.FactoryResultMatcher, share, StringComparison.Ordinal);
 
-        string stale = MetricsPanelCatalog.BuildPromQl("fc_stale_share", null);
-        Assert.Contains(MetricsPanelCatalog.FcRequests, stale, StringComparison.Ordinal);
+        string stale = MetricsPanelCatalog.BuildPromQl("dc_stale_share", null);
+        Assert.Contains(MetricsPanelCatalog.DcRequests, stale, StringComparison.Ordinal);
         Assert.Contains(MetricsPanelCatalog.OcRequests, stale, StringComparison.Ordinal);
         Assert.Contains("result=\"stale\"", stale, StringComparison.Ordinal);
     }

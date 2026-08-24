@@ -48,7 +48,7 @@ public class MetricsWindowStatsServiceTests
                     ];
                 }
 
-                if (promQl.Contains(MetricsPanelCatalog.FcRequests, StringComparison.Ordinal)
+                if (promQl.Contains(MetricsPanelCatalog.DcRequests, StringComparison.Ordinal)
                     && promQl.Contains("sum by (domain,result,instance_id)", StringComparison.Ordinal))
                 {
                     return
@@ -68,7 +68,7 @@ public class MetricsWindowStatsServiceTests
                     ];
                 }
 
-                if (promQl.Contains(MetricsPanelCatalog.FcRequests, StringComparison.Ordinal)
+                if (promQl.Contains(MetricsPanelCatalog.DcRequests, StringComparison.Ordinal)
                     && promQl.Contains("sum by (route,result,domain)", StringComparison.Ordinal))
                 {
                     return

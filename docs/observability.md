@@ -63,7 +63,7 @@ Meter name: **`CacheOrchestrator`**
 | `cache_orchestrator.cluster.publish_failures` | Per-peer publish failure (`reason`) |
 | `cache_orchestrator.cluster.command_dedupe_hits` | Duplicate `CommandId` within dedupe window |
 
-**`route` tag** — when `Cache:Metrics:IncludeEndpointLabel` is `true` (default), OC/FC instruments add a stable endpoint key (`METHOD` + route template, same as Admin Console App endpoint rows). Never uses raw paths with resource ids. Set `false` to drop the tag (lower cardinality). Keep the setting consistent across instances. Domain labels always remain.
+**`route` tag** — when `Cache:Metrics:IncludeEndpointLabel` is `true` (default), OC/DC instruments add a stable endpoint key (`METHOD` + route template, same as Admin Console App endpoint rows). Never uses raw paths with resource ids. Set `false` to drop the tag (lower cardinality). Keep the setting consistent across instances. Domain labels always remain.
 
 `phase` tag values match X-Cache: `calm`, `approaching`, `hold`, `n/a`.
 

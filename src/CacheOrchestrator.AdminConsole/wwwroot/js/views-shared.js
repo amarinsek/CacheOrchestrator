@@ -129,7 +129,7 @@ export function sliceWindowStatsForInstance(windowStats, instanceId, reportedId)
 }
 
 /**
- * Rebuild pipeline shares from per-row OC/FC counters (same formula as AdminStatsMath.BuildAll).
+ * Rebuild pipeline shares from per-row OC/DC counters (same formula as AdminStatsMath.BuildAll).
  * Used for instance detail: cluster window stats are not instance-scoped.
  * @param {Array<{ outputCache?: object, dataCache?: object }>|null|undefined} rows
  * @returns {object|null}

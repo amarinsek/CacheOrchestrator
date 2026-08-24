@@ -76,7 +76,7 @@ public sealed class LiveStatsService
         try
         {
             string oc = MetricsPanelCatalog.OcRequests;
-            string fc = MetricsPanelCatalog.FcRequests;
+            string dc = MetricsPanelCatalog.DcRequests;
             string inv = MetricsPanelCatalog.Invalidations;
             string lb = lookback;
 
@@ -85,11 +85,11 @@ public sealed class LiveStatsService
             Task<IReadOnlyList<PrometheusInstantSample>> clusterOutputCacheHit =
                 Q($"sum(rate({oc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> clusterDataCacheHit =
-                Q($"sum(rate({fc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum(rate({dc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> clusterFac =
-                Q($"sum(rate({fc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
+                Q($"sum(rate({dc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> clusterFail =
-                Q($"sum(rate({fc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum(rate({dc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> clusterInv =
                 Q($"sum(rate({inv}[{lb}]))", now, cancellationToken);
 
@@ -98,22 +98,22 @@ public sealed class LiveStatsService
             Task<IReadOnlyList<PrometheusInstantSample>> domOutputCacheHit =
                 Q($"sum by (domain) (rate({oc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> domDataCacheHit =
-                Q($"sum by (domain) (rate({fc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (domain) (rate({dc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> domFac =
-                Q($"sum by (domain) (rate({fc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (domain) (rate({dc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> domFail =
-                Q($"sum by (domain) (rate({fc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (domain) (rate({dc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
 
             Task<IReadOnlyList<PrometheusInstantSample>> epOc =
                 Q($"sum by (route,domain) (rate({oc}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> epOutputCacheHit =
                 Q($"sum by (route,domain) (rate({oc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> epDataCacheHit =
-                Q($"sum by (route,domain) (rate({fc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (route,domain) (rate({dc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> epFac =
-                Q($"sum by (route,domain) (rate({fc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (route,domain) (rate({dc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> epFail =
-                Q($"sum by (route,domain) (rate({fc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (route,domain) (rate({dc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
 
             Task<IReadOnlyList<PrometheusInstantSample>> instOc =
                 Q($"sum by (instance_id) (rate({oc}[{lb}]))", now, cancellationToken);

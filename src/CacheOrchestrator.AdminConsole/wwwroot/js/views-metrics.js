@@ -508,10 +508,10 @@ export async function mountDetailMetrics(mountId, opts) {
   }
 
   const panels = opts.scope === "domain"
-    ? "request_rate,oc_hit_share,fc_hit_rate,invalidation_rate,schedule_phase,fc_p95_ms"
+    ? "request_rate,oc_hit_share,dc_hit_rate,invalidation_rate,schedule_phase,dc_p95_ms"
     : opts.scope === "instance"
-      ? "request_rate,oc_hit_share,fc_hit_rate,invalidation_rate,fc_p95_ms,cluster_publish_failures"
-      : "request_rate,oc_hit_share,fc_hit_rate,factory_share,factory_p95_ms,fc_p95_ms";
+      ? "request_rate,oc_hit_share,dc_hit_rate,invalidation_rate,dc_p95_ms,cluster_publish_failures"
+      : "request_rate,oc_hit_share,dc_hit_rate,factory_share,factory_p95_ms,dc_p95_ms";
 
   const q = appendMetricsRangeParams(new URLSearchParams({ panels }));
   if (opts.range && !mq.from) q.set("range", opts.range);

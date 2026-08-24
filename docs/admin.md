@@ -194,20 +194,20 @@ The miss path that runs your `GetOrSet` lambda / DB is the **factory**. Admin UI
 | Admin label | API / JSON field | Formula |
 |-------------|------------------|---------|
 | **OC hit share** | `oc.hitShare` / pipeline `outputCacheHitShare` | `outputCacheHits / requests` |
-| **FC hit share** | `fc.hitShare` / pipeline `dataCacheHitShare` | `dataCacheHits / requests` (fresh hits only) |
+| **DC hit share** | `dataCache.hitShare` / pipeline `dataCacheHitShare` | `dataCacheHits / requests` (fresh hits only) |
 | **FA run / Factory share** | `fc.factoryShare` (obsolete synonym: `originShare`) | `factoryRuns / requests` |
-| **FC stale %** (overlay) | `fc.staleShare` / pipeline `staleShare` | `stale / requests` (also included in FA run) |
+| **DC stale %** (overlay) | `dataCache.staleShare` / pipeline `staleShare` | `stale / requests` (also included in FA run) |
 
-These three mix shares (OC hit, FC hit, FA run) use the same request denominator and are the exclusive pipeline bar. **FC stale %** is extra information, not a fourth bar segment. Layer **bypass** is auth / no-store skip (not “caching disabled”; disabled OC is `off`). **Layer rates** (e.g. FC miss rate = misses among traffic that reached Fusion) stay on **detail** views. Prefer factory share for “how often did origin run?” — see [admin-hints.md](admin-hints.md).
+These three mix shares (OC hit, DC hit, FA run) use the same request denominator and are the exclusive pipeline bar. **DC stale %** is extra information, not a fourth bar segment. Layer **bypass** is auth / no-store skip (not “caching disabled”; disabled OC is `off`). **Layer rates** (e.g. DC miss rate = misses among traffic that reached data cache) stay on **detail** views. Prefer factory share for “how often did origin run?” — see [admin-hints.md](admin-hints.md).
 
 **Low sample flags**
 
 | Flag | Based on | Apply to |
 |------|----------|----------|
-| `lowRequestSample` | total **requests** &lt; 20 | request **shares** (OC/FC hit share, factory share, …) |
-| `lowSample` | **layer** hits+misses &lt; 20 | **layer rates** (OC/FC hit/miss rate) |
+| `lowRequestSample` | total **requests** &lt; 20 | request **shares** (OC/DC hit share, factory share, …) |
+| `lowSample` | **layer** hits+misses &lt; 20 | **layer rates** (OC/DC hit/miss rate) |
 
-So if OC absorbs almost all traffic, FC hit **share** is still trustworthy once requests ≥ 20, while FC hit **rate** may show low-sample (few FC layer events).
+So if OC absorbs almost all traffic, DC hit **share** is still trustworthy once requests ≥ 20, while DC hit **rate** may show low-sample (few DC layer events).
 
 ### Health semantics (Admin Console App mapping)
 

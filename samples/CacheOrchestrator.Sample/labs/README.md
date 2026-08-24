@@ -21,7 +21,7 @@ For a single process on your machine without Docker, use the [Playground sample]
 Each lab gives you a **running playground** (and Admin Console + Prometheus). Treat it as a sandpit:
 
 1. Open the **Playground** UI and pick a domain endpoint (catalog, product, search, CRUD, …).  
-2. Click **Fetch** more than once — watch badges and `X-Cache` (OC-HIT, FC-HIT, FACTORY, schedule phase, …).  
+2. Click **Fetch** more than once — watch badges and `X-Cache` (OC-HIT, DC-HIT, FACTORY, schedule phase, …).  
 3. Open **appsettings** in the UI, change a TTL, Version, or Client Cache Schedule value, save, then fetch again.  
 4. Open **Admin Console** — Overview, Domains, Hints, Metrics — and relate numbers to what you just did.  
 5. Move to the **next stage** when you want Redis, a second node, or the bus; the playground behaviour stays familiar, the **topology** changes.
@@ -143,7 +143,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml up 
 
 ### What to try
 
-1. Fetch until **FC-HIT** / factory quiet  
+1. Fetch until **DC-HIT** / factory quiet  
 2. `docker compose … restart playground`  
 3. Fetch again — Fusion may hit **L2** without a factory  
 4. Tweak Fusion soft/hard TTL; compare Admin metrics before/after restart  

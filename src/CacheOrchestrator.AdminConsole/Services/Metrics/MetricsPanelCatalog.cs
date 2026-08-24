@@ -14,15 +14,15 @@ public static class MetricsPanelCatalog
 {
     /// <summary>Default OTel/Prometheus counter names (dots → underscores, <c>_total</c>).</summary>
     public const string OcRequests = "cache_orchestrator_oc_requests_total";
-    public const string FcRequests = "cache_orchestrator_fc_requests_total";
-    /// <summary>PromQL matcher for Fusion factory invocations (not fresh hits).</summary>
+    public const string DcRequests = "cache_orchestrator_dc_requests_total";
+    /// <summary>PromQL matcher for data-cache factory invocations (not fresh hits).</summary>
     public const string FactoryResultMatcher = "result=~\"miss|stale|fail|off|unresolved|bypass\"";
     public const string Invalidations = "cache_orchestrator_invalidate_total";
     public const string ClientSchedule = "cache_orchestrator_client_schedule_total";
     public const string ClusterPublishFailures = "cache_orchestrator_cluster_publish_failures_total";
 
-    /// <summary>Histogram buckets for Fusion duration (unit ms → milliseconds in OTel export).</summary>
-    public const string FcDurationBucket = "cache_orchestrator_fc_duration_milliseconds_bucket";
+    /// <summary>Histogram buckets for data-cache duration (unit ms → milliseconds in OTel export).</summary>
+    public const string DcDurationBucket = "cache_orchestrator_dc_duration_milliseconds_bucket";
 
     /// <summary>Canonical factory-path duration histogram (miss/stale only).</summary>
     public const string FactoryDurationBucket = "cache_orchestrator_factory_duration_milliseconds_bucket";
@@ -62,18 +62,18 @@ public static class MetricsPanelCatalog
         },
         new()
         {
-            Id = "fc_hit_rate",
-            Title = "FC hit rate",
+            Id = "dc_hit_rate",
+            Title = "DC hit rate",
             Description =
-                "Of FusionCache operations in this window (when the data path ran), what fraction were hits. This is a layer rate, not share of all HTTP requests — low can be normal if Output Cache already absorbs most traffic.",
+                "Of data-cache operations in this window (when the data path ran), what fraction were hits. This is a layer rate, not share of all HTTP requests — low can be normal if Output Cache already absorbs most traffic.",
             Unit = "percent",
         },
         new()
         {
-            Id = "fc_stale_share",
-            Title = "FC stale share",
+            Id = "dc_stale_share",
+            Title = "DC stale share",
             Description =
-                "Fail-safe stale serves as a share of Output Cache-accounted requests in this window (FC stale / OC request rate). Rising values mean fail-safe is covering factory or timeout issues.",
+                "Fail-safe stale serves as a share of Output Cache-accounted requests in this window (DC stale / OC request rate). Rising values mean fail-safe is covering factory or timeout issues.",
             Unit = "percent",
         },
         new()
@@ -102,10 +102,10 @@ public static class MetricsPanelCatalog
         },
         new()
         {
-            Id = "fc_p95_ms",
-            Title = "FC duration p95",
+            Id = "dc_p95_ms",
+            Title = "DC duration p95",
             Description =
-                "95th percentile time spent in Fusion GetOrSet (milliseconds) in this window — how slow the slow factory/cache path feels. Needs histogram scrape of Fusion duration. Prefer factory_p95_ms for pure factory cost.",
+                "95th percentile time spent in data-cache get-or-set (milliseconds) in this window — how slow the slow factory/cache path feels. Needs histogram scrape of data-cache duration. Prefer factory_p95_ms for pure factory cost.",
             Unit = "ms",
         },
         new()
@@ -121,7 +121,7 @@ public static class MetricsPanelCatalog
             Id = "factory_run_rate",
             Title = "Factory run rate",
             Description =
-                "How often the Fusion factory callback runs per second (miss, stale, fail, off, unresolved, or bypass). Rising values mean more origin/DB work.",
+                "How often the value factory callback runs per second (miss, stale, fail, off, unresolved, or bypass). Rising values mean more origin/DB work.",
             Unit = "rate",
         },
         new()
@@ -129,7 +129,7 @@ public static class MetricsPanelCatalog
             Id = "factory_share",
             Title = "FA run % (window)",
             Description =
-                "Factory callback share of Output Cache-accounted requests in this window (includes Fusion disabled).",
+                "Factory callback share of Output Cache-accounted requests in this window (includes data cache disabled).",
             Unit = "percent",
         },
         new()
@@ -147,8 +147,8 @@ public static class MetricsPanelCatalog
     [
         "request_rate",
         "oc_hit_share",
-        "fc_hit_rate",
-        "fc_stale_share",
+        "dc_hit_rate",
+        "dc_stale_share",
         "factory_share",
         "factory_run_rate",
         "factory_p95_ms",
@@ -156,7 +156,7 @@ public static class MetricsPanelCatalog
         "invalidation_rate",
         "schedule_phase",
         "cluster_publish_failures",
-        "fc_p95_ms",
+        "dc_p95_ms",
     ];
 
     /// <summary>Domain detail panels.</summary>
@@ -164,13 +164,13 @@ public static class MetricsPanelCatalog
     [
         "request_rate",
         "oc_hit_share",
-        "fc_hit_rate",
+        "dc_hit_rate",
         "factory_share",
         "factory_run_rate",
         "factory_p95_ms",
         "invalidation_rate",
         "schedule_phase",
-        "fc_p95_ms",
+        "dc_p95_ms",
     ];
 
     /// <summary>Instance detail panels.</summary>
@@ -178,12 +178,12 @@ public static class MetricsPanelCatalog
     [
         "request_rate",
         "oc_hit_share",
-        "fc_hit_rate",
+        "dc_hit_rate",
         "factory_share",
         "factory_run_rate",
         "factory_p95_ms",
         "invalidation_rate",
-        "fc_p95_ms",
+        "dc_p95_ms",
         "cluster_publish_failures",
     ];
 
@@ -192,10 +192,10 @@ public static class MetricsPanelCatalog
     [
         "request_rate",
         "oc_hit_share",
-        "fc_hit_rate",
+        "dc_hit_rate",
         "factory_share",
         "factory_p95_ms",
-        "fc_p95_ms",
+        "dc_p95_ms",
     ];
 
     /// <summary>All allowlisted panels.</summary>
@@ -244,12 +244,12 @@ public static class MetricsPanelCatalog
                 $"{by} (rate({OcRequests}{selectorHit}[{rw}]))" +
                 $" / clamp_min({by} (rate({OcRequests}{selector}[{rw}])), 1e-9)",
 
-            "fc_hit_rate" =>
-                $"{by} (rate({FcRequests}{selectorHit}[{rw}]))" +
-                $" / clamp_min({by} (rate({FcRequests}{selector}[{rw}])), 1e-9)",
+            "dc_hit_rate" =>
+                $"{by} (rate({DcRequests}{selectorHit}[{rw}]))" +
+                $" / clamp_min({by} (rate({DcRequests}{selector}[{rw}])), 1e-9)",
 
-            "fc_stale_share" =>
-                $"{by} (rate({FcRequests}{selectorStale}[{rw}]))" +
+            "dc_stale_share" =>
+                $"{by} (rate({DcRequests}{selectorStale}[{rw}]))" +
                 $" / clamp_min({by} (rate({OcRequests}{selector}[{rw}])), 1e-9)",
 
             "invalidation_rate" =>
@@ -262,10 +262,10 @@ public static class MetricsPanelCatalog
             "cluster_publish_failures" =>
                 $"sum by (reason) (rate({ClusterPublishFailures}{BuildLabelSelector(domains: null, instanceIds, routes: null)}[{rw}]))",
 
-            "fc_p95_ms" =>
+            "dc_p95_ms" =>
                 "histogram_quantile(0.95, " +
                 $"sum by ({leBy}) " +
-                $"(rate({FcDurationBucket}{selector}[{rw}])))",
+                $"(rate({DcDurationBucket}{selector}[{rw}])))",
 
             "factory_p95_ms" =>
                 "histogram_quantile(0.95, " +
@@ -273,10 +273,10 @@ public static class MetricsPanelCatalog
                 $"(rate({FactoryDurationBucket}{selector}[{rw}])))",
 
             "factory_run_rate" =>
-                $"{by} (rate({FcRequests}{selectorFactory}[{rw}]))",
+                $"{by} (rate({DcRequests}{selectorFactory}[{rw}]))",
 
             "factory_share" =>
-                $"{by} (rate({FcRequests}{selectorFactory}[{rw}]))" +
+                $"{by} (rate({DcRequests}{selectorFactory}[{rw}]))" +
                 $" / clamp_min({by} (rate({OcRequests}{selector}[{rw}])), 1e-9)",
 
             "factory_size_p95" =>
@@ -298,13 +298,13 @@ public static class MetricsPanelCatalog
             "oc_hit_share" =>
                 $"sum(rate({OcRequests}{{result=\"hit\"}}[{rw}]))" +
                 $" / clamp_min(sum(rate({OcRequests}[{rw}])), 1e-9)",
-            "fc_hit_rate" =>
-                $"sum(rate({FcRequests}{{result=\"hit\"}}[{rw}]))" +
-                $" / clamp_min(sum(rate({FcRequests}[{rw}])), 1e-9)",
+            "dc_hit_rate" =>
+                $"sum(rate({DcRequests}{{result=\"hit\"}}[{rw}]))" +
+                $" / clamp_min(sum(rate({DcRequests}[{rw}])), 1e-9)",
             "invalidation_rate" => $"sum(rate({Invalidations}[{rw}]))",
-            "factory_run_rate" => $"sum(rate({FcRequests}{{{FactoryResultMatcher}}}[{rw}]))",
+            "factory_run_rate" => $"sum(rate({DcRequests}{{{FactoryResultMatcher}}}[{rw}]))",
             "factory_share" =>
-                $"sum(rate({FcRequests}{{{FactoryResultMatcher}}}[{rw}]))" +
+                $"sum(rate({DcRequests}{{{FactoryResultMatcher}}}[{rw}]))" +
                 $" / clamp_min(sum(rate({OcRequests}[{rw}])), 1e-9)",
             _ => throw new ArgumentException($"No summary query for panel '{panelId}'.", nameof(panelId)),
         };

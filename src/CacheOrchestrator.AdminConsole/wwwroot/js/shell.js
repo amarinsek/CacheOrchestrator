@@ -4,7 +4,7 @@
  * Layout (see index.html):
  * 1) brand / logo
  * 2) header metrics strip (`#headerMetrics`):
- *    instances + metrics status · gap · Req / Inv / pipeline / OC / FC / FA run / FAFC / FAD / DC stale / EFTS · right-aligned N dom N ep
+ *    instances + metrics status · gap · Req / Inv / pipeline / OC / DC / FA run / FAFC / FAD / DC stale / EFTS · right-aligned N dom N ep
  * 3) menu strip
  *
  * Soft refresh (route({ soft: true })) repaints without a full "Loading…" flash.

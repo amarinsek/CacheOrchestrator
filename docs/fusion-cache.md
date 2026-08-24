@@ -178,7 +178,7 @@ There is **no** `DataCacheResult.Fail` and **no** `dc=fail` on `X-Cache`. A hard
 
 When `dc` is present and is not `hit`, `X-Cache` also includes `fa=run`. That is the same factory-invocation set as Admin FA run (`miss` / `stale` / `bypass` / `off` / `unresolved`). OC `hit` omits `dc` and `fa`.
 
-Admin Console exclusive pipeline mix is **OC hit + FC hit (fresh) + FA run**. FA run is factory-callback share of requests (including `off` / `unresolved` / bypass-with-factory / miss / stale). **FC stale %** is an overlay on requests, not a fourth mix segment. Layer `bypass` remains auth / no-store skip, not “caching disabled”.
+Admin Console exclusive pipeline mix is **OC hit + DC hit (fresh) + FA run**. FA run is factory-callback share of requests (including `off` / `unresolved` / bypass-with-factory / miss / stale). **DC stale %** is an overlay on requests, not a fourth mix segment. Layer `bypass` remains auth / no-store skip, not “caching disabled”.
 
 ## Related
 

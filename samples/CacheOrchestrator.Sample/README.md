@@ -22,7 +22,7 @@ dotnet run --project samples/CacheOrchestrator.Sample
 
 Open the printed URL (http://localhost:5289 by default).
 
-**Disable browser HTTP cache** (header, next to **appsettings.json**, **on by default**) sets Fetch **`cache: 'no-store'`** so the browser always calls the app and you see **server** OC/FC hits. It does **not** send HTTP `Cache-Control: no-store` and does **not** turn off Output/Fusion on the server. Uncheck only to demo client `max-age` / BROWSER-CACHE.
+**Disable browser HTTP cache** (header, next to **appsettings.json**, **on by default**) sets Fetch **`cache: 'no-store'`** so the browser always calls the app and you see **server** OC/DC hits. It does **not** send HTTP `Cache-Control: no-store` and does **not** turn off Output/data cache on the server. Uncheck only to demo client `max-age` / BROWSER-CACHE.
 
 This playground can write `appsettings.json` from the browser. That is for this sample only.
 
@@ -39,17 +39,17 @@ This playground can write `appsettings.json` from the browser. That is for this 
 - **Badges** on a response (from `X-Cache` `oc=` / `dc=` / `fa=`):
   - **BROWSER-CACHE** — client cache served the response (only when **Disable browser HTTP cache** is off)
   - **OC-HIT** — Output Cache served the HTTP response (`oc=hit`; `dc`/`fa` omitted)
-  - **OC-MISS FC-HIT** — handler ran; FusionCache had the object (`dc=hit`, no `fa`)
-  - **OC-MISS FC-STALE FACTORY** — fail-safe stale from Fusion (`dc=stale; fa=run`)
-  - **OC-MISS FC-MISS FACTORY** — both layers missed; Fusion factory ran (`dc=miss; fa=run`)
-  - **OC-OFF** / **FC-OFF** — that layer is disabled for the domain. **FACTORY** still appears whenever `dc` is present and is not `hit` (`fa=run`)
+  - **OC-MISS DC-HIT** — handler ran; data cache had the object (`dc=hit`, no `fa`)
+  - **OC-MISS DC-STALE FACTORY** — fail-safe stale from data cache (`dc=stale; fa=run`)
+  - **OC-MISS DC-MISS FACTORY** — both layers missed; factory ran (`dc=miss; fa=run`)
+  - **OC-OFF** / **DC-OFF** — that layer is disabled for the domain. **FACTORY** still appears whenever `dc` is present and is not `hit` (`fa=run`)
 - **Extra query params** (optional): e.g. `page=2` usually creates a **different** cache key. Tracking params such as `utm_source=demo` are omitted from keys (same entry as without them) — see [cache-keys.md](../../docs/cache-keys.md).
 
 ## CRUD (entity invalidation)
 
 In the playground, open the **Entity invalidation (CRUD)** panel (not the domain endpoint list).
 
-- **Invalidate entity** — purge OC/FC for `products/42` only (in-memory price unchanged).
+- **Invalidate entity** — purge OC/DC for `products/42` only (in-memory price unchanged).
 - **Update price (PUT)** — enter a price, write store + entity invalidate → next Fetch shows that price.
 
 Suggested UI flow: Fetch → Fetch twice (OC-HIT) → Invalidate entity → Fetch (FACTORY, same price) → set Price → Update price → Fetch (FACTORY, new price).
