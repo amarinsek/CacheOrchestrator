@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+		<PackageId>CacheOrchestrator.HybridCache</PackageId>
+		<Description>Microsoft HybridCache data-cache provider for CacheOrchestrator.Core (subset of Fusion capabilities).</Description>
+		<PackageTags>cache;caching;hybridcache;cacheorchestrator</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>logo-small.png</PackageIcon>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="..\..\docs\assets\logo-small.png" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\CacheOrchestrator.Core\CacheOrchestrator.Core.csproj" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+		<PackageReference Update="Microsoft.Extensions.Caching.Hybrid" Version="9.4.0" />
+		<PackageReference Update="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="CacheOrchestrator.UnitTests" />
+	</ItemGroup>
+</Project>

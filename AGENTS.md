@@ -14,7 +14,7 @@ Internally it wires:
 
 Domains are named groups of data that share TTLs, providers, client headers, and version stamps.
 
-- Packages: `src/CacheOrchestrator.Core` (Http-free), `src/CacheOrchestrator.FusionCache`, `src/CacheOrchestrator.AspNetCore` (HTTP host; InMemory backend)  
+- Packages: `src/CacheOrchestrator.Core` (Http-free), `src/CacheOrchestrator.FusionCache`, `src/CacheOrchestrator.HybridCache` (Microsoft HybridCache data provider; subset of Fusion), `src/CacheOrchestrator.AspNetCore` (HTTP host; InMemory backend)  
 - Meta NuGet: `src/CacheOrchestrator` (PackageId `CacheOrchestrator` → AspNetCore + FusionCache)  
 - Redis package: `src/CacheOrchestrator.Redis` (`AddRedisBackend`)  
 - Bus package: `src/CacheOrchestrator.Bus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
@@ -69,6 +69,8 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 |-----|-----------|
 | `AddCacheOrchestrator` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
 | `ICacheOrchestratorBuilder` / `ICacheBackendRegistrar` | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
+| `AddCacheOrchestratorFusionCache` | `CacheOrchestrator.DependencyInjection` (FusionCache package) |
+| `AddCacheOrchestratorHybridCache` | `CacheOrchestrator.DependencyInjection` (HybridCache package) |
 | `AddRedisBackend` / `RedisCacheBackendRegistrar` | `CacheOrchestrator.Redis` |
 | `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheOrchestrator.OutputCache` |
 | `[CacheDomain("…")]` | `CacheOrchestrator.OutputCache` |
