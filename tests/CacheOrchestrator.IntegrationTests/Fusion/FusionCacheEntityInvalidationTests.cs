@@ -1,6 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.Entity;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -16,15 +17,16 @@ public class FusionCacheEntityInvalidationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:Domains:products:Version"] = "v1",
-                ["Cache:Domains:products:FusionCacheSoftTtlSeconds"] = "300",
+                ["Cache:Domains:products:DataCache:TtlSeconds"] = "300",
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         return services.BuildServiceProvider();
     }
 
@@ -32,8 +34,8 @@ public class FusionCacheEntityInvalidationTests
     public async Task InvalidateEntityAsync_OnlyPurgesThatResource()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         ICacheOrchestratorInvalidator inv = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
 
         DefaultHttpContext http1 = new();
@@ -98,8 +100,8 @@ public class FusionCacheEntityInvalidationTests
     public async Task DependsOn_InvalidationPurgesDependentEntry()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         ICacheOrchestratorInvalidator inv = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
 
         DefaultHttpContext http = new();

@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.EFCore;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -38,16 +38,16 @@ public class EfSaveChangesInvalidationHttpTests
         Dictionary<string, string?> configValues = new()
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
 
         IConfigurationRoot config = new ConfigurationBuilder()
@@ -60,7 +60,8 @@ public class EfSaveChangesInvalidationHttpTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(
             config,
             o => o.Map<Product>(domain, "products"));
@@ -78,7 +79,7 @@ public class EfSaveChangesInvalidationHttpTests
         app.MapGet("/api/products/{id:int}", async (
             HttpContext http,
             int id,
-            IDomainFusionCache cache,
+            IDomainDataCache cache,
             CatalogDbContext db,
             FactoryCounter factories,
             CancellationToken cancellationToken) =>
@@ -164,7 +165,7 @@ public class EfSaveChangesInvalidationHttpTests
                 a.MapGet("/api/products/{id:int}", async (
                     HttpContext http,
                     int id,
-                    IDomainFusionCache cache,
+                    IDomainDataCache cache,
                     CatalogDbContext db,
                     FactoryCounter factories,
                     CancellationToken cancellationToken) =>
@@ -207,7 +208,8 @@ public class EfSaveChangesInvalidationHttpTests
         IConfigurationRoot config = new ConfigurationBuilder().AddInMemoryCollection(configValues).Build();
 
         WebApplicationBuilder builder = CreateBuilder();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(
             config,
             o => o.Map<GuidProduct>(domain, "products"));
@@ -225,7 +227,7 @@ public class EfSaveChangesInvalidationHttpTests
         app.MapGet("/api/g/{id:guid}", async (
             HttpContext http,
             Guid id,
-            IDomainFusionCache cache,
+            IDomainDataCache cache,
             GuidCatalogDbContext db,
             FactoryCounter factories,
             CancellationToken cancellationToken) =>
@@ -295,7 +297,8 @@ public class EfSaveChangesInvalidationHttpTests
 
         IConfigurationRoot config = new ConfigurationBuilder().AddInMemoryCollection(BaseConfig(domain)).Build();
         WebApplicationBuilder builder = CreateBuilder();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(
             config,
             o => o.Map<Product>(domain, "products"));
@@ -312,7 +315,7 @@ public class EfSaveChangesInvalidationHttpTests
         app.MapGet("/api/products/{id:int}", async (
             HttpContext http,
             int id,
-            IDomainFusionCache cache,
+            IDomainDataCache cache,
             CatalogDbContext db,
             FactoryCounter factories,
             CancellationToken cancellationToken) =>
@@ -379,7 +382,8 @@ public class EfSaveChangesInvalidationHttpTests
 
         IConfigurationRoot config = new ConfigurationBuilder().AddInMemoryCollection(BaseConfig(domain)).Build();
         WebApplicationBuilder builder = CreateBuilder();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(config);
         builder.Services.AddSingleton<FactoryCounter>();
         builder.Services.AddDbContext<AttrCatalogDbContext>((sp, opt) =>
@@ -394,7 +398,7 @@ public class EfSaveChangesInvalidationHttpTests
         app.MapGet("/api/attr/{id:int}", async (
             HttpContext http,
             int id,
-            IDomainFusionCache cache,
+            IDomainDataCache cache,
             AttrCatalogDbContext db,
             FactoryCounter factories,
             CancellationToken cancellationToken) =>
@@ -466,16 +470,16 @@ public class EfSaveChangesInvalidationHttpTests
     private static Dictionary<string, string?> BaseConfig(string domain) => new()
     {
         ["Cache:OutputCache:Provider"] = "InMemory",
-        ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+        ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
         ["Cache:EmitDiagnosticsHeaders"] = "true",
         [$"Cache:Domains:{domain}:Version"] = "v1",
-        [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-        [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-        [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-        [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-        [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-        [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-        [$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0",
+        [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+        [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+        [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+        [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+        [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+        [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
+        [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
     };
 
     private static WebApplicationBuilder CreateBuilder()
@@ -496,7 +500,8 @@ public class EfSaveChangesInvalidationHttpTests
     {
         IConfigurationRoot config = new ConfigurationBuilder().AddInMemoryCollection(BaseConfig(domain)).Build();
         WebApplicationBuilder builder = CreateBuilder();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(
             config,
             o => o.Map<Product>(domain, "products"));

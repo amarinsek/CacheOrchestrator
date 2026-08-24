@@ -1734,7 +1734,7 @@ tr.child td { background: #151c24; }
 .pipe.empty { opacity: 0.35; }
 
 .pipe .seg.oc { background: #3d9cf0; }
-.pipe .seg.fc { background: #3ecf8e; }
+.pipe .seg.dc { background: #3ecf8e; }
 .pipe .seg.stale { background: #d08770; }
 .pipe .seg.origin { background: #e6b84d; }
 .pipe .seg.bypass { background: #7a8490; }

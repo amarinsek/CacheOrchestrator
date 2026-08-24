@@ -52,10 +52,11 @@ public static class CacheOrchestratorEfCoreServiceExtensions
     /// Same as <see cref="AddCacheOrchestratorEfCoreInvalidation(IServiceCollection, IConfiguration, Action{EfCoreInvalidationOptions}?, string)"/>
     /// on the CacheOrchestrator builder (parity with <c>AddRedisBackend</c> / <c>AddHttpClusterBus</c>).
     /// </summary>
-    public static ICacheOrchestratorBuilder AddEfCoreInvalidation(
-        this ICacheOrchestratorBuilder builder,
+    public static TBuilder AddEfCoreInvalidation<TBuilder>(
+        this TBuilder builder,
         Action<EfCoreInvalidationOptions>? configure = null,
         string configSection = "Cache")
+        where TBuilder : ICacheOrchestratorServiceBuilder
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration, configure, configSection);

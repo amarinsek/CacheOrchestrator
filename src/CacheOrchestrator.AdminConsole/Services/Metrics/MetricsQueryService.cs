@@ -299,21 +299,21 @@ public sealed class MetricsQueryService
         try
         {
             Task<double?> requestRateTask = InstantValueAsync("request_rate", rateWindow, cancellationToken);
-            Task<double?> ocHitTask = InstantValueAsync("oc_hit_share", rateWindow, cancellationToken);
-            Task<double?> fcHitTask = InstantValueAsync("fc_hit_rate", rateWindow, cancellationToken);
+            Task<double?> outputCacheHitTask = InstantValueAsync("oc_hit_share", rateWindow, cancellationToken);
+            Task<double?> dataCacheHitTask = InstantValueAsync("dc_hit_rate", rateWindow, cancellationToken);
             Task<double?> invTask = InstantValueAsync("invalidation_rate", rateWindow, cancellationToken);
             Task<double?> factoryShareTask = InstantValueAsync("factory_share", rateWindow, cancellationToken);
 
-            await Task.WhenAll(requestRateTask, ocHitTask, fcHitTask, invTask, factoryShareTask)
+            await Task.WhenAll(requestRateTask, outputCacheHitTask, dataCacheHitTask, invTask, factoryShareTask)
                 .ConfigureAwait(false);
 
             double? requestRate = await requestRateTask.ConfigureAwait(false);
-            double? ocHit = await ocHitTask.ConfigureAwait(false);
-            double? fcHit = await fcHitTask.ConfigureAwait(false);
+            double? outputCacheHit = await outputCacheHitTask.ConfigureAwait(false);
+            double? dataCacheHit = await dataCacheHitTask.ConfigureAwait(false);
             double? inv = await invTask.ConfigureAwait(false);
             double? factoryShare = await factoryShareTask.ConfigureAwait(false);
 
-            bool noData = requestRate is null && ocHit is null && fcHit is null && inv is null && factoryShare is null;
+            bool noData = requestRate is null && outputCacheHit is null && dataCacheHit is null && inv is null && factoryShare is null;
 
             return new MetricsSummaryDto
             {
@@ -323,8 +323,8 @@ public sealed class MetricsQueryService
                 ToUtc = window.End,
                 QueriedAtUtc = now,
                 RequestRate = requestRate,
-                OcHitShare = ocHit,
-                FcHitRate = fcHit,
+                OutputCacheHitShare = outputCacheHit,
+                DataCacheHitRate = dataCacheHit,
                 InvalidationRate = inv,
                 FactoryShare = factoryShare,
                 NoData = noData,

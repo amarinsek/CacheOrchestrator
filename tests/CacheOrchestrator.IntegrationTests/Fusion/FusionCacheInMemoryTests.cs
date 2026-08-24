@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,15 +15,16 @@ public class FusionCacheInMemoryTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
-                ["Cache:Domains:products:FusionCacheSoftTtlSeconds"] = "60",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:Domains:products:DataCache:TtlSeconds"] = "60",
                 ["Cache:Domains:products:Version"] = "v1"
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
 
         return services.BuildServiceProvider();
     }
@@ -32,8 +33,8 @@ public class FusionCacheInMemoryTests
     public async Task GetOrSetAsync_SecondCall_IsCacheHit()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainConfig = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = new();
         http.Request.Method = "GET";
@@ -67,17 +68,18 @@ public class FusionCacheInMemoryTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:Domains:products:FusionCacheEnabled"] = "false"
+                ["Cache:Domains:products:DataCache:Enabled"] = "false"
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainConfig = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = new();
         http.Request.Path = "/api/products/1";

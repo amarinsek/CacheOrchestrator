@@ -75,21 +75,6 @@ public sealed class LocalAdminClient : ILocalAdminClient
             instance, $"/domains/{Uri.EscapeDataString(domain)}/version", body, cancellationToken);
 
     /// <inheritdoc />
-#pragma warning disable CS0618 // AdminTtlPatchRequest retained for compatibility
-    public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchTtlAsync(
-        AdminInstanceOptions instance,
-        string domain,
-        AdminTtlPatchRequest body,
-        CancellationToken cancellationToken = default) =>
-        SendAsync<AdminTtlPatchRequest, AdminDomainMutationResultDto>(
-            instance,
-            HttpMethod.Patch,
-            $"/domains/{Uri.EscapeDataString(domain)}/ttl",
-            body,
-            cancellationToken);
-#pragma warning restore CS0618
-
-    /// <inheritdoc />
     public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchSettingsAsync(
         AdminInstanceOptions instance,
         string domain,

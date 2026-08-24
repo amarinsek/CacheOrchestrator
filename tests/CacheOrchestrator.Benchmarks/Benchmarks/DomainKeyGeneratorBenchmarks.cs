@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
@@ -32,20 +32,18 @@ public class DomainKeyGeneratorBenchmarks
             Version = "1",
             VersionHex = "01",
             OutputCacheEnabled = true,
-            FusionCacheEnabled = true,
+            DataCacheEnabled = true,
             ClientCacheability = ClientCacheability.Public,
             ClientTtlSeconds = 3600,
             ClientTtlMinSeconds = 60,
             OutputTtl = TimeSpan.FromSeconds(60),
-            FusionCacheSoftTtl = TimeSpan.FromSeconds(60),
-            FusionCacheHardTtl = TimeSpan.FromHours(12),
-            FusionCacheFailSafe = TimeSpan.FromHours(24),
+            DataCacheTtl = TimeSpan.FromSeconds(60),
             OutputCacheNamespace = "sample:oc",
-            FusionCacheNamespace = "sample:fc",
+            DataCacheNamespace = "sample:fc",
             CacheableStatusCodes = [200],
             EncodingNormalizationList = ["br", "gzip"],
-            FusionCacheVaryOnEncoding = true,
-            FusionCacheVaryOnPublicAddress = true
+            DataCacheVaryOnEncoding = true,
+            DataCacheVaryOnPublicAddress = true
         };
 
         _noQuery = CreateHttp("/api/catalog");

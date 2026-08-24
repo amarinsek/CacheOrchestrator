@@ -245,13 +245,13 @@ export function endpointDetailHeadHtml(ep) {
       <div class="kpi-row">
         <div class="kpi" title="${esc(METRIC_TITLES.domain)}"><div class="label">Domain</div><div class="value" style="font-size:1rem">${ep.configuredDomain ? currentValueHtml(esc(ep.configuredDomain)) : "—"}</div></div>
         <div class="kpi"${tipAttr("req")}><div class="label">Req</div><div class="value">${num(ep.requests)}</div></div>
-        ${impactKpiRowHtml(ep.impact, ep.fc)}
+        ${impactKpiRowHtml(ep.impact, ep.dataCache)}
       </div>
       ${pipelinePanelHtml(ep.pipeline)}
     </div>
     <div class="detail-grid">
       ${layerDetailOc(ep.oc)}
-      ${layerDetailFc(ep.fc)}
+      ${layerDetailFc(ep.dataCache)}
       ${impactDetailHtml(ep.impact)}
     </div>
     ${ep.byInstance?.length ? `
@@ -262,12 +262,12 @@ export function endpointDetailHeadHtml(ep) {
           ${thMetric("Instance", "instance", { fromKey: true })}
           ${thMetric("Req", "req", { fromKey: true })}
           ${thMetric("Pipeline", "pipeline", { fromKey: true })}
-          ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
-          ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
+          ${thMetric("OC hit %", "outputCacheHitShare", { fromKey: true })}
+          ${thMetric("DC hit %", "dataCacheHitShare", { fromKey: true })}
           ${thMetric("FA run %", "factoryShare", { fromKey: true })}
           ${thMetric("FAFC", "factoryFailures", { fromKey: true, className: "col-num" })}
           ${thMetric("FAD", "avgFactoryDuration", { fromKey: true })}
-          ${thMetric("FC stale %", "staleShare", { fromKey: true })}
+          ${thMetric("DC stale %", "staleShare", { fromKey: true })}
           ${thMetric("EFTS", "estTimeSaved", { fromKey: true })}
           ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
           ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
@@ -278,12 +278,12 @@ export function endpointDetailHeadHtml(ep) {
               <td><code>${esc(bi.instanceId)}</code></td>
               <td>${num(bi.requests)}</td>
               <td class="col-pipe">${pipelineBar(bi.pipeline, false, { title: false, segmentTips: false })}</td>
-              <td>${pct(bi.oc?.hitShare, bi.oc?.lowRequestSample, "request")}</td>
-              <td>${pct(bi.fc?.hitShare, bi.fc?.lowRequestSample, "request")}</td>
-              <td>${pct(factoryShareOf(bi.fc), bi.fc?.lowRequestSample, "request")}</td>
-              ${fafcHtml(bi.fc)}
+              <td>${pct(bi.outputCache?.hitShare, bi.outputCache?.lowRequestSample, "request")}</td>
+              <td>${pct(bi.dataCache?.hitShare, bi.dataCache?.lowRequestSample, "request")}</td>
+              <td>${pct(factoryShareOf(bi.dataCache), bi.dataCache?.lowRequestSample, "request")}</td>
+              ${fafcHtml(bi.dataCache)}
               <td>${fadCell(bi.impact)}</td>
-              ${staleShareHtml(bi.fc)}
+              ${staleShareHtml(bi.dataCache)}
               <td>${fmtDurationMs(bi.impact?.estFactoryTimeSavedMs)}</td>
               <td>${impactBandLabel(bi.impact?.benefit, { html: true })}</td>
               <td>${impactBandLabel(bi.impact?.candidate, { html: true })}</td>

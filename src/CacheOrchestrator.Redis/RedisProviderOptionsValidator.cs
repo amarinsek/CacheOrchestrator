@@ -39,7 +39,7 @@ internal sealed class RedisProviderOptionsValidator : IValidateOptions<CacheOrch
             }
         }
 
-        foreach ((string? instanceName, CacheOrchestratorOptions.FusionCacheInstanceOptions? instanceOpts) in options.FusionCacheInstances)
+        foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOpts) in options.DataCacheInstances)
         {
             if (!string.Equals(instanceOpts.Provider, RedisConfiguration.ProviderName, StringComparison.OrdinalIgnoreCase))
                 continue;
@@ -49,9 +49,9 @@ internal sealed class RedisProviderOptionsValidator : IValidateOptions<CacheOrch
             if (string.IsNullOrWhiteSpace(redis.Configuration))
             {
                 failures.Add(
-                    $"FusionCacheInstances['{instanceName}'].Provider is 'Redis' but no connection string was found. " +
+                    $"DataCacheInstances['{instanceName}'].Provider is 'Redis' but no connection string was found. " +
                     $"Set '{_configSection}:Redis:Configuration' or " +
-                    $"'{_configSection}:FusionCacheInstances:{instanceName}:Redis:Configuration'.");
+                    $"'{_configSection}:DataCacheInstances:{instanceName}:Redis:Configuration'.");
             }
         }
 

@@ -1,6 +1,6 @@
 # Playground topology labs (Docker Compose)
 
-> **Guide (learn by running).** Orientation: [Guide — topologies](../../../docs/guide/topologies.md). Product overview: [root README](../../../README.md). Production wiring: [deployment.md](../../../docs/deployment.md).
+> **Guide (learn by running).** Orientation: [Guide — topologies](../../../docs/guide/topologies.md). Product overview: [root README](../../../README.md). Production wiring: [deployment.md](../../../docs/reference/deployment.md).
 
 These numbered **Compose stacks** run the **Playground sample** together with Prometheus, Admin Console, Redis, single or multiple app instances, and the cluster bus. Use them to learn how cache layers fit together and how CacheOrchestrator ties them to domain model using simple configuration.
 
@@ -21,7 +21,7 @@ For a single process on your machine without Docker, use the [Playground sample]
 Each lab gives you a **running playground** (and Admin Console + Prometheus). Treat it as a sandpit:
 
 1. Open the **Playground** UI and pick a domain endpoint (catalog, product, search, CRUD, …).  
-2. Click **Fetch** more than once — watch badges and `X-Cache` (OC-HIT, FC-HIT, FACTORY, schedule phase, …).  
+2. Click **Fetch** more than once — watch badges and `X-Cache` (OC-HIT, DC-HIT, FACTORY, schedule phase, …).  
 3. Open **appsettings** in the UI, change a TTL, Version, or Client Cache Schedule value, save, then fetch again.  
 4. Open **Admin Console** — Overview, Domains, Hints, Metrics — and relate numbers to what you just did.  
 5. Move to the **next stage** when you want Redis, a second node, or the bus; the playground behaviour stays familiar, the **topology** changes.
@@ -47,7 +47,7 @@ If behaviour looks surprising, see **[Troubleshooting](#troubleshooting)** (brow
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "InMemory" }
     },
     "Cluster": {
@@ -72,7 +72,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability
 
 One app process with full **ops surface**: Admin API (health, config, invalidate; optional process-lifetime `/stats`), Prometheus (`/metrics` from the `CacheOrchestrator` meter), Admin Console (dashboard / fan-out / **Prom-only** stats & hints / impact). Caching itself is still InMemory — observability does not change how OC/FC store data. Rebuild images after library changes (`docker compose … up --build`) so Console and playground pick up OTEL instruments and window-stats BFF.
 
-→ [observability.md](../../../docs/observability.md) · [admin.md](../../../docs/admin.md)
+→ [observability.md](../../../docs/reference/observability.md) · [admin.md](../../../docs/reference/admin.md)
 
 ### When this layout fits
 
@@ -106,7 +106,7 @@ One app process with full **ops surface**: Admin API (health, config, invalidate
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "Redis" }
     },
     "Redis": {
@@ -134,7 +134,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml up 
 
 **L2** = Redis for Fusion objects (survives restart / later multi-node). OC stays InMemory on purpose — layers can use different providers. With one instance the backplane is quiet; registration already matches multi-node (Stage 03).
 
-→ [backends.md](../../../docs/backends.md) · [fusion-cache.md](../../../docs/fusion-cache.md)
+→ [backends.md](../../../docs/reference/backends.md) · [data-cache.md](../../../docs/reference/data-cache.md)
 
 ### When this layout fits
 
@@ -143,7 +143,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml up 
 
 ### What to try
 
-1. Fetch until **FC-HIT** / factory quiet  
+1. Fetch until **DC-HIT** / factory quiet  
 2. `docker compose … restart playground`  
 3. Fetch again — Fusion may hit **L2** without a factory  
 4. Tweak Fusion soft/hard TTL; compare Admin metrics before/after restart  
@@ -168,7 +168,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml up 
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "Redis" }
     },
     "Redis": {
@@ -206,7 +206,7 @@ Two processes, one Redis L2. **Shared:** Fusion L2 objects + Fusion **backplane*
 
 That gap is real multi-instance behaviour with OC InMemory and no command bus. Stage **04** adds the bus; Stage **05** shares OC via Redis.
 
-→ [deployment.md](../../../docs/deployment.md) · [cache-keys.md](../../../docs/cache-keys.md)
+→ [deployment.md](../../../docs/reference/deployment.md) · [cache-keys.md](../../../docs/reference/cache-keys.md)
 
 ### When this layout fits
 
@@ -241,7 +241,7 @@ That gap is real multi-instance behaviour with OC InMemory and no command bus. S
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": { "Provider": "Redis" }
     },
     "Redis": {
@@ -280,7 +280,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/04-bus.yml up --
 
 Redis L2 + backplane handle **data / Fusion L1**. The **bus** carries **commands** (invalidate, Version, TTL patch) — critical for process-local state such as InMemory OC and runtime overlays. 
 
-→ [cluster-bus.md](../../../docs/cluster-bus.md) · [deployment.md](../../../docs/deployment.md)
+→ [cluster-bus.md](../../../docs/reference/cluster-bus.md) · [deployment.md](../../../docs/reference/deployment.md)
 
 ### When this layout fits
 
@@ -317,7 +317,7 @@ Redis L2 + backplane handle **data / Fusion L1**. The **bus** carries **commands
       "Provider": "Redis",
       "Redis": { "Configuration": "redis-oc:6379" }
     },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": {
         "Provider": "Redis",
         "Redis": { "Configuration": "redis-fc:6379" }
@@ -367,11 +367,11 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/05-dual-redis-bu
 | Apply **commands** everywhere | HTTP bus |
 | Operate | Admin Console + Prometheus |
 
-Shared OC store ≠ bus: Redis OC shares **payloads**; the bus still distributes **commands** (Version/TTL overlays, Admin distribute, other process-local state). Two Redis instances in the lab so you **see** separate roles — production may use one Redis (keys/DBs) or two (isolation). Per-layer connection strings: `OutputCache:Redis` vs `FusionCacheInstances:…:Redis`.
+Shared OC store ≠ bus: Redis OC shares **payloads**; the bus still distributes **commands** (Version/TTL overlays, Admin distribute, other process-local state). Two Redis instances in the lab so you **see** separate roles — production may use one Redis (keys/DBs) or two (isolation). Per-layer connection strings: `OutputCache:Redis` vs `DataCacheInstances:…:Redis`.
 
 Host/port vary is off in multi-instance labs (same note as Stage 03).
 
-→ [deployment.md](../../../docs/deployment.md) · [backends.md](../../../docs/backends.md) · [cluster-bus.md](../../../docs/cluster-bus.md)
+→ [deployment.md](../../../docs/reference/deployment.md) · [backends.md](../../../docs/reference/backends.md) · [cluster-bus.md](../../../docs/reference/cluster-bus.md)
 
 ### When this layout fits
 
@@ -430,9 +430,9 @@ Other simplifications exist for the same reason: **focus on cache behaviour** (O
 | `Error response from daemon: open /var/lib/docker/tmp/...` on `up --build` | Old compose used a **volume file subpath** mount (fragile on Docker Desktop). Current labs mount `/shared` as a directory + entrypoint symlink. Pull latest compose/Dockerfile; one-time `down -v` if an old broken mount is stuck, then `up --build -d`. |
 | Bus not distributing | Stages 04–05 only; peers use Docker DNS URLs in lab config |
 | No **BROWSER-CACHE**, or always server hits | Header toggle **Disable browser HTTP cache** is **on by default** (for server OC/FC demos). Uncheck only when you want client `max-age` / BROWSER-CACHE. |
-| OC-HIT then sudden MISS / FACTORY | Domain **TTL** expired — check `OutputCacheTtlSeconds` vs `FusionCacheSoftTtlSeconds` / hard for that domain in `Cache:Domains` |
+| OC-HIT then sudden MISS / FACTORY | Domain **TTL** expired — check `OutputCache.TtlSeconds` vs `DataCache.TtlSeconds` / `fusionCache.hardTtlSeconds` for that domain in `Cache:Domains` |
 | Always FACTORY, never hits | Domain disabled? Wrong endpoint/domain? Keys differ (query, host — multi-lab keys note in Stage 03)? |
-| Client headers not what you expect | `ClientTtlSeconds` / schedule / **Disable browser HTTP cache** (Fetch uses `no-store` when on) |
+| Client headers not what you expect | `ClientCache.TtlSeconds` / schedule / **Disable browser HTTP cache** (Fetch uses `no-store` when on) |
 | A vs B disagree | Topology (bus off, OC InMemory local) — not a TTL bug; see Stages 03–05 |
 | appsettings Save: `cat` in container is new, HTTP GET / UI still old | Output Cache **base policy** was caching `/api/demo/appsettings`. Fixed with `NoStore` on demo control routes — rebuild playground image. |
 | A Save applies on A; B settings UI shows new JSON but Fetch still old Version/TTL | B reads the file for the editor, but runtime options need a config **reload**. Sample polls the shared volume (~1s) and reloads; rebuild playground image. Stage 03 has no bus — file share + poll is intentional. |
@@ -449,8 +449,8 @@ Labs stay short on purpose: stages cover **topology**; use the sample README and
 | Which layout / package | [Guide — topologies](../../../docs/guide/topologies.md) |
 | Docs index (getting started, config, OC/FC, invalidation, ops) | [docs/README.md](../../../docs/README.md) |
 | Product overview | [root README](../../../README.md) |
-| Deployment / multi-instance / Redis / bus | [deployment.md](../../../docs/deployment.md), [cluster-bus.md](../../../docs/cluster-bus.md) |
-| Admin API + Admin Console | [admin.md](../../../docs/admin.md) · [Guide — operations](../../../docs/guide/operations.md) |
-| Observability (`X-Cache`, metrics) | [observability.md](../../../docs/observability.md) |
-| Cache keys (host/port vary, query params) | [cache-keys.md](../../../docs/cache-keys.md) |
+| Deployment / multi-instance / Redis / bus | [deployment.md](../../../docs/reference/deployment.md), [cluster-bus.md](../../../docs/reference/cluster-bus.md) |
+| Admin API + Admin Console | [admin.md](../../../docs/reference/admin.md) · [Guide — operations](../../../docs/guide/operations.md) |
+| Observability (`X-Cache`, metrics) | [observability.md](../../../docs/reference/observability.md) |
+| Cache keys (host/port vary, query params) | [cache-keys.md](../../../docs/reference/cache-keys.md) |
 

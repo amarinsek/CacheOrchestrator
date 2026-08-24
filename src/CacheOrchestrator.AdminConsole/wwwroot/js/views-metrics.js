@@ -258,8 +258,8 @@ function softUpdateKpis(summary, series) {
   }
   const map = {
     req: fmtRate(summary?.requestRate),
-    oc: fmtShare(summary?.ocHitShare),
-    fc: fmtShare(summary?.fcHitRate),
+    oc: fmtShare(summary?.outputCacheHitShare),
+    fc: fmtShare(summary?.dataCacheHitRate),
     inv: fmtRate(summary?.invalidationRate),
     step: series?.step || "—",
   };
@@ -343,8 +343,8 @@ function cssEscape(id) {
 function metricsKpiHtml(summary, series) {
   return `
       <div class="kpi" title="${esc(METRIC_TITLES.rpsWindow)}"><div class="label">RPS</div><div class="value" data-kpi="req">${fmtRate(summary?.requestRate)}</div></div>
-      <div class="kpi" title="${esc(METRIC_TITLES.ocHitShare)}"><div class="label">OC hit %</div><div class="value" data-kpi="oc">${fmtShare(summary?.ocHitShare)}</div></div>
-      <div class="kpi" title="${esc(METRIC_TITLES.fcHitRate)}"><div class="label">FC hit rate</div><div class="value" data-kpi="fc">${fmtShare(summary?.fcHitRate)}</div></div>
+      <div class="kpi" title="${esc(METRIC_TITLES.outputCacheHitShare)}"><div class="label">OC hit %</div><div class="value" data-kpi="oc">${fmtShare(summary?.outputCacheHitShare)}</div></div>
+      <div class="kpi" title="${esc(METRIC_TITLES.dataCacheHitRate)}"><div class="label">DC hit rate</div><div class="value" data-kpi="dc">${fmtShare(summary?.dataCacheHitRate)}</div></div>
       <div class="kpi" title="${esc(METRIC_TITLES.invRate)}"><div class="label">Inv / s</div><div class="value" data-kpi="inv">${fmtRate(summary?.invalidationRate)}</div></div>
       <div class="kpi"><div class="label">Step</div><div class="value" data-kpi="step" style="font-size:1rem">${esc(series?.step || "—")}</div></div>`;
 }
@@ -508,10 +508,10 @@ export async function mountDetailMetrics(mountId, opts) {
   }
 
   const panels = opts.scope === "domain"
-    ? "request_rate,oc_hit_share,fc_hit_rate,invalidation_rate,schedule_phase,fc_p95_ms"
+    ? "request_rate,oc_hit_share,dc_hit_rate,invalidation_rate,schedule_phase,dc_p95_ms"
     : opts.scope === "instance"
-      ? "request_rate,oc_hit_share,fc_hit_rate,invalidation_rate,fc_p95_ms,cluster_publish_failures"
-      : "request_rate,oc_hit_share,fc_hit_rate,factory_share,factory_p95_ms,fc_p95_ms";
+      ? "request_rate,oc_hit_share,dc_hit_rate,invalidation_rate,dc_p95_ms,cluster_publish_failures"
+      : "request_rate,oc_hit_share,dc_hit_rate,factory_share,factory_p95_ms,dc_p95_ms";
 
   const q = appendMetricsRangeParams(new URLSearchParams({ panels }));
   if (opts.range && !mq.from) q.set("range", opts.range);

@@ -42,7 +42,7 @@ public class LocalAdminClientTests
         RecordingHandler handler = new((req, _) =>
         {
             req.RequestUri!.ToString().Should().Be("http://app-1:8080/custom/local/domains");
-            return JsonResponse("""[{"name":"catalog","version":"1","fusionCacheInstanceName":"default"}]""");
+            return JsonResponse("""[{"name":"catalog","version":"1","dataCacheInstanceName":"default"}]""");
         });
 
         LocalAdminClient sut = CreateSut(handler, apiKey: "k", localPathPrefix: "/custom/local");
@@ -145,7 +145,7 @@ public class LocalAdminClientTests
         {
             req.Method.Should().Be(HttpMethod.Patch);
             req.RequestUri!.ToString().Should().Be("http://a/cache-admin/local/domains/catalog%2Fv2/settings");
-            return JsonResponse("""{"domain":"catalog/v2","effective":{"name":"catalog/v2","version":"1","fusionCacheInstanceName":"default"}}""");
+            return JsonResponse("""{"domain":"catalog/v2","effective":{"name":"catalog/v2","version":"1","dataCacheInstanceName":"default"}}""");
         });
 
         LocalAdminClient sut = CreateSut(handler, apiKey: "k");

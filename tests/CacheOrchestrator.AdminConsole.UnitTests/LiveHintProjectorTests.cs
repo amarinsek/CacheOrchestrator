@@ -23,8 +23,8 @@ public class LiveHintProjectorTests
         {
             Name = "catalog",
             RequestRate = 1,
-            OcHitShare = 0.8,
-            FcHitShare = 0.1,
+            OutputCacheHitShare = 0.8,
+            DataCacheHitShare = 0.1,
             FactoryShare = 0.2,
             FactoryFailShare = 0,
         };
@@ -32,7 +32,7 @@ public class LiveHintProjectorTests
         {
             Name = "catalog",
             Version = "v2",
-            FusionCacheInstanceName = "default",
+            DataCacheInstanceName = "default",
             VersionIsRuntimeOverride = true,
         };
 
@@ -41,7 +41,7 @@ public class LiveHintProjectorTests
         stats.Version.Should().Be("v2");
         stats.VersionIsRuntimeOverride.Should().BeTrue();
         stats.Requests.Should().Be(60);
-        stats.Oc.Hits.Should().Be(48);
+        stats.OutputCache.Hits.Should().Be(48);
         stats.Pipeline.FactoryShare.Should().BeApproximately(0.2, 0.05);
     }
 
@@ -52,11 +52,11 @@ public class LiveHintProjectorTests
         {
             Name = "idle",
             Version = "1",
-            FusionCacheInstanceName = "default",
+            DataCacheInstanceName = "default",
         });
         quiet.Requests.Should().Be(0);
-        quiet.Oc.Hits.Should().Be(0);
-        quiet.Fc.Hits.Should().Be(0);
+        quiet.OutputCache.Hits.Should().Be(0);
+        quiet.DataCache.Hits.Should().Be(0);
     }
 
     [Fact]
@@ -67,8 +67,8 @@ public class LiveHintProjectorTests
         {
             Name = "hot",
             RequestRate = 1,
-            OcHitShare = 0.1,
-            FcHitShare = 0.1,
+            OutputCacheHitShare = 0.1,
+            DataCacheHitShare = 0.1,
             FactoryShare = 0.7,
             FactoryFailShare = 0,
         };
@@ -78,13 +78,13 @@ public class LiveHintProjectorTests
             {
                 Name = "hot",
                 Version = "1",
-                FusionCacheInstanceName = "default",
+                DataCacheInstanceName = "default",
             },
             ["idle"] = new AdminDomainConfigDto
             {
                 Name = "idle",
                 Version = "1",
-                FusionCacheInstanceName = "default",
+                DataCacheInstanceName = "default",
             },
         };
 

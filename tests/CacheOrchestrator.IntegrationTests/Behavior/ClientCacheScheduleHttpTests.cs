@@ -33,16 +33,16 @@ public class ClientCacheScheduleHttpTests
         Dictionary<string, string?> configValues = new()
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = clientTtl.ToString(),
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = clientTtlMin.ToString(),
-            [$"Cache:Domains:{domain}:ClientMustRevalidateNearUpdate"] = mustRevalidateNear ? "true" : "false",
-            [$"Cache:Domains:{domain}:ScheduledUpdateUtc"] = scheduleUtc.ToString("O"),
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "1", // avoid OC hiding header changes across phase advances
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = clientTtl.ToString(),
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = clientTtlMin.ToString(),
+            [$"Cache:Domains:{domain}:ClientCache:MustRevalidateNearUpdate"] = mustRevalidateNear ? "true" : "false",
+            [$"Cache:Domains:{domain}:ClientCache:ScheduledUpdateUtc"] = scheduleUtc.ToString("O"),
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "1", // avoid OC hiding header changes across phase advances
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(configValues);
@@ -60,7 +60,8 @@ public class ClientCacheScheduleHttpTests
         builder.Logging.ClearProviders();
         // Replace system clock before AddCacheOrchestrator (TryAddSingleton).
         builder.Services.AddSingleton<TimeProvider>(clock);
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
@@ -300,7 +301,7 @@ public class ClientCacheScheduleHttpTests
             DateTimeOffset t1 = clock.GetUtcNow().AddSeconds(10_000);
             reload.Provider.Should().NotBeNull();
             reload.Provider!.SetAndReload(
-                $"Cache:Domains:{domain}:ScheduledUpdateUtc",
+                $"Cache:Domains:{domain}:ClientCache:ScheduledUpdateUtc",
                 t1.ToString("O"));
             await WaitForScheduledUpdateAsync(app.Services, domain, t1);
             await AdvancePastOutputCacheAsync(clock, clock.GetUtcNow()); // expire OC only; clock unchanged

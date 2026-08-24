@@ -129,39 +129,39 @@ export function sliceWindowStatsForInstance(windowStats, instanceId, reportedId)
 }
 
 /**
- * Rebuild pipeline shares from per-row OC/FC counters (same formula as AdminStatsMath.BuildAll).
+ * Rebuild pipeline shares from per-row OC/DC counters (same formula as AdminStatsMath.BuildAll).
  * Used for instance detail: cluster window stats are not instance-scoped.
- * @param {Array<{ oc?: object, fc?: object }>|null|undefined} rows
+ * @param {Array<{ outputCache?: object, dataCache?: object }>|null|undefined} rows
  * @returns {object|null}
  */
 export function aggregatePipelineFromStatsRows(rows) {
-  let ocHits = 0, ocMisses = 0, ocBypass = 0, ocOff = 0;
-  let fcHits = 0, fcMisses = 0, fcStale = 0, fcBypass = 0;
+  let outputCacheHits = 0, outputCacheMisses = 0, outputCacheBypass = 0, outputCacheOff = 0;
+  let dataCacheHits = 0, dataCacheMisses = 0, dataCacheStale = 0, dataCacheBypass = 0;
   let factoryRuns = 0;
   for (const r of rows || []) {
-    const oc = r.oc || {};
-    const fc = r.fc || {};
-    ocHits += Number(oc.hits) || 0;
-    ocMisses += Number(oc.misses) || 0;
-    ocBypass += Number(oc.bypass) || 0;
-    ocOff += Number(oc.off) || 0;
-    fcHits += Number(fc.hits) || 0;
-    fcMisses += Number(fc.misses) || 0;
-    fcStale += Number(fc.stale) || 0;
-    fcBypass += Number(fc.bypass) || 0;
+    const oc = r.outputCache || r.oc || {};
+    const fc = r.dataCache || r.dataCache || {};
+    outputCacheHits += Number(oc.hits) || 0;
+    outputCacheMisses += Number(oc.misses) || 0;
+    outputCacheBypass += Number(oc.bypass) || 0;
+    outputCacheOff += Number(oc.off) || 0;
+    dataCacheHits += Number(fc.hits) || 0;
+    dataCacheMisses += Number(fc.misses) || 0;
+    dataCacheStale += Number(fc.stale) || 0;
+    dataCacheBypass += Number(fc.bypass) || 0;
     factoryRuns += Number(fc.factoryRuns) || 0;
   }
-  const ocTraffic = ocHits + ocMisses + ocBypass + ocOff;
-  const fcTraffic = fcHits + fcMisses + fcStale + fcBypass;
+  const ocTraffic = outputCacheHits + outputCacheMisses + outputCacheBypass + outputCacheOff;
+  const fcTraffic = dataCacheHits + dataCacheMisses + dataCacheStale + dataCacheBypass;
   const requests = ocTraffic > 0 ? ocTraffic : (fcTraffic > 0 ? fcTraffic : factoryRuns);
   if (requests <= 0) return null;
   const share = (n) => n / requests;
   return {
-    ocHitShare: share(ocHits),
-    fcHitShare: share(fcHits),
-    staleShare: share(fcStale),
+    outputCacheHitShare: share(outputCacheHits),
+    dataCacheHitShare: share(dataCacheHits),
+    staleShare: share(dataCacheStale),
     factoryShare: share(factoryRuns),
-    otherShare: share(Math.max(0, requests - ocHits - fcHits - factoryRuns)),
+    otherShare: share(Math.max(0, requests - outputCacheHits - dataCacheHits - factoryRuns)),
   };
 }
 

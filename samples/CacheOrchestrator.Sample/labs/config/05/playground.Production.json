@@ -4,7 +4,7 @@
       "Provider": "Redis",
       "Redis": { "Configuration": "redis-oc:6379" }
     },
-    "FusionCacheInstances": {
+    "DataCacheInstances": {
       "default": {
         "Provider": "Redis",
         "Redis": { "Configuration": "redis-fc:6379" }

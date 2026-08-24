@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -33,16 +33,16 @@ public class FusionHttpAndDiTests
         Dictionary<string, string?> d = new()
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -62,7 +62,8 @@ public class FusionHttpAndDiTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<FactoryCounter>();
 
         WebApplication app = builder.Build();
@@ -116,7 +117,7 @@ public class FusionHttpAndDiTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(DomainBase(domain), a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 // Product happy path: domain already set by DomainOutputCachePolicy — no EnsureDomainOptions.
                 string value = await cache.GetOrSetAsync(http, _ =>
@@ -135,7 +136,7 @@ public class FusionHttpAndDiTests
             b1.Should().Be("happy-payload");
             x1.Should().Contain($"domain={domain}");
             x1.Should().Contain("oc=miss");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
@@ -158,13 +159,13 @@ public class FusionHttpAndDiTests
         string domain = "fc-meta-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
             // Policy still attaches domain metadata even when OC is disabled for the domain.
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -180,13 +181,13 @@ public class FusionHttpAndDiTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("from-meta");
             x1.Should().Contain("oc=off");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("from-meta");
-            x2.Should().Contain("fc=hit");
+            x2.Should().Contain("dc=hit");
             x2.Should().NotContain("fa=");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
         }
@@ -208,16 +209,17 @@ public class FusionHttpAndDiTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         int factoryCalls = 0;
 
         DefaultHttpContext http1 = CreateHttp("/api/orphan");
@@ -253,19 +255,20 @@ public class FusionHttpAndDiTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-                [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+                [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+                [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         int factoryCalls = 0;
 
         DefaultHttpContext http = CreateHttp("/api/explicit");
@@ -299,16 +302,16 @@ public class FusionHttpAndDiTests
         var initial = new Dictionary<string, string?>
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(initial);
@@ -322,14 +325,15 @@ public class FusionHttpAndDiTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<FactoryCounter>();
 
         WebApplication app = builder.Build();
         app.UseRouting();
         app.UseCacheOrchestrator();
 
-        app.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+        app.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
         {
             string value = await cache.GetOrSetAsync(http, _ =>
             {
@@ -346,14 +350,14 @@ public class FusionHttpAndDiTests
         {
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("gen-1");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             x1.Should().Contain("fa=run");
             x1.Should().Contain("version=v1");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("gen-1");
-            x2.Should().Contain("fc=hit");
+            x2.Should().Contain("dc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             reloadSource.Provider.Should().NotBeNull();
@@ -362,14 +366,14 @@ public class FusionHttpAndDiTests
 
             (HttpResponseMessage r3, string x3, string b3) = await GetAsync(client, "/x");
             b3.Should().Be("gen-2");
-            x3.Should().Contain("fc=miss", "Version bump must change Fusion key space");
+            x3.Should().Contain("dc=miss", "Version bump must change Fusion key space");
             x3.Should().Contain("fa=run");
             x3.Should().Contain("version=v2");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
 
             (HttpResponseMessage r4, string x4, string b4) = await GetAsync(client, "/x");
             b4.Should().Be("gen-2");
-            x4.Should().Contain("fc=hit");
+            x4.Should().Contain("dc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
         }
         finally
@@ -384,7 +388,7 @@ public class FusionHttpAndDiTests
         string domain,
         string expectedVersion)
     {
-        IDomainCacheOptionsProvider domains = services.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = services.GetRequiredService<IRequestDomainCacheOptions>();
         IOptionsMonitor<CacheOrchestratorOptions> monitor =
             services.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>();
 
@@ -402,7 +406,7 @@ public class FusionHttpAndDiTests
     }
 
     // =========================================================================
-    // B18 — Fail-safe stale over HTTP + X-Cache fc=stale
+    // B18 — Fail-safe stale over HTTP + X-Cache dc=stale
     // =========================================================================
 
     [Fact]
@@ -413,19 +417,19 @@ public class FusionHttpAndDiTests
 
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
-            d[$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "1";
-            d[$"Cache:Domains:{domain}:FusionCacheHardTtlSeconds"] = "3600";
-            d[$"Cache:Domains:{domain}:FusionCacheFailSafeSeconds"] = "86400";
-            d[$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0";
-            d[$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0";
-            d[$"Cache:Domains:{domain}:FusionCacheFactorySoftTimeoutSeconds"] = "5";
-            d[$"Cache:Domains:{domain}:FusionCacheFactoryHardTimeoutSeconds"] = "10";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
+            d[$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "1";
+            d[$"Cache:Domains:{domain}:FusionCache:HardTtlSeconds"] = "3600";
+            d[$"Cache:Domains:{domain}:FusionCache:FailSafeSeconds"] = "86400";
+            d[$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0";
+            d[$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0";
+            d[$"Cache:Domains:{domain}:FusionCache:FactorySoftTimeoutSeconds"] = "5";
+            d[$"Cache:Domains:{domain}:FusionCache:FactoryHardTimeoutSeconds"] = "10";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -443,7 +447,7 @@ public class FusionHttpAndDiTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             r1.IsSuccessStatusCode.Should().BeTrue();
             b1.Should().Be("good");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             x1.Should().Contain("fa=run");
 
             await Task.Delay(TimeSpan.FromMilliseconds(1200), TestContext.Current.CancellationToken);
@@ -451,7 +455,7 @@ public class FusionHttpAndDiTests
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             r2.IsSuccessStatusCode.Should().BeTrue();
             b2.Should().Be("good", "fail-safe must return last good value");
-            x2.Should().Contain("fc=stale");
+            x2.Should().Contain("dc=stale");
             x2.Should().Contain("fa=run");
             Volatile.Read(ref phase[0]).Should().Be(2, "factory must re-run after soft expiry");
         }
@@ -474,22 +478,23 @@ public class FusionHttpAndDiTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-                [$"Cache:Domains:{domain}:FusionCacheVaryOnEncoding"] = "true",
-                [$"Cache:Domains:{domain}:FusionCacheVaryOnPublicAddress"] = "false",
-                [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+                [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+                [$"Cache:Domains:{domain}:DataCache:VaryOnEncoding"] = "true",
+                [$"Cache:Domains:{domain}:DataCache:VaryOnPublicAddress"] = "false",
+                [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         int factoryCalls = 0;
 
         DefaultHttpContext gzip = CreateHttp("/api/enc");
@@ -531,7 +536,7 @@ public class FusionHttpAndDiTests
     }
 
     // =========================================================================
-    // B20 — FusionCacheEnabled false over HTTP
+    // B20 — DataCacheEnabled false over HTTP
     // =========================================================================
 
     [Fact]
@@ -540,13 +545,13 @@ public class FusionHttpAndDiTests
         string domain = "fc-off-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
-            d[$"Cache:Domains:{domain}:FusionCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
+            d[$"Cache:Domains:{domain}:DataCache:Enabled"] = "false";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -561,13 +566,13 @@ public class FusionHttpAndDiTests
         {
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("n1");
-            x1.Should().Contain("fc=off");
+            x1.Should().Contain("dc=off");
             x1.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("n2");
-            x2.Should().Contain("fc=off");
+            x2.Should().Contain("dc=off");
             x2.Should().Contain("fa=run");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
         }

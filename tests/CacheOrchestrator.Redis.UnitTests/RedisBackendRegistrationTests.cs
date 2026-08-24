@@ -17,13 +17,17 @@ public class RedisBackendRegistrationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "Redis",
-                ["Cache:FusionCacheInstances:default:Provider"] = "Redis"
+                ["Cache:DataCacheInstances:default:Provider"] = "Redis"
             })
             .Build();
 
         services.AddLogging();
 
-        var act = () => services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        var act = () =>
+        {
+            services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+            services.AddCacheOrchestratorFusionCache(config);
+        };
 
         act.Should().Throw<InvalidOperationException>()
            .WithMessage("*Redis*");
@@ -37,13 +41,14 @@ public class RedisBackendRegistrationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory"
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory"
             })
             .Build();
 
         ICacheOrchestratorBuilder? captured = null;
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => captured = o.AddRedisBackend());
+        services.AddCacheOrchestratorAspNetCore(config, o => captured = o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
 
         captured.Should().NotBeNull();
         using ServiceProvider sp = services.BuildServiceProvider();
@@ -59,12 +64,12 @@ public class RedisBackendRegistrationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory"
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory"
             })
             .Build();
 
         services.AddLogging();
-        var act = () => services.AddCacheOrchestrator(config, o => o.AddRedisBackend("  "));
+        var act = () => services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend("  "));
         act.Should().Throw<ArgumentException>();
     }
 }

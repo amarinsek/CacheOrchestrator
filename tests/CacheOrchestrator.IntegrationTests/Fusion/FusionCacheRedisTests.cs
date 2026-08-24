@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Redis;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
@@ -26,16 +26,17 @@ public class FusionCacheRedisTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+                ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString,
-                ["Cache:Domains:products:FusionCacheSoftTtlSeconds"] = "60",
+                ["Cache:Domains:products:DataCache:TtlSeconds"] = "60",
                 ["Cache:Domains:products:Version"] = "v1"
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
 
         return services.BuildServiceProvider();
     }
@@ -44,8 +45,8 @@ public class FusionCacheRedisTests
     public async Task GetOrSetAsync_SecondCall_IsCacheHit()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainConfig = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = new();
         http.Request.Method = "GET";
@@ -75,9 +76,9 @@ public class FusionCacheRedisTests
     public async Task GetOrSetAsync_AfterInvalidateDomain_IsMissAgain()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         ICacheOrchestratorInvalidator invalidator = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
-        IDomainCacheOptionsProvider domainConfig = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = new();
         http.Request.Method = "GET";
@@ -110,8 +111,8 @@ public class FusionCacheRedisTests
     public async Task GetOrSetAsync_DifferentPaths_AreIndependent()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainConfig = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http1 = new();
         http1.Request.Path = "/api/products/a";

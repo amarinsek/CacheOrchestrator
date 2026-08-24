@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
@@ -44,16 +44,16 @@ public class RedisMultiNodeTests
         {
             ["Cache:Namespace"] = "it-multi-" + Guid.NewGuid().ToString("N")[..8],
             ["Cache:OutputCache:Provider"] = ocProvider,
-            ["Cache:FusionCacheInstances:default:Provider"] = fcProvider,
+            ["Cache:DataCacheInstances:default:Provider"] = fcProvider,
             ["Cache:Redis:Configuration"] = redisCs,
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
         };
 
     private static async Task<(HttpClient Client, WebApplication App, HitCounter Hits)> StartHostAsync(
@@ -71,7 +71,8 @@ public class RedisMultiNodeTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<HitCounter>();
 
         WebApplication app = builder.Build();
@@ -79,7 +80,7 @@ public class RedisMultiNodeTests
         app.UseCacheOrchestrator();
 
         HitCounter hits = app.Services.GetRequiredService<HitCounter>();
-        app.MapGet(path, async (HttpContext http, IDomainFusionCache cache, HitCounter h) =>
+        app.MapGet(path, async (HttpContext http, IDomainDataCache cache, HitCounter h) =>
         {
             h.Increment();
             string value = await cache.GetOrSetAsync(http, _ => Task.FromResult("shared-" + domain), http.RequestAborted);
@@ -151,27 +152,28 @@ public class RedisMultiNodeTests
                 {
                     ["Cache:Namespace"] = ns,
                     ["Cache:OutputCache:Provider"] = "InMemory",
-                    ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+                    ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                     ["Cache:Redis:Configuration"] = _redis.ConnectionString,
                     [$"Cache:Domains:{domain}:Version"] = "v1",
-                    [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-                    [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+                    [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+                    [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
                 })
                 .Build();
 
             ServiceCollection services = new();
             services.AddLogging();
-            services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+            services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
             return services.BuildServiceProvider();
         }
 
         await using ServiceProvider spA = await BuildHostAsync();
         await using ServiceProvider spB = await BuildHostAsync();
 
-        IDomainFusionCache cacheA = spA.GetRequiredService<IDomainFusionCache>();
-        IDomainFusionCache cacheB = spB.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainsA = spA.GetRequiredService<IDomainCacheOptionsProvider>();
-        IDomainCacheOptionsProvider domainsB = spB.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cacheA = spA.GetRequiredService<IDomainDataCache>();
+        IDomainDataCache cacheB = spB.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domainsA = spA.GetRequiredService<IRequestDomainCacheOptions>();
+        IRequestDomainCacheOptions domainsB = spB.GetRequiredService<IRequestDomainCacheOptions>();
 
         int factoryA = 0;
         int factoryB = 0;
@@ -225,29 +227,30 @@ public class RedisMultiNodeTests
                 {
                     ["Cache:Namespace"] = ns,
                     ["Cache:OutputCache:Provider"] = "InMemory",
-                    ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+                    ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                     ["Cache:Redis:Configuration"] = _redis.ConnectionString,
                     [$"Cache:Domains:{domain}:Version"] = "v1",
-                    [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-                    [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+                    [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+                    [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
                 })
                 .Build();
 
             ServiceCollection services = new();
             services.AddLogging();
-            services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+            services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
             return services.BuildServiceProvider();
         }
 
         await using ServiceProvider spA = await BuildHostAsync();
         await using ServiceProvider spB = await BuildHostAsync();
 
-        IDomainFusionCache cacheA = spA.GetRequiredService<IDomainFusionCache>();
-        IDomainFusionCache cacheB = spB.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domainsA = spA.GetRequiredService<IDomainCacheOptionsProvider>();
-        IDomainCacheOptionsProvider domainsB = spB.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cacheA = spA.GetRequiredService<IDomainDataCache>();
+        IDomainDataCache cacheB = spB.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domainsA = spA.GetRequiredService<IRequestDomainCacheOptions>();
+        IRequestDomainCacheOptions domainsB = spB.GetRequiredService<IRequestDomainCacheOptions>();
 
-        DefaultHttpContext MakeHttp(IDomainCacheOptionsProvider domains)
+        DefaultHttpContext MakeHttp(IRequestDomainCacheOptions domains)
         {
             DefaultHttpContext http = new();
             http.Request.Method = "GET";
@@ -296,14 +299,15 @@ public class RedisMultiNodeTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "Redis",
-                ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+                ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString,
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
         services.AddHealthChecks().AddCacheOrchestrator();
 
         await using ServiceProvider sp = services.BuildServiceProvider();

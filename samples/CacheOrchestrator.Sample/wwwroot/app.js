@@ -105,7 +105,7 @@ function pickDomainUrl() {
 
 /**
  * Fetch options for playground requests.
- * Default cache: 'no-store' (server OC/FC visible). Checkbox uses cache: 'default' for client max-age demos.
+ * Default cache: 'no-store' (server OC/DC visible). Checkbox uses cache: 'default' for client max-age demos.
  */
 /**
  * @param {'GET'|'PUT'} [method]
@@ -115,7 +115,7 @@ function buildFetchInit(method = 'GET', { disableBrowserCache = true, price } = 
     /** @type {RequestInit} */
     const init = {
         method,
-        // Fetch cache mode only — not HTTP Cache-Control: no-store (server OC/FC still run).
+        // Fetch cache mode only — not HTTP Cache-Control: no-store (server OC/DC still run).
         cache: disableBrowserCache ? 'no-store' : 'default',
         headers: {},
     };
@@ -166,9 +166,9 @@ function cacheTag(xcache) {
     if (!xcache) return '';
 
     const oc = xcacheToken(xcache, 'oc') || xcacheToken(xcache, 'output');
-    const fc = xcacheToken(xcache, 'fc') || xcacheToken(xcache, 'data');
+    const dc = xcacheToken(xcache, 'dc') || xcacheToken(xcache, 'data') || xcacheToken(xcache, 'fc');
     const faRun = xcacheToken(xcache, 'fa') === 'run'
-        || (!!fc && fc !== 'hit');
+        || (!!dc && dc !== 'hit');
 
     if (oc === 'hit') return `<span class="tag hit">OC-HIT</span>`;
 
@@ -176,22 +176,22 @@ function cacheTag(xcache) {
     const ocCls = oc === 'off' || oc === 'bypass' ? 'phase-apr' : 'miss';
     let html = `<span class="tag ${ocCls}">${ocLabel}</span>`;
 
-    if (fc === 'hit') {
-        html += `<span class="tag hit" style="margin-left:4px">FC-HIT</span>`;
-    } else if (fc === 'stale') {
-        html += `<span class="tag phase-hold" style="margin-left:4px">FC-STALE</span>`;
-    } else if (fc === 'off') {
-        html += `<span class="tag phase-apr" style="margin-left:4px">FC-OFF</span>`;
-    } else if (fc === 'bypass') {
-        html += `<span class="tag phase-apr" style="margin-left:4px">FC-BYPASS</span>`;
-    } else if (fc === 'unresolved') {
-        html += `<span class="tag miss" style="margin-left:4px">FC-UNRESOLVED</span>`;
-    } else if (fc) {
-        html += `<span class="tag miss" style="margin-left:4px">FC-MISS</span>`;
+    if (dc === 'hit') {
+        html += `<span class="tag hit" style="margin-left:4px">DC-HIT</span>`;
+    } else if (dc === 'stale') {
+        html += `<span class="tag phase-hold" style="margin-left:4px">DC-STALE</span>`;
+    } else if (dc === 'off') {
+        html += `<span class="tag phase-apr" style="margin-left:4px">DC-OFF</span>`;
+    } else if (dc === 'bypass') {
+        html += `<span class="tag phase-apr" style="margin-left:4px">DC-BYPASS</span>`;
+    } else if (dc === 'unresolved') {
+        html += `<span class="tag miss" style="margin-left:4px">DC-UNRESOLVED</span>`;
+    } else if (dc) {
+        html += `<span class="tag miss" style="margin-left:4px">DC-MISS</span>`;
     }
 
     if (faRun) {
-        html += `<span class="tag factory" style="margin-left:4px" title="Fusion factory callback ran">FACTORY</span>`;
+        html += `<span class="tag factory" style="margin-left:4px" title="Data-cache factory callback ran">FACTORY</span>`;
     }
     return html;
 }
@@ -255,7 +255,7 @@ async function runRequest(url, init) {
     });
 }
 
-/** Header checkbox — default true: bypass browser HTTP cache; server OC/FC unchanged. */
+/** Header checkbox — default true: bypass browser HTTP cache; server OC/DC unchanged. */
 function isBrowserCacheDisabled() {
     const el = document.getElementById('disableBrowserCache');
     // If the control is missing, prefer server-visible fetches.

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
@@ -8,9 +8,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\src\CacheOrchestrator\CacheOrchestrator.csproj" />
+		<ProjectReference Include="..\..\src\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
 		<ProjectReference Include="..\..\src\CacheOrchestrator.Redis\CacheOrchestrator.Redis.csproj" />
-		<ProjectReference Include="..\..\src\CacheOrchestrator.Bus\CacheOrchestrator.Bus.csproj" />
+		<ProjectReference Include="..\..\src\CacheOrchestrator.HttpBus\CacheOrchestrator.HttpBus.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

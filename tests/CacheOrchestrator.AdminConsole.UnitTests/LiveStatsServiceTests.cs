@@ -78,13 +78,13 @@ public class LiveStatsServiceTests
                 {
                     Name = "catalog",
                     Version = "1",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                 },
                 new AdminDomainConfigDto
                 {
                     Name = "quiet",
                     Version = "1",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                 },
             ]);
 
@@ -125,7 +125,7 @@ public class LiveStatsServiceTests
                 }
 
                 if (promQl.Contains("sum by (domain)", StringComparison.Ordinal)
-                    && promQl.Contains(MetricsPanelCatalog.FcRequests, StringComparison.Ordinal)
+                    && promQl.Contains(MetricsPanelCatalog.DcRequests, StringComparison.Ordinal)
                     && promQl.Contains(MetricsPanelCatalog.FactoryResultMatcher, StringComparison.Ordinal))
                 {
                     // Factory rate ≈ OC rate → factory share ~1.0
@@ -145,7 +145,7 @@ public class LiveStatsServiceTests
                 {
                     Name = "hot",
                     Version = "1",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                 },
             ]);
 
@@ -246,13 +246,6 @@ public class LiveStatsServiceTests
             AdminInstanceOptions instance,
             string domain,
             AdminVersionRequest body,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchTtlAsync(
-            AdminInstanceOptions instance,
-            string domain,
-            AdminTtlPatchRequest body,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 

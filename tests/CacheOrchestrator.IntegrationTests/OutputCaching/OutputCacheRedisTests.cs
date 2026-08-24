@@ -39,7 +39,7 @@ public class OutputCacheRedisTests
             ["Cache:OutputCache:Provider"] = "Redis",
             ["Cache:FusionCache:Provider"] = "Redis",
             ["Cache:Redis:Configuration"] = _redis.ConnectionString,
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "60",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCacheControlHeader"] = "public, max-age=60"
         };
@@ -55,7 +55,8 @@ public class OutputCacheRedisTests
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
         builder.Services.AddSingleton(config);
-        builder.Services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<HitCounter>();
 
         WebApplication app = builder.Build();

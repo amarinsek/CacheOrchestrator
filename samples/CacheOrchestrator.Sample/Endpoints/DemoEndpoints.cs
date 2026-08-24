@@ -1,4 +1,5 @@
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.Entity;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -32,7 +33,7 @@ public static class DemoEndpoints
             var domain = entry.Domain;
             var delayMs = entry.DelayMs;
 
-            app.MapGet(path, async (HttpContext http, IDomainFusionCache cache) =>
+            app.MapGet(path, async (HttpContext http, IDomainDataCache cache) =>
             {
                 var sw = Stopwatch.StartNew();
                 var data = await cache.GetOrSetAsync(http, async _ =>
@@ -62,7 +63,7 @@ public static class DemoEndpoints
         const string note =
             "Change Accept and/or ?lang= — OC/FC should MISS across variants; utm_* and other query keys are ignored (allowlist).";
 
-        app.MapGet("/api/vary-demo", async (HttpContext http, IDomainFusionCache cache) =>
+        app.MapGet("/api/vary-demo", async (HttpContext http, IDomainDataCache cache) =>
         {
             var sw = Stopwatch.StartNew();
             VaryDemoPayload data = await cache.GetOrSetAsync(http, async _ =>
@@ -116,8 +117,8 @@ public static class DemoEndpoints
             string BackendFor(string domain)
             {
                 var opts = provider.GetOrCreateDomainOptions(domain);
-                var fcName = opts.FusionCacheInstanceName ?? "default";
-                var fcProvider = config[$"Cache:FusionCacheInstances:{fcName}:Provider"] ?? "InMemory";
+                var fcName = opts.DataCacheInstanceName ?? "default";
+                var fcProvider = config[$"Cache:DataCacheInstances:{fcName}:Provider"] ?? "InMemory";
                 var ocProvider = config["Cache:OutputCache:Provider"] ?? "InMemory";
                 return $"{ocProvider} / {fcProvider}";
             }
@@ -250,7 +251,7 @@ public static class DemoEndpoints
             ["7"] = new ProductRecord("7", "Sample Gadget", 19.50m, DateTimeOffset.UtcNow)
         };
 
-        app.MapGet("/api/crud/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache) =>
+        app.MapGet("/api/crud/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
         {
             var product = await cache.GetOrSetEntityAsync(http, async ct =>
             {

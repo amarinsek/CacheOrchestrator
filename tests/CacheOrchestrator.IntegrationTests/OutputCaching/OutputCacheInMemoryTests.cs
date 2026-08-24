@@ -17,7 +17,7 @@ public class OutputCacheInMemoryTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:Domains:products:OutputCacheTtlSeconds"] = "60",
+                ["Cache:Domains:products:OutputCache:TtlSeconds"] = "60",
                 ["Cache:Domains:products:Version"] = "v1",
                 ["Cache:Domains:products:ClientCacheControlHeader"] = "public, max-age=60"
             })
@@ -26,7 +26,8 @@ public class OutputCacheInMemoryTests
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddConfiguration(config);
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseCacheOrchestrator();

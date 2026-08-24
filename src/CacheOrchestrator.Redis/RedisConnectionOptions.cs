@@ -3,7 +3,7 @@ namespace CacheOrchestrator.Redis;
 /// <summary>
 /// Redis connection settings for CacheOrchestrator.Redis.
 /// Bound from <c>Cache:Redis</c> and optional overrides under
-/// <c>Cache:OutputCache:Redis</c> / <c>Cache:FusionCacheInstances:&#123;name&#125;:Redis</c>.
+/// <c>Cache:OutputCache:Redis</c> / <c>Cache:DataCacheInstances:&#123;name&#125;:Redis</c>.
 /// </summary>
 public sealed class RedisConnectionOptions
 {

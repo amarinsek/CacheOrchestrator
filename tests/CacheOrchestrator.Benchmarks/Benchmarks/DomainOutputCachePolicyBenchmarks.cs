@@ -76,7 +76,7 @@ public class DomainOutputCachePolicyBenchmarks
         {
             Domain = "catalog",
             OutputCacheEnabled = true,
-            BypassWhenAuthenticated = true,
+            AuthBypassMode = AuthBypassMode.AuthenticatedOrAuthorization,
             VaryOutputCacheByUser = true,
             OutputTtl = TimeSpan.FromSeconds(60),
             Version = "1",
@@ -92,7 +92,7 @@ public class DomainOutputCachePolicyBenchmarks
 
         var provider = new FixedDomainOptionsProvider(cfg);
         var services = new ServiceCollection();
-        services.AddSingleton<IDomainCacheOptionsProvider>(provider);
+        services.AddSingleton<IRequestDomainCacheOptions>(provider);
         services.AddSingleton(typeof(ILogger<DomainOutputCachePolicy>), NullLogger<DomainOutputCachePolicy>.Instance);
         services.AddSingleton(TimeProvider.System);
         http.RequestServices = services.BuildServiceProvider();
@@ -101,7 +101,7 @@ public class DomainOutputCachePolicyBenchmarks
         return new OutputCacheContext { HttpContext = http };
     }
 
-    private sealed class FixedDomainOptionsProvider : IDomainCacheOptionsProvider
+    private sealed class FixedDomainOptionsProvider : IRequestDomainCacheOptions
     {
         private readonly DomainCacheOptions _opts;
 

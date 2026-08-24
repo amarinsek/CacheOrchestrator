@@ -47,7 +47,7 @@ public class RedisConfigurationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:Redis:Configuration"] = "global:6379",
-                ["Cache:FusionCacheInstances:pii:Redis:Configuration"] = "pii:6390"
+                ["Cache:DataCacheInstances:pii:Redis:Configuration"] = "pii:6390"
             })
             .Build();
 

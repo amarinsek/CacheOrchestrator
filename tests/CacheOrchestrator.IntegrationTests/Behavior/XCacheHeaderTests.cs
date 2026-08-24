@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -32,14 +32,14 @@ public class XCacheHeaderTests
         Dictionary<string, string?> d = new()
         {
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = clientTtl.ToString(),
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = clientTtl.ToString(),
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = outputTtl.ToString(),
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = fusionTtl.ToString()
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = clientTtl.ToString(),
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = clientTtl.ToString(),
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = outputTtl.ToString(),
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = fusionTtl.ToString()
         };
         if (!outputEnabled)
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
         return d;
     }
 
@@ -65,7 +65,8 @@ public class XCacheHeaderTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<HitCounter>();
 
         WebApplication app = builder.Build();
@@ -126,12 +127,12 @@ public class XCacheHeaderTests
         xCache.Should().Contain($"oc={output}");
         if (data is null)
         {
-            xCache.Should().NotContain("fc=");
+            xCache.Should().NotContain("dc=");
             xCache.Should().NotContain("fa=");
         }
         else
         {
-            xCache.Should().Contain($"fc={data}");
+            xCache.Should().Contain($"dc={data}");
             if (data == "hit")
                 xCache.Should().NotContain("fa=");
             else
@@ -140,7 +141,7 @@ public class XCacheHeaderTests
     }
 
     // =========================================================================
-    // 1) First request ? oc=miss; fc=miss; fa=run
+    // 1) First request ? oc=miss; dc=miss; fa=run
     // =========================================================================
 
     [Fact]
@@ -149,7 +150,7 @@ public class XCacheHeaderTests
         string domain = "x-miss-" + Guid.NewGuid().ToString("N");
         (HttpClient? client, WebApplication? app) = await StartAsync(DomainConfig(domain), app =>
         {
-            app.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, IDomainCacheOptionsProvider domains, HitCounter hits) =>
+            app.MapGet("/x", async (HttpContext http, IDomainDataCache cache, IRequestDomainCacheOptions domains, HitCounter hits) =>
             {
                 domains.EnsureDomainOptions(http, domain);
                 string value = await cache.GetOrSetAsync(http, async _ =>
@@ -188,7 +189,7 @@ public class XCacheHeaderTests
         string domain = "x-ochit-" + Guid.NewGuid().ToString("N");
         (HttpClient? client, WebApplication? app) = await StartAsync(DomainConfig(domain), app =>
         {
-            app.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, IDomainCacheOptionsProvider domains, HitCounter hits) =>
+            app.MapGet("/x", async (HttpContext http, IDomainDataCache cache, IRequestDomainCacheOptions domains, HitCounter hits) =>
             {
                 domains.EnsureDomainOptions(http, domain);
                 string value = await cache.GetOrSetAsync(http, async _ =>
@@ -230,7 +231,7 @@ public class XCacheHeaderTests
         string domain = "x-inv-" + Guid.NewGuid().ToString("N");
         (HttpClient? client, WebApplication? app) = await StartAsync(DomainConfig(domain), app =>
         {
-            app.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, IDomainCacheOptionsProvider domains, HitCounter hits) =>
+            app.MapGet("/x", async (HttpContext http, IDomainDataCache cache, IRequestDomainCacheOptions domains, HitCounter hits) =>
             {
                 domains.EnsureDomainOptions(http, domain);
                 string value = await cache.GetOrSetAsync(http, _ =>
@@ -272,7 +273,7 @@ public class XCacheHeaderTests
         string domain = "x-fchit-" + Guid.NewGuid().ToString("N");
         (HttpClient? client, WebApplication? app) = await StartAsync(DomainConfig(domain, outputEnabled: false), app =>
         {
-            app.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, IDomainCacheOptionsProvider domains, HitCounter hits) =>
+            app.MapGet("/x", async (HttpContext http, IDomainDataCache cache, IRequestDomainCacheOptions domains, HitCounter hits) =>
             {
                 domains.EnsureDomainOptions(http, domain);
                 string value = await cache.GetOrSetAsync(http, async _ =>
@@ -305,7 +306,7 @@ public class XCacheHeaderTests
     }
 
     // =========================================================================
-    // 5) OC disabled but policy attached ? oc=off; second call fc=hit
+    // 5) OC disabled but policy attached ? oc=off; second call dc=hit
     // =========================================================================
 
     [Fact]
@@ -316,7 +317,7 @@ public class XCacheHeaderTests
 
         (HttpClient? client, WebApplication? app) = await StartAsync(DomainConfig(domain, outputEnabled: false), app =>
         {
-            app.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, IDomainCacheOptionsProvider domains, HitCounter hits) =>
+            app.MapGet("/x", async (HttpContext http, IDomainDataCache cache, IRequestDomainCacheOptions domains, HitCounter hits) =>
             {
                 hits.Increment();
                 domains.EnsureDomainOptions(http, domain);
@@ -419,7 +420,7 @@ public class XCacheHeaderTests
         string domain = "x-utm-" + Guid.NewGuid().ToString("N");
         (HttpClient? client, WebApplication? app) = await StartAsync(DomainConfig(domain), app =>
         {
-            app.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, IDomainCacheOptionsProvider domains, HitCounter hits) =>
+            app.MapGet("/x", async (HttpContext http, IDomainDataCache cache, IRequestDomainCacheOptions domains, HitCounter hits) =>
             {
                 domains.EnsureDomainOptions(http, domain);
                 string value = await cache.GetOrSetAsync(http, _ =>

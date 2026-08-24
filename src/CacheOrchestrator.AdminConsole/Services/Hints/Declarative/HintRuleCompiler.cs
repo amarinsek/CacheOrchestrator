@@ -260,7 +260,7 @@ public sealed partial class HintRuleCompiler
         if (!HintPathCatalog.IsKnown(fieldPath))
         {
             errors.Add(Err(file, path + ".path",
-                $"Unknown path \"{fieldPath}\". Use a documented field (e.g. domain.fc.originShare).",
+                $"Unknown path \"{fieldPath}\". Use a documented field (e.g. domain.dataCache.factoryShare).",
                 ruleCode));
         }
 

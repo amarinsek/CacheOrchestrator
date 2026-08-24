@@ -163,7 +163,7 @@ export async function renderDomainDetail(name, params = new URLSearchParams(), o
     return;
   }
 
-  const domain = d || { name, requests: 0, oc: {}, fc: {}, pipeline: {}, endpoints: [], hints: [] };
+  const domain = d || { name, requests: 0, outputCache: {}, dataCache: {}, pipeline: {}, endpoints: [], hints: [] };
   const endpointsSorted = sortEndpoints(domain.endpoints || [], epSort);
 
   if (soft && $("#domMetricsMount")?.dataset?.metricsReady === "1") {
@@ -218,13 +218,13 @@ export function domainDetailHeadHtml(name, domain, cfg) {
       <div class="kpi-row">
         <div class="kpi"${tipAttr("inv")}><div class="label">Inv</div><div class="value">${num(domain.invalidations)}</div></div>
         <div class="kpi"${tipAttr("req")}><div class="label">Req</div><div class="value">${num(domain.requests)}</div></div>
-        ${impactKpiRowHtml(domain.impact, domain.fc)}
+        ${impactKpiRowHtml(domain.impact, domain.dataCache)}
       </div>
       ${pipelinePanelHtml(domain.pipeline)}
     </div>
     <div class="detail-grid">
-      ${layerDetailOc(domain.oc)}
-      ${layerDetailFc(domain.fc)}
+      ${layerDetailOc(domain.outputCache)}
+      ${layerDetailFc(domain.dataCache)}
       ${impactDetailHtml(domain.impact)}
       ${hasConfig ? `
       <div class="detail-block">
@@ -233,12 +233,12 @@ export function domainDetailHeadHtml(name, domain, cfg) {
           <span${tipAttr("version")}>Version</span>${currentValueHtml(esc(ver))}${verRt ? " *" : ""}
           ${cfg ? `
           <span${tipAttr("outputTtl")}>Output TTL</span>${currentValueHtml(fmtUnit(cfg.outputCacheTtlSeconds, "s"))}
-          <span${tipAttr("softTtl")}>Fusion soft</span>${currentValueHtml(fmtUnit(cfg.fusionCacheSoftTtlSeconds, "s"))}
-          <span${tipAttr("hardTtl")}>Fusion hard</span>${currentValueHtml(fmtUnit(cfg.fusionCacheHardTtlSeconds, "s"))}
-          <span${tipAttr("failSafe")}>Fail-safe</span>${currentValueHtml(fmtUnit(cfg.fusionCacheFailSafeSeconds, "s"))}
+          <span${tipAttr("softTtl")}>Data soft TTL</span>${currentValueHtml(fmtUnit(cfg.dataCacheTtlSeconds, "s"))}
+          <span${tipAttr("hardTtl")}>Data hard TTL</span>${currentValueHtml(fmtUnit(cfg.hardTtlSeconds, "s"))}
+          <span${tipAttr("failSafe")}>Fail-safe</span>${currentValueHtml(fmtUnit(cfg.failSafeSeconds, "s"))}
           <span${tipAttr("clientTtl")}>Client TTL / min</span>${currentValueHtml(clientTtl)}
           <span${tipAttr("schedulePhase")}>Schedule phase</span>${currentValueHtml(esc(cfg.schedulePhase || "—"))}
-          <span${tipAttr("fcInstance")}>FC instance</span>${currentValueHtml(esc(cfg.fusionCacheInstanceName || "—"))}
+          <span${tipAttr("dcInstance")}>DC instance</span>${currentValueHtml(esc(cfg.dataCacheInstanceName || "—"))}
           ` : ""}
         </div>
       </div>` : ""}
@@ -253,12 +253,12 @@ export function domainDetailHeadHtml(name, domain, cfg) {
           ${thMetric("Req", "req", { fromKey: true })}
           ${thMetric("Inv", "inv", { fromKey: true })}
           ${thMetric("Pipeline", "pipeline", { fromKey: true })}
-          ${thMetric("OC hit %", "ocHitShare", { fromKey: true })}
-          ${thMetric("FC hit %", "fcHitShare", { fromKey: true })}
+          ${thMetric("OC hit %", "outputCacheHitShare", { fromKey: true })}
+          ${thMetric("DC hit %", "dataCacheHitShare", { fromKey: true })}
           ${thMetric("FA run %", "factoryShare", { fromKey: true })}
           ${thMetric("FAFC", "factoryFailures", { fromKey: true, className: "col-num" })}
           ${thMetric("FAD", "avgFactoryDuration", { fromKey: true })}
-          ${thMetric("FC stale %", "staleShare", { fromKey: true })}
+          ${thMetric("DC stale %", "staleShare", { fromKey: true })}
           ${thMetric("EFTS", "estTimeSaved", { fromKey: true })}
           ${thMetric("Benefit", "cacheBenefit", { fromKey: true })}
           ${thMetric("Candidate", "cacheCandidate", { fromKey: true })}
@@ -271,12 +271,12 @@ export function domainDetailHeadHtml(name, domain, cfg) {
               <td>${num(bi.requests)}</td>
               <td>${num(bi.invalidations)}</td>
               <td class="col-pipe">${pipelineBar(bi.pipeline, false, { title: false, segmentTips: false })}</td>
-              <td>${pct(bi.oc?.hitShare, bi.oc?.lowRequestSample, "request")}</td>
-              <td>${pct(bi.fc?.hitShare, bi.fc?.lowRequestSample, "request")}</td>
-              <td>${pct(factoryShareOf(bi.fc), bi.fc?.lowRequestSample, "request")}</td>
-              ${fafcHtml(bi.fc)}
+              <td>${pct(bi.outputCache?.hitShare, bi.outputCache?.lowRequestSample, "request")}</td>
+              <td>${pct(bi.dataCache?.hitShare, bi.dataCache?.lowRequestSample, "request")}</td>
+              <td>${pct(factoryShareOf(bi.dataCache), bi.dataCache?.lowRequestSample, "request")}</td>
+              ${fafcHtml(bi.dataCache)}
               <td>${fadCell(bi.impact)}</td>
-              ${staleShareHtml(bi.fc)}
+              ${staleShareHtml(bi.dataCache)}
               <td>${fmtDurationMs(bi.impact?.estFactoryTimeSavedMs)}</td>
               <td>${impactBandLabel(bi.impact?.benefit, { html: true })}</td>
               <td>${impactBandLabel(bi.impact?.candidate, { html: true })}</td>

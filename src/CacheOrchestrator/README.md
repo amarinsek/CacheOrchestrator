@@ -1,8 +1,10 @@
 # CacheOrchestrator
 
-**CacheOrchestrator** configures and coordinates three existing layers in ASP.NET Core — Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, FusionCache still holds the object, and the browser or CDN still honours `Cache-Control`.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
 
-The package targets **.NET 8** and **.NET 10**.
+This **meta** package is the usual starting point for web apps: it includes **AspNetCore** + **FusionCache**.
+
+Targets **.NET 8** and **.NET 10**.
 
 ## Install
 
@@ -10,64 +12,61 @@ The package targets **.NET 8** and **.NET 10**.
 dotnet add package CacheOrchestrator
 ```
 
-Related packages, when you need them:
-
-- [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) — Redis for Output Cache and FusionCache L2 / backplane
-- [CacheOrchestrator.Bus](https://www.nuget.org/packages/CacheOrchestrator.Bus/) — invalidate, Version, and TTL commands across instances
-- [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) — the cache follows your EF Core saves
-
-## Configure
+## Config
 
 ```json
 {
   "Cache": {
-    "Namespace": "my-app",
     "OutputCache": { "Provider": "InMemory" },
-    "FusionCacheInstances": {
-      "default": { "Provider": "InMemory" }
-    },
+    "DataCacheInstances": { "default": { "Provider": "InMemory" } },
     "Domains": {
       "catalog": {
         "Version": "1",
-        "ClientCacheability": "Public",
-        "ClientTtlSeconds": 60,
-        "OutputCacheTtlSeconds": 120,
-        "FusionCacheSoftTtlSeconds": 300
+        "DataCache": { "TtlSeconds": 300 },
+        "OutputCache": { "TtlSeconds": 60 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
       }
     }
   }
 }
 ```
 
-## Register
+## Example
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
 
 var app = builder.Build();
 app.UseCacheOrchestrator();
-```
 
-## Apply
-
-```csharp
-app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
 {
-    var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
+    var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
     return Results.Json(data);
 })
 .CacheOutputWithDomain("catalog");
 ```
 
-On a controller, use `[CacheDomain("catalog")]` and inject `IDomainFusionCache` in the same way.
+More layouts (Redis, Hybrid, libraries, EF): [packages.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md).
+
+## Related packages
+
+| Package | Role |
+|---------|------|
+| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/) | Http-free domains and `ICacheOrchestrator` (libraries / workers) |
+| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/) | Output Cache, Client Cache, Admin API, `IDomainDataCache` |
+| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/) | FusionCache data-cache provider (included in this meta package) |
+| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/) | Microsoft HybridCache data-cache provider |
+| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) | Redis Output Cache store / Fusion L2 / backplane |
+| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) | Multi-instance invalidate / Version / settings bus |
+| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) | Invalidate after EF `SaveChanges` |
 
 ## Documentation
 
-- [GitHub README](https://github.com/amarinsek/CacheOrchestrator#readme)
-- [Getting started](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/getting-started.md)
-- [Guide](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/README.md)
-- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
-- [Minimal sample](https://github.com/amarinsek/CacheOrchestrator/tree/main/samples/CacheOrchestrator.Minimal)
+- [Getting started](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/getting-started.md)
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
+- [Configuration](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/configuration.md)
+- [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License
 

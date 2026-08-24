@@ -1,6 +1,6 @@
 # CacheOrchestrator.AdminConsole
 
-> **Runbook (local).** Orientation: [Guide — operations](../../docs/guide/operations.md). Architecture/security: [docs/admin.md](../../docs/admin.md). Docker: [deploy/admin/README.md](../../deploy/admin/README.md). Writing rules: [hints/README.md](hints/README.md).
+> **Runbook (local).** Orientation: [Guide — operations](../../docs/guide/operations.md). Architecture/security: [docs/reference/admin.md](../../docs/reference/admin.md). Docker: [deploy/admin/README.md](../../deploy/admin/README.md). Writing rules: [hints/README.md](hints/README.md).
 
 Admin Console App for multi-instance CacheOrchestrator: live stats, domain settings, invalidation, Version/TTL, **time-series Metrics**, and **recommendation Hints**.
 
@@ -10,7 +10,7 @@ It calls the **Admin API** on each instance you list (`Cache:Admin:Enabled`, `Ma
 
 **Stats (Prom-only):** Console **2.2+** traffic KPIs, domain/endpoint tables, impact, and hints come from **Prometheus** (`AdminConsole:Metrics` + `GET /api/stats/window`). Local Admin API is used for health, domain config, and operations (invalidate / Version / TTL) only. Instance process-lifetime `GET …/stats` remains for diagnostics but is **not** used by the stats UI.
 
-**Impact / charts:** Need Prometheus scrape of the `CacheOrchestrator` meter (e.g. `cache_orchestrator.fc.requests`, `cache_orchestrator.factory.duration`). Without Metrics store, statistics and charts are unavailable.
+**Impact / charts:** Need Prometheus scrape of the `CacheOrchestrator` meter (e.g. `cache_orchestrator.dc.requests`, `cache_orchestrator.factory.duration`). Without Metrics store, statistics and charts are unavailable.
 
 This host is **not** a NuGet package. It targets **.NET 10** only.  
 Monitored app instances may still run on **.NET 8** or **.NET 10** — Admin talks **HTTP only**, so Admin TFM does not need to match instance TFMs.
@@ -21,8 +21,8 @@ Monitored app instances may still run on **.NET 8** or **.NET 10** — Admin tal
 | This README | Run / configure this host |
 | **[deploy/admin/README.md](../../deploy/admin/README.md)** | **Docker image, volumes, custom hints, logs** |
 | **[hints/README.md](hints/README.md)** | **How to write and add custom hint rules** (ships next to the rule packs) |
-| [docs/admin.md](../../docs/admin.md) | Architecture, security, Metrics store |
-| [docs/admin-hints.md](../../docs/admin-hints.md) | Repo overview of the hints feature |
+| [docs/reference/admin.md](../../docs/reference/admin.md) | Architecture, security, Metrics store |
+| [docs/contributor/admin-hints.md](../../docs/contributor/admin-hints.md) | Repo overview of the hints feature |
 
 ---
 
@@ -75,7 +75,7 @@ app.MapCacheOrchestratorAdmin();
 - **LocalPathPrefix** must match `Cache:Admin:RoutePrefix`.  
 - **Restart required** after changing `Instances`, `ApiKey`, timeouts, or `Metrics` (bound via `IOptions` snapshot). Hint packs (`Hints`) reload without restart.  
 - Production keys belong in a secret store; put VPN/SSO in front of this host.  
-- Invalidate / Version / TTL change live cache state — see [docs/admin.md — Security](../../docs/admin.md#security).
+- Invalidate / Version / TTL change live cache state — see [docs/reference/admin.md — Security](../../docs/reference/admin.md#security).
 
 ### Defaults by environment
 
@@ -176,10 +176,10 @@ The Admin Console App evaluates **read-only rules** against aggregated live stat
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.30 }
+          { "path": "domain.dataCache.factoryShare", "op": ">=", "value": 0.30 }
         ]
       },
-      "message": "Factory is {domain.fc.factoryShare:p1} on {domain.name}."
+      "message": "Factory is {domain.dataCache.factoryShare:p1} on {domain.name}."
     }
   ]
 }
@@ -194,7 +194,7 @@ Open **Settings**, confirm the group, then generate traffic and check **Hints**.
 
 → **[hints/README.md](hints/README.md)**
 
-Repo architecture notes: [docs/admin-hints.md](../../docs/admin-hints.md).
+Repo architecture notes: [docs/contributor/admin-hints.md](../../docs/contributor/admin-hints.md).
 
 ---
 
@@ -215,7 +215,7 @@ Repo architecture notes: [docs/admin-hints.md](../../docs/admin-hints.md).
 docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build -d
 ```
 
-Guide: [Playground topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) · [docs/admin.md](../../docs/admin.md).
+Guide: [Playground topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) · [docs/reference/admin.md](../../docs/reference/admin.md).
 
 ---
 
@@ -223,7 +223,7 @@ Guide: [Playground topology labs](../../samples/CacheOrchestrator.Sample/labs/RE
 
 - [Guide — operations](../../docs/guide/operations.md)  
 - **[deploy/admin/README.md](../../deploy/admin/README.md)** — Docker / GHCR  
-- [docs/admin.md](../../docs/admin.md) — fan-out, security, Metrics store  
-- [docs/admin-hints.md](../../docs/admin-hints.md) — hints feature in the monorepo  
+- [docs/reference/admin.md](../../docs/reference/admin.md) — fan-out, security, Metrics store  
+- [docs/contributor/admin-hints.md](../../docs/contributor/admin-hints.md) — hints feature in the monorepo  
 - **[hints/README.md](hints/README.md)** — writing custom rules  
-- [docs/cluster-bus.md](../../docs/cluster-bus.md) — multi-instance bus  
+- [docs/reference/cluster-bus.md](../../docs/reference/cluster-bus.md) — multi-instance bus  

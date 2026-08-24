@@ -1,11 +1,13 @@
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.Entity;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.OutputCache;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // InMemory only — no Redis package required for this sample.
-builder.Services.AddCacheOrchestrator(builder.Configuration);
+builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
+builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 
 var app = builder.Build();
 
@@ -13,8 +15,8 @@ app.UseCacheOrchestrator();
 app.MapCacheOrchestratorAdmin(); // no-op unless Cache:Admin:Enabled
 
 // Domain rules live in appsettings (Cache:Domains:hello).
-// One line on the endpoint wires Output Cache + FusionCache for this route.
-app.MapGet("/hello", async (HttpContext http, IDomainFusionCache cache) =>
+// One line on the endpoint wires Output Cache + data cache for this route.
+app.MapGet("/hello", async (HttpContext http, IDomainDataCache cache) =>
 {
     var payload = await cache.GetOrSetAsync(http, async ct =>
     {
@@ -47,7 +49,7 @@ app.MapGet("/", () => Results.Content(
       <h1>CacheOrchestrator · Minimal sample</h1>
       <p>Call <a href="/hello"><code>/hello</code></a> twice and compare the <code>X-Cache</code> header.</p>
       <ol>
-        <li>First request → <code>oc=miss</code> (or <code>fc=miss; fa=run</code>) — factory runs (~200&nbsp;ms).</li>
+        <li>First request → <code>oc=miss</code> (or <code>dc=miss; fa=run</code>) — factory runs (~200&nbsp;ms).</li>
         <li>Second request → <code>oc=hit</code> — served from Output Cache (fast).</li>
       </ol>
       <pre>curl -i http://localhost:5290/hello</pre>

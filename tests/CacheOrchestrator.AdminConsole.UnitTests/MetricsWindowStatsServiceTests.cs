@@ -48,7 +48,7 @@ public class MetricsWindowStatsServiceTests
                     ];
                 }
 
-                if (promQl.Contains(MetricsPanelCatalog.FcRequests, StringComparison.Ordinal)
+                if (promQl.Contains(MetricsPanelCatalog.DcRequests, StringComparison.Ordinal)
                     && promQl.Contains("sum by (domain,result,instance_id)", StringComparison.Ordinal))
                 {
                     return
@@ -68,7 +68,7 @@ public class MetricsWindowStatsServiceTests
                     ];
                 }
 
-                if (promQl.Contains(MetricsPanelCatalog.FcRequests, StringComparison.Ordinal)
+                if (promQl.Contains(MetricsPanelCatalog.DcRequests, StringComparison.Ordinal)
                     && promQl.Contains("sum by (route,result,domain)", StringComparison.Ordinal))
                 {
                     return
@@ -97,7 +97,7 @@ public class MetricsWindowStatsServiceTests
                 {
                     Name = "catalog",
                     Version = "v1",
-                    FusionCacheInstanceName = "default",
+                    DataCacheInstanceName = "default",
                 },
             ]);
 
@@ -228,13 +228,6 @@ public class MetricsWindowStatsServiceTests
             AdminInstanceOptions instance,
             string domain,
             AdminVersionRequest body,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchTtlAsync(
-            AdminInstanceOptions instance,
-            string domain,
-            AdminTtlPatchRequest body,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 

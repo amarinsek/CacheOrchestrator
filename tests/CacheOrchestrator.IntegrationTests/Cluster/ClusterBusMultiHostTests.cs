@@ -1,8 +1,8 @@
 using CacheOrchestrator.Admin;
-using CacheOrchestrator.Bus;
+using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -93,7 +93,7 @@ public class ClusterBusMultiHostTests
             ["Cache:Namespace"] = ns,
             ["Cache:InstanceId"] = instanceId,
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             ["Cache:Cluster:Bus:Enabled"] = "true",
             ["Cache:Cluster:Bus:Membership"] = membership,
@@ -103,12 +103,12 @@ public class ClusterBusMultiHostTests
             ["Cache:Admin:Enabled"] = adminEnabled ? "true" : "false",
             ["Cache:Admin:RoutePrefix"] = "/cache-admin/local",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
         };
 
         if (!string.IsNullOrEmpty(apiKey))
@@ -138,7 +138,8 @@ public class ClusterBusMultiHostTests
         builder.WebHost.UseKestrel();
         builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
         builder.Services.AddSingleton<HitCounter>();
 
         WebApplication app = builder.Build();
@@ -149,7 +150,7 @@ public class ClusterBusMultiHostTests
             app.MapCacheOrchestratorAdmin();
 
         HitCounter hits = app.Services.GetRequiredService<HitCounter>();
-        app.MapGet(path, async (HttpContext http, IDomainFusionCache cache, HitCounter h) =>
+        app.MapGet(path, async (HttpContext http, IDomainDataCache cache, HitCounter h) =>
         {
             h.Increment();
             string value = await cache
@@ -250,7 +251,7 @@ public class ClusterBusMultiHostTests
             ["Cache:Namespace"] = ns,
             ["Cache:InstanceId"] = instanceId,
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Cluster:Bus:Enabled"] = "true",
             ["Cache:Cluster:Bus:Membership"] = "Static",
             ["Cache:Cluster:Bus:ApiKey"] = "bus-key",
@@ -259,9 +260,9 @@ public class ClusterBusMultiHostTests
             ["Cache:Cluster:Bus:Static:Instances:1:Id"] = "node-b",
             ["Cache:Cluster:Bus:Static:Instances:1:Url"] = urlB,
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
         };
 
         async Task<ClusterHost> Build(string instanceId, int port)
@@ -270,14 +271,15 @@ public class ClusterBusMultiHostTests
             builder.Configuration.AddInMemoryCollection(BaseCfg(instanceId));
             builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{port}");
             builder.Logging.ClearProviders();
-            builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+            builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
             builder.Services.AddSingleton<HitCounter>();
             WebApplication app = builder.Build();
             app.UseRouting();
             app.UseCacheOrchestrator();
             app.MapCacheOrchestratorHttpBus();
             HitCounter hits = app.Services.GetRequiredService<HitCounter>();
-            app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, HitCounter h) =>
+            app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, HitCounter h) =>
             {
                 h.Increment();
                 string? v = await cache.GetOrSetEntityAsync(
@@ -482,19 +484,19 @@ public class ClusterBusMultiHostTests
     }
 
     [Fact]
-    public async Task AdminDistributeTrue_TtlPatch_AppliesOnPeer()
+    public async Task AdminDistributeTrue_SettingsPatch_AppliesOnPeer()
     {
-        string ns = "it-ttl-" + Guid.NewGuid().ToString("N")[..8];
+        string ns = "it-settings-" + Guid.NewGuid().ToString("N")[..8];
         string domain = "reports";
         (ClusterHost a, ClusterHost b) = await StartPairAsync(ns, domain, "/api/r");
         await using (a)
         await using (b)
         {
             using StringContent body = new(
-                """{"outputCacheTtlSeconds":77,"distribute":true}""",
+                """{"settings":{"outputCache.ttlSeconds":77},"distribute":true}""",
                 Encoding.UTF8,
                 "application/json");
-            using HttpRequestMessage req = new(HttpMethod.Patch, $"/cache-admin/local/domains/{domain}/ttl")
+            using HttpRequestMessage req = new(HttpMethod.Patch, $"/cache-admin/local/domains/{domain}/settings")
             {
                 Content = body
             };
@@ -750,7 +752,7 @@ public class ClusterBusMultiHostTests
 
         result.Succeeded.Should().BeTrue(
             "cluster publish failure must not flip local Fusion/Output Succeeded");
-        result.FusionSucceeded.Should().BeTrue();
+        result.DataCacheSucceeded.Should().BeTrue();
         result.OutputSucceeded.Should().BeTrue();
         result.ClusterPublish.Should().NotBeNull();
         result.ClusterPublish!.AllSucceeded.Should().BeFalse();

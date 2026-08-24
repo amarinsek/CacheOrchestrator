@@ -2,33 +2,39 @@
 
 > **Guide.** Product overview: [root README](../../README.md). Catalog: [documentation index](../README.md).
 
-How the pieces fit. Schema and APIs live on the reference pages linked at the end of each section.
+How CacheOrchestrator thinks about caching. Schema and APIs live on the [reference](../README.md#reference) pages.
+
+---
 
 ## A domain is a policy group
 
-A **domain** is a name in configuration (`catalog`, `osm-tiles`, `product-detail`). It holds TTLs, Version, client headers, vary rules, and which Fusion instance to use. You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. `IDomainFusionCache.GetOrSetAsync` uses the same options.
+A **domain** is a name in configuration (`catalog`, `osm-tiles`, `product-detail`). It holds TTLs, Version, client headers, vary rules, and which **data-cache instance** to use.
 
-Different data wants different rules. The handler stays the same shape; the domain is what differs.
+You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. Data-cache calls — `IDomainDataCache` on the web, or `ICacheOrchestrator` in libraries — resolve the **same** options.
 
-CacheOrchestrator stays **domain-based**: domains are the unit of configuration. **Entity identity** (`entityKind` + resource id, plus optional members / dependsOn / aliases) is optional and lives **inside** a domain. It shapes per-row Fusion keys and `entity:` / `entitykind:` tags so CRUD invalidation can target one row (or a related set) without bumping the whole domain `Version`. It is not a second settings root next to `Cache:Domains`.
+Different data wants different rules. The handler stays the same shape; the domain is what differs. That is the point of the library.
 
-EF Core invalidation (and any future ORM hook) only maps successful writes onto those same tags. The read-side entity APIs stay in the core library because they are generic, not ORM-specific.
+**Entity identity** (`entityKind` + resource id, plus optional footprint members) is optional and lives *inside* a domain. It shapes per-row keys and `entity:` / `entitykind:` tags so CRUD can purge one row without bumping the whole domain `Version`. It is not a second settings root next to `Cache:Domains`.
 
-Details: [domain-profiles.md](../domain-profiles.md), [configuration.md](../configuration.md), [fusion-cache.md](../fusion-cache.md#entity-identity), [entity-footprint.md](../entity-footprint.md).
+When to use snapshot vs CRUD profiles: [domain profiles](domain-profiles.md). Entity cookbook: [entity footprint](../reference/entity-footprint.md).
+
+---
 
 ## Three layers, one snapshot
 
 | Layer | Stores | You enable it by |
 |-------|--------|------------------|
-| **Client Cache-Control** | Browser / CDN | Domain settings (`ClientCacheability`, TTLs, optional schedule). You do not set those headers by hand. |
-| **Output Cache** | Full HTTP GET/HEAD response | Domain on the endpoint |
-| **FusionCache** | The object your factory produced (L1 memory, optional L2) | Calling `IDomainFusionCache` |
+| **Client Cache-Control** | Browser / CDN | Nested `ClientCache` (cacheability, TTLs, optional schedule) |
+| **Output Cache** | Full HTTP GET/HEAD response | Domain on the endpoint + nested `OutputCache` |
+| **Data cache** | The object your factory produced | `IDomainDataCache` / `ICacheOrchestrator` + nested `DataCache` |
 
-All three resolve the same `DomainCacheOptions`. If lifetimes and invalidation disagree, one layer undoes the other.
+All three resolve the same `DomainCacheOptions`. If lifetimes and invalidation disagree, one layer undoes the other — the problem this library exists to prevent.
 
-The core package uses in-memory stores. Redis, the cluster bus, and EF hooks are separate packages — [topologies](topologies.md).
+Web apps usually call AspNetCore’s **`IDomainDataCache`**. Libraries and workers take Core’s **`ICacheOrchestrator`** and pass a `CacheDomainContext`. The data engine behind both is an **`IDataCacheProvider`** (Fusion by default with the meta package; Hybrid optional).
 
-Details: [output-cache.md](../output-cache.md), [fusion-cache.md](../fusion-cache.md), [architecture.md](../architecture.md).
+Which packages to install: [packages](packages.md). Copy-paste stacks: [composition](../how-to/composition.md).
+
+---
 
 ## Version, TTL, and tags
 
@@ -42,53 +48,42 @@ Three ways a request becomes a miss (fresh data from the factory):
 
 `Version` is a stamp for the **whole domain**, not the version of one product. If a row changes under the same Version and you neither wait for TTL nor invalidate, caches keep serving the old body. That is caching working as designed.
 
-Details: [invalidation.md](../invalidation.md), [cache-keys.md](../cache-keys.md).
+Details: [invalidation](../reference/invalidation.md) · [cache keys](../reference/cache-keys.md) · [domain profiles](domain-profiles.md).
 
-## How Fusion finds the domain
+---
 
-`IDomainFusionCache.GetOrSetAsync` looks for options in this order:
+## How the data cache finds the domain
 
-1. Explicit overload `GetOrSetAsync(http, domain, factory)` — same name reuses the request snapshot; a different name **replaces** it.
-2. Options already on the request (Output Cache policy usually set them).
-3. Endpoint metadata (`.CacheOutputWithDomain` / `[CacheDomain]`), then options are loaded.
-4. Else the factory runs **uncached** (Warning log, metric `result=unresolved`).
+Happy path: put the domain on the endpoint; `GetOrSetAsync(http, factory)` reuses that snapshot.
 
-Happy path: domain on the endpoint; no manual `EnsureDomainOptions`. Fusion-only endpoints: pass the domain argument or call `EnsureDomainOptions`.
+Data-cache-only routes pass the domain name (or call `EnsureDomainOptions`). Without a domain the factory runs **uncached** (Warning log, `dc=unresolved`).
 
-Details: [fusion-cache.md](../fusion-cache.md), [FAQ](../faq.md#fusion-runs-uncached--why).
+Full resolution order: [data cache](../reference/data-cache.md#how-the-data-cache-finds-the-domain). FAQ: [Fusion runs uncached](faq.md#fusion-runs-uncached--why).
+
+---
 
 ## Client Cache Schedule
 
-For datasets that update on a known schedule (like monthly map exports), `ScheduledUpdateUtc` automatically ramps down the **browser/CDN** `Cache-Control` `max-age` as the cutover approaches (Calm → Approaching → Hold). This guarantees timely client refreshes without sacrificing months of cache hits. It does **not** change Output Cache or Fusion TTLs.
+For datasets that update on a known date (monthly map exports, annual imagery), `ScheduledUpdateUtc` ramps down the **browser/CDN** `max-age` as cutover approaches (Calm → Approaching → Hold). Clients refresh on time without living on a tiny TTL all year.
 
-Phase is on `X-Cache` as `phase=calm|approaching|hold|n/a`.
+It does **not** change Output Cache or data-cache TTLs. Phase appears on `X-Cache` as `phase=calm|approaching|hold|n/a`.
 
-Details: [client-cache-schedule.md](../client-cache-schedule.md).
+Guide: [Client Cache Schedule](client-cache-schedule.md).
+
+---
 
 ## Auth and vary (defaults)
 
-Default: authenticated users **or** an `Authorization` header → Output Cache **bypassed**, client cache **blocked** (`AuthBypassMode: AuthenticatedOrAuthorization`). Prefer `AuthBypassMode` over the obsolete `BypassWhenAuthenticated` bool.
+Default: authenticated users **or** an `Authorization` header → Output Cache **bypassed**, client cache **blocked** (`AuthBypassMode: AuthenticatedOrAuthorization`).
 
-Domain vary (Accept, language, headers, cookies, query allowlists) is shared between Output Cache and Fusion where it makes sense.
+Domain Output Cache is **opt-in**. Routes without a domain use the base policy `NoCache`.
 
-**Domain Output Cache is opt-in.** ASP.NET’s **base** Output Cache policy still applies to other GET routes unless you set `NoStore`.
+Full matrix: [vary](../reference/vary.md). FAQ: [authenticated traffic](faq.md#authenticated-requests-and-api-keys).
 
-Details: [vary.md](../vary.md), [output-cache.md](../output-cache.md), [FAQ](../faq.md#why-is-a-route-cached-when-i-never-set-a-domain).
-
-## Packages
-
-| Package / app | When you need it |
-|---------------|------------------|
-| `CacheOrchestrator` | Always. Policy, InMemory, domain APIs, Null cluster bus. |
-| `CacheOrchestrator.Redis` | Shared OC store and/or Fusion L2 + backplane. `"Provider": "Redis"` fails validation without it. |
-| `CacheOrchestrator.Bus` | Commands (invalidate, Version, TTL) to every instance. Does not share cache payloads. |
-| `CacheOrchestrator.EFCore.Invalidation` | Purge after a successful `SaveChanges`. |
-| Admin Console App | Operator UI across instances. Not a NuGet package. |
-
-Details: [topologies](topologies.md), [FAQ — Redis package vs core](../faq.md#redis-package-vs-core).
+---
 
 ## Namespace
 
-Root `Namespace` (default `app-cache`) prefixes store keys so apps that share Redis do not collide. Output uses `{Namespace}-oc`; Fusion `default` uses `{Namespace}-fc` (no `-default` suffix). It is not a domain and not per-endpoint.
+Root `Namespace` (default `app-cache`) prefixes store keys so apps that share Redis do not collide. Output uses `{Namespace}-oc`; the data-cache **`default`** instance uses `{Namespace}-fc` (historical suffix). It is not a domain and not per-endpoint.
 
-Details: [cache-keys.md](../cache-keys.md).
+Details: [cache keys](../reference/cache-keys.md).

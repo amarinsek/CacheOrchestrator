@@ -11,11 +11,11 @@
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.25 },
-          { "path": "domain.fc.factoryShare", "op": "<", "value": 0.50 }
+          { "path": "domain.dataCache.factoryShare", "op": ">=", "value": 0.25 },
+          { "path": "domain.dataCache.factoryShare", "op": "<", "value": 0.50 }
         ]
       },
-      "message": "Factory is {domain.fc.factoryShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
+      "message": "Factory is {domain.dataCache.factoryShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
     },
     {
       "code": "critical-factory-share",
@@ -27,10 +27,10 @@
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.factoryShare", "op": ">=", "value": 0.50 }
+          { "path": "domain.dataCache.factoryShare", "op": ">=", "value": 0.50 }
         ]
       },
-      "message": "Factory is {domain.fc.factoryShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
+      "message": "Factory is {domain.dataCache.factoryShare:p1} of {domain.requests} requests — the cache is not absorbing traffic. Check Fusion/Output TTL, key cardinality, and invalidation."
     },
     {
       "code": "elevated-stale",
@@ -42,10 +42,10 @@
       "when": {
         "all": [
           { "path": "domain.requests", "op": ">=", "value": 20 },
-          { "path": "domain.fc.staleShare", "op": ">=", "value": 0.10 }
+          { "path": "domain.dataCache.staleShare", "op": ">=", "value": 0.10 }
         ]
       },
-      "message": "Stale serves {domain.fc.staleShare:p1} of requests — fail-safe is covering factory failures. Inspect timeouts and factory/backend health."
+      "message": "Stale serves {domain.dataCache.staleShare:p1} of requests — fail-safe is covering factory failures. Inspect timeouts and factory/backend health."
     },
     {
       "code": "frequent-invalidations",
@@ -72,12 +72,12 @@
       "description": "Factory failure rate 10–50% on a domain.",
       "when": {
         "all": [
-          { "path": "domain.fc.factoryRuns", "op": ">=", "value": 10 },
-          { "path": "domain.fc.factoryFailureRate", "op": ">=", "value": 0.10 },
-          { "path": "domain.fc.factoryFailureRate", "op": "<", "value": 0.50 }
+          { "path": "domain.dataCache.factoryRuns", "op": ">=", "value": 10 },
+          { "path": "domain.dataCache.factoryFailureRate", "op": ">=", "value": 0.10 },
+          { "path": "domain.dataCache.factoryFailureRate", "op": "<", "value": 0.50 }
         ]
       },
-      "message": "Factory failed {domain.fc.factoryFailureRate:p1} of {domain.fc.factoryRuns} runs. Inspect factory/backend errors; fail-safe may be covering them as stale."
+      "message": "Factory failed {domain.dataCache.factoryFailureRate:p1} of {domain.dataCache.factoryRuns} runs. Inspect factory/backend errors; fail-safe may be covering them as stale."
     },
     {
       "code": "critical-factory-failures",
@@ -88,11 +88,11 @@
       "description": "Factory failure rate ≥50% on a domain.",
       "when": {
         "all": [
-          { "path": "domain.fc.factoryRuns", "op": ">=", "value": 10 },
-          { "path": "domain.fc.factoryFailureRate", "op": ">=", "value": 0.50 }
+          { "path": "domain.dataCache.factoryRuns", "op": ">=", "value": 10 },
+          { "path": "domain.dataCache.factoryFailureRate", "op": ">=", "value": 0.50 }
         ]
       },
-      "message": "Factory failed {domain.fc.factoryFailureRate:p1} of {domain.fc.factoryRuns} runs. Inspect factory/backend errors; fail-safe may be covering them as stale."
+      "message": "Factory failed {domain.dataCache.factoryFailureRate:p1} of {domain.dataCache.factoryRuns} runs. Inspect factory/backend errors; fail-safe may be covering them as stale."
     },
     {
       "code": "schedule-approaching",
@@ -187,20 +187,6 @@
       "message": "Client min TTL ({config.clientTtlMinSeconds}s) is not below max ({config.clientTtlSeconds}s) — the schedule cannot ramp. Lower ClientTtlMinSeconds or raise ClientTtlSeconds."
     },
     {
-      "code": "fusion-hard-lt-soft",
-      "badge": "TTL",
-      "severity": "Warning",
-      "category": "TTL",
-      "scope": "domain",
-      "description": "Fusion hard TTL shorter than soft TTL.",
-      "when": {
-        "all": [
-          { "path": "config.fusionHardLtSoft", "op": "eq", "value": true }
-        ]
-      },
-      "message": "Fusion hard TTL ({config.fusionCacheHardTtlSeconds}s) is shorter than soft ({config.fusionCacheSoftTtlSeconds}s) — hard wins. Raise hard or lower soft."
-    },
-    {
       "code": "runtime-override",
       "badge": "OVR",
       "severity": "Info",
@@ -224,11 +210,11 @@
       "description": "OC hit share varies a lot across instances.",
       "when": {
         "all": [
-          { "path": "domain.instanceSpread.ocHitShare.sampleCount", "op": ">=", "value": 2 },
-          { "path": "domain.instanceSpread.ocHitShare.stdev", "op": ">=", "value": 0.15 }
+          { "path": "domain.instanceSpread.outputCacheHitShare.sampleCount", "op": ">=", "value": 2 },
+          { "path": "domain.instanceSpread.outputCacheHitShare.stdev", "op": ">=", "value": 0.15 }
         ]
       },
-      "message": "OC hit share varies across instances (stdev {domain.instanceSpread.ocHitShare.stdev:p1}) — InMemory OC is not shared, or traffic is uneven."
+      "message": "OC hit share varies across instances (stdev {domain.instanceSpread.outputCacheHitShare.stdev:p1}) — InMemory OC is not shared, or traffic is uneven."
     },
     {
       "code": "high-factory-share",
@@ -240,11 +226,11 @@
       "when": {
         "all": [
           { "path": "endpoint.requests", "op": ">=", "value": 20 },
-          { "path": "endpoint.fc.factoryShare", "op": ">=", "value": 0.25 },
-          { "path": "endpoint.fc.factoryShare", "op": "<", "value": 0.50 }
+          { "path": "endpoint.dataCache.factoryShare", "op": ">=", "value": 0.25 },
+          { "path": "endpoint.dataCache.factoryShare", "op": "<", "value": 0.50 }
         ]
       },
-      "message": "Factory is {endpoint.fc.factoryShare:p1} of requests on this route — factory runs too often."
+      "message": "Factory is {endpoint.dataCache.factoryShare:p1} of requests on this route — factory runs too often."
     },
     {
       "code": "critical-factory-share",
@@ -256,10 +242,10 @@
       "when": {
         "all": [
           { "path": "endpoint.requests", "op": ">=", "value": 20 },
-          { "path": "endpoint.fc.factoryShare", "op": ">=", "value": 0.50 }
+          { "path": "endpoint.dataCache.factoryShare", "op": ">=", "value": 0.50 }
         ]
       },
-      "message": "Factory is {endpoint.fc.factoryShare:p1} of requests on this route — factory runs too often."
+      "message": "Factory is {endpoint.dataCache.factoryShare:p1} of requests on this route — factory runs too often."
     },
     {
       "code": "elevated-stale",
@@ -271,11 +257,11 @@
       "when": {
         "all": [
           { "path": "endpoint.requests", "op": ">=", "value": 20 },
-          { "path": "endpoint.fc.stale", "op": ">", "value": 0 },
-          { "path": "endpoint.fc.staleShare", "op": ">=", "value": 0.10 }
+          { "path": "endpoint.dataCache.stale", "op": ">", "value": 0 },
+          { "path": "endpoint.dataCache.staleShare", "op": ">=", "value": 0.10 }
         ]
       },
-      "message": "Stale share {endpoint.fc.staleShare:p1} — fail-safe after factory issues."
+      "message": "Stale share {endpoint.dataCache.staleShare:p1} — fail-safe after factory issues."
     },
     {
       "code": "factory-failures",
@@ -286,12 +272,12 @@
       "description": "Factory failure rate 10–50% on an endpoint.",
       "when": {
         "all": [
-          { "path": "endpoint.fc.factoryRuns", "op": ">=", "value": 10 },
-          { "path": "endpoint.fc.factoryFailureRate", "op": ">=", "value": 0.10 },
-          { "path": "endpoint.fc.factoryFailureRate", "op": "<", "value": 0.50 }
+          { "path": "endpoint.dataCache.factoryRuns", "op": ">=", "value": 10 },
+          { "path": "endpoint.dataCache.factoryFailureRate", "op": ">=", "value": 0.10 },
+          { "path": "endpoint.dataCache.factoryFailureRate", "op": "<", "value": 0.50 }
         ]
       },
-      "message": "Factory failed {endpoint.fc.factoryFailureRate:p1} of {endpoint.fc.factoryRuns} runs on this route."
+      "message": "Factory failed {endpoint.dataCache.factoryFailureRate:p1} of {endpoint.dataCache.factoryRuns} runs on this route."
     },
     {
       "code": "critical-factory-failures",
@@ -302,11 +288,11 @@
       "description": "Factory failure rate ≥50% on an endpoint.",
       "when": {
         "all": [
-          { "path": "endpoint.fc.factoryRuns", "op": ">=", "value": 10 },
-          { "path": "endpoint.fc.factoryFailureRate", "op": ">=", "value": 0.50 }
+          { "path": "endpoint.dataCache.factoryRuns", "op": ">=", "value": 10 },
+          { "path": "endpoint.dataCache.factoryFailureRate", "op": ">=", "value": 0.50 }
         ]
       },
-      "message": "Factory failed {endpoint.fc.factoryFailureRate:p1} of {endpoint.fc.factoryRuns} runs on this route."
+      "message": "Factory failed {endpoint.dataCache.factoryFailureRate:p1} of {endpoint.dataCache.factoryRuns} runs on this route."
     },
     {
       "code": "instance-factory-spread",
@@ -350,7 +336,7 @@
           { "path": "domain.impact.benefit", "op": "==", "value": "AT_RISK" }
         ]
       },
-      "message": "Cache benefit AT_RISK: factory share {domain.fc.factoryShare:p1}, avg factory {domain.impact.avgFactoryDurationMs} ms. Check TTL, keys, and invalidation."
+      "message": "Cache benefit AT_RISK: factory share {domain.dataCache.factoryShare:p1}, avg factory {domain.impact.avgFactoryDurationMs} ms. Check TTL, keys, and invalidation."
     },
     {
       "code": "impact-strong",

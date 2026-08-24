@@ -60,42 +60,11 @@ public static class AdminConsoleWriteValidators
         ArgumentNullException.ThrowIfNull(request);
     }
 
-    /// <summary>Validates TTL patch body (at least one field).</summary>
-    [Obsolete("Use Validate(AdminConsoleSettingsPatchRequest).")]
-    public static void Validate(AdminConsoleTtlPatchRequest request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        bool any =
-            request.OutputCacheTtlSeconds is not null
-            || request.FusionCacheSoftTtlSeconds is not null
-            || request.FusionCacheHardTtlSeconds is not null
-            || request.FusionCacheFailSafeSeconds is not null
-            || request.ClientTtlSeconds is not null
-            || request.ClientTtlMinSeconds is not null;
-
-        if (!any)
-            throw new ArgumentException("At least one TTL field must be set.", nameof(request));
-
-        ValidateNonNegative(request.OutputCacheTtlSeconds, nameof(request.OutputCacheTtlSeconds));
-        ValidateNonNegative(request.FusionCacheSoftTtlSeconds, nameof(request.FusionCacheSoftTtlSeconds));
-        ValidateNonNegative(request.FusionCacheHardTtlSeconds, nameof(request.FusionCacheHardTtlSeconds));
-        ValidateNonNegative(request.FusionCacheFailSafeSeconds, nameof(request.FusionCacheFailSafeSeconds));
-        ValidateNonNegative(request.ClientTtlSeconds, nameof(request.ClientTtlSeconds));
-        ValidateNonNegative(request.ClientTtlMinSeconds, nameof(request.ClientTtlMinSeconds));
-    }
-
     /// <summary>Validates settings patch body (at least one setting).</summary>
     public static void Validate(AdminConsoleSettingsPatchRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (request.Settings is null || request.Settings.Count == 0)
             throw new ArgumentException("At least one setting must be set.", nameof(request));
-    }
-
-    private static void ValidateNonNegative(int? seconds, string paramName)
-    {
-        if (seconds is < 0)
-            throw new ArgumentException($"{paramName} must be >= 0.", paramName);
     }
 }

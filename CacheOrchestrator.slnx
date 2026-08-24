@@ -10,18 +10,25 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/CacheOrchestrator.AdminConsole/CacheOrchestrator.AdminConsole.csproj" />
-    <Project Path="src/CacheOrchestrator.Bus/CacheOrchestrator.Bus.csproj" />
+    <Project Path="src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj" />
     <Project Path="src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj" />
     <Project Path="src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj" />
+    <Project Path="src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj" />
+    <Project Path="src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj" />
+    <Project Path="src/CacheOrchestrator.HybridCache/CacheOrchestrator.HybridCache.csproj" />
+    <Project Path="src/CacheOrchestrator.AspNetCore/CacheOrchestrator.AspNetCore.csproj" />
     <Project Path="src/CacheOrchestrator/CacheOrchestrator.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/CacheOrchestrator.AdminConsole.UnitTests/CacheOrchestrator.AdminConsole.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.Benchmarks/CacheOrchestrator.Benchmarks.csproj" />
-    <Project Path="tests/CacheOrchestrator.Bus.UnitTests/CacheOrchestrator.Bus.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.HttpBus.UnitTests/CacheOrchestrator.HttpBus.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/CacheOrchestrator.EFCore.Invalidation.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj" />
     <Project Path="tests/CacheOrchestrator.Redis.UnitTests/CacheOrchestrator.Redis.UnitTests.csproj" />
-    <Project Path="tests/CacheOrchestrator.UnitTests/CacheOrchestrator.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.Core.UnitTests/CacheOrchestrator.Core.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj" />
   </Folder>
 </Solution>

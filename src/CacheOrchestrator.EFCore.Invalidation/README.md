@@ -1,17 +1,44 @@
 # CacheOrchestrator.EFCore.Invalidation
 
-EF Core hook for [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/).
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
 
-Add this package when cached HTTP responses and Fusion entries should follow your database writes. You map an entity type to a cache domain; after a successful `SaveChanges`, the matching rows are dropped from the cache.
+This package hooks EF Core **`SaveChanges`**: map a CLR type to `(domain, entityKind)`; after a successful save, matching entity tags are purged through `ICacheOrchestratorInvalidator`.
 
 ## Install
+
+```bash
+dotnet add package CacheOrchestrator.EFCore.Invalidation
+```
+
+## Config
+
+Domain policy (same as the rest of CacheOrchestrator). Optional interceptor options:
+
+```json
+{
+  "Cache": {
+    "Domains": {
+      "catalog": {
+        "Version": "1",
+        "DataCache": { "TtlSeconds": 300 },
+        "OutputCache": { "TtlSeconds": 60 }
+      }
+    },
+    "EFCore": {
+      "Invalidation": {
+        "Enabled": true
+      }
+    }
+  }
+}
+```
+
+## Example
 
 ```bash
 dotnet add package CacheOrchestrator
 dotnet add package CacheOrchestrator.EFCore.Invalidation
 ```
-
-## Register
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
@@ -19,44 +46,55 @@ builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
 {
-    opt.UseSqlServer(cs);
+    opt.UseSqlServer(connectionString);
     opt.AddCacheOrchestratorInvalidation(sp);
+});
+
+// In OnModelCreating (or Map<T> / [CacheEntity]):
+// modelBuilder.Entity<Product>().CacheInvalidate("catalog", "products");
+
+var app = builder.Build();
+app.UseCacheOrchestrator();
+
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, AppDbContext db) =>
+{
+    var data = await cache.GetOrSetEntityAsync(http, async ct =>
+    {
+        Product? p = await db.Products.AsNoTracking().FirstOrDefaultAsync(x => x.Id.ToString() == id, ct);
+        return p is null ? null : new ProductDto(p.Id, p.Price);
+    });
+    return data is null ? Results.NotFound() : Results.Json(data);
+})
+.CacheOutputWithDomain("catalog", resourceRouteKey: "id", entityKind: "products");
+
+app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, AppDbContext db, CancellationToken ct) =>
+{
+    Product product = await db.Products.SingleAsync(x => x.Id.ToString() == id, ct);
+    product.Price = body.Price;
+    await db.SaveChangesAsync(ct); // interceptor invalidates — no manual Invalidate*
+    return Results.NoContent();
 });
 ```
 
-Attach the interceptor on each `DbContext` with `AddCacheOrchestratorInvalidation`.
+Tracked `SaveChanges` invalidates automatically; `ExecuteUpdate` / `ExecuteDelete` require manual `Invalidate*`. More layouts: [composition §8–§9](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md).
 
-## Map and use
+## Related packages
 
-```csharp
-protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-    modelBuilder.Entity<Product>().CacheInvalidate("store", "products");
-}
-```
+| Package | Role |
+|---------|------|
+| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/) | Meta package (AspNetCore + Fusion) for typical web apps |
+| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/) | Http-free domains and `ICacheOrchestrator` (libraries / workers) |
+| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/) | Output Cache, Client Cache, Admin API, `IDomainDataCache` |
+| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/) | FusionCache data-cache provider |
+| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/) | Microsoft HybridCache data-cache provider |
+| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) | Redis Output Cache store / Fusion L2 / backplane |
+| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) | Multi-instance invalidate / Version / settings bus |
 
-Use the same domain and kind on the HTTP path:
+## Documentation
 
-```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, int id, IDomainFusionCache cache, AppDbContext db, CancellationToken cancellationToken) =>
-{
-    var product = await cache.GetOrSetEntityAsync(
-        http,
-        ct => db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct),
-        cancellationToken);
-
-    return product is null ? Results.NotFound() : Results.Ok(product);
-})
-.CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
-```
-
-The interceptor relies on the **EF Core Change Tracker**. When you call `SaveChanges` or `SaveChangesAsync`, it automatically finds any mapped entities in the `Added`, `Modified`, or `Deleted` state and invalidates them from the cache upon a successful save.
-
-> [!WARNING]
-> **Bulk operations skip the Change Tracker!**
-> If you use `ExecuteUpdateAsync()` or `ExecuteDeleteAsync()`, the interceptor will **not** detect those changes because the entities are never loaded into memory. In these cases, you must manually trigger the cache invalidation by calling `ICacheOrchestratorInvalidator.InvalidateEntitiesAsync()` yourself.
-
-Attribute and `Map<T>` registration, bulk options, and further examples: [ef-core-invalidation.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/ef-core-invalidation.md). Orientation: [Guide — topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md).
+- [EF Core invalidation](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/ef-core-invalidation.md)
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
+- [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License
 

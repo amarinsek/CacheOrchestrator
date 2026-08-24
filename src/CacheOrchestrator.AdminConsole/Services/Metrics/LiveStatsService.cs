@@ -76,58 +76,58 @@ public sealed class LiveStatsService
         try
         {
             string oc = MetricsPanelCatalog.OcRequests;
-            string fc = MetricsPanelCatalog.FcRequests;
+            string dc = MetricsPanelCatalog.DcRequests;
             string inv = MetricsPanelCatalog.Invalidations;
             string lb = lookback;
 
             Task<IReadOnlyList<PrometheusInstantSample>> clusterOc =
                 Q($"sum(rate({oc}[{lb}]))", now, cancellationToken);
-            Task<IReadOnlyList<PrometheusInstantSample>> clusterOcHit =
+            Task<IReadOnlyList<PrometheusInstantSample>> clusterOutputCacheHit =
                 Q($"sum(rate({oc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
-            Task<IReadOnlyList<PrometheusInstantSample>> clusterFcHit =
-                Q($"sum(rate({fc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> clusterDataCacheHit =
+                Q($"sum(rate({dc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> clusterFac =
-                Q($"sum(rate({fc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
+                Q($"sum(rate({dc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> clusterFail =
-                Q($"sum(rate({fc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum(rate({dc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> clusterInv =
                 Q($"sum(rate({inv}[{lb}]))", now, cancellationToken);
 
             Task<IReadOnlyList<PrometheusInstantSample>> domOc =
                 Q($"sum by (domain) (rate({oc}[{lb}]))", now, cancellationToken);
-            Task<IReadOnlyList<PrometheusInstantSample>> domOcHit =
+            Task<IReadOnlyList<PrometheusInstantSample>> domOutputCacheHit =
                 Q($"sum by (domain) (rate({oc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
-            Task<IReadOnlyList<PrometheusInstantSample>> domFcHit =
-                Q($"sum by (domain) (rate({fc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> domDataCacheHit =
+                Q($"sum by (domain) (rate({dc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> domFac =
-                Q($"sum by (domain) (rate({fc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (domain) (rate({dc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> domFail =
-                Q($"sum by (domain) (rate({fc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (domain) (rate({dc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
 
             Task<IReadOnlyList<PrometheusInstantSample>> epOc =
                 Q($"sum by (route,domain) (rate({oc}[{lb}]))", now, cancellationToken);
-            Task<IReadOnlyList<PrometheusInstantSample>> epOcHit =
+            Task<IReadOnlyList<PrometheusInstantSample>> epOutputCacheHit =
                 Q($"sum by (route,domain) (rate({oc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
-            Task<IReadOnlyList<PrometheusInstantSample>> epFcHit =
-                Q($"sum by (route,domain) (rate({fc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> epDataCacheHit =
+                Q($"sum by (route,domain) (rate({dc}{{result=\"hit\"}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> epFac =
-                Q($"sum by (route,domain) (rate({fc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (route,domain) (rate({dc}{{{MetricsPanelCatalog.FactoryResultMatcher}}}[{lb}]))", now, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> epFail =
-                Q($"sum by (route,domain) (rate({fc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
+                Q($"sum by (route,domain) (rate({dc}{{result=~\"fail|stale\"}}[{lb}]))", now, cancellationToken);
 
             Task<IReadOnlyList<PrometheusInstantSample>> instOc =
                 Q($"sum by (instance_id) (rate({oc}[{lb}]))", now, cancellationToken);
 
             await Task.WhenAll(
-                    clusterOc, clusterOcHit, clusterFcHit, clusterFac, clusterFail, clusterInv,
-                    domOc, domOcHit, domFcHit, domFac, domFail,
-                    epOc, epOcHit, epFcHit, epFac, epFail,
+                    clusterOc, clusterOutputCacheHit, clusterDataCacheHit, clusterFac, clusterFail, clusterInv,
+                    domOc, domOutputCacheHit, domDataCacheHit, domFac, domFail,
+                    epOc, epOutputCacheHit, epDataCacheHit, epFac, epFail,
                     instOc, cfgTask)
                 .ConfigureAwait(false);
 
             double? rps = FirstValue(await clusterOc.ConfigureAwait(false));
-            double? ocHit = FirstValue(await clusterOcHit.ConfigureAwait(false));
-            double? fcHit = FirstValue(await clusterFcHit.ConfigureAwait(false));
+            double? outputCacheHit = FirstValue(await clusterOutputCacheHit.ConfigureAwait(false));
+            double? dataCacheHit = FirstValue(await clusterDataCacheHit.ConfigureAwait(false));
             double? fac = FirstValue(await clusterFac.ConfigureAwait(false));
             double? fail = FirstValue(await clusterFail.ConfigureAwait(false));
             double? invRate = FirstValue(await clusterInv.ConfigureAwait(false));
@@ -141,8 +141,8 @@ public sealed class LiveStatsService
                 RequestRate = rps,
                 FactoryRate = fac,
                 InvalidationRate = invRate,
-                OcHitShare = Share(ocHit, rps),
-                FcHitShare = Share(fcHit, rps),
+                OutputCacheHitShare = Share(outputCacheHit, rps),
+                DataCacheHitShare = Share(dataCacheHit, rps),
                 FactoryShare = Share(fac, rps),
                 FactoryFailShare = Share(fail, rps),
             };
@@ -171,8 +171,8 @@ public sealed class LiveStatsService
 
             Dictionary<string, RateBucket> domains = new(StringComparer.OrdinalIgnoreCase);
             MergeRate(domains, await domOc.ConfigureAwait(false), "domain", (b, v) => b.Rps += v);
-            MergeRate(domains, await domOcHit.ConfigureAwait(false), "domain", (b, v) => b.OcHit += v);
-            MergeRate(domains, await domFcHit.ConfigureAwait(false), "domain", (b, v) => b.FcHit += v);
+            MergeRate(domains, await domOutputCacheHit.ConfigureAwait(false), "domain", (b, v) => b.OutputCacheHit += v);
+            MergeRate(domains, await domDataCacheHit.ConfigureAwait(false), "domain", (b, v) => b.DataCacheHit += v);
             MergeRate(domains, await domFac.ConfigureAwait(false), "domain", (b, v) => b.Factory += v);
             MergeRate(domains, await domFail.ConfigureAwait(false), "domain", (b, v) => b.Fail += v);
 
@@ -196,8 +196,8 @@ public sealed class LiveStatsService
                     epDomain.TryAdd(route, dom);
             }
 
-            MergeRate(endpoints, await epOcHit.ConfigureAwait(false), "route", (b, v) => b.OcHit += v);
-            MergeRate(endpoints, await epFcHit.ConfigureAwait(false), "route", (b, v) => b.FcHit += v);
+            MergeRate(endpoints, await epOutputCacheHit.ConfigureAwait(false), "route", (b, v) => b.OutputCacheHit += v);
+            MergeRate(endpoints, await epDataCacheHit.ConfigureAwait(false), "route", (b, v) => b.DataCacheHit += v);
             MergeRate(endpoints, await epFac.ConfigureAwait(false), "route", (b, v) => b.Factory += v);
             MergeRate(endpoints, await epFail.ConfigureAwait(false), "route", (b, v) => b.Fail += v);
 
@@ -327,8 +327,8 @@ public sealed class LiveStatsService
             Name = name,
             Domain = domain,
             RequestRate = b.Rps,
-            OcHitShare = Share(b.OcHit, b.Rps),
-            FcHitShare = Share(b.FcHit, b.Rps),
+            OutputCacheHitShare = Share(b.OutputCacheHit, b.Rps),
+            DataCacheHitShare = Share(b.DataCacheHit, b.Rps),
             FactoryShare = Share(b.Factory, b.Rps),
             FactoryFailShare = Share(b.Fail, b.Rps),
         };
@@ -384,8 +384,8 @@ public sealed class LiveStatsService
     private sealed class RateBucket
     {
         public double Rps;
-        public double OcHit;
-        public double FcHit;
+        public double OutputCacheHit;
+        public double DataCacheHit;
         public double Factory;
         public double Fail;
     }

@@ -39,9 +39,12 @@ jobs:
       run: |
         set -e
         for proj in \
-          tests/CacheOrchestrator.UnitTests/CacheOrchestrator.UnitTests.csproj \
+          tests/CacheOrchestrator.Core.UnitTests/CacheOrchestrator.Core.UnitTests.csproj \
+          tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj \
+          tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj \
+          tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj \
           tests/CacheOrchestrator.Redis.UnitTests/CacheOrchestrator.Redis.UnitTests.csproj \
-          tests/CacheOrchestrator.Bus.UnitTests/CacheOrchestrator.Bus.UnitTests.csproj \
+          tests/CacheOrchestrator.HttpBus.UnitTests/CacheOrchestrator.HttpBus.UnitTests.csproj \
           tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/CacheOrchestrator.EFCore.Invalidation.UnitTests.csproj
         do
           dotnet test "$proj" --no-build --configuration Release --framework net8.0 --verbosity normal
@@ -51,9 +54,12 @@ jobs:
       run: |
         set -e
         for proj in \
-          tests/CacheOrchestrator.UnitTests/CacheOrchestrator.UnitTests.csproj \
+          tests/CacheOrchestrator.Core.UnitTests/CacheOrchestrator.Core.UnitTests.csproj \
+          tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj \
+          tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj \
+          tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj \
           tests/CacheOrchestrator.Redis.UnitTests/CacheOrchestrator.Redis.UnitTests.csproj \
-          tests/CacheOrchestrator.Bus.UnitTests/CacheOrchestrator.Bus.UnitTests.csproj \
+          tests/CacheOrchestrator.HttpBus.UnitTests/CacheOrchestrator.HttpBus.UnitTests.csproj \
           tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/CacheOrchestrator.EFCore.Invalidation.UnitTests.csproj
         do
           dotnet test "$proj" --no-build --configuration Release --framework net10.0 --verbosity normal

@@ -186,12 +186,12 @@ export function inlineSortSelectHtml(id, current, options) {
 export const EP_SORT_OPTS = [
   ["requests", "Requests"],
   ["peakRequestRate", "PRPS"],
-  ["ocHitShare", "OC hit %"],
-  ["fcHitShare", "FC hit %"],
+  ["outputCacheHitShare", "OC hit %"],
+  ["dataCacheHitShare", "DC hit %"],
   ["factoryShare", "FA run %"],
   ["factoryFailures", "FAFC"],
   ["avgFactoryDuration", "FAD"],
-  ["staleShare", "FC stale %"],
+  ["staleShare", "DC stale %"],
   ["estTimeSaved", "EFTS"],
   ["route", "Route"],
 ];
@@ -201,12 +201,12 @@ export const DOMAIN_SORT_OPTS = [
   ["requests", "Requests"],
   ["peakRequestRate", "PRPS"],
   ["name", "Name"],
-  ["ocHitShare", "OC hit %"],
-  ["fcHitShare", "FC hit %"],
+  ["outputCacheHitShare", "OC hit %"],
+  ["dataCacheHitShare", "DC hit %"],
   ["factoryShare", "FA run %"],
   ["factoryFailures", "FAFC"],
   ["avgFactoryDuration", "FAD"],
-  ["staleShare", "FC stale %"],
+  ["staleShare", "DC stale %"],
   ["estTimeSaved", "EFTS"],
   ["invalidations", "Invalidations"],
 ];
@@ -228,16 +228,13 @@ function cmpNumDesc(a, b) {
 function sortByTrafficMetrics(arr, sort, nameKey) {
   switch (sort) {
     case "factoryShare":
-    case "originShare":
-      arr.sort((a, b) => cmpNumDesc(
-        a.fc?.factoryShare ?? a.fc?.originShare,
-        b.fc?.factoryShare ?? b.fc?.originShare));
+      arr.sort((a, b) => cmpNumDesc(a.dataCache?.factoryShare, b.dataCache?.factoryShare));
       return true;
     case "staleShare":
-      arr.sort((a, b) => cmpNumDesc(a.fc?.staleShare, b.fc?.staleShare));
+      arr.sort((a, b) => cmpNumDesc(a.dataCache?.staleShare, b.dataCache?.staleShare));
       return true;
     case "factoryFailures":
-      arr.sort((a, b) => cmpNumDesc(a.fc?.factoryFailures, b.fc?.factoryFailures));
+      arr.sort((a, b) => cmpNumDesc(a.dataCache?.factoryFailures, b.dataCache?.factoryFailures));
       return true;
     case "avgFactoryDuration":
       arr.sort((a, b) => cmpNumDesc(a.impact?.avgFactoryDurationMs, b.impact?.avgFactoryDurationMs));
@@ -248,11 +245,11 @@ function sortByTrafficMetrics(arr, sort, nameKey) {
     case "estTimeSaved":
       arr.sort((a, b) => cmpNumDesc(a.impact?.estFactoryTimeSavedMs, b.impact?.estFactoryTimeSavedMs));
       return true;
-    case "ocHitShare":
-      arr.sort((a, b) => cmpNumDesc(a.oc?.hitShare, b.oc?.hitShare));
+    case "outputCacheHitShare":
+      arr.sort((a, b) => cmpNumDesc(a.outputCache?.hitShare, b.outputCache?.hitShare));
       return true;
-    case "fcHitShare":
-      arr.sort((a, b) => cmpNumDesc(a.fc?.hitShare, b.fc?.hitShare));
+    case "dataCacheHitShare":
+      arr.sort((a, b) => cmpNumDesc(a.dataCache?.hitShare, b.dataCache?.hitShare));
       return true;
     case "peakRequestRate":
     case "requestRate":

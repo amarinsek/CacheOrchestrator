@@ -1,6 +1,6 @@
-using CacheOrchestrator.Bus;
+using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
@@ -100,7 +100,7 @@ public class ClusterBusWithRedisBackplaneTests
             // OC stays InMemory so bus still matters for HTTP response layer on peers;
             // FC is Redis L2 + backplane (same topology as production mixed/full Redis FC).
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "Redis",
+            ["Cache:DataCacheInstances:default:Provider"] = "Redis",
             ["Cache:Redis:Configuration"] = _redis.ConnectionString,
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             ["Cache:Cluster:Bus:Enabled"] = "true",
@@ -113,12 +113,12 @@ public class ClusterBusWithRedisBackplaneTests
             ["Cache:Admin:ApiKey"] = "bus-redis-key",
             ["Cache:Admin:RoutePrefix"] = "/cache-admin/local",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
         };
 
         for (int i = 0; i < peers.Count; i++)
@@ -135,11 +135,12 @@ public class ClusterBusWithRedisBackplaneTests
         builder.WebHost.UseKestrel();
         builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(
+        builder.Services.AddCacheOrchestratorAspNetCore(
             builder.Configuration,
             o =>
             {
                 o.AddRedisBackend();
+        builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
                 o.AddHttpClusterBus();
             },
             enableMvcConvention: false);
@@ -153,7 +154,7 @@ public class ClusterBusWithRedisBackplaneTests
             app.MapCacheOrchestratorAdmin();
 
         HitCounter hits = app.Services.GetRequiredService<HitCounter>();
-        app.MapGet(path, async (HttpContext http, IDomainFusionCache cache, HitCounter h) =>
+        app.MapGet(path, async (HttpContext http, IDomainDataCache cache, HitCounter h) =>
         {
             h.Increment();
             string value = await cache

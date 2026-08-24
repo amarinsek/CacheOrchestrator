@@ -65,8 +65,8 @@ public sealed class LiveClusterDto
     /// <summary>Invalidation rate (1/s).</summary>
     public double? InvalidationRate { get; init; }
 
-    public double? OcHitShare { get; init; }
-    public double? FcHitShare { get; init; }
+    public double? OutputCacheHitShare { get; init; }
+    public double? DataCacheHitShare { get; init; }
     public double? FactoryShare { get; init; }
 
     /// <summary>Share of requests with FC fail or stale in the lookback.</summary>
@@ -83,8 +83,8 @@ public sealed class LiveEntityRateDto
     public string? Domain { get; set; }
 
     public double RequestRate { get; set; }
-    public double? OcHitShare { get; set; }
-    public double? FcHitShare { get; set; }
+    public double? OutputCacheHitShare { get; set; }
+    public double? DataCacheHitShare { get; set; }
     public double? FactoryShare { get; set; }
     public double? FactoryFailShare { get; set; }
 }

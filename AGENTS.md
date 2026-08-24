@@ -4,31 +4,32 @@ Context for AI coding agents working in this repository.
 
 ## What this project is
 
-**CacheOrchestrator** configures and coordinates three existing layers in ASP.NET Core — Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, FusionCache still holds the object, and the browser or CDN still honours `Cache-Control`.
+**CacheOrchestrator** configures and coordinates three layers — Output Cache (OC), **data cache** (DC; FusionCache or HybridCache), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, the data engine holds the object, and the browser or CDN still honours `Cache-Control`. Package composition: `docs/guide/packages.md` · `docs/how-to/composition.md`.
 
 Internally it wires:
 
 1. **Output Cache** — full HTTP response caching (ASP.NET Core)  
-2. **FusionCache** — application object caching (ZiggyCreatures; L1 memory ± L2 distributed cache via pluggable backends)  
+2. **Data cache** — application object caching via `IDataCacheProvider` (FusionCache L1/L2 ± backplane, or HybridCache)  
 3. **Client Cache-Control** — browser/CDN headers (+ optional Client Cache Schedule)
 
 Domains are named groups of data that share TTLs, providers, client headers, and version stamps.
 
-- Package / project: `src/CacheOrchestrator` (core; InMemory only)  
+- Packages: `src/CacheOrchestrator.Core` (Http-free), `src/CacheOrchestrator.FusionCache`, `src/CacheOrchestrator.HybridCache` (Microsoft HybridCache data provider; subset of Fusion), `src/CacheOrchestrator.AspNetCore` (HTTP host; InMemory backend)  
+- Meta NuGet: `src/CacheOrchestrator` (PackageId `CacheOrchestrator` → AspNetCore + FusionCache)  
 - Redis package: `src/CacheOrchestrator.Redis` (`AddRedisBackend`)  
-- Bus package: `src/CacheOrchestrator.Bus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
+- HttpBus package: `src/CacheOrchestrator.HttpBus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
 - EF invalidation package: `src/CacheOrchestrator.EFCore.Invalidation` (`AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation`)  
 - Admin Console App: `src/CacheOrchestrator.AdminConsole` (fan-out UI/API; not a NuGet package; **net10.0 only**)  
 - Target frameworks: libraries `net8.0` + `net10.0`; Admin Console App `net10.0` only; samples typically net10  
 - Version: **MinVer** from Git tags `v*` (do not hardcode `<Version>` in Directory.Build.props)  
 - Samples: `samples/CacheOrchestrator.Minimal` (1-minute InMemory), `samples/CacheOrchestrator.Sample` (playground; Redis package)  
-- Tests: `tests/CacheOrchestrator.UnitTests` (core, net8+net10), `tests/CacheOrchestrator.Redis.UnitTests`, `tests/CacheOrchestrator.Bus.UnitTests`, `tests/CacheOrchestrator.EFCore.Invalidation.UnitTests` (net8+net10), `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only; Admin Console App), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
+- Tests: `tests/CacheOrchestrator.Core.UnitTests`, `tests/CacheOrchestrator.AspNetCore.UnitTests`, `tests/CacheOrchestrator.FusionCache.UnitTests`, `tests/CacheOrchestrator.HybridCache.UnitTests`, `tests/CacheOrchestrator.Redis.UnitTests`, `tests/CacheOrchestrator.HttpBus.UnitTests`, `tests/CacheOrchestrator.EFCore.Invalidation.UnitTests` (net8+net10), `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
 
 ## Non-goals
 
-- Not a generic cache façade for non-HTTP apps without `HttpContext`  
-- Not a replacement for FusionCache features — it **configures and scopes** them  
+- Not a replacement for FusionCache / HybridCache features — it **configures and scopes** them  
 - Does not own Redis topology/ops beyond connection options  
+- Libraries prefer `ICacheOrchestrator` + host-supplied `CacheDomainContext` (Core); web happy path may use AspNetCore `IDomainDataCache`
 
 ## Mental model
 
@@ -36,11 +37,11 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 Domain (config name)
   → DomainCacheOptions (resolved snapshot)
       → DomainOutputCachePolicy (HTTP)
-      → IDomainFusionCache.GetOrSetAsync / GetOrSetEntityAsync / GetOrSetEntitySetAsync (data)
+      → ICacheOrchestrator / IDomainDataCache get-or-set (data)
       → EntityFootprint tags (domain + entity / entitykind; optional members / dependsOn / aliases)
 ```
 
-**Domain for FusionCache** (`IDomainFusionCache.GetOrSetAsync`):
+**Domain for data cache** (`IDomainDataCache.GetOrSetAsync` HTTP path):
 
 1. Explicit overload `GetOrSetAsync(http, domain, factory)` — same name reuses the request snapshot; a different name **replaces** it.  
 2. Else options already on request (Output Cache policy usually set them via `.CacheOutputWithDomain` / `[CacheDomain]`).  
@@ -48,9 +49,9 @@ Domain (config name)
 4. Else factory runs **uncached**.
 
 Happy path: **no** manual `EnsureDomainOptions` when OC domain is on the endpoint.  
-**Fusion-only** endpoints: use domain overload or `EnsureDomainOptions`.
+**Data-cache-only** endpoints: use domain overload or `EnsureDomainOptions`.
 
-**Entity identity:** declare once on `.CacheOutputWithDomain` / `[CacheDomain]` (`resourceRouteKey` + `entityKind` for detail, or `entityKind` alone for collections). `GetOrSetEntityAsync(http, factory)` / `GetOrSetEntitySetAsync` consume it. Extend tags with `EntityCache` / `EntitySet`. Fusion-only: `SetEntityIdentity`. Explicit kind/id overloads are obsolete.
+**Entity identity:** declare once on `.CacheOutputWithDomain` / `[CacheDomain]` (`resourceRouteKey` + `entityKind` for detail, or `entityKind` alone for collections). `GetOrSetEntityAsync(http, factory)` / `GetOrSetEntitySetAsync` consume it. Extend tags with `EntityCache` / `EntitySet`. Data-cache-only: `SetEntityIdentity`. Explicit kind/id overloads are obsolete.
 
 ### Client Cache Schedule (important product feature)
 
@@ -60,18 +61,21 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 - `ScheduledUpdateUtc` + `ClientTtlSeconds` / `ClientTtlMinSeconds` → long client `max-age` in **Calm**, linear ramp-down in **Approaching**, floor in **Hold**.  
 - Affects **client** `Cache-Control` only, not server Output/Fusion TTLs.  
 - Phase is exposed on **`X-Cache` (`phase=`)** and metrics **`cache_orchestrator.client.schedule`** (tags `domain`, `phase`).  
-- Human docs: `docs/client-cache-schedule.md`, README section “Client Cache Schedule”.
+- Human docs: `docs/guide/client-cache-schedule.md`, README section “Client Cache Schedule”.
 
 ## Public entry points (do not invent alternate names)
 
 | API | Namespace |
 |-----|-----------|
-| `AddCacheOrchestrator` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
-| `ICacheOrchestratorBuilder` / `ICacheBackendRegistrar` | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
+| `AddCacheOrchestrator` (meta = AspNet + Fusion) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
+| `ICacheOrchestratorBuilder` / `ICacheBackendRegistrar` (OC) | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
+| `AddCacheOrchestratorFusionCache` / `IFusionCacheBackendRegistrar` | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.FusionCache.Backends` |
+| `AddCacheOrchestratorHybridCache` | `CacheOrchestrator.DependencyInjection` (HybridCache package) |
 | `AddRedisBackend` / `RedisCacheBackendRegistrar` | `CacheOrchestrator.Redis` |
 | `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheOrchestrator.OutputCache` |
 | `[CacheDomain("…")]` | `CacheOrchestrator.OutputCache` |
-| `IDomainFusionCache` / `EntityCache` / `EntitySet` / `EntityFootprint` | `CacheOrchestrator.FusionCache` |
+| `IDomainDataCache` | `CacheOrchestrator.DataCache` (HTTP API in AspNetCore) |
+| `EntityCache` / `EntitySet` / `EntityFootprint` | `CacheOrchestrator.Entity` (Core) |
 | `ICacheVaryContributor` / `CacheVaryMaterializer` / `ICacheVaryBuilder` | `CacheOrchestrator.Vary` |
 | `AuthBypassMode` / `DomainAuthEvaluator` | `CacheOrchestrator.Configuration` |
 | `IDomainCacheOptionsProvider` / `DomainCacheOptions` / `DomainName` | `CacheOrchestrator.Configuration` |
@@ -79,23 +83,28 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `CacheTags` | `CacheOrchestrator.Configuration` |
 | Health: `AddCacheOrchestrator` on `IHealthChecksBuilder` | `CacheOrchestrator.Diagnostics` |
 | `MapCacheOrchestratorAdmin` / Admin API | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Admin` |
-| `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.Bus` |
+| `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` | `CacheOrchestrator.HttpBus` |
 | `AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation` / `[CacheEntity]` | `CacheOrchestrator.EFCore` |
 | `IClusterCommandBus` / `IClusterMembership` / `IInstanceIdProvider` | `CacheOrchestrator.Cluster` |
 | Admin Console App fan-out host | `src/CacheOrchestrator.AdminConsole` (`AdminConsole` config) |
 
 There is **no** `CacheOrchestrator.Abstractions` folder — interfaces sit beside implementations (`Backends`, `FusionCache`, `Diagnostics`, …).
 
-**Visibility:** default implementations (`DomainFusionCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, health check types, options validator, MVC convention) are **`internal`**. Apps use interfaces + DI. Unit tests use `InternalsVisibleTo`.
+**Visibility:** default implementations (`DomainDataCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, health check types, options validator, MVC convention) are **`internal`**. Apps use interfaces + DI. Unit tests use `InternalsVisibleTo`.
 
 ## Config vs runtime naming
 
-| JSON / options binding | Runtime `DomainCacheOptions` |
-|------------------------|------------------------------|
-| `OutputCacheTtlSeconds` (int) | `OutputTtl` (TimeSpan) |
-| `FusionCacheSoftTtlSeconds` (int) | `FusionCacheSoftTtl` (TimeSpan) |
-| `FusionCacheHardTtlSeconds` (int) | `FusionCacheHardTtl` (TimeSpan) |
-| `FusionCacheFailSafeSeconds` (int) | `FusionCacheFailSafe` (TimeSpan) |
+Nested JSON under `DataCache` / `OutputCache` / `ClientCache` / optional `FusionCache` uses **int seconds** (`TtlSeconds`, …). Runtime Core snapshot often uses `TimeSpan` (except client max-age ints):
+
+| JSON | Runtime `DomainCacheOptions` |
+|------|------------------------------|
+| `OutputCache:TtlSeconds` | `OutputTtl` (`TimeSpan`) |
+| `DataCache:TtlSeconds` | `DataCacheTtl` (`TimeSpan`) |
+| `ClientCache:TtlSeconds` / `TtlMinSeconds` | `ClientTtlSeconds` / `ClientTtlMinSeconds` (`int`) |
+
+Fusion-only knobs (`HardTtlSeconds`, `FailSafeSeconds`, factory timeouts, …) bind in the **FusionCache** package (`DomainFusionCacheSettings`), not on Core `DomainCacheOptions`. Root engines: `DataCacheInstances` (not `FusionCacheInstances`).
+
+**DX rule:** cache TTL / fail-safe / jitter / factory timeout in config = `*Seconds` int — not TimeSpan strings.
 
 Do not rename config property names without a breaking-change plan (bound from appsettings).
 
@@ -114,52 +123,50 @@ Do not rename config property names without a breaking-change plan (bound from a
 ## Folder map
 
 ```
-src/CacheOrchestrator/          core (InMemory only; no Redis/Bus packages)
-  Configuration/     options, domain resolution, headers
-  OutputCache/       policy, attributes, endpoint extensions
-  FusionCache/       data cache API + key gen
-  Vary/              shared OC↔Fusion vary materializer + ICacheVaryContributor
-  Backends/          ICacheBackendRegistrar, registration contexts, InMemory
-  Invalidation/      tag purge
-  Cluster/           Null bus/membership, InstanceId, command handler (HTTP in Bus package)
-  Diagnostics/       metrics, activities, health
-  Admin/             Admin API (feature-flagged; stats, invalidate, version/TTL overlay)
-  DependencyInjection/ AddCacheOrchestrator, MapCacheOrchestratorAdmin, ICacheOrchestratorBuilder
-  Utilities/
-src/CacheOrchestrator.Redis/    Redis package: registrar, RedisConnectionOptions, config resolve, validation
-src/CacheOrchestrator.Bus/      HTTP cluster bus + Static membership + cluster receive endpoints
-src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges interceptor (not an EF cache provider)
-src/CacheOrchestrator.AdminConsole/    Admin Console App host (fan-out, UI, Scalar; not packable)
-tests/CacheOrchestrator.UnitTests/          core library unit tests
+src/CacheOrchestrator.Core/         Http-free: options, Entity footprint, orchestration, invalidation, cluster contracts
+src/CacheOrchestrator.FusionCache/  Fusion IDataCacheProvider + named Ziggy instances + L2 registrars
+src/CacheOrchestrator.HybridCache/  HybridCache IDataCacheProvider
+src/CacheOrchestrator.AspNetCore/   HTTP: OutputCache, Vary, Admin API, IDomainDataCache (Core only)
+src/CacheOrchestrator/              meta NuGet: AspNetCore + FusionCache (`AddCacheOrchestrator` wires both)
+src/CacheOrchestrator.Redis/        Redis OC + Fusion L2/backplane (refs AspNetCore + FusionCache)
+src/CacheOrchestrator.HttpBus/      HTTP cluster command bus + membership
+src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges → invalidator (Core only)
+src/CacheOrchestrator.AdminConsole/ Admin Console App (not packable)
+tests/CacheOrchestrator.Core.UnitTests/
+tests/CacheOrchestrator.AspNetCore.UnitTests/
+tests/CacheOrchestrator.FusionCache.UnitTests/
+tests/CacheOrchestrator.HybridCache.UnitTests/
 tests/CacheOrchestrator.Redis.UnitTests/
-tests/CacheOrchestrator.Bus.UnitTests/
+tests/CacheOrchestrator.HttpBus.UnitTests/
 tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/
 tests/CacheOrchestrator.AdminConsole.UnitTests/
 tests/CacheOrchestrator.IntegrationTests/
 tests/CacheOrchestrator.Benchmarks/
 samples/
-docs/                human technical docs
+docs/
 ```
 
 ## Docs for humans
 
-Three tiers (do not put reference into the root README):
+Doc layers (do not put reference into the root README):
 
 - **Product:** `README.md` — overview and quick start only
-- **Guide:** `docs/guide/` (concepts, topologies, operations) + `docs/getting-started.md` + FAQ + Minimal sample
-- **Reference:** topic pages under `docs/` (configuration, keys, deployment, …); hub: `docs/README.md`
+- **Guide:** `docs/guide/` (getting-started, concepts, packages, topologies, domain-profiles, CCS, operations, FAQ, …)
+- **How-to:** `docs/how-to/composition.md` (copy-paste package scenarios)
+- **Reference:** `docs/reference/` (configuration, keys, deployment, …); hub: `docs/README.md`
+- **Contributor:** `docs/contributor/` (architecture, releasing, benchmarks, worklog template)
 
 Contributor / security: `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`.  
 Keep docs in sync when renaming public types or config keys. Put a change in the matching tier.
 
-Branch worklog: copy `docs/templates/worklog-template.md` (do not commit the filled copy). Summary → PR title and description; the rest is the PR appendix. Record **net outcomes** only — no chat, no rejected alternatives, no draft paths. A work item must still make sense a month later without the conversation.
+Branch worklog: copy `docs/contributor/templates/worklog-template.md` (do not commit the filled copy). Summary → PR title and description; the rest is the PR appendix. Record **net outcomes** only — no chat, no rejected alternatives, no draft paths. A work item must still make sense a month later without the conversation.
 
 Do **not** edit `CHANGELOG.md` unless the user asks. User-facing notes go in the worklog Changelog. The maintainer updates `CHANGELOG.md` from merged PR worklogs.
 
 ## Safe change checklist
 
 1. Build solution (`CacheOrchestrator.slnx`)  
-2. Run unit tests (`tests/CacheOrchestrator.UnitTests` plus Redis / Bus / EFCore.Invalidation unit-test projects when those packages change)  
+2. Run unit tests for touched packages (`Core` / `AspNetCore` / `FusionCache` / `HybridCache` / `Redis` / `HttpBus` / `EFCore.Invalidation`)  
 3. Update sample if public API or config surface changes  
 4. Avoid introducing `CacheOrchestrator.Abstractions` again  
 5. Avoid reintroducing Slovenian comments or `ct` as public parameter names  

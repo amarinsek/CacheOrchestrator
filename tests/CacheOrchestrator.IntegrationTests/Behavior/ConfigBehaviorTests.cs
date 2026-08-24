@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -33,14 +33,14 @@ public class ConfigBehaviorTests
         var initial = new Dictionary<string, string?>
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(initial);
@@ -54,7 +54,8 @@ public class ConfigBehaviorTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
@@ -127,7 +128,7 @@ public class ConfigBehaviorTests
         string domain,
         string expectedVersion)
     {
-        IDomainCacheOptionsProvider domains = services.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = services.GetRequiredService<IRequestDomainCacheOptions>();
         IOptionsMonitor<CacheOrchestratorOptions> monitor =
             services.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>();
 
@@ -166,18 +167,19 @@ public class ConfigBehaviorTests
                 {
                     ["Cache:OutputCache:Provider"] = "InMemory",
                     ["Cache:FusionCache:Provider"] = "InMemory",
-                    ["Cache:Domains:ver:FusionCacheSoftTtlSeconds"] = "300",
+                    ["Cache:Domains:ver:DataCache:TtlSeconds"] = "300",
                     ["Cache:Domains:ver:Version"] = version
                 })
                 .Build();
 
             ServiceCollection services = new();
             services.AddLogging();
-            services.AddCacheOrchestrator(config);
+            services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
             await using ServiceProvider sp = services.BuildServiceProvider();
 
-            IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-            IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+            IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+            IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
             DefaultHttpContext http = new();
             http.Request.Method = "GET";
@@ -225,7 +227,7 @@ public class ConfigBehaviorTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:Domains:nocache:OutputCacheEnabled"] = "false",
+                ["Cache:Domains:nocache:OutputCache:Enabled"] = "false",
                 ["Cache:Domains:nocache:Version"] = "v1"
             })
             .Build();
@@ -236,7 +238,8 @@ public class ConfigBehaviorTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
@@ -277,19 +280,20 @@ public class ConfigBehaviorTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:Domains:nostore:FusionCacheRespectNoStore"] = "true",
-                ["Cache:Domains:nostore:FusionCacheSoftTtlSeconds"] = "300",
+                ["Cache:Domains:nostore:DataCache:RespectNoStore"] = "true",
+                ["Cache:Domains:nostore:DataCache:TtlSeconds"] = "300",
                 ["Cache:Domains:nostore:Version"] = "v1"
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = new();
         http.Request.Method = "GET";
@@ -326,10 +330,10 @@ public class ConfigBehaviorTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:Domains:hdr:OutputCacheTtlSeconds"] = "60",
-                ["Cache:Domains:hdr:ClientCacheability"] = "Public",
-                ["Cache:Domains:hdr:ClientTtlSeconds"] = "42",
-                ["Cache:Domains:hdr:ClientTtlMinSeconds"] = "42",
+                ["Cache:Domains:hdr:OutputCache:TtlSeconds"] = "60",
+                ["Cache:Domains:hdr:ClientCache:Cacheability"] = "Public",
+                ["Cache:Domains:hdr:ClientCache:TtlSeconds"] = "42",
+                ["Cache:Domains:hdr:ClientCache:TtlMinSeconds"] = "42",
                 ["Cache:Domains:hdr:Version"] = "v1"
                 // no ScheduledUpdateUtc ? max-age = ClientTtlSeconds
             })
@@ -341,7 +345,8 @@ public class ConfigBehaviorTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
@@ -383,27 +388,28 @@ public class ConfigBehaviorTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:DomainDefaults:FusionCacheSoftTtlSeconds"] = "123",
-                ["Cache:DomainDefaults:OutputCacheTtlSeconds"] = "45",
-                ["Cache:DomainDefaults:ClientCacheability"] = "Public",
-                ["Cache:DomainDefaults:ClientTtlSeconds"] = "45",
-                ["Cache:DomainDefaults:ClientTtlMinSeconds"] = "15"
+                ["Cache:DomainDefaults:DataCache:TtlSeconds"] = "123",
+                ["Cache:DomainDefaults:OutputCache:TtlSeconds"] = "45",
+                ["Cache:DomainDefaults:ClientCache:Cacheability"] = "Public",
+                ["Cache:DomainDefaults:ClientCache:TtlSeconds"] = "45",
+                ["Cache:DomainDefaults:ClientCache:TtlMinSeconds"] = "15"
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         DefaultHttpContext http = new();
 
         DomainCacheOptions cfg = domains.EnsureDomainOptions(http, "unknown-domain-xyz");
 
         cfg.Should().NotBeNull();
         cfg.Domain.Should().Be("unknown-domain-xyz");
-        cfg.FusionCacheSoftTtl.Should().Be(TimeSpan.FromSeconds(123));
+        cfg.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(123));
         cfg.OutputTtl.Should().Be(TimeSpan.FromSeconds(45));
         cfg.ClientCacheability.Should().Be(ClientCacheability.Public);
         cfg.ClientTtlSeconds.Should().Be(45);

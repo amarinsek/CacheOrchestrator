@@ -1,5 +1,5 @@
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -15,7 +15,7 @@ namespace CacheOrchestrator.IntegrationTests.Fusion;
 /// <summary>
 /// HTTP coverage for Fusion contracts that are easy to get wrong on a real request:
 /// entity-then-URL key restore, Accept restore, explicit domain vs OC domain,
-/// FusionRespectAuthBypass, and no-store through both layers.
+/// DataCacheRespectAuthBypass, and no-store through both layers.
 /// </summary>
 public class FusionHttpContractTests
 {
@@ -31,16 +31,16 @@ public class FusionHttpContractTests
         Dictionary<string, string?> d = new()
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -60,7 +60,8 @@ public class FusionHttpContractTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<FactoryCounter>();
 
         WebApplication app = builder.Build();
@@ -98,7 +99,7 @@ public class FusionHttpContractTests
         string domain = "fc-both-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
         });
 
         int entityCalls = 0;
@@ -106,7 +107,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache) =>
             {
                 cache.SetEntityIdentity(http, "items", "1");
                 string? entity = await cache.GetOrSetEntityAsync(
@@ -134,13 +135,13 @@ public class FusionHttpContractTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             r1.IsSuccessStatusCode.Should().BeTrue();
             b1.Should().Be("e1|list");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             Volatile.Read(ref entityCalls).Should().Be(1);
             Volatile.Read(ref listCalls).Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("e1|list");
-            x2.Should().Contain("fc=hit");
+            x2.Should().Contain("dc=hit");
             Volatile.Read(ref entityCalls).Should().Be(1);
             Volatile.Read(ref listCalls).Should().Be(1,
                 "URL-shaped GetOrSet after entity GetOrSet must not stay on the :id: key");
@@ -168,7 +169,7 @@ public class FusionHttpContractTests
         string domain = "fc-accept-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
             d[$"Cache:Domains:{domain}:VaryByAccept"] = "true";
             d[$"Cache:Domains:{domain}:AcceptNormalizationList:0"] = "application/json";
         });
@@ -177,7 +178,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string cached = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -195,7 +196,7 @@ public class FusionHttpContractTests
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", headers);
             r1.IsSuccessStatusCode.Should().BeTrue();
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             b1.Should().EndWith("|payload");
             b1.Should().Contain("text/html",
                 "Fusion key generation must restore Accept after prefer-list collapse");
@@ -204,7 +205,7 @@ public class FusionHttpContractTests
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x", headers);
-            x2.Should().Contain("fc=hit");
+            x2.Should().Contain("dc=hit");
             b2.Should().EndWith("|payload");
             b2.Should().Contain("text/html");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
@@ -223,7 +224,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(DomainBase(domain), a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, domain, _ =>
                 {
@@ -261,11 +262,11 @@ public class FusionHttpContractTests
 
         Dictionary<string, string?> config = DomainBase(ocDomain, d =>
         {
-            d[$"Cache:Domains:{ocDomain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{ocDomain}:OutputCache:Enabled"] = "false";
         });
         foreach (KeyValuePair<string, string?> kv in DomainBase(fcDomain, d =>
         {
-            d[$"Cache:Domains:{fcDomain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{fcDomain}:OutputCache:Enabled"] = "false";
         }))
         {
             config[kv.Key] = kv.Value;
@@ -273,7 +274,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 // Policy pins ocDomain on Items; explicit Fusion name must replace it.
                 string value = await cache.GetOrSetAsync(http, fcDomain, _ =>
@@ -290,12 +291,12 @@ public class FusionHttpContractTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x");
             b1.Should().Be("from-fc");
             x1.Should().Contain($"domain={ocDomain}");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x");
             b2.Should().Be("from-fc");
-            x2.Should().Contain("fc=hit");
+            x2.Should().Contain("dc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
         }
         finally
@@ -306,18 +307,18 @@ public class FusionHttpContractTests
     }
 
     [Fact]
-    public async Task FusionRespectAuthBypass_True_Authorization_RunsFactoryEveryTime()
+    public async Task DataCacheRespectAuthBypass_True_Authorization_RunsFactoryEveryTime()
     {
         string domain = "fc-auth-on-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
-            d[$"Cache:Domains:{domain}:FusionRespectAuthBypass"] = "true";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
+            d[$"Cache:Domains:{domain}:DataCacheRespectAuthBypass"] = "true";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -334,11 +335,11 @@ public class FusionHttpContractTests
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", auth);
             b1.Should().Be("n1");
-            x1.Should().Contain("fc=bypass");
+            x1.Should().Contain("dc=bypass");
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x", auth);
             b2.Should().Be("n2");
-            x2.Should().Contain("fc=bypass");
+            x2.Should().Contain("dc=bypass");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
             r1.IsSuccessStatusCode.Should().BeTrue();
             r2.IsSuccessStatusCode.Should().BeTrue();
@@ -351,18 +352,18 @@ public class FusionHttpContractTests
     }
 
     [Fact]
-    public async Task FusionRespectAuthBypass_False_StillCachesUnderAuthorization()
+    public async Task DataCacheRespectAuthBypass_False_StillCachesUnderAuthorization()
     {
         string domain = "fc-auth-off-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
-            d[$"Cache:Domains:{domain}:FusionRespectAuthBypass"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
+            d[$"Cache:Domains:{domain}:DataCacheRespectAuthBypass"] = "false";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -379,11 +380,11 @@ public class FusionHttpContractTests
 
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", auth);
             b1.Should().Be("secret");
-            x1.Should().Contain("fc=miss");
+            x1.Should().Contain("dc=miss");
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x", auth);
             b2.Should().Be("secret");
-            x2.Should().Contain("fc=hit");
+            x2.Should().Contain("dc=hit");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
             r1.IsSuccessStatusCode.Should().BeTrue();
             r2.IsSuccessStatusCode.Should().BeTrue();
@@ -402,7 +403,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(DomainBase(domain), a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -420,12 +421,12 @@ public class FusionHttpContractTests
             (HttpResponseMessage r1, string x1, string b1) = await GetAsync(client, "/x", noStore);
             b1.Should().Be("n1");
             x1.Should().Contain("oc=bypass");
-            x1.Should().Contain("fc=bypass");
+            x1.Should().Contain("dc=bypass");
             x1.Should().Contain("fa=run");
 
             (HttpResponseMessage r2, string x2, string b2) = await GetAsync(client, "/x", noStore);
             b2.Should().Be("n2");
-            x2.Should().Contain("fc=bypass");
+            x2.Should().Contain("dc=bypass");
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(2);
             r1.IsSuccessStatusCode.Should().BeTrue();
             r2.IsSuccessStatusCode.Should().BeTrue();

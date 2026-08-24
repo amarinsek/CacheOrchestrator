@@ -166,16 +166,16 @@ public sealed class MetricsSummaryDto
     public double? RequestRate { get; init; }
 
     /// <summary>OC hit share 0–1, latest sample.</summary>
-    public double? OcHitShare { get; init; }
+    public double? OutputCacheHitShare { get; init; }
 
-    /// <summary>FC hit rate 0–1 among FC ops, latest sample.</summary>
-    public double? FcHitRate { get; init; }
+    /// <summary>DC hit rate 0–1 among data-cache ops, latest sample.</summary>
+    public double? DataCacheHitRate { get; init; }
 
     /// <summary>Invalidations per second, latest sample.</summary>
     public double? InvalidationRate { get; init; }
 
     /// <summary>
-    /// Approximate factory share 0–1 over the range (FC miss rate / OC request rate).
+    /// Approximate factory share 0–1 over the range (DC factory invocations / OC request rate).
     /// </summary>
     public double? FactoryShare { get; init; }
 

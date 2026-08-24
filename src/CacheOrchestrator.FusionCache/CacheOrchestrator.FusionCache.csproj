@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+		<PackageId>CacheOrchestrator.FusionCache</PackageId>
+		<Description>FusionCache data-cache provider for CacheOrchestrator.Core.</Description>
+		<PackageTags>cache;caching;fusioncache;cacheorchestrator</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>logo-small.png</PackageIcon>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="..\..\docs\assets\logo-small.png" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\CacheOrchestrator.Core\CacheOrchestrator.Core.csproj" />
+		<PackageReference Include="ZiggyCreatures.FusionCache" Version="2.6.0" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+		<PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.6.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="CacheOrchestrator.FusionCache.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.HybridCache.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Benchmarks" />
+	</ItemGroup>
+</Project>

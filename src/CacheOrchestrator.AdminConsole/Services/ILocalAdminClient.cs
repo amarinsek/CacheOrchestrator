@@ -33,13 +33,6 @@ public interface ILocalAdminClient
         AdminVersionRequest body,
         CancellationToken cancellationToken = default);
 
-    /// <summary>PATCH TTL override on one instance.</summary>
-    Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchTtlAsync(
-        AdminInstanceOptions instance,
-        string domain,
-        AdminTtlPatchRequest body,
-        CancellationToken cancellationToken = default);
-
     /// <summary>PATCH domain settings override on one instance.</summary>
     Task<InstanceCallOutcome<AdminDomainMutationResultDto>> PatchSettingsAsync(
         AdminInstanceOptions instance,

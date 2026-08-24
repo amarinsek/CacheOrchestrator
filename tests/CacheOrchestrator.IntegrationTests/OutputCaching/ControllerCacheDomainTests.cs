@@ -55,9 +55,9 @@ public class ControllerCacheDomainTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "60",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{detailDomain}:OutputCacheTtlSeconds"] = "60",
+                [$"Cache:Domains:{detailDomain}:OutputCache:TtlSeconds"] = "60",
                 [$"Cache:Domains:{detailDomain}:Version"] = "v1"
             })
             .Build();
@@ -68,7 +68,8 @@ public class ControllerCacheDomainTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<ControllerHitCounter>();
         builder.Services.AddControllers()
             .AddApplicationPart(typeof(ProductsTestController).Assembly);

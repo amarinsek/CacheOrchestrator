@@ -54,15 +54,15 @@ public class HttpPipelineContractTests
         Dictionary<string, string?> d = new()
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
-            ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -71,14 +71,14 @@ public class HttpPipelineContractTests
     private static Dictionary<string, string?> DefaultsOnlyConfig() => new()
     {
         ["Cache:OutputCache:Provider"] = "InMemory",
-        ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+        ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
         ["Cache:EmitDiagnosticsHeaders"] = "true",
         ["Cache:DomainDefaults:Version"] = "v1",
-        ["Cache:DomainDefaults:ClientCacheability"] = "Public",
-        ["Cache:DomainDefaults:ClientTtlSeconds"] = "60",
-        ["Cache:DomainDefaults:ClientTtlMinSeconds"] = "60",
-        ["Cache:DomainDefaults:OutputCacheTtlSeconds"] = "120",
-        ["Cache:DomainDefaults:FusionCacheSoftTtlSeconds"] = "300",
+        ["Cache:DomainDefaults:ClientCache:Cacheability"] = "Public",
+        ["Cache:DomainDefaults:ClientCache:TtlSeconds"] = "60",
+        ["Cache:DomainDefaults:ClientCache:TtlMinSeconds"] = "60",
+        ["Cache:DomainDefaults:OutputCache:TtlSeconds"] = "120",
+        ["Cache:DomainDefaults:DataCache:TtlSeconds"] = "300",
     };
 
     private static async Task<(HttpClient Client, WebApplication App)> StartAsync(
@@ -96,7 +96,8 @@ public class HttpPipelineContractTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<HitCounter>();
         configureServices?.Invoke(builder.Services);
 
@@ -152,7 +153,7 @@ public class HttpPipelineContractTests
             (HttpResponseMessage r2, string x2, string _) = await GetAsync(client, "/data");
             r2.IsSuccessStatusCode.Should().BeTrue();
             x2.Should().NotContain("oc=hit",
-                "empty dynamic domain must disable Output Cache so the ASP.NET base policy does not store");
+                "empty dynamic domain must disable Output Cache (base policy is NoCache; domain policy opts in)");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
         finally

@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +11,7 @@ namespace CacheOrchestrator.IntegrationTests.Fusion;
 /// Integration coverage for Fusion fail-safe: after soft TTL expires, a failing factory
 /// must still return the last good value and mark disposition as <see cref="DataCacheResult.Stale"/>.
 /// </summary>
-public class FusionCacheFailSafeStaleTests
+public class FailSafeStaleTests
 {
     private static ServiceProvider BuildProvider()
     {
@@ -19,28 +19,29 @@ public class FusionCacheFailSafeStaleTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:Domains:stale:Version"] = "v1",
                 // Soft-expire quickly so the next GetOrSet re-runs the factory.
-                ["Cache:Domains:stale:FusionCacheSoftTtlSeconds"] = "1",
-                ["Cache:Domains:stale:FusionCacheHardTtlSeconds"] = "3600",
+                ["Cache:Domains:stale:DataCache:TtlSeconds"] = "1",
+                ["Cache:Domains:stale:FusionCache:HardTtlSeconds"] = "3600",
                 // Fail-safe window must outlive soft TTL (IsFailSafeEnabled when > 0).
-                ["Cache:Domains:stale:FusionCacheFailSafeSeconds"] = "86400",
+                ["Cache:Domains:stale:FusionCache:FailSafeSeconds"] = "86400",
                 // Disable jitter / eager refresh so expiry timing is predictable.
-                ["Cache:Domains:stale:FusionCacheJitterSeconds"] = "0",
-                ["Cache:Domains:stale:FusionCacheEagerRefreshRatio"] = "0",
-                ["Cache:Domains:stale:FusionCacheFactorySoftTimeoutSeconds"] = "5",
-                ["Cache:Domains:stale:FusionCacheFactoryHardTimeoutSeconds"] = "10",
+                ["Cache:Domains:stale:FusionCache:JitterSeconds"] = "0",
+                ["Cache:Domains:stale:FusionCache:EagerRefreshRatio"] = "0",
+                ["Cache:Domains:stale:FusionCache:FactorySoftTimeoutSeconds"] = "5",
+                ["Cache:Domains:stale:DataCache:FactoryHardTimeoutSeconds"] = "10",
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         return services.BuildServiceProvider();
     }
 
-    private static DefaultHttpContext CreateHttp(IDomainCacheOptionsProvider domains, string path)
+    private static DefaultHttpContext CreateHttp(IRequestDomainCacheOptions domains, string path)
     {
         DefaultHttpContext http = new();
         http.Request.Method = "GET";
@@ -56,8 +57,8 @@ public class FusionCacheFailSafeStaleTests
     public async Task GetOrSetAsync_WhenFactoryFailsAfterSoftExpiry_ReturnsStaleValueAndDisposition()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         // --- Seed: successful factory → MISS ---
         DefaultHttpContext http1 = CreateHttp(domains, "/api/stale/item");
@@ -97,8 +98,8 @@ public class FusionCacheFailSafeStaleTests
     public async Task GetOrSetAsync_WhenFactoryFailsWithNoPriorValue_Throws()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = CreateHttp(domains, "/api/stale/cold");
 
@@ -118,24 +119,25 @@ public class FusionCacheFailSafeStaleTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:Domains:nofail:Version"] = "v1",
-                ["Cache:Domains:nofail:FusionCacheSoftTtlSeconds"] = "1",
-                ["Cache:Domains:nofail:FusionCacheHardTtlSeconds"] = "3600",
+                ["Cache:Domains:nofail:DataCache:TtlSeconds"] = "1",
+                ["Cache:Domains:nofail:FusionCache:HardTtlSeconds"] = "3600",
                 // Zero fail-safe → IsFailSafeEnabled = false
-                ["Cache:Domains:nofail:FusionCacheFailSafeSeconds"] = "0",
-                ["Cache:Domains:nofail:FusionCacheJitterSeconds"] = "0",
-                ["Cache:Domains:nofail:FusionCacheEagerRefreshRatio"] = "0",
+                ["Cache:Domains:nofail:FusionCache:FailSafeSeconds"] = "0",
+                ["Cache:Domains:nofail:FusionCache:JitterSeconds"] = "0",
+                ["Cache:Domains:nofail:FusionCache:EagerRefreshRatio"] = "0",
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext seedHttp = new();
         seedHttp.Request.Method = "GET";

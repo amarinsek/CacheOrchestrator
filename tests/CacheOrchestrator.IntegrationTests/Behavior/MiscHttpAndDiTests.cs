@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -29,15 +29,15 @@ public class MiscHttpAndDiTests
     private static Dictionary<string, string?> Base(string domain) => new()
     {
         ["Cache:OutputCache:Provider"] = "InMemory",
-        ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+        ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
         ["Cache:EmitDiagnosticsHeaders"] = "true",
         [$"Cache:Domains:{domain}:Version"] = "v1",
-        [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-        [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-        [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-        [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-        [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-        [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+        [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+        [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+        [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+        [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+        [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+        [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
     };
 
     // -------------------------------------------------------------------------
@@ -56,14 +56,14 @@ public class MiscHttpAndDiTests
         {
             if (instrument.Meter.Name != CacheOrchestratorMetrics.MeterName)
                 return;
-            if (instrument.Name is "cache_orchestrator.oc.requests" or "cache_orchestrator.fc.requests")
+            if (instrument.Name is "cache_orchestrator.oc.requests" or "cache_orchestrator.dc.requests")
                 l.EnableMeasurementEvents(instrument);
         };
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
             if (instrument.Name == "cache_orchestrator.oc.requests")
                 Interlocked.Add(ref ocCount, measurement);
-            if (instrument.Name == "cache_orchestrator.fc.requests")
+            if (instrument.Name == "cache_orchestrator.dc.requests")
                 Interlocked.Add(ref fcCount, measurement);
         });
         listener.Start();
@@ -78,12 +78,13 @@ public class MiscHttpAndDiTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
         app.UseCacheOrchestrator();
-        app.MapGet("/x", async (HttpContext http, IDomainFusionCache cache) =>
+        app.MapGet("/x", async (HttpContext http, IDomainDataCache cache) =>
         {
             string v = await cache.GetOrSetAsync(http, _ => Task.FromResult("m"), http.RequestAborted);
             return Results.Text(v);
@@ -130,7 +131,8 @@ public class MiscHttpAndDiTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
@@ -181,20 +183,21 @@ public class MiscHttpAndDiTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
+                ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-                [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+                [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+                [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
             })
             .Build();
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
-        IDomainCacheOptionsProvider domains = sp.GetRequiredService<IDomainCacheOptionsProvider>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         int factoryCalls = 0;
 
         async Task<string> OneAsync()
@@ -237,13 +240,14 @@ public class MiscHttpAndDiTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config, o =>
+        builder.Services.AddCacheOrchestratorAspNetCore(config, o =>
         {
             o.ConfigureOutputCache(opts =>
             {
                 opts.MaximumBodySize = 32; // bytes — force non-store for larger payload
             });
         });
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();

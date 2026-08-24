@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Redis;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
@@ -47,8 +47,8 @@ public class MixedBackendTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "Redis",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString,
-                [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "60",
-                [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "60",
                 [$"Cache:Domains:{domain}:Version"] = "v1"
             })
             .Build();
@@ -59,14 +59,15 @@ public class MixedBackendTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<HitCounter>();
 
         WebApplication app = builder.Build();
         app.UseRouting();
         app.UseCacheOrchestrator();
 
-        app.MapGet(basePath, async (HttpContext http, IDomainFusionCache cache, IDomainCacheOptionsProvider domains, HitCounter hits) =>
+        app.MapGet(basePath, async (HttpContext http, IDomainDataCache cache, IRequestDomainCacheOptions domains, HitCounter hits) =>
         {
             domains.EnsureDomainOptions(http, domain);
             string value = await cache.GetOrSetAsync(http, _ =>
@@ -127,8 +128,8 @@ public class MixedBackendTests
                 ["Cache:OutputCache:Provider"] = "Redis",
                 ["Cache:FusionCache:Provider"] = "InMemory",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString,
-                [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "60",
-                [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "60",
                 [$"Cache:Domains:{domain}:Version"] = "v1"
             })
             .Build();
@@ -139,14 +140,15 @@ public class MixedBackendTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<HitCounter>();
 
         WebApplication app = builder.Build();
         app.UseRouting();
         app.UseCacheOrchestrator();
 
-        app.MapGet(basePath, async (HttpContext http, IDomainFusionCache cache, IDomainCacheOptionsProvider domains, HitCounter hits) =>
+        app.MapGet(basePath, async (HttpContext http, IDomainDataCache cache, IRequestDomainCacheOptions domains, HitCounter hits) =>
         {
             domains.EnsureDomainOptions(http, domain);
             string value = await cache.GetOrSetAsync(http, _ =>
