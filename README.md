@@ -189,12 +189,12 @@ The library is **modular**. The Core package provides the foundational policies 
 > [!NOTE]
 > **Important Versioning Notice**
 > 
-> **CacheOrchestrator** is currently undergoing a significant architectural refactoring, culminating in the upcoming **v3.0.0** release.
+> **CacheOrchestrator** is currently undergoing a **full redesign**, culminating in the upcoming **v3.0.0** release.
 > 
 > * **v1.0.0 & v2.1.x (Legacy):** Published on NuGet strictly to ensure continuity for existing environments. These versions are no longer receiving active feature development. 
-> * **v3.0.0 (Active Development):** This major release brings a modernized codebase and introduces substantial architectural improvements.
+> * **v3.0.0 (Active Development):** This major release is a completely new architectural surface. It brings a modernized, highly modular codebase, but **does not preserve API compatibility** with 1.x/2.x.
 > 
-> **For new projects:** If you are evaluating CacheOrchestrator or planning a new integration, we strongly recommend waiting for the v3.0.0 release. 
+> **For new projects:** If you are evaluating CacheOrchestrator or planning a new integration, we strongly recommend waiting for the v3.0.0 release, as there will be no direct migration path from v2 to v3. 
 > 
 > **Early access & contributing:** If you want an early look at the new architecture or wish to contribute to v3, you are welcome to clone the `main` branch. Please be aware that `main` is under heavy development and subject to breaking changes.
 
