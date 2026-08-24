@@ -23,7 +23,7 @@ You do not need every reference page to ship a first domain.
 3. [Concepts](concepts.md) — domain, three layers (client / Output Cache / data cache), Version vs TTL vs tags.
 4. [Packages](../packages.md) and [Topologies](topologies.md) — which packages to install.
 5. [Domain profiles](../domain-profiles.md) — snapshot vs CRUD.
-6. A reference page when you need the schema or API: [configuration](../configuration.md), [output-cache](../output-cache.md), [fusion-cache](../fusion-cache.md).
+6. A reference page when you need the schema or API: [configuration](../configuration.md), [output-cache](../output-cache.md), [data-cache](../data-cache.md).
 
 ## Guide pages
 
@@ -56,6 +56,6 @@ The [documentation index](../README.md) lists every reference page. Typical jump
 - Packages: [packages.md](../packages.md)
 - Settings: [configuration.md](../configuration.md)
 - HTTP policy: [output-cache.md](../output-cache.md)
-- Data cache (Fusion provider): [fusion-cache.md](../fusion-cache.md)
+- Data cache: [data-cache.md](../data-cache.md)
 - Keys and Namespace: [cache-keys.md](../cache-keys.md)
 - Vary and auth: [vary.md](../vary.md)

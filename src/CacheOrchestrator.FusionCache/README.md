@@ -71,7 +71,7 @@ For a single NuGet reference that already includes AspNetCore + Fusion, see **Ca
 ## Documentation
 
 - [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md)
-- [FusionCache provider](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/fusion-cache.md)
+- [Data cache / Fusion](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/data-cache.md) (Fusion section)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

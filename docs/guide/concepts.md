@@ -14,7 +14,7 @@ CacheOrchestrator stays **domain-based**: domains are the unit of configuration.
 
 EF Core invalidation (and any future ORM hook) only maps successful writes onto those same tags. The read-side entity APIs stay in the core library because they are generic, not ORM-specific.
 
-Details: [domain-profiles.md](../domain-profiles.md), [configuration.md](../configuration.md), [fusion-cache.md](../fusion-cache.md#entity-identity), [entity-footprint.md](../entity-footprint.md).
+Details: [domain-profiles.md](../domain-profiles.md), [configuration.md](../configuration.md), [data-cache.md](../data-cache.md#entity-identity), [entity-footprint.md](../entity-footprint.md).
 
 ## Three layers, one snapshot
 
@@ -32,7 +32,7 @@ The same domain name in configuration can define DataCache, OutputCache, and Cli
 
 The core package is Http-free policy and contracts. ASP.NET Output Cache / client headers, Redis, the cluster HttpBus, and EF hooks are separate packages — [packages.md](../packages.md), [topologies](topologies.md).
 
-Details: [output-cache.md](../output-cache.md), [fusion-cache.md](../fusion-cache.md), [architecture.md](../architecture.md).
+Details: [output-cache.md](../output-cache.md), [data-cache.md](../data-cache.md), [architecture.md](../architecture.md).
 
 ## Version, TTL, and tags
 
@@ -59,7 +59,7 @@ Details: [invalidation.md](../invalidation.md), [cache-keys.md](../cache-keys.md
 
 Happy path: domain on the endpoint; no manual `EnsureDomainOptions`. Data-cache-only endpoints: pass the domain argument or call `EnsureDomainOptions`.
 
-Details: [fusion-cache.md](../fusion-cache.md), [FAQ](../faq.md#fusion-runs-uncached--why).
+Details: [data-cache.md](../data-cache.md), [FAQ](../faq.md#fusion-runs-uncached--why).
 
 ## Client Cache Schedule
 

@@ -4,7 +4,7 @@
 
 Package **`CacheOrchestrator.EFCore.Invalidation`**. After a successful `SaveChanges` / `SaveChangesAsync`, the cache for the rows that changed is purged through `ICacheOrchestratorInvalidator`.
 
-Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../src/CacheOrchestrator.EFCore.Invalidation/README.md). See also [invalidation.md](invalidation.md), [domain-profiles.md](domain-profiles.md), [fusion-cache.md](fusion-cache.md), [configuration.md](configuration.md).
+Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../src/CacheOrchestrator.EFCore.Invalidation/README.md). See also [invalidation.md](invalidation.md), [domain-profiles.md](domain-profiles.md), [data-cache.md](data-cache.md), [configuration.md](configuration.md).
 
 ## How it works
 
@@ -193,7 +193,7 @@ Operational flags only. Bound from the same root section as `AddCacheOrchestrato
 
 - [Guide — topologies](guide/topologies.md)  
 - [invalidation.md](invalidation.md) — tags, invalidator, multi-instance strategies  
-- [fusion-cache.md](fusion-cache.md) — `GetOrSetEntityAsync`  
+- [data-cache.md](data-cache.md) — `GetOrSetEntityAsync`  
 - [output-cache.md](output-cache.md) — `resourceRouteKey` + `entityKind`  
 - [faq.md](faq.md) — `ExecuteUpdate`
 - Package README — copy-paste samples  

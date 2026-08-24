@@ -35,16 +35,16 @@ Details: [output-cache.md — Base policy](output-cache.md#base-policy-and-endpo
 1. Explicit overload `GetOrSetAsync(http, domain, factory)` (replaces a different snapshot already on the request)
 2. Options already on the request (usually set by Output Cache policy)
 3. Endpoint metadata (`.CacheOutputWithDomain` / `[CacheDomain]`)
-4. Else: factory runs **without** Fusion caching
+4. Else: factory runs **without** data caching
 
 On the unresolved path the library:
 
-- Logs a **Warning** (`FusionCache skipped: no domain resolved…`)
+- Logs a **Warning** (`Data cache skipped: no domain resolved…`)
 - Records metric `result=unresolved` with `domain=_`
 - Sets disposition `dc=unresolved` (`fa=run`) when headers are still written
 
 **Fix:** put domain on the endpoint, or use the domain overload / `EnsureDomainOptions`.  
-Details: [fusion-cache.md](fusion-cache.md).
+Details: [data-cache.md](data-cache.md).
 
 ---
 

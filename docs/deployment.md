@@ -339,7 +339,7 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 - [Guide — topologies](guide/topologies.md) — which layout to pick  
 - [configuration.md](configuration.md) — namespaces, providers, full schema  
 - [backends.md](backends.md) — Redis package and custom registrars  
-- [fusion-cache.md](fusion-cache.md)  
+- [data-cache.md](data-cache.md)  
 - [invalidation.md](invalidation.md)  
 - [observability.md](observability.md)  
 - [faq.md](faq.md) — multi-instance and InMemory limitations  

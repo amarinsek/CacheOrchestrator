@@ -300,7 +300,7 @@ Prefer Redis L2 and the backplane when instances share Fusion data. Use HttpBus 
 - [deployment.md](deployment.md) — multi-instance topologies + shared configuration  
 - [configuration.md](configuration.md)  
 - [output-cache.md](output-cache.md)  
-- [fusion-cache.md](fusion-cache.md)  
+- [data-cache.md](data-cache.md)  
 - [backends.md](backends.md) — Redis package  
 - [cluster-bus.md](cluster-bus.md) — optional multi-instance command bus  
 

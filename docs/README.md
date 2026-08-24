@@ -42,7 +42,7 @@ Orientation after the product README. Summaries plus links into reference — no
 
 - [Configuration](configuration.md) — `appsettings` schema and defaults.
 - [Output Cache](output-cache.md) — HTTP policies, authentication flags, Minimal APIs and MVC.
-- [FusionCache](fusion-cache.md) — Fusion as `IDataCacheProvider`, fail-safe, entity identity overview.
+- [Data cache](data-cache.md) — `IDataCacheProvider` (Fusion / Hybrid), domain resolution, keys, entity identity.
 - [Entity footprint](entity-footprint.md) — use-case cookbook (list, references, aggregate, nested, batch, aliases, …).
 - [Cache keys](cache-keys.md) — how Output Cache and data-cache keys are built.
 - [Vary](vary.md) — Accept / language / headers / cookies / query allowlists, auth modes, contributors.

@@ -65,7 +65,7 @@ When you enable Redis L2 (Fusion provider), the registrar applies the data-cache
 
 Default implementation: **`DefaultDomainKeyGenerator`** (XxHash3 over request material, then a short string key).
 
-Replace with a custom `IDomainKeyGenerator` when you must vary on dimensions the default ignores (tenant claim, custom header). See [fusion-cache.md](fusion-cache.md#custom-key-generator).
+Replace with a custom `IDomainKeyGenerator` when you must vary on dimensions the default ignores (tenant claim, custom header). See [data-cache.md](data-cache.md#custom-key-generator).
 
 ### Logical form
 
@@ -230,14 +230,14 @@ Implement `IDomainKeyGenerator` when default material is insufficient (multi-ten
 - No secrets in the key (may land in Redis and logs)  
 - Prefer wrapping `DefaultDomainKeyGenerator` and appending a short suffix  
 
-See [fusion-cache.md](fusion-cache.md#custom-key-generator).
+See [data-cache.md](data-cache.md#custom-key-generator).
 
 ---
 
 ## Related
 
 - [Guide — concepts](guide/concepts.md)  
-- [fusion-cache.md](fusion-cache.md) — `GetOrSetAsync`, domain resolution, custom generator  
+- [data-cache.md](data-cache.md) — `GetOrSetAsync`, domain resolution, custom generator  
 - [output-cache.md](output-cache.md) — policy, auth vary, `resourceRouteKey`  
 - [invalidation.md](invalidation.md) — Version, domain/entity tags  
 - [configuration.md](configuration.md) — `Namespace`, domain `Version`, vary flags  

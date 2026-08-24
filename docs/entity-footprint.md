@@ -1,6 +1,6 @@
 # Entity footprint examples
 
-> **Reference.** Product overview: [root README](../README.md). Fusion overview: [fusion-cache.md](fusion-cache.md). Catalog: [documentation index](README.md).
+> **Reference.** Product overview: [root README](../README.md). Data cache: [data-cache.md](data-cache.md). Catalog: [documentation index](README.md).
 
 Optional **entity identity** lives inside a **domain**. Domains remain the unit of configuration; `entityKind` + id (and related tags) refine per-row keys and invalidation. See [guide — concepts](guide/concepts.md).
 
@@ -509,7 +509,7 @@ await inv.InvalidateDomainAsync("catalog", cancellationToken);
 
 ## Related
 
-- [fusion-cache.md](fusion-cache.md) — API overview and obsolete overload migration
+- [data-cache.md](data-cache.md) — API overview and obsolete overload migration
 - [invalidation.md](invalidation.md) — tag purge wiring
 - [cache-keys.md](cache-keys.md) — entity vs URL key shapes
 - [ef-core-invalidation.md](ef-core-invalidation.md) — SaveChanges → same tags

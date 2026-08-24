@@ -107,7 +107,7 @@ Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features
 6. Registered `IDataCacheProvider` (Fusion: L1 → L2 → factory with soft/hard timeouts, fail-safe, jitter; Hybrid: expiration from `DataCache.TtlSeconds`).  
 7. Disposition (`Hit` / `Miss` / `Stale` / …) stored for `X-Cache` (`dc=`).  
 
-See [fusion-cache.md](fusion-cache.md) for HTTP resolution order and entity identity.  
+See [data-cache.md](data-cache.md) for HTTP resolution order and entity identity.  
 
 ## Backends
 
@@ -131,6 +131,6 @@ Output and data-cache providers can differ (e.g. OC in-memory, Fusion Redis).
 - [cache-keys.md](cache-keys.md)  
 - [configuration.md](configuration.md)  
 - [output-cache.md](output-cache.md)  
-- [fusion-cache.md](fusion-cache.md)  
+- [data-cache.md](data-cache.md)  
 - [vary.md](vary.md)  
 - [deployment.md](deployment.md)  

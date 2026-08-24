@@ -134,7 +134,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml up 
 
 **L2** = Redis for Fusion objects (survives restart / later multi-node). OC stays InMemory on purpose — layers can use different providers. With one instance the backplane is quiet; registration already matches multi-node (Stage 03).
 
-→ [backends.md](../../../docs/backends.md) · [fusion-cache.md](../../../docs/fusion-cache.md)
+→ [backends.md](../../../docs/backends.md) · [data-cache.md](../../../docs/data-cache.md)
 
 ### When this layout fits
 

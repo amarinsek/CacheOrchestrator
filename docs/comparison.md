@@ -4,7 +4,7 @@
 
 This page compares the usual way of wiring ASP.NET Core Output Cache and a data cache (here FusionCache) yourself with the same work done through CacheOrchestrator.
 
-The same endpoint is written both ways, without and with CacheOrchestrator.
+The same endpoint is written both ways, without and with CacheOrchestrator. The CacheOrchestrator domain config is the same snapshot profile as in [domain-profiles.md](domain-profiles.md).
 
 ### Without CacheOrchestrator
 
@@ -87,7 +87,7 @@ static int ClientMaxAge(
 Invalidation without CacheOrchestrator:
 
 ```csharp
-await dataCache.RemoveByTagAsync("domain:osm-tiles", cancellationToken);
+await fusionCache.RemoveByTagAsync("domain:osm-tiles", cancellationToken);
 await outputCache.EvictByTagAsync("domain:osm-tiles", cancellationToken);
 ```
 

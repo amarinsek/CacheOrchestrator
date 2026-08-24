@@ -235,4 +235,4 @@ Canonical detail and full examples: [output-cache.md](output-cache.md#authentica
 - [invalidation.md](invalidation.md) — Version, domain, entity, custom tags  
 - [configuration.md](configuration.md) — full property list  
 - [client-cache-schedule.md](client-cache-schedule.md) — cutover-friendly client max-age  
-- [fusion-cache.md](fusion-cache.md) — `GetOrSetAsync` overloads  
+- [data-cache.md](data-cache.md) — `GetOrSetAsync` overloads  

@@ -143,7 +143,7 @@ Domains are the unit of configuration. Within a domain you can optionally use **
 
 ## Also included
 
-- **Coordinated policies.** One domain owns client and backend cache policies. [Output Cache](docs/output-cache.md) · [FusionCache provider](docs/fusion-cache.md) · [Packages](docs/packages.md)
+- **Coordinated policies.** One domain owns client and backend cache policies. [Output Cache](docs/output-cache.md) · [Data cache](docs/data-cache.md) · [Packages](docs/packages.md)
 
 - **Coordinated invalidation.** Domain, kind, or a single id invalidation is coordinated across Output Cache and data cache. [Invalidation](docs/invalidation.md)
 

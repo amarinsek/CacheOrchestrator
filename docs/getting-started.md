@@ -54,7 +54,7 @@ That meta package includes AspNetCore + FusionCache. For Hybrid, Redis, HttpBus,
 }
 ```
 
-Optional Fusion-only knobs (hard TTL, fail-safe, …) go under `FusionCache` on the domain — [fusion-cache.md](fusion-cache.md), [configuration.md](configuration.md).
+Optional Fusion-only knobs (hard TTL, fail-safe, …) go under `FusionCache` on the domain — [data-cache.md](data-cache.md), [configuration.md](configuration.md).
 
 ## Register
 
@@ -95,7 +95,7 @@ public sealed class ProductsController : ControllerBase
 }
 ```
 
-If the endpoint has no domain, pass the name: `GetOrSetAsync(http, "catalog", factory, cancellationToken)`. Without a domain the factory runs uncached. Details: [fusion-cache.md](fusion-cache.md). Class libraries can use `ICacheOrchestrator` instead — [packages.md](packages.md).
+If the endpoint has no domain, pass the name: `GetOrSetAsync(http, "catalog", factory, cancellationToken)`. Without a domain the factory runs uncached. Details: [data-cache.md](data-cache.md). Class libraries can use `ICacheOrchestrator` instead — [packages.md](packages.md).
 
 > **Note:** Unlike native ASP.NET Core Output Caching which ignores query parameters by default, CacheOrchestrator domains **vary by all non-tracking query parameters** by default. `?id=1` and `?id=2` will automatically be cached separately.
 
@@ -109,7 +109,7 @@ X-Cache: domain=catalog; version=1; client=public; phase=n/a; oc=miss; dc=miss; 
 
 - **oc** — Output Cache `miss`, `hit`, `bypass`, or `off`.
 - **dc** — Data cache (`hit`, `miss`, `stale`, …). Omitted when Output Cache already hit.
-- **fa** — `run` when `dc` is present and is not `hit` (factory callback ran).
+- **fa** — Factory `run` when `dc` is present and is not `hit` (factory callback ran).
 - **phase** — Client Cache Schedule, or `n/a`.
 
 To hide this header from clients, set `"EmitDiagnosticsHeaders": false`. Metrics continue. See [observability.md](observability.md).

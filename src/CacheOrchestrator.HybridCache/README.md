@@ -70,6 +70,7 @@ Optional L2: configure HybridCache / `IDistributedCache` as usual (outside this 
 ## Documentation
 
 - [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md)
+- [Data cache / Hybrid](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/data-cache.md#hybridcache-provider)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License
