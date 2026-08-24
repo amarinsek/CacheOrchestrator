@@ -14,7 +14,8 @@ Internally it wires:
 
 Domains are named groups of data that share TTLs, providers, client headers, and version stamps.
 
-- Package / project: `src/CacheOrchestrator` (core; InMemory only)  
+- Packages: `src/CacheOrchestrator.Core` (Http-free), `src/CacheOrchestrator.FusionCache`, `src/CacheOrchestrator.AspNetCore` (HTTP host; InMemory backend)  
+- Meta NuGet: `src/CacheOrchestrator` (PackageId `CacheOrchestrator` → AspNetCore + FusionCache)  
 - Redis package: `src/CacheOrchestrator.Redis` (`AddRedisBackend`)  
 - Bus package: `src/CacheOrchestrator.Bus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
 - EF invalidation package: `src/CacheOrchestrator.EFCore.Invalidation` (`AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation`)  
