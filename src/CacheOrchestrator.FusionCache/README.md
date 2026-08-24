@@ -19,10 +19,10 @@ dotnet add package CacheOrchestrator.FusionCache
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Ttl": "00:05:00" },
+        "DataCache": { "TtlSeconds": 300 },
         "FusionCache": {
-          "HardTtl": "00:10:00",
-          "FailSafe": "01:00:00"
+          "HardTtlSeconds": 600,
+          "FailSafeSeconds": 3600
         }
       }
     }

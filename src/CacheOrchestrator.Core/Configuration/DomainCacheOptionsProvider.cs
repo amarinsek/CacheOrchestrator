@@ -142,13 +142,13 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
         StringValues etag = CacheETagFactory.FromVersion(version);
 
         TimeSpan outputTtl = overlay?.OutputCacheTtl
-            ?? Pick(dom.OutputCache?.Ttl, defaults.OutputCache?.Ttl, TimeSpan.FromSeconds(3700));
+            ?? Seconds(Pick(dom.OutputCache?.TtlSeconds, defaults.OutputCache?.TtlSeconds, 3700));
         TimeSpan dataCacheTtl = overlay?.DataCacheTtl
-            ?? Pick(dom.DataCache?.Ttl, defaults.DataCache?.Ttl, TimeSpan.FromSeconds(3800));
+            ?? Seconds(Pick(dom.DataCache?.TtlSeconds, defaults.DataCache?.TtlSeconds, 3800));
         TimeSpan clientTtl = overlay?.ClientTtl
-            ?? Pick(dom.ClientCache?.Ttl, defaults.ClientCache?.Ttl, TimeSpan.FromSeconds(3600));
+            ?? Seconds(Pick(dom.ClientCache?.TtlSeconds, defaults.ClientCache?.TtlSeconds, 3600));
         TimeSpan clientTtlMin = overlay?.ClientTtlMin
-            ?? Pick(dom.ClientCache?.TtlMin, defaults.ClientCache?.TtlMin, TimeSpan.FromSeconds(60));
+            ?? Seconds(Pick(dom.ClientCache?.TtlMinSeconds, defaults.ClientCache?.TtlMinSeconds, 60));
 
         AuthBypassMode authBypassMode = ResolveAuthBypassMode(overlay, dom, defaults);
 
@@ -248,6 +248,9 @@ internal sealed class DomainCacheOptionsProvider : IDomainCacheOptionsProvider, 
                 ?? Pick(dom.OutputCache?.VaryByHost, defaults.OutputCache?.VaryByHost, true),
         };
     }
+
+    private static TimeSpan Seconds(int value) =>
+        TimeSpan.FromSeconds(value < 0 ? 0 : value);
 
     private static int ToNonNegSeconds(TimeSpan value)
     {

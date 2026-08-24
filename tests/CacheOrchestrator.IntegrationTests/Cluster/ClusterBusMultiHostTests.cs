@@ -103,12 +103,12 @@ public class ClusterBusMultiHostTests
             ["Cache:Admin:Enabled"] = adminEnabled ? "true" : "false",
             ["Cache:Admin:RoutePrefix"] = "/cache-admin/local",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
-            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
-            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
         };
 
         if (!string.IsNullOrEmpty(apiKey))
@@ -260,9 +260,9 @@ public class ClusterBusMultiHostTests
             ["Cache:Cluster:Bus:Static:Instances:1:Id"] = "node-b",
             ["Cache:Cluster:Bus:Static:Instances:1:Url"] = urlB,
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:01:00",
-            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:02:00",
-            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
         };
 
         async Task<ClusterHost> Build(string instanceId, int port)
@@ -493,7 +493,7 @@ public class ClusterBusMultiHostTests
         await using (b)
         {
             using StringContent body = new(
-                """{"settings":{"outputCache.ttl":77},"distribute":true}""",
+                """{"settings":{"outputCache.ttlSeconds":77},"distribute":true}""",
                 Encoding.UTF8,
                 "application/json");
             using HttpRequestMessage req = new(HttpMethod.Patch, $"/cache-admin/local/domains/{domain}/settings")

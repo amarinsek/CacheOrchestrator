@@ -49,11 +49,11 @@ public class RedisMultiNodeTests
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
-            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
-            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
-            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
         };
 
     private static async Task<(HttpClient Client, WebApplication App, HitCounter Hits)> StartHostAsync(
@@ -155,8 +155,8 @@ public class RedisMultiNodeTests
                     ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                     ["Cache:Redis:Configuration"] = _redis.ConnectionString,
                     [$"Cache:Domains:{domain}:Version"] = "v1",
-                    [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-                    [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+                    [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+                    [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
                 })
                 .Build();
 
@@ -230,8 +230,8 @@ public class RedisMultiNodeTests
                     ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                     ["Cache:Redis:Configuration"] = _redis.ConnectionString,
                     [$"Cache:Domains:{domain}:Version"] = "v1",
-                    [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-                    [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+                    [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+                    [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
                 })
                 .Build();
 

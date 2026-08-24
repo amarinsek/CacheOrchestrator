@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Admin;
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -18,7 +18,7 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "v1",
-                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(60) }
+                    OutputCache = new() { TtlSeconds = 60 }
                 }
             }
         });
@@ -48,9 +48,9 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "v1",
-                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(60) },
-                    DataCache = new() { Ttl = TimeSpan.FromSeconds(100) },
-                    ClientCache = new() { Ttl = TimeSpan.FromSeconds(30) }
+                    OutputCache = new() { TtlSeconds = 60 },
+                    DataCache = new() { TtlSeconds = 100 },
+                    ClientCache = new() { TtlSeconds = 30 }
                 }
             }
         });
@@ -79,7 +79,7 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "v1",
-                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(60) }
+                    OutputCache = new() { TtlSeconds = 60 }
                 }
             }
         });
@@ -103,7 +103,7 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "cfg-1",
-                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(10) }
+                    OutputCache = new() { TtlSeconds = 10 }
                 }
             }
         });
@@ -122,7 +122,7 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "cfg-2",
-                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(20) }
+                    OutputCache = new() { TtlSeconds = 20 }
                 }
             }
         });

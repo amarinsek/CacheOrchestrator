@@ -22,15 +22,15 @@ public class FailSafeStaleTests
                 ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:Domains:stale:Version"] = "v1",
                 // Soft-expire quickly so the next GetOrSet re-runs the factory.
-                ["Cache:Domains:stale:DataCache:Ttl"] = "00:00:01",
-                ["Cache:Domains:stale:FusionCache:HardTtl"] = "01:00:00",
+                ["Cache:Domains:stale:DataCache:TtlSeconds"] = "1",
+                ["Cache:Domains:stale:FusionCache:HardTtlSeconds"] = "3600",
                 // Fail-safe window must outlive soft TTL (IsFailSafeEnabled when > 0).
-                ["Cache:Domains:stale:FusionCache:FailSafe"] = "1.00:00:00",
+                ["Cache:Domains:stale:FusionCache:FailSafeSeconds"] = "86400",
                 // Disable jitter / eager refresh so expiry timing is predictable.
-                ["Cache:Domains:stale:DataCache:Jitter"] = "00:00:00",
+                ["Cache:Domains:stale:FusionCache:JitterSeconds"] = "0",
                 ["Cache:Domains:stale:FusionCache:EagerRefreshRatio"] = "0",
-                ["Cache:Domains:stale:FusionCache:FactorySoftTimeout"] = "00:00:05",
-                ["Cache:Domains:stale:DataCache:FactoryHardTimeout"] = "00:00:10",
+                ["Cache:Domains:stale:FusionCache:FactorySoftTimeoutSeconds"] = "5",
+                ["Cache:Domains:stale:DataCache:FactoryHardTimeoutSeconds"] = "10",
             })
             .Build();
 
@@ -121,11 +121,11 @@ public class FailSafeStaleTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:Domains:nofail:Version"] = "v1",
-                ["Cache:Domains:nofail:DataCache:Ttl"] = "00:00:01",
-                ["Cache:Domains:nofail:FusionCache:HardTtl"] = "01:00:00",
+                ["Cache:Domains:nofail:DataCache:TtlSeconds"] = "1",
+                ["Cache:Domains:nofail:FusionCache:HardTtlSeconds"] = "3600",
                 // Zero fail-safe → IsFailSafeEnabled = false
-                ["Cache:Domains:nofail:FusionCache:FailSafe"] = "00:00:00",
-                ["Cache:Domains:nofail:DataCache:Jitter"] = "00:00:00",
+                ["Cache:Domains:nofail:FusionCache:FailSafeSeconds"] = "0",
+                ["Cache:Domains:nofail:FusionCache:JitterSeconds"] = "0",
                 ["Cache:Domains:nofail:FusionCache:EagerRefreshRatio"] = "0",
             })
             .Build();

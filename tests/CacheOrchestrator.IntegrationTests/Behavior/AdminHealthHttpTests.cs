@@ -44,7 +44,7 @@ public class AdminHealthHttpTests
                 ["Cache:Admin:ApiKey"] = "k",
                 ["Cache:Admin:RoutePrefix"] = "/cache-admin/local",
                 ["Cache:Domains:catalog:Version"] = "v1",
-                ["Cache:Domains:catalog:OutputCache:Ttl"] = "00:01:00",
+                ["Cache:Domains:catalog:OutputCache:TtlSeconds"] = "60",
             })
             .Build();
 

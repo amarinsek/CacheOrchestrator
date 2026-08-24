@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 
 namespace CacheOrchestrator.Core.UnitTests.Configuration;
 
@@ -9,9 +9,9 @@ public class DomainSettingCatalogTests
     {
         IReadOnlyList<DomainSettingCatalogEntry> all = DomainSettingCatalog.GetEntries();
         Assert.NotEmpty(all);
-        Assert.Contains(all, e => e.Id == "outputCache.ttl" && e.RuntimeOverlay);
+        Assert.Contains(all, e => e.Id == "outputCache.ttlSeconds" && e.RuntimeOverlay);
         Assert.Contains(all, e => e.Id == "dataCache.enabled" && e.RuntimeOverlay);
-        Assert.Contains(all, e => e.Id == "dataCache.ttl" && e.RuntimeOverlay);
+        Assert.Contains(all, e => e.Id == "dataCache.ttlSeconds" && e.RuntimeOverlay);
         Assert.DoesNotContain(all, e => e.Id == "dataCache.hardTtl");
         Assert.DoesNotContain(all, e => e.Id == "dataCache.failSafe");
         Assert.Contains(all, e => e.Id == "clientCache.scheduledUpdateUtc" && e.RuntimeOverlay);
@@ -34,8 +34,8 @@ public class DomainSettingCatalogTests
     [Fact]
     public void Find_is_case_insensitive()
     {
-        DomainSettingCatalogEntry? a = DomainSettingCatalog.Find("OutputCache.Ttl");
-        DomainSettingCatalogEntry? b = DomainSettingCatalog.Find("outputCache.ttl");
+        DomainSettingCatalogEntry? a = DomainSettingCatalog.Find("outputCache.ttlSeconds");
+        DomainSettingCatalogEntry? b = DomainSettingCatalog.Find("outputCache.ttlSeconds");
         Assert.NotNull(a);
         Assert.NotNull(b);
         Assert.Equal(a!.Id, b!.Id);

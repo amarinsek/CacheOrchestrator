@@ -40,26 +40,33 @@ internal sealed class FusionDomainSettingsProvider : IFusionDomainSettingsProvid
         static T Pick<T>(T? specific, T? global, T fallback) where T : struct =>
             specific ?? global ?? fallback;
 
-        TimeSpan hardTtl = overlay?.HardTtl
-            ?? Pick(specific.HardTtl, defaults.HardTtl, TimeSpan.FromSeconds(43200));
-        TimeSpan failSafe = overlay?.FailSafe
-            ?? Pick(specific.FailSafe, defaults.FailSafe, TimeSpan.FromSeconds(86400));
-        TimeSpan jitter = overlay?.Jitter
-            ?? Pick(specific.Jitter, defaults.Jitter, TimeSpan.FromSeconds(60));
-        TimeSpan factorySoft = overlay?.FactorySoftTimeout
-            ?? Pick(specific.FactorySoftTimeout, defaults.FactorySoftTimeout, TimeSpan.FromSeconds(1));
-        TimeSpan factoryHard = overlay?.FactoryHardTimeout
-            ?? Pick(specific.FactoryHardTimeout, defaults.FactoryHardTimeout, TimeSpan.FromSeconds(5));
+        static TimeSpan FromSecondsOrOverlay(TimeSpan? overlay, int? specific, int? global, int fallbackSeconds)
+        {
+            if (overlay is { } o)
+                return o < TimeSpan.Zero ? TimeSpan.Zero : o;
+            int seconds = Pick(specific, global, fallbackSeconds);
+            if (seconds < 0)
+                seconds = 0;
+            return TimeSpan.FromSeconds(seconds);
+        }
+
+        TimeSpan hardTtl = FromSecondsOrOverlay(overlay?.HardTtl, specific.HardTtlSeconds, defaults.HardTtlSeconds, 43200);
+        TimeSpan failSafe = FromSecondsOrOverlay(overlay?.FailSafe, specific.FailSafeSeconds, defaults.FailSafeSeconds, 86400);
+        TimeSpan jitter = FromSecondsOrOverlay(overlay?.Jitter, specific.JitterSeconds, defaults.JitterSeconds, 60);
+        TimeSpan factorySoft = FromSecondsOrOverlay(
+            overlay?.FactorySoftTimeout, specific.FactorySoftTimeoutSeconds, defaults.FactorySoftTimeoutSeconds, 1);
+        TimeSpan factoryHard = FromSecondsOrOverlay(
+            overlay?.FactoryHardTimeout, specific.FactoryHardTimeoutSeconds, defaults.FactoryHardTimeoutSeconds, 5);
 
         return new DomainFusionCacheSettings
         {
-            HardTtl = hardTtl < TimeSpan.Zero ? TimeSpan.Zero : hardTtl,
-            FailSafe = failSafe < TimeSpan.Zero ? TimeSpan.Zero : failSafe,
+            HardTtlSeconds = ToNonNegSeconds(hardTtl),
+            FailSafeSeconds = ToNonNegSeconds(failSafe),
             EagerRefreshRatio = overlay?.EagerRefreshRatio
                 ?? Pick(specific.EagerRefreshRatio, defaults.EagerRefreshRatio, 0.9),
-            Jitter = jitter < TimeSpan.Zero ? TimeSpan.Zero : jitter,
-            FactorySoftTimeout = factorySoft < TimeSpan.Zero ? TimeSpan.Zero : factorySoft,
-            FactoryHardTimeout = factoryHard < TimeSpan.Zero ? TimeSpan.Zero : factoryHard,
+            JitterSeconds = ToNonNegSeconds(jitter),
+            FactorySoftTimeoutSeconds = ToNonNegSeconds(factorySoft),
+            FactoryHardTimeoutSeconds = ToNonNegSeconds(factoryHard),
             MaxItemBytes = overlay?.MaxItemBytes
                 ?? Pick(specific.MaxItemBytes, defaults.MaxItemBytes, 0),
             AllowBackgroundDistributed = overlay?.AllowBackgroundDistributed
@@ -74,5 +81,15 @@ internal sealed class FusionDomainSettingsProvider : IFusionDomainSettingsProvid
         DomainFusionCacheSettings settings = new();
         _configuration.GetSection(path).Bind(settings);
         return settings;
+    }
+
+    private static int ToNonNegSeconds(TimeSpan value)
+    {
+        double seconds = value.TotalSeconds;
+        if (seconds <= 0)
+            return 0;
+        if (seconds >= int.MaxValue)
+            return int.MaxValue;
+        return (int)Math.Round(seconds);
     }
 }

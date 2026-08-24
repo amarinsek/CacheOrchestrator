@@ -117,7 +117,7 @@ public class AdminRegistrationTests
         versionResult.Effective.VersionIsRuntimeOverride.Should().BeTrue();
 
         using StringContent settingsBody = new(
-            """{"settings":{"outputCache.ttl":42,"clientCache.ttl":7}}""",
+            """{"settings":{"outputCache.ttlSeconds":42,"clientCache.ttlSeconds":7}}""",
             Encoding.UTF8,
             "application/json");
         HttpRequestMessage settingsRequest = new(HttpMethod.Patch, "/cache-admin/local/domains/catalog/settings")
@@ -185,7 +185,7 @@ public class AdminRegistrationTests
             ["Cache:OutputCache:Provider"] = "InMemory",
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Domains:catalog:Version"] = "v1",
-            ["Cache:Domains:catalog:OutputCache:Ttl"] = "00:01:00",
+            ["Cache:Domains:catalog:OutputCache:TtlSeconds"] = "60",
             ["Cache:Admin:Enabled"] = enabled ? "true" : "false"
         };
         if (apiKey is not null)

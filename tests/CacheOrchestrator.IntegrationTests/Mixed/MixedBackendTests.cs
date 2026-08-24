@@ -47,8 +47,8 @@ public class MixedBackendTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "Redis",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString,
-                [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:01:00",
-                [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:01:00",
+                [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "60",
                 [$"Cache:Domains:{domain}:Version"] = "v1"
             })
             .Build();
@@ -128,8 +128,8 @@ public class MixedBackendTests
                 ["Cache:OutputCache:Provider"] = "Redis",
                 ["Cache:FusionCache:Provider"] = "InMemory",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString,
-                [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:01:00",
-                [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:01:00",
+                [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "60",
                 [$"Cache:Domains:{domain}:Version"] = "v1"
             })
             .Build();

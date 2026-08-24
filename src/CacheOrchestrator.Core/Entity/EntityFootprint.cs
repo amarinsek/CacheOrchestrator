@@ -1,5 +1,6 @@
 using CacheOrchestrator.Configuration;
 using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
 
 namespace CacheOrchestrator.Entity;
 
@@ -7,6 +8,10 @@ namespace CacheOrchestrator.Entity;
 /// Invalidation footprint for a cached value: primary identity plus optional members,
 /// dependencies, and aliases. Lookup keys are separate; this type only drives tags.
 /// </summary>
+/// <remarks>
+/// Shape is System.Text.Json–friendly so HybridCache (and any STJ L2) can round-trip
+/// <c>FootprintCacheBox{T}</c> that embeds this type.
+/// </remarks>
 public sealed class EntityFootprint
 {
     private static readonly IReadOnlyList<EntityRef> EmptyRefs = [];
@@ -22,11 +27,47 @@ public sealed class EntityFootprint
         IEnumerable<EntityRef>? members = null,
         IEnumerable<EntityRef>? dependsOn = null,
         IEnumerable<EntityRef>? aliases = null)
+        : this(
+            NormalizePrimary(primary),
+            NormalizeList(members),
+            NormalizeList(dependsOn),
+            NormalizeList(aliases),
+            alreadyNormalized: true)
     {
-        Primary = NormalizePrimary(primary);
-        Members = NormalizeList(members);
-        DependsOn = NormalizeList(dependsOn);
-        Aliases = NormalizeList(aliases);
+    }
+
+    /// <summary>
+    /// Deserialization constructor (property names match). Prefer the
+    /// <see cref="EntityFootprint(EntityRef?, IEnumerable{EntityRef}?, IEnumerable{EntityRef}?, IEnumerable{EntityRef}?)"/>
+    /// overload at call sites.
+    /// </summary>
+    [JsonConstructor]
+    public EntityFootprint(
+        EntityRef? primary,
+        IReadOnlyList<EntityRef>? members,
+        IReadOnlyList<EntityRef>? dependsOn,
+        IReadOnlyList<EntityRef>? aliases)
+        : this(primary, members, dependsOn, aliases, alreadyNormalized: false)
+    {
+    }
+
+    private EntityFootprint(
+        EntityRef? primary,
+        IReadOnlyList<EntityRef>? members,
+        IReadOnlyList<EntityRef>? dependsOn,
+        IReadOnlyList<EntityRef>? aliases,
+        bool alreadyNormalized)
+    {
+        Primary = alreadyNormalized ? primary : NormalizePrimary(primary);
+        Members = alreadyNormalized
+            ? members ?? EmptyRefs
+            : NormalizeList(members);
+        DependsOn = alreadyNormalized
+            ? dependsOn ?? EmptyRefs
+            : NormalizeList(dependsOn);
+        Aliases = alreadyNormalized
+            ? aliases ?? EmptyRefs
+            : NormalizeList(aliases);
     }
 
     /// <summary>Primary entity for detail/aggregate entries, if any.</summary>

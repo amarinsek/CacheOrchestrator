@@ -20,8 +20,8 @@ Domain policy (same as the rest of CacheOrchestrator). Optional interceptor opti
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Ttl": "00:05:00" },
-        "OutputCache": { "Ttl": "00:01:00" }
+        "DataCache": { "TtlSeconds": 300 },
+        "OutputCache": { "TtlSeconds": 60 }
       }
     },
     "EFCore": {

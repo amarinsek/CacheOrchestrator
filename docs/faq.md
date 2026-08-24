@@ -142,7 +142,7 @@ Details: [deployment.md](deployment.md#using-multiple-datacache-instances).
 ## Client Cache Schedule vs server TTL
 
 `ClientCache.ScheduledUpdateUtc` + client TTL fields change only **browser/CDN** `Cache-Control` (`max-age` ramp).  
-They do **not** change `OutputCache.Ttl` or `DataCache.Ttl` / Fusion hard / fail-safe.
+They do **not** change `OutputCache.TtlSeconds` or `DataCache.TtlSeconds` / Fusion hard / fail-safe.
 
 Phases appear on `X-Cache` as `phase=calm|approaching|hold|n/a`.  
 See [client-cache-schedule.md](client-cache-schedule.md).

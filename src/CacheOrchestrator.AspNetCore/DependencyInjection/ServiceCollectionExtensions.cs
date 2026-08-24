@@ -97,9 +97,9 @@ public static class ServiceCollectionExtensions
         string configSection,
         DefaultCacheOrchestratorBuilder builder)
     {
-        services
-            .AddOptions<CacheOrchestratorOptions>()
-            .Bind(configuration.GetSection(configSection))
+        // Single Bind across AspNetCore + Fusion/Hybrid — a second Bind appends list properties
+        // (e.g. Cluster:Bus:Static:Instances).
+        CacheOrchestratorOptionsBinding.EnsureBound(services, configuration, configSection)
             .ValidateOnStart();
 
         HashSet<string> validProviders = new(builder.GetRegisteredProviderNames(), StringComparer.OrdinalIgnoreCase);
@@ -134,6 +134,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IClusterCommandBus>(_ => NullClusterCommandBus.Instance);
         services.TryAddSingleton<IClusterMembership>(_ => NullClusterMembership.Instance);
         services.TryAddSingleton<IClusterCommandHandler, DefaultClusterCommandHandler>();
+        // Fusion/Hybrid replace this via TryAdd / RemoveAll. Keeps Output Cache–only hosts constructible.
+        services.TryAddSingleton<IDataCacheProvider>(_ => NullDataCacheProvider.Instance);
         services.AddSingleton<IDomainCacheOptionsProvider, DomainCacheOptionsProvider>();
         services.AddSingleton<IRequestDomainCacheOptions, RequestDomainCacheOptionsProvider>();
         services.AddSingleton<IDomainDataCache, DomainDataCacheService>();

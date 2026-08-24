@@ -29,10 +29,10 @@ public class ConfigReloadAndValidationTests
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:00:42",
-            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:00:42",
-            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:00:01",
-            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "42",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "42",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "1",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(initial);
@@ -63,8 +63,8 @@ public class ConfigReloadAndValidationTests
             string cc1 = GetCacheControl(r1);
             cc1.Should().Contain("max-age=42");
 
-            reloadSource.Provider!.SetAndReload($"Cache:Domains:{domain}:ClientCache:Ttl", "00:01:17");
-            reloadSource.Provider.SetAndReload($"Cache:Domains:{domain}:ClientCache:TtlMin", "00:01:17");
+            reloadSource.Provider!.SetAndReload($"Cache:Domains:{domain}:ClientCache:TtlSeconds", "77");
+            reloadSource.Provider.SetAndReload($"Cache:Domains:{domain}:ClientCache:TtlMinSeconds", "77");
             await WaitForClientTtlAsync(app.Services, domain, 77);
 
             // Expire OC entry so response headers are regenerated from new options.
@@ -91,8 +91,8 @@ public class ConfigReloadAndValidationTests
             ["Cache:OutputCache:Provider"] = "InMemory",
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Domains:pin:Version"] = "1",
-            ["Cache:Domains:pin:ClientCache:Ttl"] = "00:00:10",
-            ["Cache:Domains:pin:ClientCache:TtlMin"] = "00:00:10",
+            ["Cache:Domains:pin:ClientCache:TtlSeconds"] = "10",
+            ["Cache:Domains:pin:ClientCache:TtlMinSeconds"] = "10",
         };
         var reloadSource = new ReloadableMemoryConfigurationSource(data);
         IConfigurationRoot config = new ConfigurationBuilder().Add(reloadSource).Build();
@@ -110,7 +110,7 @@ public class ConfigReloadAndValidationTests
         pinned.ClientTtlSeconds.Should().Be(10);
 
         reloadSource.Provider!.SetAndReload("Cache:Domains:pin:Version", "2");
-        reloadSource.Provider.SetAndReload("Cache:Domains:pin:ClientCache:Ttl", "00:01:39");
+        reloadSource.Provider.SetAndReload("Cache:Domains:pin:ClientCache:TtlSeconds", "99");
 
         // Force options rebind
         _ = sp.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>().CurrentValue;
@@ -166,9 +166,9 @@ public class ConfigReloadAndValidationTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "-00:00:01",
-                [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:01:00",
-                [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:01:00",
+                [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "-1",
+                [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "60",
             })
             .Build();
 
@@ -204,8 +204,8 @@ public class ConfigReloadAndValidationTests
                 caught = ex;
             }
 
-            caught.Should().NotBeNull("negative ClientCache.Ttl must fail IValidateOptions at host start");
-            caught!.ToString().Should().Contain("ClientCache.Ttl");
+            caught.Should().NotBeNull("negative ClientCache.TtlSeconds must fail IValidateOptions at host start");
+            caught!.ToString().Should().ContainEquivalentOf("ClientCache.TtlSeconds");
         }
         finally
         {

@@ -38,16 +38,16 @@ public static class FusionSettingsPatchMapper
             string suffix = id["fusionCache.".Length..];
             switch (suffix)
             {
-                case "hardTtl": hardTtl = ReadNonNegTimeSpan(el, id); break;
-                case "failSafe": failSafe = ReadNonNegTimeSpan(el, id); break;
+                case "hardTtlSeconds": hardTtl = ReadNonNegSecondsAsTimeSpan(el, id); break;
+                case "failSafeSeconds": failSafe = ReadNonNegSecondsAsTimeSpan(el, id); break;
                 case "eagerRefreshRatio":
                     eagerRefreshRatio = ReadDouble(el, id);
                     if (eagerRefreshRatio is < 0 or >= 1)
                         throw new ArgumentException($"Setting '{id}' must be in [0, 1).", id);
                     break;
-                case "jitter": jitter = ReadNonNegTimeSpan(el, id); break;
-                case "factorySoftTimeout": factorySoftTimeout = ReadNonNegTimeSpan(el, id); break;
-                case "factoryHardTimeout": factoryHardTimeout = ReadNonNegTimeSpan(el, id); break;
+                case "jitterSeconds": jitter = ReadNonNegSecondsAsTimeSpan(el, id); break;
+                case "factorySoftTimeoutSeconds": factorySoftTimeout = ReadNonNegSecondsAsTimeSpan(el, id); break;
+                case "factoryHardTimeoutSeconds": factoryHardTimeout = ReadNonNegSecondsAsTimeSpan(el, id); break;
                 case "maxItemBytes": maxItemBytes = ReadNonNegInt(el, id); break;
                 case "allowBackgroundDistributed": allowBackgroundDistributed = ReadBool(el, id); break;
                 case "allowBackgroundBackplane": allowBackgroundBackplane = ReadBool(el, id); break;
@@ -97,33 +97,10 @@ public static class FusionSettingsPatchMapper
         return v;
     }
 
-    private static TimeSpan ReadNonNegTimeSpan(JsonElement el, string id)
+    private static TimeSpan ReadNonNegSecondsAsTimeSpan(JsonElement el, string id)
     {
-        TimeSpan v = el.ValueKind switch
-        {
-            JsonValueKind.Number when el.TryGetDouble(out double seconds) => TimeSpan.FromSeconds(seconds),
-            JsonValueKind.String when TryParseTimeSpan(el.GetString(), out TimeSpan parsed) => parsed,
-            _ => throw new ArgumentException($"Setting '{id}' must be a TimeSpan string or total seconds number.", id),
-        };
-        if (v < TimeSpan.Zero)
-            throw new ArgumentException($"Setting '{id}' must be >= 0.", id);
-        return v;
-    }
-
-    private static bool TryParseTimeSpan(string? raw, out TimeSpan value)
-    {
-        value = default;
-        if (string.IsNullOrWhiteSpace(raw))
-            return false;
-        if (TimeSpan.TryParse(raw, CultureInfo.InvariantCulture, out value))
-            return true;
-        if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double seconds))
-        {
-            value = TimeSpan.FromSeconds(seconds);
-            return true;
-        }
-
-        return false;
+        int seconds = ReadNonNegInt(el, id);
+        return TimeSpan.FromSeconds(seconds);
     }
 
     private static double ReadDouble(JsonElement el, string id) =>

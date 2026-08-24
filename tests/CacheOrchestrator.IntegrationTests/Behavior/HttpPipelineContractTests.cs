@@ -58,11 +58,11 @@ public class HttpPipelineContractTests
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
-            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
-            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
-            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -75,10 +75,10 @@ public class HttpPipelineContractTests
         ["Cache:EmitDiagnosticsHeaders"] = "true",
         ["Cache:DomainDefaults:Version"] = "v1",
         ["Cache:DomainDefaults:ClientCache:Cacheability"] = "Public",
-        ["Cache:DomainDefaults:ClientCache:Ttl"] = "00:01:00",
-        ["Cache:DomainDefaults:ClientCache:TtlMin"] = "00:01:00",
-        ["Cache:DomainDefaults:OutputCache:Ttl"] = "00:02:00",
-        ["Cache:DomainDefaults:DataCache:Ttl"] = "00:05:00",
+        ["Cache:DomainDefaults:ClientCache:TtlSeconds"] = "60",
+        ["Cache:DomainDefaults:ClientCache:TtlMinSeconds"] = "60",
+        ["Cache:DomainDefaults:OutputCache:TtlSeconds"] = "120",
+        ["Cache:DomainDefaults:DataCache:TtlSeconds"] = "300",
     };
 
     private static async Task<(HttpClient Client, WebApplication App)> StartAsync(

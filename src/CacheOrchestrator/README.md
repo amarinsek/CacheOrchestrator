@@ -22,9 +22,9 @@ dotnet add package CacheOrchestrator
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Ttl": "00:05:00" },
-        "OutputCache": { "Ttl": "00:01:00" },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+        "DataCache": { "TtlSeconds": 300 },
+        "OutputCache": { "TtlSeconds": 60 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
       }
     }
   }

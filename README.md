@@ -58,9 +58,9 @@ Configure a domain in `appsettings.json` (nested layer sections):
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Ttl": "00:05:00" },
-        "OutputCache": { "Ttl": "00:02:00" },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:01:00" }
+        "DataCache": { "TtlSeconds": 300 },
+        "OutputCache": { "TtlSeconds": 120 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 60 }
       }
     }
   }

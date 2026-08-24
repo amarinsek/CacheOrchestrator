@@ -33,10 +33,10 @@ public class XCacheHeaderTests
         {
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = TimeSpan.FromSeconds(clientTtl).ToString(),
-            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = TimeSpan.FromSeconds(clientTtl).ToString(),
-            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = TimeSpan.FromSeconds(outputTtl).ToString(),
-            [$"Cache:Domains:{domain}:DataCache:Ttl"] = TimeSpan.FromSeconds(fusionTtl).ToString()
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = clientTtl.ToString(),
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = clientTtl.ToString(),
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = outputTtl.ToString(),
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = fusionTtl.ToString()
         };
         if (!outputEnabled)
             d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";

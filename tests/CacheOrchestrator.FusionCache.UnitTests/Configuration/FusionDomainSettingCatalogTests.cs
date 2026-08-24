@@ -13,8 +13,8 @@ public class FusionDomainSettingCatalogTests
         services.AddCacheOrchestratorFusionCache();
 
         IReadOnlyList<DomainSettingCatalogEntry> all = DomainSettingCatalog.GetEntries();
-        Assert.Contains(all, e => e.Id == "fusionCache.hardTtl" && e.RuntimeOverlay);
-        Assert.Contains(all, e => e.Id == "fusionCache.failSafe" && e.RuntimeOverlay);
+        Assert.Contains(all, e => e.Id == "fusionCache.hardTtlSeconds" && e.RuntimeOverlay);
+        Assert.Contains(all, e => e.Id == "fusionCache.failSafeSeconds" && e.RuntimeOverlay);
         Assert.Contains(all, e => e.Id == "fusionCache.eagerRefreshRatio" && e.RuntimeOverlay);
     }
 }

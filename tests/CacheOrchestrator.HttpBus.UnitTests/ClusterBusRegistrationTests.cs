@@ -9,7 +9,7 @@ namespace CacheOrchestrator.HttpBus.UnitTests;
 public class ClusterBusRegistrationTests
 {
     [Fact]
-    public void AddHttpClusterBus_WhenEnabled_RegistersHttpBusAndStaticMembership()
+    public async Task AddHttpClusterBus_WhenEnabled_RegistersHttpBusAndStaticMembership()
     {
         ServiceCollection services = new();
         IConfiguration config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -30,13 +30,18 @@ public class ClusterBusRegistrationTests
         services.AddCacheOrchestratorAspNetCore(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
         services.AddCacheOrchestratorFusionCache(config);
 
-        using ServiceProvider sp = services.BuildServiceProvider();
+        await using ServiceProvider sp = services.BuildServiceProvider();
         IClusterCommandBus bus = sp.GetRequiredService<IClusterCommandBus>();
         bus.Should().BeOfType<HttpClusterCommandBus>();
         bus.IsEnabled.Should().BeTrue();
 
         IClusterMembership membership = sp.GetRequiredService<IClusterMembership>();
         membership.Kind.Should().Be("Static");
+
+        // AspNetCore + Fusion must not double-Bind options (list properties would append).
+        IReadOnlyList<ClusterPeer> peers =
+            await membership.GetPeersAsync(TestContext.Current.CancellationToken);
+        peers.Should().HaveCount(2);
     }
 
     [Fact]

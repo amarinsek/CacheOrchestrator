@@ -92,11 +92,11 @@ public class OutputCacheHttpLifecycleTests
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
-            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
-            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
-            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
             [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
@@ -113,10 +113,10 @@ public class OutputCacheHttpLifecycleTests
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             ["Cache:DomainDefaults:Version"] = "v1",
             ["Cache:DomainDefaults:ClientCache:Cacheability"] = "Public",
-            ["Cache:DomainDefaults:ClientCache:Ttl"] = "00:01:00",
-            ["Cache:DomainDefaults:ClientCache:TtlMin"] = "00:01:00",
-            ["Cache:DomainDefaults:OutputCache:Ttl"] = "00:02:00",
-            ["Cache:DomainDefaults:DataCache:Ttl"] = "00:05:00",
+            ["Cache:DomainDefaults:ClientCache:TtlSeconds"] = "60",
+            ["Cache:DomainDefaults:ClientCache:TtlMinSeconds"] = "60",
+            ["Cache:DomainDefaults:OutputCache:TtlSeconds"] = "120",
+            ["Cache:DomainDefaults:DataCache:TtlSeconds"] = "300",
         };
         extra?.Invoke(d);
         return d;
@@ -170,9 +170,9 @@ public class OutputCacheHttpLifecycleTests
         string domain = "oc-ttl-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = BaseConfig(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:00:01";
-            d[$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00";
-            d[$"Cache:Domains:{domain}:FusionCache:HardTtl"] = "01:00:00";
+            d[$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "1";
+            d[$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300";
+            d[$"Cache:Domains:{domain}:FusionCache:HardTtlSeconds"] = "3600";
         });
 
         (HttpClient? client, WebApplication? app) = await StartAsync(config, a =>
@@ -459,11 +459,11 @@ public class OutputCacheHttpLifecycleTests
         void Domain(string name, string etagMode)
         {
             config[$"Cache:Domains:{name}:Version"] = "gen-1";
-            config[$"Cache:Domains:{name}:ETagMode"] = etagMode;
+            config[$"Cache:Domains:{name}:OutputCache:ETagMode"] = etagMode;
             config[$"Cache:Domains:{name}:ClientCache:Cacheability"] = "Public";
-            config[$"Cache:Domains:{name}:ClientCache:Ttl"] = "00:01:00";
-            config[$"Cache:Domains:{name}:ClientCache:TtlMin"] = "00:01:00";
-            config[$"Cache:Domains:{name}:OutputCache:Ttl"] = "00:02:00";
+            config[$"Cache:Domains:{name}:ClientCache:TtlSeconds"] = "60";
+            config[$"Cache:Domains:{name}:ClientCache:TtlMinSeconds"] = "60";
+            config[$"Cache:Domains:{name}:OutputCache:TtlSeconds"] = "120";
         }
 
         Domain(domainVer, "Version");

@@ -148,10 +148,10 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
         CacheOrchestratorOptions.DomainCacheSettings settings,
         List<string> failures)
     {
-        ValidateNonNegTimeSpan(label, "DataCache.Ttl", settings.DataCache?.Ttl, failures);
-        ValidateNonNegTimeSpan(label, "OutputCache.Ttl", settings.OutputCache?.Ttl, failures);
-        ValidateNonNegTimeSpan(label, "ClientCache.Ttl", settings.ClientCache?.Ttl, failures);
-        ValidateNonNegTimeSpan(label, "ClientCache.TtlMin", settings.ClientCache?.TtlMin, failures);
+        ValidateNonNegSeconds(label, "DataCache.TtlSeconds", settings.DataCache?.TtlSeconds, failures);
+        ValidateNonNegSeconds(label, "OutputCache.TtlSeconds", settings.OutputCache?.TtlSeconds, failures);
+        ValidateNonNegSeconds(label, "ClientCache.TtlSeconds", settings.ClientCache?.TtlSeconds, failures);
+        ValidateNonNegSeconds(label, "ClientCache.TtlMinSeconds", settings.ClientCache?.TtlMinSeconds, failures);
 
         ValidateAllowlist(label, "VaryByHeaders", settings.VaryByHeaders, Admin.DomainSettingsPatchMapper.MaxVaryByHeaders, failures, allowEmpty: true);
         ValidateAllowlist(label, "VaryByCookies", settings.VaryByCookies, Admin.DomainSettingsPatchMapper.MaxVaryByCookies, failures, allowEmpty: true);
@@ -165,13 +165,13 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
             failures.Add($"{label}: AuthBypassMode value '{mode}' is not defined.");
     }
 
-    private static void ValidateNonNegTimeSpan(
+    private static void ValidateNonNegSeconds(
         string label,
         string propertyName,
-        TimeSpan? value,
+        int? value,
         List<string> failures)
     {
-        if (value is { } t && t < TimeSpan.Zero)
+        if (value is { } n && n < 0)
             failures.Add($"{label}: {propertyName} cannot be negative.");
     }
 

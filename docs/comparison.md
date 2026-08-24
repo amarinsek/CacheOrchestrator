@@ -98,22 +98,22 @@ await outputCache.EvictByTagAsync("domain:osm-tiles", cancellationToken);
   "osm-tiles": {
     "Version": "2026-08",
     "DataCache": {
-      "Ttl": "30.00:00:00"
+      "TtlSeconds": 2592000
     },
     "OutputCache": {
-      "Ttl": "7.00:00:00",
+      "TtlSeconds": 604800,
       "ETagMode": "Version"
     },
     "ClientCache": {
       "Cacheability": "Public",
-      "Ttl": "30.00:00:00",
-      "TtlMin": "00:15:00",
+      "TtlSeconds": 2592000,
+      "TtlMinSeconds": 900,
       "ScheduledUpdateUtc": "2026-09-01T00:00:00Z",
       "MustRevalidateNearUpdate": true
     },
     "FusionCache": {
-      "HardTtl": "60.00:00:00",
-      "FailSafe": "90.00:00:00"
+      "HardTtlSeconds": 5184000,
+      "FailSafeSeconds": 7776000
     }
   }
 }

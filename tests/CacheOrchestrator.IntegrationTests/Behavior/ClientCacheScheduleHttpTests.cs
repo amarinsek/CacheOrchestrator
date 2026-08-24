@@ -37,12 +37,12 @@ public class ClientCacheScheduleHttpTests
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = TimeSpan.FromSeconds(clientTtl).ToString(),
-            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = TimeSpan.FromSeconds(clientTtlMin).ToString(),
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = clientTtl.ToString(),
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = clientTtlMin.ToString(),
             [$"Cache:Domains:{domain}:ClientCache:MustRevalidateNearUpdate"] = mustRevalidateNear ? "true" : "false",
             [$"Cache:Domains:{domain}:ClientCache:ScheduledUpdateUtc"] = scheduleUtc.ToString("O"),
-            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:00:01", // avoid OC hiding header changes across phase advances
-            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "1", // avoid OC hiding header changes across phase advances
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(configValues);

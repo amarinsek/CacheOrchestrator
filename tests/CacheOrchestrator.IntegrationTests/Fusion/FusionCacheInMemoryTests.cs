@@ -16,7 +16,7 @@ public class FusionCacheInMemoryTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
-                ["Cache:Domains:products:DataCache:Ttl"] = "00:01:00",
+                ["Cache:Domains:products:DataCache:TtlSeconds"] = "60",
                 ["Cache:Domains:products:Version"] = "v1"
             })
             .Build();

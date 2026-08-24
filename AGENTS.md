@@ -94,15 +94,17 @@ There is **no** `CacheOrchestrator.Abstractions` folder — interfaces sit besid
 
 ## Config vs runtime naming
 
-Nested JSON (TimeSpan strings) under `DataCache` / `OutputCache` / `ClientCache` / optional `FusionCache`. Runtime snapshot on Core:
+Nested JSON under `DataCache` / `OutputCache` / `ClientCache` / optional `FusionCache` uses **int seconds** (`TtlSeconds`, …). Runtime Core snapshot often uses `TimeSpan` (except client max-age ints):
 
 | JSON | Runtime `DomainCacheOptions` |
 |------|------------------------------|
-| `OutputCache:Ttl` | `OutputTtl` |
-| `DataCache:Ttl` | `DataCacheTtl` |
-| `ClientCache:Ttl` / `TtlMin` | `ClientTtlSeconds` / `ClientTtlMinSeconds` (still int seconds on snapshot) |
+| `OutputCache:TtlSeconds` | `OutputTtl` (`TimeSpan`) |
+| `DataCache:TtlSeconds` | `DataCacheTtl` (`TimeSpan`) |
+| `ClientCache:TtlSeconds` / `TtlMinSeconds` | `ClientTtlSeconds` / `ClientTtlMinSeconds` (`int`) |
 
-Fusion-only knobs (`HardTtl`, `FailSafe`, factory timeouts, …) bind in the **FusionCache** package (`DomainFusionCacheSettings`), not on Core `DomainCacheOptions`. Root engines: `DataCacheInstances` (not `FusionCacheInstances`).
+Fusion-only knobs (`HardTtlSeconds`, `FailSafeSeconds`, factory timeouts, …) bind in the **FusionCache** package (`DomainFusionCacheSettings`), not on Core `DomainCacheOptions`. Root engines: `DataCacheInstances` (not `FusionCacheInstances`).
+
+**DX rule:** cache TTL / fail-safe / jitter / factory timeout in config = `*Seconds` int — not TimeSpan strings.
 
 Do not rename config property names without a breaking-change plan (bound from appsettings).
 

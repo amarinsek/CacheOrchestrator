@@ -13,9 +13,9 @@ public sealed class DomainDataCacheSettings
     [DomainSetting(Kind = DomainSettingValueKind.String, RuntimeOverlay = false, Group = "Data", DisplayName = "Data Cache instance")]
     public string? Instance { get; set; }
 
-    /// <summary>Logical data-cache TTL (maps to Fusion soft duration / Hybrid expiration).</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.TimeSpan, RuntimeOverlay = true, Group = "TTL", DisplayName = "Data Cache TTL")]
-    public TimeSpan? Ttl { get; set; }
+    /// <summary>Logical data-cache TTL in seconds (maps to Fusion soft duration / Hybrid expiration).</summary>
+    [DomainSetting(Kind = DomainSettingValueKind.Int, RuntimeOverlay = true, Group = "TTL", DisplayName = "Data Cache TTL (seconds)")]
+    public int? TtlSeconds { get; set; }
 
     /// <summary>When true, skip data cache if the request has Cache-Control: no-store.</summary>
     [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Data", DisplayName = "Respect no-store")]
@@ -37,9 +37,9 @@ public sealed class DomainOutputCacheSettings
     [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Cache", DisplayName = "Output Cache enabled")]
     public bool? Enabled { get; set; }
 
-    /// <summary>Output Cache entry TTL.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.TimeSpan, RuntimeOverlay = true, Group = "TTL", DisplayName = "Output Cache TTL")]
-    public TimeSpan? Ttl { get; set; }
+    /// <summary>Output Cache entry TTL in seconds.</summary>
+    [DomainSetting(Kind = DomainSettingValueKind.Int, RuntimeOverlay = true, Group = "TTL", DisplayName = "Output Cache TTL (seconds)")]
+    public int? TtlSeconds { get; set; }
 
     /// <summary>When true (default), Output Cache varies by host (includes port).</summary>
     [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Cache", DisplayName = "Vary Output Cache by host")]
@@ -65,15 +65,15 @@ public sealed class DomainClientCacheSettings
     [DomainSetting(Kind = DomainSettingValueKind.Enum, RuntimeOverlay = true, Group = "Client", DisplayName = "Client cacheability")]
     public ClientCacheability? Cacheability { get; set; }
 
-    /// <summary>Desired max-age far from update.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.TimeSpan, RuntimeOverlay = true, Group = "Client", DisplayName = "Client TTL")]
-    public TimeSpan? Ttl { get; set; }
+    /// <summary>Desired max-age far from update, in seconds.</summary>
+    [DomainSetting(Kind = DomainSettingValueKind.Int, RuntimeOverlay = true, Group = "Client", DisplayName = "Client TTL (seconds)")]
+    public int? TtlSeconds { get; set; }
 
-    /// <summary>Floor max-age near/at update.</summary>
-    [DomainSetting(Kind = DomainSettingValueKind.TimeSpan, RuntimeOverlay = true, Group = "Client", DisplayName = "Client TTL min")]
-    public TimeSpan? TtlMin { get; set; }
+    /// <summary>Floor max-age near/at update, in seconds.</summary>
+    [DomainSetting(Kind = DomainSettingValueKind.Int, RuntimeOverlay = true, Group = "Client", DisplayName = "Client TTL min (seconds)")]
+    public int? TtlMinSeconds { get; set; }
 
-    /// <summary>Next planned content cutover (UTC). Null = always use <see cref="Ttl"/>.</summary>
+    /// <summary>Next planned content cutover (UTC). Null = always use <see cref="TtlSeconds"/>.</summary>
     [DomainSetting(Kind = DomainSettingValueKind.DateTimeOffset, RuntimeOverlay = true, Group = "Client", DisplayName = "Scheduled update (UTC)")]
     public DateTimeOffset? ScheduledUpdateUtc { get; set; }
 

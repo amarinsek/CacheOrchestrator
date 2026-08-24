@@ -8,7 +8,7 @@ To minimize server load and maximize performance, you want clients (browsers and
 
 **Client Cache Schedule** solves this by adjusting the allowed cache lifetime based on the time remaining until the next planned update (`ScheduledUpdateUtc`). For most of the dataset's life, it keeps a **very long `max-age`**, but as the scheduled update approaches, the lifetime **gradually ramps down toward a short floor** (e.g., 15 minutes). This ensures that clients are perfectly primed to fetch the new generation of data exactly when it lands, without forcing you to use a tiny `max-age` for the entire year.
 
-This changes only the **client** `Cache-Control` header. Output Cache and the data cache keep their own independent TTLs (`OutputCache.Ttl`, `DataCache.Ttl`, plus Fusion-only `FusionCache.HardTtl` / `FailSafe` when using the Fusion provider).
+This changes only the **client** `Cache-Control` header. Output Cache and the data cache keep their own independent TTLs (`OutputCache.TtlSeconds`, `DataCache.TtlSeconds`, plus Fusion-only `fusionCache.hardTtlSeconds` / `FailSafeSeconds` when using the Fusion provider).
 
 The playground sample shows the phases live. Implementation: `ClientCacheHeaderGenerator`, `ClientCacheSchedulePhase`.
 
@@ -22,9 +22,9 @@ CacheOrchestrator calculates the optimal `max-age` dynamically for every client 
 
 <br>
 
-1. **Calm Phase (Long TTL):** Far away from the cutover, clients receive the full `ClientCache.Ttl`. This maximizes cache hits and minimizes server load.
-2. **Approaching Phase (Ramp-down):** As the cutover time draws near, the `max-age` is dynamically shortened for each incoming request until it hits the floor (`ClientCache.TtlMin`).
-3. **Hold Phase (Operator Verification):** After the scheduled time passes, the system enters the Hold phase. Clients continue to receive the short `ClientCache.TtlMin`. This gives operators a safe window to perform the deployment, verify the new data in production, and catch any issues—all while clients are recovering quickly due to the short TTL.
+1. **Calm Phase (Long TTL):** Far away from the cutover, clients receive the full `ClientCache.TtlSeconds`. This maximizes cache hits and minimizes server load.
+2. **Approaching Phase (Ramp-down):** As the cutover time draws near, the `max-age` is dynamically shortened for each incoming request until it hits the floor (`ClientCache.TtlMinSeconds`).
+3. **Hold Phase (Operator Verification):** After the scheduled time passes, the system enters the Hold phase. Clients continue to receive the short `ClientCache.TtlMinSeconds`. This gives operators a safe window to perform the deployment, verify the new data in production, and catch any issues—all while clients are recovering quickly due to the short TTL.
 4. **Reset:** Once the operator confirms the update is successful, they set a new `ScheduledUpdateUtc` for the next batch (or remove it entirely). The system immediately returns to the Calm phase, restoring the long `max-age` for all clients.
 
 ---
@@ -43,12 +43,12 @@ Meter name: `CacheOrchestrator`. See [observability.md](observability.md).
 Under `Cache:DomainDefaults` / `Cache:Domains:{name}`, nested **`ClientCache`** (and independent server TTLs):
 
 - **`ClientCache.Cacheability`** — `Public`, `Private`, or `NoStore`. `NoStore` turns the schedule off.
-- **`ClientCache.Ttl`** — target `max-age` when far from cutover, and when there is no schedule.
-- **`ClientCache.TtlMin`** — floor `max-age` near cutover, after cutover, and during the hold after a Version change.
+- **`ClientCache.TtlSeconds`** — target `max-age` when far from cutover, and when there is no schedule.
+- **`ClientCache.TtlMinSeconds`** — floor `max-age` near cutover, after cutover, and during the hold after a Version change.
 - **`ClientCache.ScheduledUpdateUtc`** — planned cutover (UTC). Omit it for a constant client TTL.
 - **`ClientCache.MustRevalidateNearUpdate`** — at the floor, append `must-revalidate`.
 - **`Version`** — generation stamp (also used for server keys and ETag).
-- **`OutputCache.Ttl`** / **`DataCache.Ttl`** — server layers; not driven by the schedule.
+- **`OutputCache.TtlSeconds`** / **`DataCache.TtlSeconds`** — server layers; not driven by the schedule.
 
 ### Example (map tiles / periodic dataset)
 
@@ -56,15 +56,15 @@ Under `Cache:DomainDefaults` / `Cache:Domains:{name}`, nested **`ClientCache`** 
 "maps-satellite": {
   "Version": "v1",
   "DataCache": {
-    "Ttl": "01:00:00"
+    "TtlSeconds": 3600
   },
   "OutputCache": {
-    "Ttl": "00:05:00"
+    "TtlSeconds": 300
   },
   "ClientCache": {
     "Cacheability": "Public",
-    "Ttl": "30.00:00:00",
-    "TtlMin": "00:15:00",
+    "TtlSeconds": 2592000,
+    "TtlMinSeconds": 900,
     "ScheduledUpdateUtc": "2026-12-01T00:00:00Z",
     "MustRevalidateNearUpdate": true
   }
@@ -84,9 +84,9 @@ Interpretation:
 
 | Phase | X-Cache / metrics | When | Client `max-age` |
 |-------|-------------------|------|------------------|
-| **Calm** | `calm` | `secondsUntilSchedule >= ClientTtlSeconds` | `ClientCache.Ttl` (max; snapshot `ClientTtlSeconds`) |
+| **Calm** | `calm` | `secondsUntilSchedule >= ClientTtlSeconds` | `ClientCache.TtlSeconds` (max; snapshot `ClientTtlSeconds`) |
 | **Approaching** | `approaching` | Inside the ramp window before cutover | Linear between max and min |
-| **Hold** | `hold` | `now >= ScheduledUpdateUtc` | `ClientCache.TtlMin` (min; snapshot `ClientTtlMinSeconds`) |
+| **Hold** | `hold` | `now >= ScheduledUpdateUtc` | `ClientCache.TtlMinSeconds` (min; snapshot `ClientTtlMinSeconds`) |
 | **NotApplicable** | `n/a` | `NoStore`, blocked, no schedule path, or no client TTL built | `no-store` / N/A or constant max when schedule is null |
 
 Returned from `ClientCacheHeaderGenerator.Build`, written to **`X-Cache`**, and recorded on **`cache_orchestrator.client.schedule`**.
@@ -172,22 +172,22 @@ Optional HTTP hint: once at the floor, add `must-revalidate` so caches that hono
 ### Planned cutover
 
 1. Set `ClientCache.ScheduledUpdateUtc` to the planned go-live (days/weeks ahead).  
-2. Keep `ClientCache.Ttl` large; set a sensible `ClientCache.TtlMin`.  
+2. Keep `ClientCache.TtlSeconds` large; set a sensible `ClientCache.TtlMinSeconds`.  
 3. Optionally enable `ClientCache.MustRevalidateNearUpdate`.  
 4. At go-live: deploy content, bump **`Version`**, set **next** `ScheduledUpdateUtc`.  
 5. Watch traffic/errors; long client cache resumes.
 
 ### No planned date
 
-Omit `ScheduledUpdateUtc`. Clients always get `ClientCache.Ttl` (or NoStore). Server invalidation still works via `Version` / tag purge.
+Omit `ScheduledUpdateUtc`. Clients always get `ClientCache.TtlSeconds` (or NoStore). Server invalidation still works via `Version` / tag purge.
 
 ### Interaction with server caches
 
 | Layer | Controlled by |
 |-------|----------------|
 | Browser / shared CDN client cache | **Client Cache Schedule** (`ClientCache` / `Cache-Control`) |
-| ASP.NET Output Cache | `OutputCache.Ttl` (often shorter than client max) |
-| Data cache (Fusion L1/L2) | `DataCache.Ttl` + optional `FusionCache.HardTtl` / `FailSafe` |
+| ASP.NET Output Cache | `OutputCache.TtlSeconds` (often shorter than client max) |
+| Data cache (Fusion L1/L2) | `DataCache.TtlSeconds` + optional `fusionCache.hardTtlSeconds` / `FailSafeSeconds` |
 
 A common pattern: **server TTL short**, **client TTL long but scheduled**—origin is protected by Output Cache and the data cache, while public clients still get long calm periods and timely cutover refresh.
 

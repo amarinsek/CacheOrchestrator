@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace CacheOrchestrator.Core.UnitTests.Configuration;
@@ -197,24 +197,24 @@ public class CacheOrchestratorOptionsValidatorTests
     public void Validate_NegativeDomainDefaults_OutputCacheTtl_Fails()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.OutputCache = new() { Ttl = TimeSpan.FromSeconds(-1) };
+        options.DomainDefaults.OutputCache = new() { TtlSeconds = -1 };
 
         var result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("OutputCache.Ttl", StringComparison.OrdinalIgnoreCase));
+        result.Failures.Should().Contain(f => f.Contains("outputCache.ttlSeconds", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void Validate_NegativeDomainDefaults_DataCacheTtl_Fails()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.DataCache = new() { Ttl = TimeSpan.FromSeconds(-5) };
+        options.DomainDefaults.DataCache = new() { TtlSeconds = -5 };
 
         var result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("DataCache.Ttl", StringComparison.OrdinalIgnoreCase));
+        result.Failures.Should().Contain(f => f.Contains("dataCache.ttlSeconds", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -223,7 +223,7 @@ public class CacheOrchestratorOptionsValidatorTests
         var options = CreateValidOptions();
         options.Domains["products"] = new CacheOrchestratorOptions.DomainCacheSettings
         {
-            OutputCache = new() { Ttl = TimeSpan.FromSeconds(-3) }
+            OutputCache = new() { TtlSeconds = -3 }
         };
 
         var result = _sut.Validate(null, options);
@@ -231,16 +231,16 @@ public class CacheOrchestratorOptionsValidatorTests
         result.Succeeded.Should().BeFalse();
         result.Failures.Should().Contain(f =>
             f.Contains("products", StringComparison.OrdinalIgnoreCase) &&
-            f.Contains("OutputCache.Ttl", StringComparison.OrdinalIgnoreCase));
+            f.Contains("outputCache.ttlSeconds", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void Validate_ZeroTtls_AreAllowed()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.OutputCache = new() { Ttl = TimeSpan.Zero };
-        options.DomainDefaults.DataCache = new() { Ttl = TimeSpan.Zero };
-        options.DomainDefaults.ClientCache = new() { Ttl = TimeSpan.Zero };
+        options.DomainDefaults.OutputCache = new() { TtlSeconds = 0 };
+        options.DomainDefaults.DataCache = new() { TtlSeconds = 0 };
+        options.DomainDefaults.ClientCache = new() { TtlSeconds = 0 };
 
         var result = _sut.Validate(null, options);
 
@@ -251,12 +251,12 @@ public class CacheOrchestratorOptionsValidatorTests
     public void Validate_NegativeClientTtl_Fails()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.ClientCache = new() { Ttl = TimeSpan.FromSeconds(-1) };
+        options.DomainDefaults.ClientCache = new() { TtlSeconds = -1 };
 
         var result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("ClientCache.Ttl", StringComparison.OrdinalIgnoreCase));
+        result.Failures.Should().Contain(f => f.Contains("clientCache.ttlSeconds", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

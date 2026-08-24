@@ -430,9 +430,9 @@ Other simplifications exist for the same reason: **focus on cache behaviour** (O
 | `Error response from daemon: open /var/lib/docker/tmp/...` on `up --build` | Old compose used a **volume file subpath** mount (fragile on Docker Desktop). Current labs mount `/shared` as a directory + entrypoint symlink. Pull latest compose/Dockerfile; one-time `down -v` if an old broken mount is stuck, then `up --build -d`. |
 | Bus not distributing | Stages 04–05 only; peers use Docker DNS URLs in lab config |
 | No **BROWSER-CACHE**, or always server hits | Header toggle **Disable browser HTTP cache** is **on by default** (for server OC/FC demos). Uncheck only when you want client `max-age` / BROWSER-CACHE. |
-| OC-HIT then sudden MISS / FACTORY | Domain **TTL** expired — check `OutputCache.Ttl` vs `DataCache.Ttl` / `FusionCache.HardTtl` for that domain in `Cache:Domains` |
+| OC-HIT then sudden MISS / FACTORY | Domain **TTL** expired — check `OutputCache.TtlSeconds` vs `DataCache.TtlSeconds` / `fusionCache.hardTtlSeconds` for that domain in `Cache:Domains` |
 | Always FACTORY, never hits | Domain disabled? Wrong endpoint/domain? Keys differ (query, host — multi-lab keys note in Stage 03)? |
-| Client headers not what you expect | `ClientCache.Ttl` / schedule / **Disable browser HTTP cache** (Fetch uses `no-store` when on) |
+| Client headers not what you expect | `ClientCache.TtlSeconds` / schedule / **Disable browser HTTP cache** (Fetch uses `no-store` when on) |
 | A vs B disagree | Topology (bus off, OC InMemory local) — not a TTL bug; see Stages 03–05 |
 | appsettings Save: `cat` in container is new, HTTP GET / UI still old | Output Cache **base policy** was caching `/api/demo/appsettings`. Fixed with `NoStore` on demo control routes — rebuild playground image. |
 | A Save applies on A; B settings UI shows new JSON but Fetch still old Version/TTL | B reads the file for the editor, but runtime options need a config **reload**. Sample polls the shared volume (~1s) and reloads; rebuild playground image. Stage 03 has no bus — file share + poll is intentional. |

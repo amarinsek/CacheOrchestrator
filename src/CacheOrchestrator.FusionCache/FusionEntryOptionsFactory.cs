@@ -21,20 +21,15 @@ internal static class FusionEntryOptionsFactory
         ArgumentNullException.ThrowIfNull(opts);
 
         TimeSpan hardTtl = overlay?.HardTtl
-            ?? fusion?.HardTtl
-            ?? TimeSpan.FromSeconds(43200);
+            ?? SecondsOrDefault(fusion?.HardTtlSeconds, 43200);
         TimeSpan failSafe = overlay?.FailSafe
-            ?? fusion?.FailSafe
-            ?? TimeSpan.FromSeconds(86400);
+            ?? SecondsOrDefault(fusion?.FailSafeSeconds, 86400);
         TimeSpan jitter = overlay?.Jitter
-            ?? fusion?.Jitter
-            ?? TimeSpan.FromSeconds(60);
+            ?? SecondsOrDefault(fusion?.JitterSeconds, 60);
         TimeSpan factorySoftTimeout = overlay?.FactorySoftTimeout
-            ?? fusion?.FactorySoftTimeout
-            ?? TimeSpan.FromSeconds(1);
+            ?? SecondsOrDefault(fusion?.FactorySoftTimeoutSeconds, 1);
         TimeSpan factoryHardTimeout = overlay?.FactoryHardTimeout
-            ?? fusion?.FactoryHardTimeout
-            ?? TimeSpan.FromSeconds(5);
+            ?? SecondsOrDefault(fusion?.FactoryHardTimeoutSeconds, 5);
         double eagerRefresh = overlay?.EagerRefreshRatio
             ?? fusion?.EagerRefreshRatio
             ?? 0.9;
@@ -85,5 +80,13 @@ internal static class FusionEntryOptionsFactory
         o.FactoryHardTimeout = hard;
 
         return o;
+    }
+
+    private static TimeSpan SecondsOrDefault(int? seconds, int fallback)
+    {
+        int value = seconds ?? fallback;
+        if (value < 0)
+            value = 0;
+        return TimeSpan.FromSeconds(value);
     }
 }

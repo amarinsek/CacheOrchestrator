@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -54,7 +54,7 @@ public class DomainCacheConfigProviderTests
     {
         var provider = CreateProvider(new CacheOrchestratorOptions
         {
-            Domains = { ["products"] = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(100) } } }
+            Domains = { ["products"] = new() { OutputCache = new() { TtlSeconds = 100 } } }
         });
         var http = new DefaultHttpContext();
 
@@ -71,8 +71,8 @@ public class DomainCacheConfigProviderTests
         {
             Domains =
             {
-                ["products"] = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(100) }, Version = "p1" },
-                ["catalog"] = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(200) }, Version = "c1" }
+                ["products"] = new() { OutputCache = new() { TtlSeconds = 100 }, Version = "p1" },
+                ["catalog"] = new() { OutputCache = new() { TtlSeconds = 200 }, Version = "c1" }
             }
         });
         var http = new DefaultHttpContext();
@@ -93,8 +93,8 @@ public class DomainCacheConfigProviderTests
     {
         var provider = CreateProvider(new CacheOrchestratorOptions
         {
-            DomainDefaults = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(60) } },
-            Domains = { ["products"] = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(120) } } }
+            DomainDefaults = new() { OutputCache = new() { TtlSeconds = 60 } },
+            Domains = { ["products"] = new() { OutputCache = new() { TtlSeconds = 120 } } }
         });
 
         var cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
@@ -110,8 +110,8 @@ public class DomainCacheConfigProviderTests
         {
             DomainDefaults = new()
             {
-                OutputCache = new() { Ttl = TimeSpan.FromSeconds(90) },
-                DataCache = new() { Ttl = TimeSpan.FromSeconds(300) }
+                OutputCache = new() { TtlSeconds = 90 },
+                DataCache = new() { TtlSeconds = 300 }
             }
         });
 
@@ -160,7 +160,7 @@ public class DomainCacheConfigProviderTests
     {
         var provider = CreateProvider(new CacheOrchestratorOptions
         {
-            Domains = { ["products"] = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(150) } } }
+            Domains = { ["products"] = new() { OutputCache = new() { TtlSeconds = 150 } } }
         });
 
         var cfg1 = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
@@ -269,8 +269,8 @@ public class DomainCacheConfigProviderTests
                 ["catalog"] = new()
                 {
                     Version = "v1",
-                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(60) },
-                    DataCache = new() { Ttl = TimeSpan.FromSeconds(120) }
+                    OutputCache = new() { TtlSeconds = 60 },
+                    DataCache = new() { TtlSeconds = 120 }
                 }
             }
         };
@@ -292,8 +292,8 @@ public class DomainCacheConfigProviderTests
                 ["catalog"] = new()
                 {
                     Version = "v2",
-                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(90) },
-                    DataCache = new() { Ttl = TimeSpan.FromSeconds(300) }
+                    OutputCache = new() { TtlSeconds = 90 },
+                    DataCache = new() { TtlSeconds = 300 }
                 }
             }
         };

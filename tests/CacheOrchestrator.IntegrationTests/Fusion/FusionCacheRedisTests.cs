@@ -28,7 +28,7 @@ public class FusionCacheRedisTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:DataCacheInstances:default:Provider"] = "Redis",
                 ["Cache:Redis:Configuration"] = _redis.ConnectionString,
-                ["Cache:Domains:products:DataCache:Ttl"] = "00:01:00",
+                ["Cache:Domains:products:DataCache:TtlSeconds"] = "60",
                 ["Cache:Domains:products:Version"] = "v1"
             })
             .Build();

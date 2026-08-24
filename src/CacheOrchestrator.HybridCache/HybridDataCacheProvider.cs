@@ -8,7 +8,7 @@ namespace CacheOrchestrator.HybridCache;
 /// <see cref="IDataCacheProvider"/> backed by Microsoft <see cref="HybridCache"/>.
 /// </summary>
 /// <remarks>
-/// Maps Core <c>DataCache.Ttl</c> to <see cref="HybridCacheEntryOptions.Expiration"/>.
+/// Maps Core <c>DataCache.TtlSeconds</c> (resolved <c>DataCacheTtl</c>) to <see cref="HybridCacheEntryOptions.Expiration"/>.
 /// Fusion-only knobs (fail-safe, soft/hard split, eager refresh, factory timeouts, backplane)
 /// are not applied. Named data-cache instances are ignored — a single DI <see cref="HybridCache"/>
 /// is used for all domains.

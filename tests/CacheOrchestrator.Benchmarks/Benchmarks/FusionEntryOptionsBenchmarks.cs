@@ -49,9 +49,9 @@ public class FusionEntryOptionsBenchmarks
 
     private static DomainFusionCacheSettings CreateFusion() => new()
     {
-        HardTtl = TimeSpan.FromHours(12),
-        FailSafe = TimeSpan.FromHours(24),
-        Jitter = TimeSpan.FromSeconds(60),
+        HardTtlSeconds = 43200,
+        FailSafeSeconds = 86400,
+        JitterSeconds = 60,
         EagerRefreshRatio = 0.9,
         AllowBackgroundDistributed = true,
         AllowBackgroundBackplane = true,

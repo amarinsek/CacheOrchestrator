@@ -37,11 +37,11 @@ public class FusionHttpAndDiTests
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
-            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
-            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
-            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:TtlSeconds"] = "120",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
             [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
@@ -257,8 +257,8 @@ public class FusionHttpAndDiTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-                [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+                [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+                [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
             })
             .Build();
 
@@ -307,10 +307,10 @@ public class FusionHttpAndDiTests
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false",
             [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
-            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
-            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
-            [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
             [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
 
@@ -418,13 +418,13 @@ public class FusionHttpAndDiTests
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
             d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
-            d[$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:00:01";
-            d[$"Cache:Domains:{domain}:FusionCache:HardTtl"] = "01:00:00";
-            d[$"Cache:Domains:{domain}:FusionCache:FailSafe"] = "1.00:00:00";
-            d[$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00";
+            d[$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "1";
+            d[$"Cache:Domains:{domain}:FusionCache:HardTtlSeconds"] = "3600";
+            d[$"Cache:Domains:{domain}:FusionCache:FailSafeSeconds"] = "86400";
+            d[$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0";
             d[$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0";
-            d[$"Cache:Domains:{domain}:FusionCache:FactorySoftTimeout"] = "00:00:05";
-            d[$"Cache:Domains:{domain}:DataCache:FactoryHardTimeout"] = "00:00:10";
+            d[$"Cache:Domains:{domain}:FusionCache:FactorySoftTimeoutSeconds"] = "5";
+            d[$"Cache:Domains:{domain}:FusionCache:FactoryHardTimeoutSeconds"] = "10";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
@@ -480,10 +480,10 @@ public class FusionHttpAndDiTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+                [$"Cache:Domains:{domain}:DataCache:TtlSeconds"] = "300",
                 [$"Cache:Domains:{domain}:DataCache:VaryOnEncoding"] = "true",
                 [$"Cache:Domains:{domain}:DataCache:VaryOnPublicAddress"] = "false",
-                [$"Cache:Domains:{domain}:DataCache:Jitter"] = "00:00:00",
+                [$"Cache:Domains:{domain}:FusionCache:JitterSeconds"] = "0",
             })
             .Build();
 

@@ -21,7 +21,7 @@ The host binds domain policy (the library only consumes it via `ICacheOrchestrat
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Enabled": true, "Ttl": "00:05:00" }
+        "DataCache": { "Enabled": true, "TtlSeconds": 300 }
       }
     }
   }

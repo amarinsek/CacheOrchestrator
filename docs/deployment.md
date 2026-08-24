@@ -297,24 +297,24 @@ Keep host-specific settings in `appsettings.json` / environment; put **cluster-w
     "DomainDefaults": {
       "ClientCache": {
         "Cacheability": "Public",
-        "TtlMin": "00:01:00"
+        "TtlMinSeconds": 60
       }
     },
     "Domains": {
       "catalog": {
         "Version": "2026-08",
-        "DataCache": { "Ttl": "01:03:20" },
-        "OutputCache": { "Ttl": "01:01:40" },
+        "DataCache": { "TtlSeconds": 3800 },
+        "OutputCache": { "TtlSeconds": 3700 },
         "ClientCache": {
-          "Ttl": "01:00:00",
+          "TtlSeconds": 3600,
           "ScheduledUpdateUtc": "2026-09-01T00:00:00Z"
         }
       },
       "live-tracking": {
         "Version": "1",
-        "DataCache": { "Ttl": "00:00:10" },
-        "OutputCache": { "Ttl": "00:00:05" },
-        "ClientCache": { "Ttl": "00:00:05" }
+        "DataCache": { "TtlSeconds": 10 },
+        "OutputCache": { "TtlSeconds": 5 },
+        "ClientCache": { "TtlSeconds": 5 }
       }
     }
   }

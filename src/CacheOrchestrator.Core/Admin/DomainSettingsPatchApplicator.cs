@@ -60,7 +60,7 @@ public static class DomainSettingsPatchApplicator
                 && min > max)
             {
                 throw new ArgumentException(
-                    "clientCache.ttlMin must be <= clientCache.ttl when both are set.",
+                    "clientCache.ttlMinSeconds must be <= clientCache.ttlSeconds when both are set.",
                     nameof(settings));
             }
 

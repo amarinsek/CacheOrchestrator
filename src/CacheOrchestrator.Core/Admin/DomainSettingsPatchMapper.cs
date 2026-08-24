@@ -87,12 +87,12 @@ public static class DomainSettingsPatchMapper
                 case "varyByAuthClaims": varyByAuthClaims = ReadStringArray(el, id, max: 16); break;
                 case "outputCache.eTagMode": eTagMode = ReadEnum<ETagMode>(el, id); break;
                 case "clientCache.cacheability": clientCacheability = ReadEnum<ClientCacheability>(el, id); break;
-                case "clientCache.ttl": clientTtl = ReadNonNegTimeSpan(el, id); break;
-                case "clientCache.ttlMin": clientTtlMin = ReadNonNegTimeSpan(el, id); break;
+                case "clientCache.ttlSeconds": clientTtl = ReadNonNegSecondsAsTimeSpan(el, id); break;
+                case "clientCache.ttlMinSeconds": clientTtlMin = ReadNonNegSecondsAsTimeSpan(el, id); break;
                 case "clientCache.scheduledUpdateUtc": scheduledUpdateUtc = ReadDateTimeOffset(el, id); break;
                 case "clientCache.mustRevalidateNearUpdate": clientMustRevalidateNearUpdate = ReadBool(el, id); break;
-                case "outputCache.ttl": outputCacheTtl = ReadNonNegTimeSpan(el, id); break;
-                case "dataCache.ttl": dataCacheTtl = ReadNonNegTimeSpan(el, id); break;
+                case "outputCache.ttlSeconds": outputCacheTtl = ReadNonNegSecondsAsTimeSpan(el, id); break;
+                case "dataCache.ttlSeconds": dataCacheTtl = ReadNonNegSecondsAsTimeSpan(el, id); break;
                 case "dataCache.respectNoStore": dataCacheRespectNoStore = ReadBool(el, id); break;
                 case "dataCache.varyOnPublicAddress": dataCacheVaryOnPublicAddress = ReadBool(el, id); break;
                 case "dataCache.varyOnEncoding": dataCacheVaryOnEncoding = ReadBool(el, id); break;
@@ -146,33 +146,17 @@ public static class DomainSettingsPatchMapper
             _ => throw new ArgumentException($"Setting '{id}' must be a boolean.", id),
         };
 
-    private static TimeSpan ReadNonNegTimeSpan(JsonElement el, string id)
+    private static TimeSpan ReadNonNegSecondsAsTimeSpan(JsonElement el, string id)
     {
-        TimeSpan v = el.ValueKind switch
+        int seconds = el.ValueKind switch
         {
-            JsonValueKind.Number when el.TryGetDouble(out double seconds) => TimeSpan.FromSeconds(seconds),
-            JsonValueKind.String when TryParseTimeSpan(el.GetString(), out TimeSpan parsed) => parsed,
-            _ => throw new ArgumentException($"Setting '{id}' must be a TimeSpan string or total seconds number.", id),
+            JsonValueKind.Number when el.TryGetInt32(out int n) => n,
+            JsonValueKind.String when int.TryParse(el.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) => n,
+            _ => throw new ArgumentException($"Setting '{id}' must be an integer number of seconds.", id),
         };
-        if (v < TimeSpan.Zero)
+        if (seconds < 0)
             throw new ArgumentException($"Setting '{id}' must be >= 0.", id);
-        return v;
-    }
-
-    private static bool TryParseTimeSpan(string? raw, out TimeSpan value)
-    {
-        value = default;
-        if (string.IsNullOrWhiteSpace(raw))
-            return false;
-        if (TimeSpan.TryParse(raw, CultureInfo.InvariantCulture, out value))
-            return true;
-        if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double seconds))
-        {
-            value = TimeSpan.FromSeconds(seconds);
-            return true;
-        }
-
-        return false;
+        return TimeSpan.FromSeconds(seconds);
     }
 
     private static DateTimeOffset ReadDateTimeOffset(JsonElement el, string id)

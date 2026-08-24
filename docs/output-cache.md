@@ -125,10 +125,10 @@ By default any signed-in user or `Authorization` header skips Output Cache (`Aut
   "VaryOutputCacheByUser": true,
   "ClientCache": {
     "Cacheability": "Private",
-    "Ttl": "00:01:00"
+    "TtlSeconds": 60
   },
   "OutputCache": {
-    "Ttl": "00:00:30"
+    "TtlSeconds": 30
   }
 }
 ```
@@ -144,10 +144,10 @@ Alice and Bob both call `GET /api/me/summary`. The server stores two entries (`a
   "TreatAuthorizationAsAuthSignal": false,
   "ClientCache": {
     "Cacheability": "Public",
-    "Ttl": "1.00:00:00"
+    "TtlSeconds": 86400
   },
   "OutputCache": {
-    "Ttl": "01:00:00"
+    "TtlSeconds": 3600
   }
 }
 ```

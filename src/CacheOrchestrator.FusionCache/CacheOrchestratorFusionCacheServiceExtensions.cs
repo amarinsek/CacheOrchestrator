@@ -48,13 +48,19 @@ public static class CacheOrchestratorFusionCacheServiceExtensions
         if (configuration is not null)
             services.TryAddSingleton(configuration);
 
+        // Prefer the IConfiguration instance passed to this method. WebApplication.CreateBuilder
+        // already registers host IConfiguration; TryAddSingleton above would not replace it, and
+        // reading FusionCache:* from the host config would miss test/lab overlays.
+        IConfiguration? fusionConfiguration = configuration;
         services.TryAddSingleton<IFusionDomainSettingsProvider>(sp =>
             new FusionDomainSettingsProvider(
-                sp.GetRequiredService<IConfiguration>(),
+                fusionConfiguration ?? sp.GetRequiredService<IConfiguration>(),
                 sp.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>(),
                 sp.GetService<IFusionDomainRuntimeOverrideStore>(),
                 section));
-        services.TryAddSingleton<IDataCacheProvider, FusionDataCacheProvider>();
+        // Replace AspNetCore's NullDataCacheProvider (TryAdd would leave Null in place).
+        services.RemoveAll<IDataCacheProvider>();
+        services.AddSingleton<IDataCacheProvider, FusionDataCacheProvider>();
 
         FusionCacheBackendRegistrarRegistry registry = FusionCacheBackendRegistrarRegistry.GetOrCreate(services);
 
@@ -86,9 +92,9 @@ public static class CacheOrchestratorFusionCacheServiceExtensions
         CacheOrchestratorOptions rootOpts = new();
         configuration.GetSection(configSection).Bind(rootOpts);
 
-        // Ensure options are bound when AspNet host was not used (worker / library).
-        services.AddOptions<CacheOrchestratorOptions>()
-            .Bind(configuration.GetSection(configSection));
+        // Bind once when AspNet host was not used (worker / library). AspNetCore already binds;
+        // a second Bind would append Cluster:Bus:Static:Instances.
+        CacheOrchestratorOptionsBinding.EnsureBound(services, configuration, configSection);
 
         services.AddMemoryCache();
 

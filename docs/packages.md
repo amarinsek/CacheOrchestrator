@@ -84,9 +84,9 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
-        "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+        "DataCache": { "Enabled": true, "TtlSeconds": 300 },
+        "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
       }
     }
   }
@@ -131,8 +131,8 @@ builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
     "Domains": {
       "catalog": {
         "Version": "1",
-        "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+        "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
       }
     }
   }
@@ -179,7 +179,7 @@ builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Enabled": true, "Ttl": "00:05:00" }
+        "DataCache": { "Enabled": true, "TtlSeconds": 300 }
       }
     }
   }
@@ -224,9 +224,9 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
-        "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+        "DataCache": { "Enabled": true, "TtlSeconds": 300 },
+        "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
       }
     }
   }
@@ -276,9 +276,9 @@ builder.Services.AddCacheOrchestratorHybridCache();
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
-        "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+        "DataCache": { "Enabled": true, "TtlSeconds": 300 },
+        "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
       }
     }
   }
@@ -322,9 +322,9 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
     "OutputCache": { "Provider": "InMemory" },
     "DataCacheInstances": { "default": { "Provider": "InMemory" } },
     "DomainDefaults": {
-      "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
-      "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
-      "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+      "DataCache": { "Enabled": true, "TtlSeconds": 300 },
+      "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
+      "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
     }
   }
 }
@@ -394,9 +394,9 @@ builder.Services.AddScoped<CatalogService>();
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
-        "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+        "DataCache": { "Enabled": true, "TtlSeconds": 300 },
+        "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
       }
     }
   }
@@ -483,9 +483,9 @@ builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
-        "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+        "DataCache": { "Enabled": true, "TtlSeconds": 300 },
+        "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
       }
     }
   }
@@ -598,9 +598,9 @@ builder.Services.AddScoped<CatalogService>();
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
-        "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+        "DataCache": { "Enabled": true, "TtlSeconds": 300 },
+        "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
       }
     }
   }
@@ -647,7 +647,7 @@ Root engines: `OutputCache` + **`DataCacheInstances`**. Default key namespace su
 |---------|--------|--------|
 | GetOrCreate + stampede | Yes | Yes |
 | Tag invalidation | Yes | Yes (logical) |
-| `DataCache.Ttl` | Soft / duration | Expiration |
+| `DataCache.TtlSeconds` | Soft / duration | Expiration |
 | Hard TTL / fail-safe / factory timeouts | Yes | No (ignored) |
 | Named `DataCacheInstances` | Yes | Single DI HybridCache |
 | Redis L2 + backplane | Redis package | Configure Hybrid / `IDistributedCache` separately |

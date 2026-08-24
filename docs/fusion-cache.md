@@ -2,9 +2,9 @@
 
 > **Reference.** Product overview: [root README](../README.md). Orientation: [Guide — concepts](guide/concepts.md). Catalog: [documentation index](README.md). Packages: [packages.md](packages.md).
 
-**CacheOrchestrator.FusionCache** registers ZiggyCreatures FusionCache as the default **`IDataCacheProvider`** (data cache / DC). Portable domain policy lives under nested **`DataCache`** (`Ttl`, `Enabled`, `Instance`, …). Fusion-only knobs (`HardTtl`, `FailSafe`, factory timeouts, jitter, …) live under nested **`FusionCache`**.
+**CacheOrchestrator.FusionCache** registers ZiggyCreatures FusionCache as the default **`IDataCacheProvider`** (data cache / DC). Portable domain policy lives under nested **`DataCache`** (`Ttl`, `Enabled`, `Instance`, …). Fusion-only knobs (`HardTtlSeconds`, `FailSafeSeconds`, factory timeouts, jitter, …) live under nested **`FusionCache`**.
 
-Microsoft HybridCache is an alternate provider — [HybridCache README](../src/CacheOrchestrator.HybridCache/README.md). Swap with `AddCacheOrchestratorHybridCache()` after `AddHybridCache()`; Hybrid uses `DataCache.Ttl` only and ignores the `FusionCache` section.
+Microsoft HybridCache is an alternate provider — [HybridCache README](../src/CacheOrchestrator.HybridCache/README.md). Swap with `AddCacheOrchestratorHybridCache()` after `AddHybridCache()`; Hybrid uses `DataCache.TtlSeconds` only and ignores the `FusionCache` section.
 
 Fusion stores **serializable objects** (JSON via System.Text.Json): L1 in memory, optional L2 in a distributed store, optional backplane. CacheOrchestrator scopes the data cache to the same **domain** as Output Cache and client headers.
 
@@ -158,11 +158,11 @@ Keys must be deterministic, must not contain secrets (they land in Redis and in 
 
 | Domain setting | FusionCache |
 |----------------|-------------|
-| `DataCache.Ttl` → `DataCacheTtl` | `Duration` (capped by `FusionCache.HardTtl` if soft is larger) |
-| `FusionCache.FailSafe` | `FailSafeMaxDuration` |
-| `FusionCache.Jitter` | `JitterMaxDuration` |
+| `DataCache.TtlSeconds` → `DataCacheTtl` | `Duration` (capped by `fusionCache.hardTtlSeconds` if soft is larger) |
+| `fusionCache.failSafeSeconds` | `FailSafeMaxDuration` |
+| `fusionCache.jitterSeconds` | `JitterMaxDuration` |
 | `FusionCache.EagerRefreshRatio` | `EagerRefreshThreshold` |
-| `FusionCache.FactorySoftTimeout` / `FactoryHardTimeout` | `FactorySoftTimeout` / `FactoryHardTimeout` |
+| `fusionCache.factorySoftTimeoutSeconds` / `FactoryHardTimeoutSeconds` | `FactorySoftTimeoutSeconds` / `FactoryHardTimeoutSeconds` |
 | `FusionCache.AllowBackground*` | distributed and backplane background work |
 
 Stampede protection and fail-safe stale serve come from FusionCache itself. Named engines: root **`DataCacheInstances`**.

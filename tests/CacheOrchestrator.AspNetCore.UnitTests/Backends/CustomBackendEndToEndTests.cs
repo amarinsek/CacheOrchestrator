@@ -127,7 +127,7 @@ public class CustomBackendEndToEndTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:DataCacheInstances:default:Provider"] = ProviderName,
                 ["Cache:Domains:catalog:Version"] = "v1",
-                ["Cache:Domains:catalog:DataCache:Ttl"] = "00:02:00",
+                ["Cache:Domains:catalog:DataCache:TtlSeconds"] = "120",
                 // Keep L2 writes on the request path so the second host can read them reliably.
                 ["Cache:Domains:catalog:FusionCache:AllowBackgroundDistributed"] = "false",
             })

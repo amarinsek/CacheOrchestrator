@@ -104,7 +104,7 @@ Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features
 3. Optional respect for request `no-store` / auth bypass.  
 4. Key from `IDomainKeyGenerator` (HTTP) or caller-supplied key (orchestrator).  
 5. Domain config selects a named **`DataCacheInstances`** entry (`default` by default).  
-6. Registered `IDataCacheProvider` (Fusion: L1 → L2 → factory with soft/hard timeouts, fail-safe, jitter; Hybrid: expiration from `DataCache.Ttl`).  
+6. Registered `IDataCacheProvider` (Fusion: L1 → L2 → factory with soft/hard timeouts, fail-safe, jitter; Hybrid: expiration from `DataCache.TtlSeconds`).  
 7. Disposition (`Hit` / `Miss` / `Stale` / …) stored for `X-Cache` (`dc=`).  
 
 See [fusion-cache.md](fusion-cache.md) for HTTP resolution order and entity identity.  

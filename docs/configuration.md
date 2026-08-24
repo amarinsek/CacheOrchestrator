@@ -6,7 +6,7 @@ Every setting under the `Cache` section (or another root you pass to `AddCacheOr
 
 Root section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(config, "MySection")`.
 
-Domain TTLs and client policy use **nested objects** (`DataCache`, `OutputCache`, `ClientCache`, and Fusion-only `FusionCache`) with **TimeSpan** strings (for example `"00:01:00"`). Flat `*TtlSeconds` integers are no longer the documented shape.
+Domain TTLs and related durations use **nested objects** (`DataCache`, `OutputCache`, `ClientCache`, and Fusion-only `FusionCache`) with **integer seconds** (for example `"TtlSeconds": 60`). Prefer `*Seconds` over TimeSpan strings for cache TTL DX.
 
 ## Root shape
 
@@ -21,10 +21,10 @@ Domain TTLs and client policy use **nested objects** (`DataCache`, `OutputCache`
       "default": { "Provider": "InMemory" }
     },
     "DomainDefaults": {
-      "DataCache": { "Enabled": true, "Ttl": "01:03:20" },
-      "OutputCache": { "Enabled": true, "Ttl": "01:01:40" },
-      "ClientCache": { "Cacheability": "Public", "Ttl": "01:00:00", "TtlMin": "00:01:00" },
-      "FusionCache": { "HardTtl": "12:00:00", "FailSafe": "1.00:00:00" }
+      "DataCache": { "Enabled": true, "TtlSeconds": 3800 },
+      "OutputCache": { "Enabled": true, "TtlSeconds": 3700 },
+      "ClientCache": { "Cacheability": "Public", "TtlSeconds": 3600, "TtlMinSeconds": 60 },
+      "FusionCache": { "HardTtlSeconds": 43200, "FailSafeSeconds": 86400 }
     },
     "Domains": {
       "products": { }
@@ -149,7 +149,7 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults). Ne
 |----------|----------|-------------|
 | `Enabled` | true | Enable data cache for the domain |
 | `Instance` | `default` | Key in `DataCacheInstances` |
-| `Ttl` | `01:03:20` (3800s) | Logical data-cache TTL (Fusion soft/`Duration`; Hybrid expiration) |
+| `TtlSeconds` | `3800` | Logical data-cache TTL in seconds (Fusion soft/`Duration`; Hybrid expiration) |
 | `RespectNoStore` | true | Skip data cache when request has `Cache-Control: no-store` |
 | `VaryOnEncoding` | true | Include Accept-Encoding in the data-cache key |
 | `VaryOnPublicAddress` | true | Include scheme + host in the data-cache key |
@@ -159,7 +159,7 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults). Ne
 | Property | Default* | Description |
 |----------|----------|-------------|
 | `Enabled` | true | Enable HTTP output cache for domain |
-| `Ttl` | `01:01:40` (3700s) | Server-side output entry TTL |
+| `TtlSeconds` | `3700` | Server-side output entry TTL in seconds |
 | `VaryByHost` | **true** | Output Cache `VaryByHost` (host + port) |
 | `CacheableStatusCodes` | `[200]` | Status codes allowed to store |
 | `EncodingNormalizationList` | `br`, `gzip` | Prefer these Accept-Encoding values |
@@ -170,8 +170,8 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults). Ne
 | Property | Default* | Description |
 |----------|----------|-------------|
 | `Cacheability` | `Public` | `Public`, `Private`, `NoStore` |
-| `Ttl` | `01:00:00` (3600s) | Target max-age far from schedule (Calm) |
-| `TtlMin` | `00:01:00` (60s) | Floor near/after schedule and during post-version hold |
+| `TtlSeconds` | `3600` | Target max-age (seconds) far from schedule (Calm) |
+| `TtlMinSeconds` | `60` | Floor max-age (seconds) near/at update and during post-version hold |
 | `ScheduledUpdateUtc` | null | Planned cutover; linear ramp of max-age toward min |
 | `MustRevalidateNearUpdate` | false | Append `must-revalidate` at min floor |
 | `ForcePrivateWhenAuthenticated` | true | Force client Private for signed-in Identity + Public |
@@ -184,12 +184,12 @@ Bound from `Cache:DomainDefaults:FusionCache` / `Cache:Domains:{name}:FusionCach
 
 | Property | Default* | Description |
 |----------|----------|-------------|
-| `HardTtl` | `12:00:00` (43200s) | Caps soft/`DataCache.Ttl` if soft &gt; hard |
-| `FailSafe` | `1.00:00:00` (86400s) | Fail-safe max duration |
+| `HardTtlSeconds` | `43200` | Caps soft/`DataCache.TtlSeconds` if soft &gt; hard |
+| `FailSafeSeconds` | `86400` | Fail-safe max duration (seconds) |
 | `EagerRefreshRatio` | 0.9 | Eager refresh threshold. **`0` = disabled**; values in `(0, 1)` allowed; `>= 1` fails validation |
-| `Jitter` | `00:01:00` | Max jitter on duration |
-| `FactorySoftTimeout` | `00:00:01` | Factory soft timeout |
-| `FactoryHardTimeout` | `00:00:05` | Factory hard timeout |
+| `JitterSeconds` | `60` | Max jitter on duration (seconds) |
+| `FactorySoftTimeoutSeconds` | `1` | Factory soft timeout (seconds) |
+| `FactoryHardTimeoutSeconds` | `5` | Factory hard timeout (seconds) |
 | `MaxItemBytes` | 0 | Memory size limit; 0 = unlimited |
 | `AllowBackgroundDistributed` | true | Fusion may complete L2 I/O in the background |
 | `AllowBackgroundBackplane` | true | Fusion may publish backplane messages in the background |
@@ -257,13 +257,13 @@ Optional. Requires package **`CacheOrchestrator.EFCore.Invalidation`**. Type →
 
 ## Runtime model
 
-Resolved settings are **`DomainCacheOptions`** (immutable snapshot). Nested JSON TimeSpans map to:
+Resolved settings are **`DomainCacheOptions`** (immutable snapshot). Nested JSON seconds map to:
 
 | JSON | Runtime |
 |------|---------|
-| `OutputCache.Ttl` | `OutputTtl` |
-| `DataCache.Ttl` | `DataCacheTtl` |
-| `ClientCache.Ttl` / `TtlMin` | `ClientTtlSeconds` / `ClientTtlMinSeconds` (seconds on the snapshot) |
+| `OutputCache.TtlSeconds` | `OutputTtl` (`TimeSpan`) |
+| `DataCache.TtlSeconds` | `DataCacheTtl` (`TimeSpan`) |
+| `ClientCache.TtlSeconds` / `TtlMinSeconds` | `ClientTtlSeconds` / `ClientTtlMinSeconds` (`int`) |
 | `DataCache.Instance` | `DataCacheInstanceName` |
 | `DataCache.Enabled` / `OutputCache.Enabled` | `DataCacheEnabled` / `OutputCacheEnabled` |
 | `ClientCache.Cacheability` | `ClientCacheability` |

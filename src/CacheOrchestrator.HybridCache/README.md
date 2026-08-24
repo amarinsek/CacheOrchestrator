@@ -2,7 +2,7 @@
 
 [CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
 
-This package registers Microsoft **HybridCache** as the **`IDataCacheProvider`**. It uses portable **`DataCache.Ttl`** only. Fusion-specific options (fail-safe, hard TTL, factory timeouts, named data-cache instances) are not applied.
+This package registers Microsoft **HybridCache** as the **`IDataCacheProvider`**. It uses portable **`DataCache.TtlSeconds`** only. Fusion-specific options (fail-safe, hard TTL, factory timeouts, named data-cache instances) are not applied.
 
 ## Install
 
@@ -20,7 +20,7 @@ dotnet add package Microsoft.Extensions.Caching.Hybrid
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Ttl": "00:05:00" }
+        "DataCache": { "TtlSeconds": 300 }
       }
     }
   }
