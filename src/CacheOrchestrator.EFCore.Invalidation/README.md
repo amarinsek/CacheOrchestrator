@@ -49,15 +49,34 @@ builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
     opt.UseSqlServer(connectionString);
     opt.AddCacheOrchestratorInvalidation(sp);
 });
+
+// In OnModelCreating (or Map<T> / [CacheEntity]):
+// modelBuilder.Entity<Product>().CacheInvalidate("catalog", "products");
+
+var app = builder.Build();
+app.UseCacheOrchestrator();
+
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, AppDbContext db) =>
+{
+    var data = await cache.GetOrSetEntityAsync(http, async ct =>
+    {
+        Product? p = await db.Products.AsNoTracking().FirstOrDefaultAsync(x => x.Id.ToString() == id, ct);
+        return p is null ? null : new ProductDto(p.Id, p.Price);
+    });
+    return data is null ? Results.NotFound() : Results.Json(data);
+})
+.CacheOutputWithDomain("catalog", resourceRouteKey: "id", entityKind: "products");
+
+app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, AppDbContext db, CancellationToken ct) =>
+{
+    Product product = await db.Products.SingleAsync(x => x.Id.ToString() == id, ct);
+    product.Price = body.Price;
+    await db.SaveChangesAsync(ct); // interceptor invalidates — no manual Invalidate*
+    return Results.NoContent();
+});
 ```
 
-```csharp
-modelBuilder.Entity<Product>().CacheInvalidate("catalog", "products");
-```
-
-Use the same domain and `entityKind` on the HTTP / library cache path. Tracked `SaveChanges` invalidates automatically; `ExecuteUpdate` / `ExecuteDelete` require manual `Invalidate*`.
-
-Full GET + PUT samples: [packages.md §8–§9](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md).
+Tracked `SaveChanges` invalidates automatically; `ExecuteUpdate` / `ExecuteDelete` require manual `Invalidate*`. More layouts: [packages.md §8–§9](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/packages.md).
 
 ## Related packages
 

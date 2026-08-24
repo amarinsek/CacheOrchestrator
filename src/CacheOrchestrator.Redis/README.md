@@ -33,6 +33,16 @@ dotnet add package CacheOrchestrator.Redis
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBackend());
+
+var app = builder.Build();
+app.UseCacheOrchestrator();
+
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+{
+    var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
+    return Results.Json(data);
+})
+.CacheOutputWithDomain("catalog");
 ```
 
 ## Related packages

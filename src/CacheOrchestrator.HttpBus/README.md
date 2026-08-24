@@ -49,7 +49,16 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClust
 var app = builder.Build();
 app.UseCacheOrchestrator();
 app.MapCacheOrchestratorHttpBus();
+
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+{
+    var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
+    return Results.Json(data);
+})
+.CacheOutputWithDomain("catalog");
 ```
+
+Invalidate / Version / settings from Admin or `ICacheOrchestratorInvalidator` are then delivered to peers over the bus.
 
 ## Related packages
 
