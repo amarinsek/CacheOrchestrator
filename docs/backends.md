@@ -52,11 +52,11 @@ Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
 
 ## What a backend implements
 
-| Responsibility | Required? | How |
-|----------------|-----------|-----|
-| **Output Cache store** | Only if used as `OutputCache.Provider` | `SupportsOutputCacheStore = true`, implement `RegisterOutputCache` |
-| **Data-cache L2 (Fusion)** | Only if used under `DataCacheInstances` | `RegisterFusionCache` — **keyed** `IDistributedCache` per instance name |
-| **Health probes** | Optional on the interface | `RegisterHealthProbes` → `ICacheOrchestratorHealthProbe`. The **Redis** package always registers probes (data-cache instance names plus Output Cache key `oc`). |
+| Responsibility | Package / interface | How |
+|----------------|---------------------|-----|
+| **Output Cache store** | AspNetCore `ICacheBackendRegistrar` | `SupportsOutputCacheStore = true`, implement `RegisterOutputCache` |
+| **Data-cache L2 (Fusion)** | FusionCache `IFusionCacheBackendRegistrar` | `RegisterFusionCache` — **keyed** `IDistributedCache` per instance name; register via `AddFusionCacheBackend` or Redis `AddRedisBackend` |
+| **Health probes** | Both (optional) | `RegisterHealthProbes` → `ICacheOrchestratorHealthProbe`. Redis registers probes for OC (`oc`) and each Fusion instance. |
 
 ### Output Cache registration rules
 
@@ -98,24 +98,15 @@ or `context.BackendSection` on registration contexts. (`GetFusionBackendSection`
 ASP.NET Core does not ship an Output Cache store for SQL Server. This example therefore keeps Output Cache on `InMemory` (or Redis) and uses SQL Server only as Fusion L2. The same shape works for Memcached, Cosmos, or another `IDistributedCache`.
 
 ```csharp
-using CacheOrchestrator.Backends;
-using CacheOrchestrator.Configuration;
-using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.FusionCache.Backends;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.SqlServer;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ZiggyCreatures.Caching.Fusion;
 
-public sealed class SqlServerFusionBackendRegistrar : ICacheBackendRegistrar
+public sealed class SqlServerFusionBackendRegistrar : IFusionCacheBackendRegistrar
 {
     public string Name => "SqlServer";
-
-    public bool SupportsOutputCacheStore => false;
-
-    public void RegisterOutputCache(OutputCacheRegistrationContext context)
-    {
-        throw new NotSupportedException("This registrar is Fusion L2 only.");
-    }
 
     public void RegisterFusionCache(FusionCacheRegistrationContext context)
     {
@@ -142,7 +133,7 @@ public sealed class SqlServerFusionBackendRegistrar : ICacheBackendRegistrar
         // No Redis-style backplane unless you add one yourself.
     }
 
-    public void RegisterHealthProbes(BackendHealthRegistrationContext context)
+    public void RegisterHealthProbes(FusionBackendHealthRegistrationContext context)
     {
         // Optional: register a SQL connectivity probe via ICacheOrchestratorHealthProbe
         // or Microsoft.Extensions.Diagnostics.HealthChecks.
@@ -153,10 +144,9 @@ public sealed class SqlServerFusionBackendRegistrar : ICacheBackendRegistrar
 Startup:
 
 ```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
-{
-    o.AddBackend(new SqlServerFusionBackendRegistrar());
-});
+builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
+builder.Services.AddFusionCacheBackend(new SqlServerFusionBackendRegistrar());
+builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 ```
 
 Config:
