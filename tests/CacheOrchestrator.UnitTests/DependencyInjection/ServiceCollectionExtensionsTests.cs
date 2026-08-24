@@ -2,6 +2,7 @@ using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.FusionCache;
 using CacheOrchestrator.Invalidation;
+using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -32,6 +33,9 @@ public class ServiceCollectionExtensionsTests
 
         sp.GetService<IDomainCacheOptionsProvider>().Should().NotBeNull();
         sp.GetService<IDomainFusionCache>().Should().NotBeNull();
+        sp.GetService<ICacheOrchestrator>().Should().NotBeNull();
+        sp.GetService<IDataCacheProvider>().Should().NotBeNull();
+        sp.GetService<IDataCacheProvider>()!.Name.Should().Be("FusionCache");
         sp.GetService<ICacheOrchestratorInvalidator>().Should().NotBeNull();
         sp.GetService<IDomainKeyGenerator>().Should().NotBeNull();
         sp.GetService<IFusionCacheProvider>().Should().NotBeNull();
