@@ -251,37 +251,27 @@ public sealed class CacheOrchestratorOptions
     public sealed class DomainCacheSettings
     {
         /// <summary>
-        /// Name of the <see cref="FusionCacheInstances"/> entry this domain uses.
-        /// <see langword="null"/> or absent uses the <c>"default"</c> instance.
+        /// Optional version token (e.g. "v1", "2026-08") used for bulk invalidation.
+        /// If not set, a stable default ("1") is used so the cache never auto-invalidates on restart.
         /// </summary>
-        [DomainSetting(Kind = DomainSettingValueKind.String, RuntimeOverlay = false, Group = "Fusion", DisplayName = "FusionCache instance")]
-        public string? FusionCacheInstance { get; set; }
+        [DomainSetting(Kind = DomainSettingValueKind.String, RuntimeOverlay = false, Group = "Cache", DisplayName = "Version")]
+        public string? Version { get; set; }
 
-        /// <summary>Enable Output Cache for this domain.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Cache", DisplayName = "Output Cache enabled")]
-        public bool? OutputCacheEnabled { get; set; }
+        /// <summary>Portable Data Cache policy (TTL / enabled / instance).</summary>
+        public DomainDataCacheSettings? DataCache { get; set; }
 
-        /// <summary>Enable FusionCache for this domain.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "FusionCache enabled")]
-        public bool? FusionCacheEnabled { get; set; }
+        /// <summary>Output Cache policy for this domain.</summary>
+        public DomainOutputCacheSettings? OutputCache { get; set; }
+
+        /// <summary>Client Cache-Control policy for this domain.</summary>
+        public DomainClientCacheSettings? ClientCache { get; set; }
+
+        /// <summary>FusionCache-specific knobs (ignored by Hybrid).</summary>
+        public DomainFusionCacheSettings? FusionCache { get; set; }
 
         /// <summary>
-        /// When <see langword="true"/> (default), skip Output Cache for authenticated users /
-        /// <c>Authorization</c> header.
-        /// </summary>
-        /// <remarks>
-        /// Obsolete: prefer <see cref="AuthBypassMode"/>.
-        /// <see langword="true"/> maps to <see cref="AuthBypassMode.AuthenticatedOrAuthorization"/>;
-        /// <see langword="false"/> maps to <see cref="AuthBypassMode.Never"/>.
-        /// Ignored when <see cref="AuthBypassMode"/> is set.
-        /// </remarks>
-        [Obsolete("Use AuthBypassMode. true → AuthenticatedOrAuthorization; false → Never. Ignored when AuthBypassMode is set.")]
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Cache", DisplayName = "Bypass when authenticated (legacy)")]
-        public bool? BypassWhenAuthenticated { get; set; }
-
-        /// <summary>
-        /// When Output Cache (and optionally FusionCache) auto-bypasses for auth traffic.
-        /// When unset, derived from <see cref="BypassWhenAuthenticated"/>.
+        /// When Output Cache (and optionally data cache) auto-bypasses for auth traffic.
+        /// When unset, defaults to <see cref="AuthBypassMode.AuthenticatedOrAuthorization"/>.
         /// </summary>
         [DomainSetting(Kind = DomainSettingValueKind.Enum, RuntimeOverlay = true, Group = "Cache", DisplayName = "Auth bypass mode")]
         public AuthBypassMode? AuthBypassMode { get; set; }
@@ -309,19 +299,12 @@ public sealed class CacheOrchestratorOptions
         public string[]? VaryByAuthClaims { get; set; }
 
         /// <summary>
-        /// When <see langword="true"/> (default), FusionCache skips cache read/write when auth bypass would fire for OC.
-        /// Set <see langword="false"/> to keep Fusion caching while Output Cache auth-bypasses (pre-parity behaviour).
+        /// When <see langword="true"/> (default), data cache skips when auth bypass would fire for OC.
         /// </summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Fusion respects auth bypass")]
+        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Data", DisplayName = "Data cache respects auth bypass")]
         public bool? FusionRespectAuthBypass { get; set; }
 
-        /// <summary>
-        /// When <see langword="true"/> (default), force client Private when Identity is authenticated and cacheability is Public.
-        /// </summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Client", DisplayName = "Force private when authenticated")]
-        public bool? ClientForcePrivateWhenAuthenticated { get; set; }
-
-        /// <summary>Vary by <c>Accept</c> header.</summary>
+        /// <summary>Vary by <c>Accept</c> header. Default in v3: true.</summary>
         [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Vary", DisplayName = "Vary by Accept")]
         public bool? VaryByAccept { get; set; }
 
@@ -357,115 +340,10 @@ public sealed class CacheOrchestratorOptions
 
         /// <summary>
         /// Emit HTTP response <c>Vary</c> for non-secret headers we varied on.
-        /// Default when unset: <see langword="true"/>. Set <see langword="false"/> to omit it.
+        /// Default when unset: <see langword="true"/>.
         /// </summary>
         [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Vary", DisplayName = "Emit response Vary")]
         public bool? EmitResponseVary { get; set; }
-
-        /// <summary>
-        /// Optional version token (e.g. "v1", "2026-08") used for bulk invalidation.
-        /// If not set, a stable default ("1") is used so the cache never auto-invalidates on restart.
-        /// </summary>
-        [DomainSetting(Kind = DomainSettingValueKind.String, RuntimeOverlay = false, Group = "Cache", DisplayName = "Version")]
-        public string? Version { get; set; }
-
-        /// <summary>
-        /// How the Output Cache policy sets the HTTP <c>ETag</c> header.
-        /// Default: <see cref="ETagMode.Version"/>.
-        /// </summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Enum, RuntimeOverlay = true, Group = "Cache", DisplayName = "ETag mode")]
-        public ETagMode? ETagMode { get; set; }
-
-        /// <summary>HTTP status codes that may be stored in Output Cache.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.IntArray, RuntimeOverlay = false, Group = "Cache", DisplayName = "Cacheable status codes")]
-        public int[]? CacheableStatusCodes { get; set; }
-
-        /// <summary>Preferred Accept-Encoding values for normalization.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.StringArray, RuntimeOverlay = false, Group = "Cache", DisplayName = "Encoding normalization")]
-        public string[]? EncodingNormalizationList { get; set; }
-
-        /// <summary>Client cache mode. Default: Public.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Enum, RuntimeOverlay = true, Group = "Client", DisplayName = "Client cacheability")]
-        public ClientCacheability? ClientCacheability { get; set; }
-
-        /// <summary>Desired max-age far from update (seconds). Default: 3600.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.IntSeconds, RuntimeOverlay = true, Group = "Client", DisplayName = "Client TTL (s)")]
-        public int? ClientTtlSeconds { get; set; }
-
-        /// <summary>Floor max-age near/at update (seconds). Default: 60.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.IntSeconds, RuntimeOverlay = true, Group = "Client", DisplayName = "Client TTL min (s)")]
-        public int? ClientTtlMinSeconds { get; set; }
-
-        /// <summary>Next planned content cutover (UTC). Null = always use ClientTtlSeconds.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.DateTimeOffset, RuntimeOverlay = true, Group = "Client", DisplayName = "Scheduled update (UTC)")]
-        public DateTimeOffset? ScheduledUpdateUtc { get; set; }
-
-        /// <summary>Append must-revalidate when max-age is at or below min. Default: false.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Client", DisplayName = "Must-revalidate near update")]
-        public bool? ClientMustRevalidateNearUpdate { get; set; }
-
-        /// <summary>Output Cache entry TTL (seconds).</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.IntSeconds, RuntimeOverlay = true, Group = "TTL", DisplayName = "Output Cache TTL (s)")]
-        public int? OutputCacheTtlSeconds { get; set; }
-
-        /// <summary>FusionCache soft (logical) duration (seconds).</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.IntSeconds, RuntimeOverlay = true, Group = "TTL", DisplayName = "Fusion soft TTL (s)")]
-        public int? FusionCacheSoftTtlSeconds { get; set; }
-
-        /// <summary>FusionCache hard (absolute) duration cap (seconds).</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.IntSeconds, RuntimeOverlay = true, Group = "TTL", DisplayName = "Fusion hard TTL (s)")]
-        public int? FusionCacheHardTtlSeconds { get; set; }
-
-        /// <summary>FusionCache fail-safe max duration (seconds).</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.IntSeconds, RuntimeOverlay = true, Group = "TTL", DisplayName = "Fusion fail-safe (s)")]
-        public int? FusionCacheFailSafeSeconds { get; set; }
-
-        /// <summary>Eager refresh threshold ratio (0–1 exclusive). 0 = disabled.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Double, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Eager refresh ratio")]
-        public double? FusionCacheEagerRefreshRatio { get; set; }
-
-        /// <summary>Max jitter added to FusionCache duration (seconds).</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.IntSeconds, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Fusion jitter (s)")]
-        public int? FusionCacheJitterSeconds { get; set; }
-
-        /// <summary>Factory soft timeout (seconds).</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.IntSeconds, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Factory soft timeout (s)")]
-        public int? FusionCacheFactorySoftTimeoutSeconds { get; set; }
-
-        /// <summary>Factory hard timeout (seconds).</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.IntSeconds, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Factory hard timeout (s)")]
-        public int? FusionCacheFactoryHardTimeoutSeconds { get; set; }
-
-        /// <summary>Optional max item size for memory cache (bytes). 0 = unlimited.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Int, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Max item bytes")]
-        public int? FusionCacheMaxItemBytes { get; set; }
-
-        /// <summary>When true, skip FusionCache if the request has Cache-Control: no-store.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Respect no-store")]
-        public bool? FusionCacheRespectNoStore { get; set; }
-
-        /// <summary>Allow background distributed cache operations.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Background distributed ops")]
-        public bool? FusionCacheAllowBackgroundDistributed { get; set; }
-
-        /// <summary>Allow background backplane operations.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Background backplane ops")]
-        public bool? FusionCacheAllowBackgroundBackplane { get; set; }
-
-        /// <summary>Include scheme/host in the FusionCache key.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Vary on public address")]
-        public bool? FusionCacheVaryOnPublicAddress { get; set; }
-
-        /// <summary>Include Accept-Encoding in the FusionCache key.</summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Fusion", DisplayName = "Vary on encoding")]
-        public bool? FusionCacheVaryOnEncoding { get; set; }
-
-        /// <summary>
-        /// When true (default), Output Cache varies by host (includes port).
-        /// Set false so multi-host/port entry points share the same OC entry.
-        /// </summary>
-        [DomainSetting(Kind = DomainSettingValueKind.Bool, RuntimeOverlay = true, Group = "Cache", DisplayName = "Vary Output Cache by host")]
-        public bool? OutputCacheVaryByHost { get; set; }
     }
 
     /// <summary>Provider selection for Output Cache (or similar single-provider surfaces).</summary>

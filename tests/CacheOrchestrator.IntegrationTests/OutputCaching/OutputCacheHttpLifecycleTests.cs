@@ -90,13 +90,13 @@ public class OutputCacheHttpLifecycleTests
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
+            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
+            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -111,11 +111,11 @@ public class OutputCacheHttpLifecycleTests
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             ["Cache:DomainDefaults:Version"] = "v1",
-            ["Cache:DomainDefaults:ClientCacheability"] = "Public",
-            ["Cache:DomainDefaults:ClientTtlSeconds"] = "60",
-            ["Cache:DomainDefaults:ClientTtlMinSeconds"] = "60",
-            ["Cache:DomainDefaults:OutputCacheTtlSeconds"] = "120",
-            ["Cache:DomainDefaults:FusionCacheSoftTtlSeconds"] = "300",
+            ["Cache:DomainDefaults:ClientCache:Cacheability"] = "Public",
+            ["Cache:DomainDefaults:ClientCache:Ttl"] = "00:01:00",
+            ["Cache:DomainDefaults:ClientCache:TtlMin"] = "00:01:00",
+            ["Cache:DomainDefaults:OutputCache:Ttl"] = "00:02:00",
+            ["Cache:DomainDefaults:DataCache:Ttl"] = "00:05:00",
         };
         extra?.Invoke(d);
         return d;
@@ -169,9 +169,9 @@ public class OutputCacheHttpLifecycleTests
         string domain = "oc-ttl-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = BaseConfig(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "1";
-            d[$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300";
-            d[$"Cache:Domains:{domain}:FusionCacheHardTtlSeconds"] = "3600";
+            d[$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:00:01";
+            d[$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00";
+            d[$"Cache:Domains:{domain}:FusionCache:HardTtl"] = "01:00:00";
         });
 
         (HttpClient? client, WebApplication? app) = await StartAsync(config, a =>
@@ -347,9 +347,9 @@ public class OutputCacheHttpLifecycleTests
         string domain = "oc-varyu-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = BaseConfig(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:BypassWhenAuthenticated"] = "false";
+            d[$"Cache:Domains:{domain}:AuthBypassMode"] = "Never";
             d[$"Cache:Domains:{domain}:VaryOutputCacheByUser"] = "true";
-            d[$"Cache:Domains:{domain}:ClientCacheability"] = "Private";
+            d[$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Private";
         });
 
         (HttpClient? client, WebApplication? app) = await StartAsync(config, a =>
@@ -403,7 +403,7 @@ public class OutputCacheHttpLifecycleTests
         string domain = "oc-shared-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = BaseConfig(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:BypassWhenAuthenticated"] = "false";
+            d[$"Cache:Domains:{domain}:AuthBypassMode"] = "Never";
             d[$"Cache:Domains:{domain}:VaryOutputCacheByUser"] = "false";
         });
 
@@ -459,10 +459,10 @@ public class OutputCacheHttpLifecycleTests
         {
             config[$"Cache:Domains:{name}:Version"] = "gen-1";
             config[$"Cache:Domains:{name}:ETagMode"] = etagMode;
-            config[$"Cache:Domains:{name}:ClientCacheability"] = "Public";
-            config[$"Cache:Domains:{name}:ClientTtlSeconds"] = "60";
-            config[$"Cache:Domains:{name}:ClientTtlMinSeconds"] = "60";
-            config[$"Cache:Domains:{name}:OutputCacheTtlSeconds"] = "120";
+            config[$"Cache:Domains:{name}:ClientCache:Cacheability"] = "Public";
+            config[$"Cache:Domains:{name}:ClientCache:Ttl"] = "00:01:00";
+            config[$"Cache:Domains:{name}:ClientCache:TtlMin"] = "00:01:00";
+            config[$"Cache:Domains:{name}:OutputCache:Ttl"] = "00:02:00";
         }
 
         Domain(domainVer, "Version");

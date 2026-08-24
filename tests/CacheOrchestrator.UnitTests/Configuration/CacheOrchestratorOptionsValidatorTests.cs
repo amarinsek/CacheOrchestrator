@@ -56,7 +56,7 @@ public class CacheOrchestratorOptionsValidatorTests
         };
         options.Domains["users"] = new CacheOrchestratorOptions.DomainCacheSettings
         {
-            FusionCacheInstance = "pii"
+            DataCache = new() { Instance = "pii" }
         };
 
         var result = _sut.Validate(null, options);
@@ -151,7 +151,7 @@ public class CacheOrchestratorOptionsValidatorTests
         var options = CreateValidOptions();
         options.Domains["products"] = new CacheOrchestratorOptions.DomainCacheSettings
         {
-            FusionCacheInstance = "nonexistent"
+            DataCache = new() { Instance = "nonexistent" }
         };
 
         var result = _sut.Validate(null, options);
@@ -168,7 +168,7 @@ public class CacheOrchestratorOptionsValidatorTests
         var options = CreateValidOptions();
         options.Domains["products"] = new CacheOrchestratorOptions.DomainCacheSettings
         {
-            FusionCacheInstance = null
+            DataCache = new() { Instance = null }
         };
 
         var result = _sut.Validate(null, options);
@@ -180,36 +180,36 @@ public class CacheOrchestratorOptionsValidatorTests
     public void Validate_NegativeDomainDefaults_OutputCacheTtl_Fails()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.OutputCacheTtlSeconds = -1;
+        options.DomainDefaults.OutputCache = new() { Ttl = TimeSpan.FromSeconds(-1) };
 
         var result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("OutputCacheTtlSeconds", StringComparison.OrdinalIgnoreCase));
+        result.Failures.Should().Contain(f => f.Contains("OutputCache.Ttl", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void Validate_NegativeDomainDefaults_FusionCacheSoftTtl_Fails()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.FusionCacheSoftTtlSeconds = -5;
+        options.DomainDefaults.DataCache = new() { Ttl = TimeSpan.FromSeconds(-5) };
 
         var result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("FusionCacheSoftTtlSeconds", StringComparison.OrdinalIgnoreCase));
+        result.Failures.Should().Contain(f => f.Contains("DataCache.Ttl", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void Validate_NegativeDomainDefaults_FusionCacheHardTtl_Fails()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.FusionCacheHardTtlSeconds = -10;
+        options.DomainDefaults.FusionCache = new() { HardTtl = TimeSpan.FromSeconds(-10) };
 
         var result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("FusionCacheHardTtlSeconds", StringComparison.OrdinalIgnoreCase));
+        result.Failures.Should().Contain(f => f.Contains("FusionCache.HardTtl", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -218,7 +218,7 @@ public class CacheOrchestratorOptionsValidatorTests
         var options = CreateValidOptions();
         options.Domains["products"] = new CacheOrchestratorOptions.DomainCacheSettings
         {
-            OutputCacheTtlSeconds = -3
+            OutputCache = new() { Ttl = TimeSpan.FromSeconds(-3) }
         };
 
         var result = _sut.Validate(null, options);
@@ -226,18 +226,21 @@ public class CacheOrchestratorOptionsValidatorTests
         result.Succeeded.Should().BeFalse();
         result.Failures.Should().Contain(f =>
             f.Contains("products", StringComparison.OrdinalIgnoreCase) &&
-            f.Contains("OutputCacheTtlSeconds", StringComparison.OrdinalIgnoreCase));
+            f.Contains("OutputCache.Ttl", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void Validate_ZeroTtls_AreAllowed()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.OutputCacheTtlSeconds = 0;
-        options.DomainDefaults.FusionCacheSoftTtlSeconds = 0;
-        options.DomainDefaults.FusionCacheHardTtlSeconds = 0;
-        options.DomainDefaults.ClientTtlSeconds = 0;
-        options.DomainDefaults.FusionCacheEagerRefreshRatio = 0;
+        options.DomainDefaults.OutputCache = new() { Ttl = TimeSpan.Zero };
+        options.DomainDefaults.DataCache = new() { Ttl = TimeSpan.Zero };
+        options.DomainDefaults.ClientCache = new() { Ttl = TimeSpan.Zero };
+        options.DomainDefaults.FusionCache = new()
+        {
+            HardTtl = TimeSpan.Zero,
+            EagerRefreshRatio = 0,
+        };
 
         var result = _sut.Validate(null, options);
 
@@ -248,36 +251,36 @@ public class CacheOrchestratorOptionsValidatorTests
     public void Validate_NegativeClientTtl_Fails()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.ClientTtlSeconds = -1;
+        options.DomainDefaults.ClientCache = new() { Ttl = TimeSpan.FromSeconds(-1) };
 
         var result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("ClientTtlSeconds", StringComparison.OrdinalIgnoreCase));
+        result.Failures.Should().Contain(f => f.Contains("ClientCache.Ttl", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void Validate_NegativeFailSafe_Fails()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.FusionCacheFailSafeSeconds = -1;
+        options.DomainDefaults.FusionCache = new() { FailSafe = TimeSpan.FromSeconds(-1) };
 
         var result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("FusionCacheFailSafeSeconds", StringComparison.OrdinalIgnoreCase));
+        result.Failures.Should().Contain(f => f.Contains("FusionCache.FailSafe", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void Validate_EagerRefreshRatio_One_Fails()
     {
         var options = CreateValidOptions();
-        options.DomainDefaults.FusionCacheEagerRefreshRatio = 1.0;
+        options.DomainDefaults.FusionCache = new() { EagerRefreshRatio = 1.0 };
 
         var result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("FusionCacheEagerRefreshRatio", StringComparison.OrdinalIgnoreCase));
+        result.Failures.Should().Contain(f => f.Contains("FusionCache.EagerRefreshRatio", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

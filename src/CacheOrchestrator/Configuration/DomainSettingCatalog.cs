@@ -7,11 +7,19 @@ namespace CacheOrchestrator.Configuration;
 
 /// <summary>
 /// Builds the domain-settings catalog from <see cref="DomainSettingAttribute"/> on
-/// <see cref="CacheOrchestratorOptions.DomainCacheSettings"/>.
+/// <see cref="CacheOrchestratorOptions.DomainCacheSettings"/> (including nested sections).
 /// </summary>
 public static class DomainSettingCatalog
 {
     private static readonly ConcurrentDictionary<bool, IReadOnlyList<DomainSettingCatalogEntry>> Cache = new();
+
+    private static readonly HashSet<Type> NestedSectionTypes =
+    [
+        typeof(DomainDataCacheSettings),
+        typeof(DomainOutputCacheSettings),
+        typeof(DomainClientCacheSettings),
+        typeof(DomainFusionCacheSettings),
+    ];
 
     /// <summary>All attributed domain settings (config shape).</summary>
     public static IReadOnlyList<DomainSettingCatalogEntry> GetEntries() =>
@@ -41,9 +49,36 @@ public static class DomainSettingCatalog
     private static IReadOnlyList<DomainSettingCatalogEntry> Build(bool overlayOnly)
     {
         List<DomainSettingCatalogEntry> list = [];
-        foreach (PropertyInfo prop in typeof(CacheOrchestratorOptions.DomainCacheSettings)
-                     .GetProperties(BindingFlags.Instance | BindingFlags.Public))
+        Walk(typeof(CacheOrchestratorOptions.DomainCacheSettings), prefixId: null, prefixProperty: null, overlayOnly, list);
+
+        list.Sort((a, b) =>
         {
+            int g = string.Compare(a.Group ?? "", b.Group ?? "", StringComparison.OrdinalIgnoreCase);
+            return g != 0 ? g : string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase);
+        });
+        return list;
+    }
+
+    private static void Walk(
+        Type type,
+        string? prefixId,
+        string? prefixProperty,
+        bool overlayOnly,
+        List<DomainSettingCatalogEntry> list)
+    {
+        foreach (PropertyInfo prop in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
+        {
+            Type propType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+            string camel = JsonNamingPolicy.CamelCase.ConvertName(prop.Name);
+            string id = prefixId is null ? camel : prefixId + "." + camel;
+            string propertyName = prefixProperty is null ? prop.Name : prefixProperty + "." + prop.Name;
+
+            if (NestedSectionTypes.Contains(propType))
+            {
+                Walk(propType, id, propertyName, overlayOnly, list);
+                continue;
+            }
+
             DomainSettingAttribute? attr = prop.GetCustomAttribute<DomainSettingAttribute>();
             if (attr is null)
                 continue;
@@ -57,8 +92,8 @@ public static class DomainSettingCatalog
 
             list.Add(new DomainSettingCatalogEntry
             {
-                Id = JsonNamingPolicy.CamelCase.ConvertName(prop.Name),
-                PropertyName = prop.Name,
+                Id = id,
+                PropertyName = propertyName,
                 DisplayName = attr.DisplayName ?? SplitDisplayName(prop.Name),
                 Group = attr.Group,
                 Kind = attr.Kind,
@@ -66,13 +101,6 @@ public static class DomainSettingCatalog
                 EnumValues = enumValues,
             });
         }
-
-        list.Sort((a, b) =>
-        {
-            int g = string.Compare(a.Group ?? "", b.Group ?? "", StringComparison.OrdinalIgnoreCase);
-            return g != 0 ? g : string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase);
-        });
-        return list;
     }
 
     private static string SplitDisplayName(string propertyName)

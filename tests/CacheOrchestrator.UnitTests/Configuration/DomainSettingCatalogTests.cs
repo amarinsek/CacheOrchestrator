@@ -9,11 +9,12 @@ public class DomainSettingCatalogTests
     {
         IReadOnlyList<DomainSettingCatalogEntry> all = DomainSettingCatalog.GetEntries();
         Assert.NotEmpty(all);
-        Assert.Contains(all, e => e.Id == "outputCacheTtlSeconds" && e.RuntimeOverlay);
-        Assert.Contains(all, e => e.Id == "fusionCacheEnabled" && e.RuntimeOverlay);
-        Assert.Contains(all, e => e.Id == "scheduledUpdateUtc" && e.RuntimeOverlay);
-        Assert.Contains(all, e => e.Id == "fusionCacheInstance" && !e.RuntimeOverlay);
+        Assert.Contains(all, e => e.Id == "outputCache.ttl" && e.RuntimeOverlay);
+        Assert.Contains(all, e => e.Id == "dataCache.enabled" && e.RuntimeOverlay);
+        Assert.Contains(all, e => e.Id == "clientCache.scheduledUpdateUtc" && e.RuntimeOverlay);
+        Assert.Contains(all, e => e.Id == "dataCache.instance" && !e.RuntimeOverlay);
         Assert.Contains(all, e => e.Id == "version" && !e.RuntimeOverlay);
+        Assert.Contains(all, e => e.Id == "authBypassMode" && e.RuntimeOverlay);
     }
 
     [Fact]
@@ -22,14 +23,15 @@ public class DomainSettingCatalogTests
         IReadOnlyList<DomainSettingCatalogEntry> overlay = DomainSettingCatalog.GetOverlayEntries();
         Assert.NotEmpty(overlay);
         Assert.All(overlay, e => Assert.True(e.RuntimeOverlay));
-        Assert.DoesNotContain(overlay, e => e.Id == "fusionCacheInstance");
+        Assert.DoesNotContain(overlay, e => e.Id == "dataCache.instance");
+        Assert.DoesNotContain(overlay, e => e.Id == "version");
     }
 
     [Fact]
     public void Find_is_case_insensitive()
     {
-        DomainSettingCatalogEntry? a = DomainSettingCatalog.Find("OutputCacheTtlSeconds");
-        DomainSettingCatalogEntry? b = DomainSettingCatalog.Find("outputCacheTtlSeconds");
+        DomainSettingCatalogEntry? a = DomainSettingCatalog.Find("OutputCache.Ttl");
+        DomainSettingCatalogEntry? b = DomainSettingCatalog.Find("outputCache.ttl");
         Assert.NotNull(a);
         Assert.NotNull(b);
         Assert.Equal(a!.Id, b!.Id);

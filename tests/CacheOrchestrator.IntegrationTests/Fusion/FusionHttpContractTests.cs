@@ -34,13 +34,13 @@ public class FusionHttpContractTests
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
+            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
+            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -98,7 +98,7 @@ public class FusionHttpContractTests
         string domain = "fc-both-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
         });
 
         int entityCalls = 0;
@@ -168,7 +168,7 @@ public class FusionHttpContractTests
         string domain = "fc-accept-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
             d[$"Cache:Domains:{domain}:VaryByAccept"] = "true";
             d[$"Cache:Domains:{domain}:AcceptNormalizationList:0"] = "application/json";
         });
@@ -261,11 +261,11 @@ public class FusionHttpContractTests
 
         Dictionary<string, string?> config = DomainBase(ocDomain, d =>
         {
-            d[$"Cache:Domains:{ocDomain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{ocDomain}:OutputCache:Enabled"] = "false";
         });
         foreach (KeyValuePair<string, string?> kv in DomainBase(fcDomain, d =>
         {
-            d[$"Cache:Domains:{fcDomain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{fcDomain}:OutputCache:Enabled"] = "false";
         }))
         {
             config[kv.Key] = kv.Value;
@@ -311,7 +311,7 @@ public class FusionHttpContractTests
         string domain = "fc-auth-on-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
             d[$"Cache:Domains:{domain}:FusionRespectAuthBypass"] = "true";
         });
 
@@ -356,7 +356,7 @@ public class FusionHttpContractTests
         string domain = "fc-auth-off-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
             d[$"Cache:Domains:{domain}:FusionRespectAuthBypass"] = "false";
         });
 

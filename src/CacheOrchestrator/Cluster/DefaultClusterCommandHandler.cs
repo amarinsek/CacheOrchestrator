@@ -192,12 +192,12 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
 
         DomainSettingsPatch patch = new()
         {
-            OutputCacheTtlSeconds = command.OutputCacheTtlSeconds,
-            FusionCacheSoftTtlSeconds = command.FusionCacheSoftTtlSeconds,
-            FusionCacheHardTtlSeconds = command.FusionCacheHardTtlSeconds,
-            FusionCacheFailSafeSeconds = command.FusionCacheFailSafeSeconds,
-            ClientTtlSeconds = command.ClientTtlSeconds,
-            ClientTtlMinSeconds = command.ClientTtlMinSeconds
+            OutputCacheTtl = FromSeconds(command.OutputCacheTtlSeconds),
+            DataCacheTtl = FromSeconds(command.FusionCacheSoftTtlSeconds),
+            FusionCacheHardTtl = FromSeconds(command.FusionCacheHardTtlSeconds),
+            FusionCacheFailSafe = FromSeconds(command.FusionCacheFailSafeSeconds),
+            ClientTtl = FromSeconds(command.ClientTtlSeconds),
+            ClientTtlMin = FromSeconds(command.ClientTtlMinSeconds)
         };
 
         if (!patch.HasAny)
@@ -231,4 +231,7 @@ internal sealed class DefaultClusterCommandHandler : IClusterCommandHandler
                 ex.Message);
         }
     }
+
+    private static TimeSpan? FromSeconds(int? seconds) =>
+        seconds is int s ? TimeSpan.FromSeconds(s) : null;
 }

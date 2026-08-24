@@ -57,12 +57,12 @@ public class HttpPipelineContractTests
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
+            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
+            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
         };
         extra?.Invoke(d);
         return d;
@@ -74,11 +74,11 @@ public class HttpPipelineContractTests
         ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
         ["Cache:EmitDiagnosticsHeaders"] = "true",
         ["Cache:DomainDefaults:Version"] = "v1",
-        ["Cache:DomainDefaults:ClientCacheability"] = "Public",
-        ["Cache:DomainDefaults:ClientTtlSeconds"] = "60",
-        ["Cache:DomainDefaults:ClientTtlMinSeconds"] = "60",
-        ["Cache:DomainDefaults:OutputCacheTtlSeconds"] = "120",
-        ["Cache:DomainDefaults:FusionCacheSoftTtlSeconds"] = "300",
+        ["Cache:DomainDefaults:ClientCache:Cacheability"] = "Public",
+        ["Cache:DomainDefaults:ClientCache:Ttl"] = "00:01:00",
+        ["Cache:DomainDefaults:ClientCache:TtlMin"] = "00:01:00",
+        ["Cache:DomainDefaults:OutputCache:Ttl"] = "00:02:00",
+        ["Cache:DomainDefaults:DataCache:Ttl"] = "00:05:00",
     };
 
     private static async Task<(HttpClient Client, WebApplication App)> StartAsync(

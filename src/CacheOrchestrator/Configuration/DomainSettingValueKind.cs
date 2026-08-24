@@ -29,4 +29,7 @@ public enum DomainSettingValueKind
 
     /// <summary>String array (phase 2 overlay).</summary>
     StringArray = 8,
+
+    /// <summary>TimeSpan (config string e.g. <c>00:05:00</c> or total seconds number).</summary>
+    TimeSpan = 9,
 }

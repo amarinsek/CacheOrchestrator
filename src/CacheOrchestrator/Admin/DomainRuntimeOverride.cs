@@ -17,11 +17,8 @@ public sealed class DomainRuntimeOverride
     /// <summary>Override Output Cache enabled.</summary>
     public bool? OutputCacheEnabled { get; init; }
 
-    /// <summary>Override FusionCache enabled.</summary>
-    public bool? FusionCacheEnabled { get; init; }
-
-    /// <summary>Override bypass-when-authenticated (legacy; prefer <see cref="AuthBypassMode"/>).</summary>
-    public bool? BypassWhenAuthenticated { get; init; }
+    /// <summary>Override data cache enabled.</summary>
+    public bool? DataCacheEnabled { get; init; }
 
     /// <summary>Override auth bypass mode.</summary>
     public Configuration.AuthBypassMode? AuthBypassMode { get; init; }
@@ -77,11 +74,11 @@ public sealed class DomainRuntimeOverride
     /// <summary>Override client cacheability.</summary>
     public Configuration.ClientCacheability? ClientCacheability { get; init; }
 
-    /// <summary>Override client TTL seconds.</summary>
-    public int? ClientTtlSeconds { get; init; }
+    /// <summary>Override client TTL.</summary>
+    public TimeSpan? ClientTtl { get; init; }
 
-    /// <summary>Override client TTL min seconds.</summary>
-    public int? ClientTtlMinSeconds { get; init; }
+    /// <summary>Override client TTL min.</summary>
+    public TimeSpan? ClientTtlMin { get; init; }
 
     /// <summary>Override scheduled update UTC.</summary>
     public DateTimeOffset? ScheduledUpdateUtc { get; init; }
@@ -89,29 +86,29 @@ public sealed class DomainRuntimeOverride
     /// <summary>Override must-revalidate near update.</summary>
     public bool? ClientMustRevalidateNearUpdate { get; init; }
 
-    /// <summary>Override Output Cache TTL seconds.</summary>
-    public int? OutputCacheTtlSeconds { get; init; }
+    /// <summary>Override Output Cache TTL.</summary>
+    public TimeSpan? OutputCacheTtl { get; init; }
 
-    /// <summary>Override Fusion soft TTL seconds.</summary>
-    public int? FusionCacheSoftTtlSeconds { get; init; }
+    /// <summary>Override data cache TTL.</summary>
+    public TimeSpan? DataCacheTtl { get; init; }
 
-    /// <summary>Override Fusion hard TTL seconds.</summary>
-    public int? FusionCacheHardTtlSeconds { get; init; }
+    /// <summary>Override Fusion hard TTL.</summary>
+    public TimeSpan? FusionCacheHardTtl { get; init; }
 
-    /// <summary>Override Fusion fail-safe seconds.</summary>
-    public int? FusionCacheFailSafeSeconds { get; init; }
+    /// <summary>Override Fusion fail-safe.</summary>
+    public TimeSpan? FusionCacheFailSafe { get; init; }
 
     /// <summary>Override eager refresh ratio.</summary>
     public double? FusionCacheEagerRefreshRatio { get; init; }
 
-    /// <summary>Override Fusion jitter seconds.</summary>
-    public int? FusionCacheJitterSeconds { get; init; }
+    /// <summary>Override Fusion jitter.</summary>
+    public TimeSpan? FusionCacheJitter { get; init; }
 
-    /// <summary>Override factory soft timeout seconds.</summary>
-    public int? FusionCacheFactorySoftTimeoutSeconds { get; init; }
+    /// <summary>Override factory soft timeout.</summary>
+    public TimeSpan? FusionCacheFactorySoftTimeout { get; init; }
 
-    /// <summary>Override factory hard timeout seconds.</summary>
-    public int? FusionCacheFactoryHardTimeoutSeconds { get; init; }
+    /// <summary>Override factory hard timeout.</summary>
+    public TimeSpan? FusionCacheFactoryHardTimeout { get; init; }
 
     /// <summary>Override max item bytes.</summary>
     public int? FusionCacheMaxItemBytes { get; init; }
@@ -138,8 +135,7 @@ public sealed class DomainRuntimeOverride
     public bool HasAny =>
         Version is not null
         || OutputCacheEnabled is not null
-        || FusionCacheEnabled is not null
-        || BypassWhenAuthenticated is not null
+        || DataCacheEnabled is not null
         || AuthBypassMode is not null
         || VaryOutputCacheByUser is not null
         || TreatAuthorizationAsAuthSignal is not null
@@ -158,18 +154,18 @@ public sealed class DomainRuntimeOverride
         || VaryByAuthClaims is not null
         || ETagMode is not null
         || ClientCacheability is not null
-        || ClientTtlSeconds is not null
-        || ClientTtlMinSeconds is not null
+        || ClientTtl is not null
+        || ClientTtlMin is not null
         || ScheduledUpdateUtc is not null
         || ClientMustRevalidateNearUpdate is not null
-        || OutputCacheTtlSeconds is not null
-        || FusionCacheSoftTtlSeconds is not null
-        || FusionCacheHardTtlSeconds is not null
-        || FusionCacheFailSafeSeconds is not null
+        || OutputCacheTtl is not null
+        || DataCacheTtl is not null
+        || FusionCacheHardTtl is not null
+        || FusionCacheFailSafe is not null
         || FusionCacheEagerRefreshRatio is not null
-        || FusionCacheJitterSeconds is not null
-        || FusionCacheFactorySoftTimeoutSeconds is not null
-        || FusionCacheFactoryHardTimeoutSeconds is not null
+        || FusionCacheJitter is not null
+        || FusionCacheFactorySoftTimeout is not null
+        || FusionCacheFactoryHardTimeout is not null
         || FusionCacheMaxItemBytes is not null
         || FusionCacheRespectNoStore is not null
         || FusionCacheAllowBackgroundDistributed is not null
@@ -188,11 +184,8 @@ public sealed class DomainSettingsPatch
     /// <summary>Output Cache enabled.</summary>
     public bool? OutputCacheEnabled { get; init; }
 
-    /// <summary>FusionCache enabled.</summary>
-    public bool? FusionCacheEnabled { get; init; }
-
-    /// <summary>Bypass when authenticated (legacy).</summary>
-    public bool? BypassWhenAuthenticated { get; init; }
+    /// <summary>Data cache enabled.</summary>
+    public bool? DataCacheEnabled { get; init; }
 
     /// <summary>Auth bypass mode.</summary>
     public Configuration.AuthBypassMode? AuthBypassMode { get; init; }
@@ -248,11 +241,11 @@ public sealed class DomainSettingsPatch
     /// <summary>Client cacheability.</summary>
     public Configuration.ClientCacheability? ClientCacheability { get; init; }
 
-    /// <summary>Client TTL seconds.</summary>
-    public int? ClientTtlSeconds { get; init; }
+    /// <summary>Client TTL.</summary>
+    public TimeSpan? ClientTtl { get; init; }
 
-    /// <summary>Client TTL min seconds.</summary>
-    public int? ClientTtlMinSeconds { get; init; }
+    /// <summary>Client TTL min.</summary>
+    public TimeSpan? ClientTtlMin { get; init; }
 
     /// <summary>Scheduled update UTC.</summary>
     public DateTimeOffset? ScheduledUpdateUtc { get; init; }
@@ -260,29 +253,29 @@ public sealed class DomainSettingsPatch
     /// <summary>Must-revalidate near update.</summary>
     public bool? ClientMustRevalidateNearUpdate { get; init; }
 
-    /// <summary>Output Cache TTL seconds.</summary>
-    public int? OutputCacheTtlSeconds { get; init; }
+    /// <summary>Output Cache TTL.</summary>
+    public TimeSpan? OutputCacheTtl { get; init; }
 
-    /// <summary>Fusion soft TTL seconds.</summary>
-    public int? FusionCacheSoftTtlSeconds { get; init; }
+    /// <summary>Data cache TTL.</summary>
+    public TimeSpan? DataCacheTtl { get; init; }
 
-    /// <summary>Fusion hard TTL seconds.</summary>
-    public int? FusionCacheHardTtlSeconds { get; init; }
+    /// <summary>Fusion hard TTL.</summary>
+    public TimeSpan? FusionCacheHardTtl { get; init; }
 
-    /// <summary>Fusion fail-safe seconds.</summary>
-    public int? FusionCacheFailSafeSeconds { get; init; }
+    /// <summary>Fusion fail-safe.</summary>
+    public TimeSpan? FusionCacheFailSafe { get; init; }
 
     /// <summary>Eager refresh ratio.</summary>
     public double? FusionCacheEagerRefreshRatio { get; init; }
 
-    /// <summary>Fusion jitter seconds.</summary>
-    public int? FusionCacheJitterSeconds { get; init; }
+    /// <summary>Fusion jitter.</summary>
+    public TimeSpan? FusionCacheJitter { get; init; }
 
-    /// <summary>Factory soft timeout seconds.</summary>
-    public int? FusionCacheFactorySoftTimeoutSeconds { get; init; }
+    /// <summary>Factory soft timeout.</summary>
+    public TimeSpan? FusionCacheFactorySoftTimeout { get; init; }
 
-    /// <summary>Factory hard timeout seconds.</summary>
-    public int? FusionCacheFactoryHardTimeoutSeconds { get; init; }
+    /// <summary>Factory hard timeout.</summary>
+    public TimeSpan? FusionCacheFactoryHardTimeout { get; init; }
 
     /// <summary>Max item bytes.</summary>
     public int? FusionCacheMaxItemBytes { get; init; }
@@ -308,8 +301,7 @@ public sealed class DomainSettingsPatch
     /// <summary>True when at least one field is provided.</summary>
     public bool HasAny =>
         OutputCacheEnabled is not null
-        || FusionCacheEnabled is not null
-        || BypassWhenAuthenticated is not null
+        || DataCacheEnabled is not null
         || AuthBypassMode is not null
         || VaryOutputCacheByUser is not null
         || TreatAuthorizationAsAuthSignal is not null
@@ -328,18 +320,18 @@ public sealed class DomainSettingsPatch
         || VaryByAuthClaims is not null
         || ETagMode is not null
         || ClientCacheability is not null
-        || ClientTtlSeconds is not null
-        || ClientTtlMinSeconds is not null
+        || ClientTtl is not null
+        || ClientTtlMin is not null
         || ScheduledUpdateUtc is not null
         || ClientMustRevalidateNearUpdate is not null
-        || OutputCacheTtlSeconds is not null
-        || FusionCacheSoftTtlSeconds is not null
-        || FusionCacheHardTtlSeconds is not null
-        || FusionCacheFailSafeSeconds is not null
+        || OutputCacheTtl is not null
+        || DataCacheTtl is not null
+        || FusionCacheHardTtl is not null
+        || FusionCacheFailSafe is not null
         || FusionCacheEagerRefreshRatio is not null
-        || FusionCacheJitterSeconds is not null
-        || FusionCacheFactorySoftTimeoutSeconds is not null
-        || FusionCacheFactoryHardTimeoutSeconds is not null
+        || FusionCacheJitter is not null
+        || FusionCacheFactorySoftTimeout is not null
+        || FusionCacheFactoryHardTimeout is not null
         || FusionCacheMaxItemBytes is not null
         || FusionCacheRespectNoStore is not null
         || FusionCacheAllowBackgroundDistributed is not null
@@ -352,8 +344,7 @@ public sealed class DomainSettingsPatch
     public bool IsTtlOnly =>
         HasAny
         && OutputCacheEnabled is null
-        && FusionCacheEnabled is null
-        && BypassWhenAuthenticated is null
+        && DataCacheEnabled is null
         && AuthBypassMode is null
         && VaryOutputCacheByUser is null
         && TreatAuthorizationAsAuthSignal is null
@@ -375,9 +366,9 @@ public sealed class DomainSettingsPatch
         && ScheduledUpdateUtc is null
         && ClientMustRevalidateNearUpdate is null
         && FusionCacheEagerRefreshRatio is null
-        && FusionCacheJitterSeconds is null
-        && FusionCacheFactorySoftTimeoutSeconds is null
-        && FusionCacheFactoryHardTimeoutSeconds is null
+        && FusionCacheJitter is null
+        && FusionCacheFactorySoftTimeout is null
+        && FusionCacheFactoryHardTimeout is null
         && FusionCacheMaxItemBytes is null
         && FusionCacheRespectNoStore is null
         && FusionCacheAllowBackgroundDistributed is null
@@ -385,12 +376,12 @@ public sealed class DomainSettingsPatch
         && FusionCacheVaryOnPublicAddress is null
         && FusionCacheVaryOnEncoding is null
         && OutputCacheVaryByHost is null
-        && (OutputCacheTtlSeconds is not null
-            || FusionCacheSoftTtlSeconds is not null
-            || FusionCacheHardTtlSeconds is not null
-            || FusionCacheFailSafeSeconds is not null
-            || ClientTtlSeconds is not null
-            || ClientTtlMinSeconds is not null);
+        && (OutputCacheTtl is not null
+            || DataCacheTtl is not null
+            || FusionCacheHardTtl is not null
+            || FusionCacheFailSafe is not null
+            || ClientTtl is not null
+            || ClientTtlMin is not null);
 }
 
 /// <summary>
@@ -400,22 +391,22 @@ public sealed class DomainSettingsPatch
 [Obsolete("Use DomainSettingsPatch. DomainTtlPatch remains for source compatibility.")]
 public sealed class DomainTtlPatch
 {
-    /// <inheritdoc cref="DomainSettingsPatch.OutputCacheTtlSeconds"/>
+    /// <summary>Output Cache TTL seconds.</summary>
     public int? OutputCacheTtlSeconds { get; init; }
 
-    /// <inheritdoc cref="DomainSettingsPatch.FusionCacheSoftTtlSeconds"/>
+    /// <summary>Data / Fusion soft TTL seconds.</summary>
     public int? FusionCacheSoftTtlSeconds { get; init; }
 
-    /// <inheritdoc cref="DomainSettingsPatch.FusionCacheHardTtlSeconds"/>
+    /// <summary>Fusion hard TTL seconds.</summary>
     public int? FusionCacheHardTtlSeconds { get; init; }
 
-    /// <inheritdoc cref="DomainSettingsPatch.FusionCacheFailSafeSeconds"/>
+    /// <summary>Fusion fail-safe seconds.</summary>
     public int? FusionCacheFailSafeSeconds { get; init; }
 
-    /// <inheritdoc cref="DomainSettingsPatch.ClientTtlSeconds"/>
+    /// <summary>Client TTL seconds.</summary>
     public int? ClientTtlSeconds { get; init; }
 
-    /// <inheritdoc cref="DomainSettingsPatch.ClientTtlMinSeconds"/>
+    /// <summary>Client TTL min seconds.</summary>
     public int? ClientTtlMinSeconds { get; init; }
 
     /// <inheritdoc cref="DomainSettingsPatch.HasAny"/>
@@ -424,11 +415,14 @@ public sealed class DomainTtlPatch
     /// <summary>Maps to <see cref="DomainSettingsPatch"/>.</summary>
     public DomainSettingsPatch ToSettingsPatch() => new()
     {
-        OutputCacheTtlSeconds = OutputCacheTtlSeconds,
-        FusionCacheSoftTtlSeconds = FusionCacheSoftTtlSeconds,
-        FusionCacheHardTtlSeconds = FusionCacheHardTtlSeconds,
-        FusionCacheFailSafeSeconds = FusionCacheFailSafeSeconds,
-        ClientTtlSeconds = ClientTtlSeconds,
-        ClientTtlMinSeconds = ClientTtlMinSeconds,
+        OutputCacheTtl = FromSeconds(OutputCacheTtlSeconds),
+        DataCacheTtl = FromSeconds(FusionCacheSoftTtlSeconds),
+        FusionCacheHardTtl = FromSeconds(FusionCacheHardTtlSeconds),
+        FusionCacheFailSafe = FromSeconds(FusionCacheFailSafeSeconds),
+        ClientTtl = FromSeconds(ClientTtlSeconds),
+        ClientTtlMin = FromSeconds(ClientTtlMinSeconds),
     };
+
+    private static TimeSpan? FromSeconds(int? seconds) =>
+        seconds is int s ? TimeSpan.FromSeconds(s) : null;
 }

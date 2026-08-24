@@ -36,13 +36,13 @@ public class FusionHttpAndDiTests
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
+            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
+            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
         extra?.Invoke(d);
         return d;
@@ -158,7 +158,7 @@ public class FusionHttpAndDiTests
         string domain = "fc-meta-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
@@ -255,8 +255,8 @@ public class FusionHttpAndDiTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-                [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+                [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+                [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
             })
             .Build();
 
@@ -302,13 +302,13 @@ public class FusionHttpAndDiTests
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0",
+            [$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
+            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(initial);
@@ -413,14 +413,14 @@ public class FusionHttpAndDiTests
 
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
-            d[$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "1";
-            d[$"Cache:Domains:{domain}:FusionCacheHardTtlSeconds"] = "3600";
-            d[$"Cache:Domains:{domain}:FusionCacheFailSafeSeconds"] = "86400";
-            d[$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0";
-            d[$"Cache:Domains:{domain}:FusionCacheEagerRefreshRatio"] = "0";
-            d[$"Cache:Domains:{domain}:FusionCacheFactorySoftTimeoutSeconds"] = "5";
-            d[$"Cache:Domains:{domain}:FusionCacheFactoryHardTimeoutSeconds"] = "10";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
+            d[$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:00:01";
+            d[$"Cache:Domains:{domain}:FusionCache:HardTtl"] = "01:00:00";
+            d[$"Cache:Domains:{domain}:FusionCache:FailSafe"] = "1.00:00:00";
+            d[$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00";
+            d[$"Cache:Domains:{domain}:FusionCache:EagerRefreshRatio"] = "0";
+            d[$"Cache:Domains:{domain}:FusionCache:FactorySoftTimeout"] = "00:00:05";
+            d[$"Cache:Domains:{domain}:FusionCache:FactoryHardTimeout"] = "00:00:10";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
@@ -476,10 +476,10 @@ public class FusionHttpAndDiTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-                [$"Cache:Domains:{domain}:FusionCacheVaryOnEncoding"] = "true",
-                [$"Cache:Domains:{domain}:FusionCacheVaryOnPublicAddress"] = "false",
-                [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
+                [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+                [$"Cache:Domains:{domain}:FusionCache:VaryOnEncoding"] = "true",
+                [$"Cache:Domains:{domain}:FusionCache:VaryOnPublicAddress"] = "false",
+                [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
             })
             .Build();
 
@@ -540,8 +540,8 @@ public class FusionHttpAndDiTests
         string domain = "fc-off-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainBase(domain, d =>
         {
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
-            d[$"Cache:Domains:{domain}:FusionCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
+            d[$"Cache:Domains:{domain}:DataCache:Enabled"] = "false";
         });
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>

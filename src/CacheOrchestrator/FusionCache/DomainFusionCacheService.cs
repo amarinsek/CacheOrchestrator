@@ -172,34 +172,6 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         feature.ResourceId = DomainName.NormalizeResourceId(resourceId);
     }
 
-    /// <inheritdoc />
-    [Obsolete("Use GetOrSetEntityAsync(http, factory). Identity comes from CacheOutputWithDomain / [CacheDomain] or SetEntityIdentity.")]
-    public Task<T> GetOrSetEntityAsync<T>(
-        HttpContext http,
-        string entityKind,
-        string resourceId,
-        Func<CancellationToken, Task<T>> factory,
-        CancellationToken cancellationToken = default)
-    {
-        EnsureUsableEntityIdentity(entityKind, resourceId);
-        return GetOrSetCoreAsync(http, domain: null, entityKind, resourceId, factory, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    [Obsolete("Use GetOrSetEntityAsync(http, factory). Identity comes from CacheOutputWithDomain / [CacheDomain] or SetEntityIdentity.")]
-    public Task<T> GetOrSetEntityAsync<T>(
-        HttpContext http,
-        string domain,
-        string entityKind,
-        string resourceId,
-        Func<CancellationToken, Task<T>> factory,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        EnsureUsableEntityIdentity(entityKind, resourceId);
-        return GetOrSetCoreAsync(http, domain, entityKind, resourceId, factory, cancellationToken);
-    }
-
     private async Task<T?> GetOrSetFootprintAsync<T>(
         HttpContext http,
         string? domain,
@@ -228,7 +200,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             return unresolved.IsMiss ? default : unresolved.Value;
         }
 
-        if (!opts.FusionCacheEnabled)
+        if (!opts.DataCacheEnabled)
         {
             FootprintCacheBox<T?> off = await factory(cancellationToken).ConfigureAwait(false);
             EntityFootprint staged = WithRequestPrimary(http, off.Footprint);
@@ -285,7 +257,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
                 feature.ResourceId = previousId;
         }
 
-        FusionCacheEntryOptions options = opts.GetFusionEntryOptions();
+        FusionCacheEntryOptions options = FusionEntryOptionsFactory.Create(opts);
         IFusionCache fusion = _fusionProvider.GetCache(opts.FusionCacheInstanceName);
         // Early tags (mutable — factory may append before Fusion Set reads them).
         List<string> tags = [CacheTags.Domain(opts.Domain)];
@@ -526,7 +498,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         Func<CancellationToken, Task<T>> factory,
         CancellationToken cancellationToken)
     {
-        if (!opts.FusionCacheEnabled)
+        if (!opts.DataCacheEnabled)
         {
             using Activity? offActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
             offActivity?.SetTag("domain", opts.Domain);

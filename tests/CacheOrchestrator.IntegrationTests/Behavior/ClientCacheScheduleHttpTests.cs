@@ -36,13 +36,13 @@ public class ClientCacheScheduleHttpTests
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = clientTtl.ToString(),
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = clientTtlMin.ToString(),
-            [$"Cache:Domains:{domain}:ClientMustRevalidateNearUpdate"] = mustRevalidateNear ? "true" : "false",
-            [$"Cache:Domains:{domain}:ScheduledUpdateUtc"] = scheduleUtc.ToString("O"),
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "1", // avoid OC hiding header changes across phase advances
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = TimeSpan.FromSeconds(clientTtl).ToString(),
+            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = TimeSpan.FromSeconds(clientTtlMin).ToString(),
+            [$"Cache:Domains:{domain}:ClientCache:MustRevalidateNearUpdate"] = mustRevalidateNear ? "true" : "false",
+            [$"Cache:Domains:{domain}:ClientCache:ScheduledUpdateUtc"] = scheduleUtc.ToString("O"),
+            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:00:01", // avoid OC hiding header changes across phase advances
+            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(configValues);
@@ -300,7 +300,7 @@ public class ClientCacheScheduleHttpTests
             DateTimeOffset t1 = clock.GetUtcNow().AddSeconds(10_000);
             reload.Provider.Should().NotBeNull();
             reload.Provider!.SetAndReload(
-                $"Cache:Domains:{domain}:ScheduledUpdateUtc",
+                $"Cache:Domains:{domain}:ClientCache:ScheduledUpdateUtc",
                 t1.ToString("O"));
             await WaitForScheduledUpdateAsync(app.Services, domain, t1);
             await AdvancePastOutputCacheAsync(clock, clock.GetUtcNow()); // expire OC only; clock unchanged

@@ -43,7 +43,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
 
         DomainCacheOptions opts = _domainOptions.GetOrCreateDomainOptions(request.Domain);
 
-        if (!opts.FusionCacheEnabled)
+        if (!opts.DataCacheEnabled)
         {
             if (_logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug("Data cache off for domain {Domain}; factory runs uncached.", opts.Domain);

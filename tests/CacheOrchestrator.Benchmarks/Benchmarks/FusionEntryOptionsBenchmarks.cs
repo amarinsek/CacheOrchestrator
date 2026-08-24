@@ -1,11 +1,12 @@
 using BenchmarkDotNet.Attributes;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.FusionCache;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.Benchmarks.Benchmarks;
 
 /// <summary>
-/// <see cref="DomainCacheOptions.GetFusionEntryOptions"/> builds once per domain snapshot then reuses.
+/// <see cref="FusionEntryOptionsFactory.Create"/> builds Fusion entry options from a domain snapshot.
 /// </summary>
 [MemoryDiagnoser]
 [ShortJob]
@@ -17,23 +18,23 @@ public class FusionEntryOptionsBenchmarks
     public void Setup()
     {
         _warm = CreateOptions();
-        _ = _warm.GetFusionEntryOptions(); // populate cache
+        _ = FusionEntryOptionsFactory.Create(_warm);
     }
 
     [Benchmark(Baseline = true)]
     public FusionCacheEntryOptions Get_Warm_Reuse()
-        => _warm.GetFusionEntryOptions();
+        => FusionEntryOptionsFactory.Create(_warm);
 
     [Benchmark]
     public FusionCacheEntryOptions Get_Cold_NewSnapshot()
-        => CreateOptions().GetFusionEntryOptions();
+        => FusionEntryOptionsFactory.Create(CreateOptions());
 
     private static DomainCacheOptions CreateOptions() => new()
     {
         Domain = "catalog",
         Version = "1",
         VersionHex = "01",
-        FusionCacheSoftTtl = TimeSpan.FromSeconds(300),
+        DataCacheTtl = TimeSpan.FromSeconds(300),
         FusionCacheHardTtl = TimeSpan.FromHours(12),
         FusionCacheFailSafe = TimeSpan.FromHours(24),
         FusionCacheJitterSeconds = 60,
@@ -41,7 +42,7 @@ public class FusionEntryOptionsBenchmarks
         FusionCacheAllowBackgroundDistributed = true,
         FusionCacheAllowBackgroundBackplane = true,
         OutputCacheEnabled = true,
-        FusionCacheEnabled = true,
+        DataCacheEnabled = true,
         ClientCacheability = ClientCacheability.Public,
         ClientTtlSeconds = 60,
         ClientTtlMinSeconds = 60,

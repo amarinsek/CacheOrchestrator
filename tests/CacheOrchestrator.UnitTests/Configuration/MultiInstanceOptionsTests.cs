@@ -28,8 +28,8 @@ public class MultiInstanceOptionsTests
         Domains = new Dictionary<string, CacheOrchestratorOptions.DomainCacheSettings>(
             StringComparer.OrdinalIgnoreCase)
         {
-            ["products"] = new() { FusionCacheInstance = "default" },
-            ["users"] = new() { FusionCacheInstance = "pii" }
+            ["products"] = new() { DataCache = new() { Instance = "default" } },
+            ["users"] = new() { DataCache = new() { Instance = "pii" } }
         }
     };
 
@@ -73,7 +73,7 @@ public class MultiInstanceOptionsTests
         var options = TwoInstanceOptions();
         options.Domains["reports"] = new CacheOrchestratorOptions.DomainCacheSettings
         {
-            FusionCacheInstance = null
+            DataCache = new() { Instance = null }
         };
         using var provider = BuildProvider(options);
 
@@ -86,7 +86,7 @@ public class MultiInstanceOptionsTests
     public void GetOrCreateDomainOptions_DomainDefaultsFusionInstance_PropagatesDown()
     {
         var options = TwoInstanceOptions();
-        options.DomainDefaults.FusionCacheInstance = "pii";
+        options.DomainDefaults.DataCache = new() { Instance = "pii" };
         // "products" has explicit "default", "users" has "pii", "news" has no override
         using var provider = BuildProvider(options);
 
@@ -100,7 +100,7 @@ public class MultiInstanceOptionsTests
     public void GetOrCreateDomainOptions_ExplicitInstanceOverridesDomainDefaults()
     {
         var options = TwoInstanceOptions();
-        options.DomainDefaults.FusionCacheInstance = "pii";
+        options.DomainDefaults.DataCache = new() { Instance = "pii" };
         // "products" explicitly overrides to "default"
         using var provider = BuildProvider(options);
 

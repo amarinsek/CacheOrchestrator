@@ -183,7 +183,7 @@ public class AdminRegistrationTests
             ["Cache:OutputCache:Provider"] = "InMemory",
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Domains:catalog:Version"] = "v1",
-            ["Cache:Domains:catalog:OutputCacheTtlSeconds"] = "60",
+            ["Cache:Domains:catalog:OutputCache:Ttl"] = "00:01:00",
             ["Cache:Admin:Enabled"] = enabled ? "true" : "false"
         };
         if (apiKey is not null)

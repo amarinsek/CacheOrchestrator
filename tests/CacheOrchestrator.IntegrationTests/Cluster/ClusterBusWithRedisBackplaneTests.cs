@@ -113,12 +113,12 @@ public class ClusterBusWithRedisBackplaneTests
             ["Cache:Admin:ApiKey"] = "bus-redis-key",
             ["Cache:Admin:RoutePrefix"] = "/cache-admin/local",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "120",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheJitterSeconds"] = "0",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:02:00",
+            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
+            [$"Cache:Domains:{domain}:FusionCache:Jitter"] = "00:00:00",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
         };
 
         for (int i = 0; i < peers.Count; i++)

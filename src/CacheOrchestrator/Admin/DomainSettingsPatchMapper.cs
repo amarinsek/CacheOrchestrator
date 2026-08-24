@@ -21,8 +21,7 @@ public static class DomainSettingsPatchMapper
             throw new ArgumentException("At least one setting must be set.", nameof(settings));
 
         bool? outputCacheEnabled = null;
-        bool? fusionCacheEnabled = null;
-        bool? bypassWhenAuthenticated = null;
+        bool? dataCacheEnabled = null;
         AuthBypassMode? authBypassMode = null;
         bool? varyOutputCacheByUser = null;
         bool? treatAuthorizationAsAuthSignal = null;
@@ -41,18 +40,18 @@ public static class DomainSettingsPatchMapper
         string[]? varyByAuthClaims = null;
         ETagMode? eTagMode = null;
         ClientCacheability? clientCacheability = null;
-        int? clientTtlSeconds = null;
-        int? clientTtlMinSeconds = null;
+        TimeSpan? clientTtl = null;
+        TimeSpan? clientTtlMin = null;
         DateTimeOffset? scheduledUpdateUtc = null;
         bool? clientMustRevalidateNearUpdate = null;
-        int? outputCacheTtlSeconds = null;
-        int? fusionCacheSoftTtlSeconds = null;
-        int? fusionCacheHardTtlSeconds = null;
-        int? fusionCacheFailSafeSeconds = null;
+        TimeSpan? outputCacheTtl = null;
+        TimeSpan? dataCacheTtl = null;
+        TimeSpan? fusionCacheHardTtl = null;
+        TimeSpan? fusionCacheFailSafe = null;
         double? fusionCacheEagerRefreshRatio = null;
-        int? fusionCacheJitterSeconds = null;
-        int? fusionCacheFactorySoftTimeoutSeconds = null;
-        int? fusionCacheFactoryHardTimeoutSeconds = null;
+        TimeSpan? fusionCacheJitter = null;
+        TimeSpan? fusionCacheFactorySoftTimeout = null;
+        TimeSpan? fusionCacheFactoryHardTimeout = null;
         int? fusionCacheMaxItemBytes = null;
         bool? fusionCacheRespectNoStore = null;
         bool? fusionCacheAllowBackgroundDistributed = null;
@@ -71,15 +70,14 @@ public static class DomainSettingsPatchMapper
             string id = entry.Id;
             switch (id)
             {
-                case "outputCacheEnabled": outputCacheEnabled = ReadBool(el, id); break;
-                case "fusionCacheEnabled": fusionCacheEnabled = ReadBool(el, id); break;
-                case "bypassWhenAuthenticated": bypassWhenAuthenticated = ReadBool(el, id); break;
+                case "outputCache.enabled": outputCacheEnabled = ReadBool(el, id); break;
+                case "dataCache.enabled": dataCacheEnabled = ReadBool(el, id); break;
                 case "authBypassMode": authBypassMode = ReadEnum<AuthBypassMode>(el, id); break;
                 case "varyOutputCacheByUser": varyOutputCacheByUser = ReadBool(el, id); break;
                 case "treatAuthorizationAsAuthSignal": treatAuthorizationAsAuthSignal = ReadBool(el, id); break;
                 case "authVaryIncludeAuthorizationHash": authVaryIncludeAuthorizationHash = ReadBool(el, id); break;
                 case "fusionRespectAuthBypass": fusionRespectAuthBypass = ReadBool(el, id); break;
-                case "clientForcePrivateWhenAuthenticated": clientForcePrivateWhenAuthenticated = ReadBool(el, id); break;
+                case "clientCache.forcePrivateWhenAuthenticated": clientForcePrivateWhenAuthenticated = ReadBool(el, id); break;
                 case "varyByAccept": varyByAccept = ReadBool(el, id); break;
                 case "varyByAcceptLanguage": varyByAcceptLanguage = ReadBool(el, id); break;
                 case "emitResponseVary": emitResponseVary = ReadBool(el, id); break;
@@ -90,27 +88,27 @@ public static class DomainSettingsPatchMapper
                 case "ignoreQueryKeys": ignoreQueryKeys = ReadStringArray(el, id, max: 32); break;
                 case "varyByCookies": varyByCookies = ReadStringArray(el, id, max: CacheVaryMaterializer.MaxVaryByCookies); break;
                 case "varyByAuthClaims": varyByAuthClaims = ReadStringArray(el, id, max: 16); break;
-                case "eTagMode": eTagMode = ReadEnum<ETagMode>(el, id); break;
-                case "clientCacheability": clientCacheability = ReadEnum<ClientCacheability>(el, id); break;
-                case "clientTtlSeconds": clientTtlSeconds = ReadNonNegInt(el, id); break;
-                case "clientTtlMinSeconds": clientTtlMinSeconds = ReadNonNegInt(el, id); break;
-                case "scheduledUpdateUtc": scheduledUpdateUtc = ReadDateTimeOffset(el, id); break;
-                case "clientMustRevalidateNearUpdate": clientMustRevalidateNearUpdate = ReadBool(el, id); break;
-                case "outputCacheTtlSeconds": outputCacheTtlSeconds = ReadNonNegInt(el, id); break;
-                case "fusionCacheSoftTtlSeconds": fusionCacheSoftTtlSeconds = ReadNonNegInt(el, id); break;
-                case "fusionCacheHardTtlSeconds": fusionCacheHardTtlSeconds = ReadNonNegInt(el, id); break;
-                case "fusionCacheFailSafeSeconds": fusionCacheFailSafeSeconds = ReadNonNegInt(el, id); break;
-                case "fusionCacheEagerRefreshRatio": fusionCacheEagerRefreshRatio = ReadDouble(el, id); break;
-                case "fusionCacheJitterSeconds": fusionCacheJitterSeconds = ReadNonNegInt(el, id); break;
-                case "fusionCacheFactorySoftTimeoutSeconds": fusionCacheFactorySoftTimeoutSeconds = ReadNonNegInt(el, id); break;
-                case "fusionCacheFactoryHardTimeoutSeconds": fusionCacheFactoryHardTimeoutSeconds = ReadNonNegInt(el, id); break;
-                case "fusionCacheMaxItemBytes": fusionCacheMaxItemBytes = ReadNonNegInt(el, id); break;
-                case "fusionCacheRespectNoStore": fusionCacheRespectNoStore = ReadBool(el, id); break;
-                case "fusionCacheAllowBackgroundDistributed": fusionCacheAllowBackgroundDistributed = ReadBool(el, id); break;
-                case "fusionCacheAllowBackgroundBackplane": fusionCacheAllowBackgroundBackplane = ReadBool(el, id); break;
-                case "fusionCacheVaryOnPublicAddress": fusionCacheVaryOnPublicAddress = ReadBool(el, id); break;
-                case "fusionCacheVaryOnEncoding": fusionCacheVaryOnEncoding = ReadBool(el, id); break;
-                case "outputCacheVaryByHost": outputCacheVaryByHost = ReadBool(el, id); break;
+                case "outputCache.eTagMode": eTagMode = ReadEnum<ETagMode>(el, id); break;
+                case "clientCache.cacheability": clientCacheability = ReadEnum<ClientCacheability>(el, id); break;
+                case "clientCache.ttl": clientTtl = ReadNonNegTimeSpan(el, id); break;
+                case "clientCache.ttlMin": clientTtlMin = ReadNonNegTimeSpan(el, id); break;
+                case "clientCache.scheduledUpdateUtc": scheduledUpdateUtc = ReadDateTimeOffset(el, id); break;
+                case "clientCache.mustRevalidateNearUpdate": clientMustRevalidateNearUpdate = ReadBool(el, id); break;
+                case "outputCache.ttl": outputCacheTtl = ReadNonNegTimeSpan(el, id); break;
+                case "dataCache.ttl": dataCacheTtl = ReadNonNegTimeSpan(el, id); break;
+                case "fusionCache.hardTtl": fusionCacheHardTtl = ReadNonNegTimeSpan(el, id); break;
+                case "fusionCache.failSafe": fusionCacheFailSafe = ReadNonNegTimeSpan(el, id); break;
+                case "fusionCache.eagerRefreshRatio": fusionCacheEagerRefreshRatio = ReadDouble(el, id); break;
+                case "fusionCache.jitter": fusionCacheJitter = ReadNonNegTimeSpan(el, id); break;
+                case "fusionCache.factorySoftTimeout": fusionCacheFactorySoftTimeout = ReadNonNegTimeSpan(el, id); break;
+                case "fusionCache.factoryHardTimeout": fusionCacheFactoryHardTimeout = ReadNonNegTimeSpan(el, id); break;
+                case "fusionCache.maxItemBytes": fusionCacheMaxItemBytes = ReadNonNegInt(el, id); break;
+                case "fusionCache.respectNoStore": fusionCacheRespectNoStore = ReadBool(el, id); break;
+                case "fusionCache.allowBackgroundDistributed": fusionCacheAllowBackgroundDistributed = ReadBool(el, id); break;
+                case "fusionCache.allowBackgroundBackplane": fusionCacheAllowBackgroundBackplane = ReadBool(el, id); break;
+                case "fusionCache.varyOnPublicAddress": fusionCacheVaryOnPublicAddress = ReadBool(el, id); break;
+                case "fusionCache.varyOnEncoding": fusionCacheVaryOnEncoding = ReadBool(el, id); break;
+                case "outputCache.varyByHost": outputCacheVaryByHost = ReadBool(el, id); break;
                 default:
                     throw new ArgumentException($"Setting '{id}' is not mapped for overlay.", nameof(settings));
             }
@@ -119,8 +117,7 @@ public static class DomainSettingsPatchMapper
         return new DomainSettingsPatch
         {
             OutputCacheEnabled = outputCacheEnabled,
-            FusionCacheEnabled = fusionCacheEnabled,
-            BypassWhenAuthenticated = bypassWhenAuthenticated,
+            DataCacheEnabled = dataCacheEnabled,
             AuthBypassMode = authBypassMode,
             VaryOutputCacheByUser = varyOutputCacheByUser,
             TreatAuthorizationAsAuthSignal = treatAuthorizationAsAuthSignal,
@@ -139,18 +136,18 @@ public static class DomainSettingsPatchMapper
             VaryByAuthClaims = varyByAuthClaims,
             ETagMode = eTagMode,
             ClientCacheability = clientCacheability,
-            ClientTtlSeconds = clientTtlSeconds,
-            ClientTtlMinSeconds = clientTtlMinSeconds,
+            ClientTtl = clientTtl,
+            ClientTtlMin = clientTtlMin,
             ScheduledUpdateUtc = scheduledUpdateUtc,
             ClientMustRevalidateNearUpdate = clientMustRevalidateNearUpdate,
-            OutputCacheTtlSeconds = outputCacheTtlSeconds,
-            FusionCacheSoftTtlSeconds = fusionCacheSoftTtlSeconds,
-            FusionCacheHardTtlSeconds = fusionCacheHardTtlSeconds,
-            FusionCacheFailSafeSeconds = fusionCacheFailSafeSeconds,
+            OutputCacheTtl = outputCacheTtl,
+            DataCacheTtl = dataCacheTtl,
+            FusionCacheHardTtl = fusionCacheHardTtl,
+            FusionCacheFailSafe = fusionCacheFailSafe,
             FusionCacheEagerRefreshRatio = fusionCacheEagerRefreshRatio,
-            FusionCacheJitterSeconds = fusionCacheJitterSeconds,
-            FusionCacheFactorySoftTimeoutSeconds = fusionCacheFactorySoftTimeoutSeconds,
-            FusionCacheFactoryHardTimeoutSeconds = fusionCacheFactoryHardTimeoutSeconds,
+            FusionCacheJitter = fusionCacheJitter,
+            FusionCacheFactorySoftTimeout = fusionCacheFactorySoftTimeout,
+            FusionCacheFactoryHardTimeout = fusionCacheFactoryHardTimeout,
             FusionCacheMaxItemBytes = fusionCacheMaxItemBytes,
             FusionCacheRespectNoStore = fusionCacheRespectNoStore,
             FusionCacheAllowBackgroundDistributed = fusionCacheAllowBackgroundDistributed,
@@ -165,13 +162,16 @@ public static class DomainSettingsPatchMapper
     public static DomainSettingsPatch FromTtlRequest(AdminTtlPatchRequest body) =>
         new()
         {
-            OutputCacheTtlSeconds = body.OutputCacheTtlSeconds,
-            FusionCacheSoftTtlSeconds = body.FusionCacheSoftTtlSeconds,
-            FusionCacheHardTtlSeconds = body.FusionCacheHardTtlSeconds,
-            FusionCacheFailSafeSeconds = body.FusionCacheFailSafeSeconds,
-            ClientTtlSeconds = body.ClientTtlSeconds,
-            ClientTtlMinSeconds = body.ClientTtlMinSeconds,
+            OutputCacheTtl = FromSeconds(body.OutputCacheTtlSeconds),
+            DataCacheTtl = FromSeconds(body.FusionCacheSoftTtlSeconds),
+            FusionCacheHardTtl = FromSeconds(body.FusionCacheHardTtlSeconds),
+            FusionCacheFailSafe = FromSeconds(body.FusionCacheFailSafeSeconds),
+            ClientTtl = FromSeconds(body.ClientTtlSeconds),
+            ClientTtlMin = FromSeconds(body.ClientTtlMinSeconds),
         };
+
+    private static TimeSpan? FromSeconds(int? seconds) =>
+        seconds is int s ? TimeSpan.FromSeconds(s) : null;
 
     private static bool ReadBool(JsonElement el, string id) =>
         el.ValueKind switch
@@ -193,6 +193,35 @@ public static class DomainSettingsPatchMapper
         if (v < 0)
             throw new ArgumentException($"Setting '{id}' must be >= 0.", id);
         return v;
+    }
+
+    private static TimeSpan ReadNonNegTimeSpan(JsonElement el, string id)
+    {
+        TimeSpan v = el.ValueKind switch
+        {
+            JsonValueKind.Number when el.TryGetDouble(out double seconds) => TimeSpan.FromSeconds(seconds),
+            JsonValueKind.String when TryParseTimeSpan(el.GetString(), out TimeSpan parsed) => parsed,
+            _ => throw new ArgumentException($"Setting '{id}' must be a TimeSpan string or total seconds number.", id),
+        };
+        if (v < TimeSpan.Zero)
+            throw new ArgumentException($"Setting '{id}' must be >= 0.", id);
+        return v;
+    }
+
+    private static bool TryParseTimeSpan(string? raw, out TimeSpan value)
+    {
+        value = default;
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+        if (TimeSpan.TryParse(raw, CultureInfo.InvariantCulture, out value))
+            return true;
+        if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double seconds))
+        {
+            value = TimeSpan.FromSeconds(seconds);
+            return true;
+        }
+
+        return false;
     }
 
     private static double ReadDouble(JsonElement el, string id) =>

@@ -182,9 +182,9 @@ public class CacheOrchestratorServiceTests
             Domain = domain,
             Version = "1",
             VersionHex = versionHex,
-            FusionCacheEnabled = enabled,
+            DataCacheEnabled = enabled,
             FusionCacheInstanceName = "default",
-            FusionCacheSoftTtl = TimeSpan.FromMinutes(5),
+            DataCacheTtl = TimeSpan.FromMinutes(5),
             FusionCacheHardTtl = TimeSpan.FromHours(1),
             FusionCacheFailSafe = TimeSpan.FromHours(2)
         };

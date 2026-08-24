@@ -1,5 +1,3 @@
-using ZiggyCreatures.Caching.Fusion;
-
 namespace CacheOrchestrator.Configuration;
 
 /// <summary>
@@ -7,12 +5,6 @@ namespace CacheOrchestrator.Configuration;
 /// </summary>
 public sealed class DomainCacheOptions
 {
-    /// <summary>
-    /// Lazily built, shared <see cref="FusionCacheEntryOptions"/> for this domain snapshot.
-    /// Safe to reuse across concurrent GetOrSet calls (same domain options instance).
-    /// </summary>
-    private FusionCacheEntryOptions? _fusionEntryOptions;
-
     /// <summary>Normalized domain name.</summary>
     public string Domain { get; init; } = string.Empty;
 
@@ -25,20 +17,8 @@ public sealed class DomainCacheOptions
     /// <summary>Whether Output Cache is enabled for this domain. Default: <see langword="true"/>.</summary>
     public bool OutputCacheEnabled { get; init; } = true;
 
-    /// <summary>Whether FusionCache is enabled for this domain. Default: <see langword="true"/>.</summary>
-    public bool FusionCacheEnabled { get; init; } = true;
-
-    /// <summary>
-    /// When <see langword="true"/> (default), authenticated requests and requests with an
-    /// <c>Authorization</c> header skip Output Cache and get client <c>no-store</c> (blocked).
-    /// Set to <see langword="false"/> to allow caching for authenticated traffic (see also
-    /// <see cref="VaryOutputCacheByUser"/>).
-    /// </summary>
-    /// <remarks>
-    /// Prefer <see cref="AuthBypassMode"/> when configuring domains.
-    /// This flag mirrors <c>AuthBypassMode != Never</c> for source compatibility with existing readers.
-    /// </remarks>
-    public bool BypassWhenAuthenticated { get; init; } = true;
+    /// <summary>Whether data cache (Fusion / Hybrid) is enabled for this domain. Default: <see langword="true"/>.</summary>
+    public bool DataCacheEnabled { get; init; } = true;
 
     /// <summary>
     /// When Output Cache (and optionally FusionCache) auto-bypasses for auth traffic.
@@ -83,7 +63,7 @@ public sealed class DomainCacheOptions
     /// </summary>
     public bool ClientForcePrivateWhenAuthenticated { get; init; } = true;
 
-    /// <summary>Vary Output Cache / Fusion by the <c>Accept</c> header. Default: false.</summary>
+    /// <summary>Vary Output Cache / Fusion by the <c>Accept</c> header. Default: false (provider default is true in v3).</summary>
     public bool VaryByAccept { get; init; }
 
     /// <summary>Optional prefer-list for <c>Accept</c> normalization (same pattern as encoding).</summary>
@@ -165,8 +145,8 @@ public sealed class DomainCacheOptions
     /// <summary>Output Cache entry duration.</summary>
     public TimeSpan OutputTtl { get; init; }
 
-    /// <summary>FusionCache soft (logical) duration.</summary>
-    public TimeSpan FusionCacheSoftTtl { get; init; }
+    /// <summary>Logical data-cache TTL (Fusion soft duration / Hybrid expiration).</summary>
+    public TimeSpan DataCacheTtl { get; init; }
 
     /// <summary>FusionCache hard (absolute) duration cap for soft TTL.</summary>
     public TimeSpan FusionCacheHardTtl { get; init; }
@@ -215,54 +195,4 @@ public sealed class DomainCacheOptions
     /// Set false when multiple public hosts/ports should share the same OC entry (e.g. multi-instance labs).
     /// </summary>
     public bool OutputCacheVaryByHost { get; init; } = true;
-
-    /// <summary>
-    /// Returns a cached <see cref="FusionCacheEntryOptions"/> built from this domain snapshot.
-    /// Created once per options instance (domains are process-level snapshots).
-    /// </summary>
-    internal FusionCacheEntryOptions GetFusionEntryOptions()
-    {
-        FusionCacheEntryOptions? cached = _fusionEntryOptions;
-        if (cached is not null)
-            return cached;
-
-        // Soft duration; cap by hard TTL when hard is shorter (defensive).
-        TimeSpan duration = FusionCacheSoftTtl;
-        if (FusionCacheHardTtl > TimeSpan.Zero && duration > FusionCacheHardTtl)
-            duration = FusionCacheHardTtl;
-
-        // Fail-safe must be explicitly enabled; FailSafeMaxDuration alone is ignored by FusionCache.
-        bool failSafeEnabled = FusionCacheFailSafe > TimeSpan.Zero;
-
-        FusionCacheEntryOptions o = new()
-        {
-            Duration = duration,
-            JitterMaxDuration = TimeSpan.FromSeconds(Math.Max(0, FusionCacheJitterSeconds)),
-            IsFailSafeEnabled = failSafeEnabled,
-            FailSafeMaxDuration = FusionCacheFailSafe,
-            AllowBackgroundDistributedCacheOperations = FusionCacheAllowBackgroundDistributed,
-            AllowBackgroundBackplaneOperations = FusionCacheAllowBackgroundBackplane,
-        };
-
-        if (FusionCacheEagerRefreshRatio is > 0 and < 1)
-            o.EagerRefreshThreshold = (float)FusionCacheEagerRefreshRatio;
-
-        if (FusionCacheMaxItemBytes > 0)
-            o.Size = FusionCacheMaxItemBytes;
-
-        TimeSpan soft = TimeSpan.FromSeconds(Math.Max(0, FusionCacheFactorySoftTimeoutSeconds));
-        TimeSpan hard = TimeSpan.FromSeconds(Math.Max(0, FusionCacheFactoryHardTimeoutSeconds));
-
-        if (hard <= TimeSpan.Zero)
-            hard = TimeSpan.FromSeconds(5);
-
-        if (soft <= TimeSpan.Zero || soft >= hard)
-            soft = TimeSpan.FromMilliseconds(Math.Max(100, hard.TotalMilliseconds * 0.2));
-
-        o.FactorySoftTimeout = soft;
-        o.FactoryHardTimeout = hard;
-
-        // First writer wins under race; both instances are equivalent for a frozen snapshot.
-        return _fusionEntryOptions ??= o;
-    }
 }

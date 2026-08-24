@@ -76,11 +76,12 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 
             ValidateDomainSettings($"Domain '{domain}'", settings, failures);
 
-            if (!string.IsNullOrWhiteSpace(settings.FusionCacheInstance) &&
-                !options.FusionCacheInstances.ContainsKey(settings.FusionCacheInstance))
+            string? dataInstance = settings.DataCache?.Instance;
+            if (!string.IsNullOrWhiteSpace(dataInstance) &&
+                !options.FusionCacheInstances.ContainsKey(dataInstance))
             {
                 failures.Add(
-                    $"Domain '{domain}': FusionCacheInstance '{settings.FusionCacheInstance}' " +
+                    $"Domain '{domain}': DataCache.Instance '{dataInstance}' " +
                     $"does not exist in FusionCacheInstances.");
             }
         }
@@ -145,35 +146,18 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
         CacheOrchestratorOptions.DomainCacheSettings settings,
         List<string> failures)
     {
-        if (settings.OutputCacheTtlSeconds is < 0)
-            failures.Add($"{label}: OutputCacheTtlSeconds cannot be negative.");
+        ValidateNonNegTimeSpan(label, "DataCache.Ttl", settings.DataCache?.Ttl, failures);
+        ValidateNonNegTimeSpan(label, "OutputCache.Ttl", settings.OutputCache?.Ttl, failures);
+        ValidateNonNegTimeSpan(label, "ClientCache.Ttl", settings.ClientCache?.Ttl, failures);
+        ValidateNonNegTimeSpan(label, "ClientCache.TtlMin", settings.ClientCache?.TtlMin, failures);
+        ValidateNonNegTimeSpan(label, "FusionCache.HardTtl", settings.FusionCache?.HardTtl, failures);
+        ValidateNonNegTimeSpan(label, "FusionCache.FailSafe", settings.FusionCache?.FailSafe, failures);
+        ValidateNonNegTimeSpan(label, "FusionCache.Jitter", settings.FusionCache?.Jitter, failures);
+        ValidateNonNegTimeSpan(label, "FusionCache.FactorySoftTimeout", settings.FusionCache?.FactorySoftTimeout, failures);
+        ValidateNonNegTimeSpan(label, "FusionCache.FactoryHardTimeout", settings.FusionCache?.FactoryHardTimeout, failures);
 
-        if (settings.FusionCacheSoftTtlSeconds is < 0)
-            failures.Add($"{label}: FusionCacheSoftTtlSeconds cannot be negative.");
-
-        if (settings.FusionCacheHardTtlSeconds is < 0)
-            failures.Add($"{label}: FusionCacheHardTtlSeconds cannot be negative.");
-
-        if (settings.FusionCacheFailSafeSeconds is < 0)
-            failures.Add($"{label}: FusionCacheFailSafeSeconds cannot be negative.");
-
-        if (settings.ClientTtlSeconds is < 0)
-            failures.Add($"{label}: ClientTtlSeconds cannot be negative.");
-
-        if (settings.ClientTtlMinSeconds is < 0)
-            failures.Add($"{label}: ClientTtlMinSeconds cannot be negative.");
-
-        if (settings.FusionCacheJitterSeconds is < 0)
-            failures.Add($"{label}: FusionCacheJitterSeconds cannot be negative.");
-
-        if (settings.FusionCacheFactorySoftTimeoutSeconds is < 0)
-            failures.Add($"{label}: FusionCacheFactorySoftTimeoutSeconds cannot be negative.");
-
-        if (settings.FusionCacheFactoryHardTimeoutSeconds is < 0)
-            failures.Add($"{label}: FusionCacheFactoryHardTimeoutSeconds cannot be negative.");
-
-        if (settings.FusionCacheEagerRefreshRatio is double ratio && (ratio < 0 || ratio >= 1))
-            failures.Add($"{label}: FusionCacheEagerRefreshRatio must be 0 (disabled) or in (0, 1).");
+        if (settings.FusionCache?.EagerRefreshRatio is double ratio && (ratio < 0 || ratio >= 1))
+            failures.Add($"{label}: FusionCache.EagerRefreshRatio must be 0 (disabled) or in (0, 1).");
 
         ValidateAllowlist(label, "VaryByHeaders", settings.VaryByHeaders, Vary.CacheVaryMaterializer.MaxVaryByHeaders, failures, allowEmpty: true);
         ValidateAllowlist(label, "VaryByCookies", settings.VaryByCookies, Vary.CacheVaryMaterializer.MaxVaryByCookies, failures, allowEmpty: true);
@@ -185,6 +169,16 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 
         if (settings.AuthBypassMode is AuthBypassMode mode && !Enum.IsDefined(mode))
             failures.Add($"{label}: AuthBypassMode value '{mode}' is not defined.");
+    }
+
+    private static void ValidateNonNegTimeSpan(
+        string label,
+        string propertyName,
+        TimeSpan? value,
+        List<string> failures)
+    {
+        if (value is { } t && t < TimeSpan.Zero)
+            failures.Add($"{label}: {propertyName} cannot be negative.");
     }
 
     internal static void ValidateAllowlist(

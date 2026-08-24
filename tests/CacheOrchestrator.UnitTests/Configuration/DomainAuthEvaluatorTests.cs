@@ -26,7 +26,6 @@ public class DomainAuthEvaluatorTests
         DomainCacheOptions opts = new()
         {
             AuthBypassMode = mode,
-            BypassWhenAuthenticated = mode != AuthBypassMode.Never,
             TreatAuthorizationAsAuthSignal = true,
         };
 
@@ -40,7 +39,6 @@ public class DomainAuthEvaluatorTests
         DomainCacheOptions opts = new()
         {
             AuthBypassMode = AuthBypassMode.AuthenticatedOrAuthorization,
-            BypassWhenAuthenticated = true,
             TreatAuthorizationAsAuthSignal = false,
         };
 
@@ -49,17 +47,11 @@ public class DomainAuthEvaluatorTests
     }
 
     [Fact]
-    public void LegacyBypassWhenAuthenticatedFalse_MapsToNever()
+    public void GetEffectiveAuthBypassMode_ReturnsConfiguredMode()
     {
-        HttpContext http = CreateHttp(authenticated: true, hasAuthorization: true);
-        DomainCacheOptions opts = new()
-        {
-            // AuthBypassMode left at default AuthenticatedOrAuthorization
-            BypassWhenAuthenticated = false,
-        };
+        DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
 
         DomainAuthEvaluator.GetEffectiveAuthBypassMode(opts).Should().Be(AuthBypassMode.Never);
-        DomainAuthEvaluator.ShouldBypassForAuth(http, opts).Should().BeFalse();
     }
 
     [Fact]

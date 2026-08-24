@@ -17,8 +17,8 @@ public class FusionCacheMultiInstanceTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:FusionCacheInstances:pii:Provider"] = "InMemory",
-                ["Cache:Domains:products:FusionCacheInstance"] = "default",
-                ["Cache:Domains:users:FusionCacheInstance"] = "pii",
+                ["Cache:Domains:products:DataCache:Instance"] = "default",
+                ["Cache:Domains:users:DataCache:Instance"] = "pii",
             })
             .Build();
 

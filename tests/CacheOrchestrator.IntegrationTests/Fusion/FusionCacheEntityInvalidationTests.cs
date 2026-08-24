@@ -18,7 +18,7 @@ public class FusionCacheEntityInvalidationTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
                 ["Cache:Domains:products:Version"] = "v1",
-                ["Cache:Domains:products:FusionCacheSoftTtlSeconds"] = "300",
+                ["Cache:Domains:products:DataCache:Ttl"] = "00:05:00",
             })
             .Build();
 

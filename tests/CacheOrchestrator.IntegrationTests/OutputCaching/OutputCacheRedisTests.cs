@@ -39,7 +39,7 @@ public class OutputCacheRedisTests
             ["Cache:OutputCache:Provider"] = "Redis",
             ["Cache:FusionCache:Provider"] = "Redis",
             ["Cache:Redis:Configuration"] = _redis.ConnectionString,
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "60",
+            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:01:00",
             [$"Cache:Domains:{domain}:Version"] = "v1",
             [$"Cache:Domains:{domain}:ClientCacheControlHeader"] = "public, max-age=60"
         };

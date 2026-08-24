@@ -17,7 +17,7 @@ public class OutputCacheInMemoryTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:Domains:products:OutputCacheTtlSeconds"] = "60",
+                ["Cache:Domains:products:OutputCache:Ttl"] = "00:01:00",
                 ["Cache:Domains:products:Version"] = "v1",
                 ["Cache:Domains:products:ClientCacheControlHeader"] = "public, max-age=60"
             })

@@ -245,7 +245,6 @@ public class CacheVaryMaterializerTests
     {
         Domain = "products",
         AuthBypassMode = authBypassMode,
-        BypassWhenAuthenticated = authBypassMode != AuthBypassMode.Never,
         VaryOutputCacheByUser = varyByUser,
         FusionCacheVaryOnEncoding = varyEncoding,
         VaryByAccept = varyByAccept,

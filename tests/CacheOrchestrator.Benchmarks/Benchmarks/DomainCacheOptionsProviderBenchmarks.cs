@@ -24,11 +24,14 @@ public class DomainCacheOptionsProviderBenchmarks : IDisposable
                 ["catalog"] = new CacheOrchestratorOptions.DomainCacheSettings
                 {
                     Version = "v1",
-                    OutputCacheTtlSeconds = 120,
-                    FusionCacheSoftTtlSeconds = 300,
-                    ClientTtlSeconds = 60,
-                    ClientTtlMinSeconds = 60,
-                    ClientCacheability = ClientCacheability.Public,
+                    DataCache = new DomainDataCacheSettings { Ttl = TimeSpan.FromSeconds(300) },
+                    OutputCache = new DomainOutputCacheSettings { Ttl = TimeSpan.FromSeconds(120) },
+                    ClientCache = new DomainClientCacheSettings
+                    {
+                        Ttl = TimeSpan.FromSeconds(60),
+                        TtlMin = TimeSpan.FromSeconds(60),
+                        Cacheability = ClientCacheability.Public,
+                    },
                 }
             }
         };

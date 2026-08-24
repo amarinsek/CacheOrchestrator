@@ -32,14 +32,14 @@ public class XCacheHeaderTests
         Dictionary<string, string?> d = new()
         {
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = clientTtl.ToString(),
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = clientTtl.ToString(),
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = outputTtl.ToString(),
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = fusionTtl.ToString()
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = TimeSpan.FromSeconds(clientTtl).ToString(),
+            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = TimeSpan.FromSeconds(clientTtl).ToString(),
+            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = TimeSpan.FromSeconds(outputTtl).ToString(),
+            [$"Cache:Domains:{domain}:DataCache:Ttl"] = TimeSpan.FromSeconds(fusionTtl).ToString()
         };
         if (!outputEnabled)
-            d[$"Cache:Domains:{domain}:OutputCacheEnabled"] = "false";
+            d[$"Cache:Domains:{domain}:OutputCache:Enabled"] = "false";
         return d;
     }
 

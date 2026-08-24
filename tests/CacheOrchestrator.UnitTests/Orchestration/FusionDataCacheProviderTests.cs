@@ -42,7 +42,7 @@ public class FusionDataCacheProviderTests
             Domain = "products",
             VersionHex = "v",
             FusionCacheInstanceName = "default",
-            FusionCacheSoftTtl = TimeSpan.FromMinutes(1),
+            DataCacheTtl = TimeSpan.FromMinutes(1),
             FusionCacheHardTtl = TimeSpan.FromMinutes(10),
             FusionCacheFailSafe = TimeSpan.FromHours(1)
         };

@@ -13,7 +13,14 @@ public class DomainRuntimeOverrideStoreTests
         DomainRuntimeOverrideStore store = new();
         using DomainCacheOptionsProvider provider = CreateProvider(store, new CacheOrchestratorOptions
         {
-            Domains = { ["catalog"] = new() { Version = "v1", OutputCacheTtlSeconds = 60 } }
+            Domains =
+            {
+                ["catalog"] = new()
+                {
+                    Version = "v1",
+                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(60) }
+                }
+            }
         });
 
         DomainCacheOptions before = provider.GetOrCreateDomainOptions("catalog");
@@ -41,9 +48,9 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "v1",
-                    OutputCacheTtlSeconds = 60,
-                    FusionCacheSoftTtlSeconds = 100,
-                    ClientTtlSeconds = 30
+                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(60) },
+                    DataCache = new() { Ttl = TimeSpan.FromSeconds(100) },
+                    ClientCache = new() { Ttl = TimeSpan.FromSeconds(30) }
                 }
             }
         });
@@ -57,7 +64,7 @@ public class DomainRuntimeOverrideStoreTests
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("catalog");
         opts.Version.Should().Be("v1");
         opts.OutputTtl.Should().Be(TimeSpan.FromSeconds(120));
-        opts.FusionCacheSoftTtl.Should().Be(TimeSpan.FromSeconds(100));
+        opts.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(100));
         opts.ClientTtlSeconds.Should().Be(15);
     }
 
@@ -67,7 +74,14 @@ public class DomainRuntimeOverrideStoreTests
         DomainRuntimeOverrideStore store = new();
         using DomainCacheOptionsProvider provider = CreateProvider(store, new CacheOrchestratorOptions
         {
-            Domains = { ["catalog"] = new() { Version = "v1", OutputCacheTtlSeconds = 60 } }
+            Domains =
+            {
+                ["catalog"] = new()
+                {
+                    Version = "v1",
+                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(60) }
+                }
+            }
         });
 
         store.PatchTtl("catalog", new DomainTtlPatch { OutputCacheTtlSeconds = 99 });
@@ -84,7 +98,14 @@ public class DomainRuntimeOverrideStoreTests
         DomainRuntimeOverrideStore store = new();
         TestOptionsMonitor monitor = new(new CacheOrchestratorOptions
         {
-            Domains = { ["catalog"] = new() { Version = "cfg-1", OutputCacheTtlSeconds = 10 } }
+            Domains =
+            {
+                ["catalog"] = new()
+                {
+                    Version = "cfg-1",
+                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(10) }
+                }
+            }
         });
         using DomainCacheOptionsProvider provider = new(
             monitor,
@@ -96,7 +117,14 @@ public class DomainRuntimeOverrideStoreTests
 
         monitor.TriggerChange(new CacheOrchestratorOptions
         {
-            Domains = { ["catalog"] = new() { Version = "cfg-2", OutputCacheTtlSeconds = 20 } }
+            Domains =
+            {
+                ["catalog"] = new()
+                {
+                    Version = "cfg-2",
+                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(20) }
+                }
+            }
         });
 
         DomainCacheOptions after = provider.GetOrCreateDomainOptions("catalog");

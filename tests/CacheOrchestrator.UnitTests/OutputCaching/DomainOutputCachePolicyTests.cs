@@ -578,7 +578,9 @@ public class DomainOutputCachePolicyTests
         {
             Domain = domain,
             OutputCacheEnabled = outputCacheEnabled,
-            BypassWhenAuthenticated = bypassWhenAuthenticated,
+            AuthBypassMode = bypassWhenAuthenticated
+                ? AuthBypassMode.AuthenticatedOrAuthorization
+                : AuthBypassMode.Never,
             VaryOutputCacheByUser = varyOutputCacheByUser,
             OutputTtl = TimeSpan.FromSeconds(outputTtlSeconds),
             Version = version ?? "1",

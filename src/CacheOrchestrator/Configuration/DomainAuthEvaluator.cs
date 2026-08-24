@@ -25,21 +25,11 @@ public static class DomainAuthEvaluator
     }
 
     /// <summary>
-    /// Effective bypass mode. Honours <see cref="DomainCacheOptions.AuthBypassMode"/>, with a
-    /// compatibility fallback for hand-built options that only set
-    /// <see cref="DomainCacheOptions.BypassWhenAuthenticated"/> to <see langword="false"/>
-    /// while leaving <see cref="DomainCacheOptions.AuthBypassMode"/> at its default.
+    /// Effective bypass mode — returns <see cref="DomainCacheOptions.AuthBypassMode"/>.
     /// </summary>
     public static AuthBypassMode GetEffectiveAuthBypassMode(DomainCacheOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-
-        if (options.AuthBypassMode == AuthBypassMode.AuthenticatedOrAuthorization
-            && !options.BypassWhenAuthenticated)
-        {
-            return AuthBypassMode.Never;
-        }
-
         return options.AuthBypassMode;
     }
 

@@ -36,11 +36,11 @@ public class ConfigBehaviorTests
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "60",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "60",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "300",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:01:00",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:01:00",
+            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:05:00",
+            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(initial);
@@ -166,7 +166,7 @@ public class ConfigBehaviorTests
                 {
                     ["Cache:OutputCache:Provider"] = "InMemory",
                     ["Cache:FusionCache:Provider"] = "InMemory",
-                    ["Cache:Domains:ver:FusionCacheSoftTtlSeconds"] = "300",
+                    ["Cache:Domains:ver:DataCache:Ttl"] = "00:05:00",
                     ["Cache:Domains:ver:Version"] = version
                 })
                 .Build();
@@ -225,7 +225,7 @@ public class ConfigBehaviorTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:Domains:nocache:OutputCacheEnabled"] = "false",
+                ["Cache:Domains:nocache:OutputCache:Enabled"] = "false",
                 ["Cache:Domains:nocache:Version"] = "v1"
             })
             .Build();
@@ -277,8 +277,8 @@ public class ConfigBehaviorTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:Domains:nostore:FusionCacheRespectNoStore"] = "true",
-                ["Cache:Domains:nostore:FusionCacheSoftTtlSeconds"] = "300",
+                ["Cache:Domains:nostore:FusionCache:RespectNoStore"] = "true",
+                ["Cache:Domains:nostore:DataCache:Ttl"] = "00:05:00",
                 ["Cache:Domains:nostore:Version"] = "v1"
             })
             .Build();
@@ -326,10 +326,10 @@ public class ConfigBehaviorTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:Domains:hdr:OutputCacheTtlSeconds"] = "60",
-                ["Cache:Domains:hdr:ClientCacheability"] = "Public",
-                ["Cache:Domains:hdr:ClientTtlSeconds"] = "42",
-                ["Cache:Domains:hdr:ClientTtlMinSeconds"] = "42",
+                ["Cache:Domains:hdr:OutputCache:Ttl"] = "00:01:00",
+                ["Cache:Domains:hdr:ClientCache:Cacheability"] = "Public",
+                ["Cache:Domains:hdr:ClientCache:Ttl"] = "00:00:42",
+                ["Cache:Domains:hdr:ClientCache:TtlMin"] = "00:00:42",
                 ["Cache:Domains:hdr:Version"] = "v1"
                 // no ScheduledUpdateUtc ? max-age = ClientTtlSeconds
             })
@@ -383,11 +383,11 @@ public class ConfigBehaviorTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                ["Cache:DomainDefaults:FusionCacheSoftTtlSeconds"] = "123",
-                ["Cache:DomainDefaults:OutputCacheTtlSeconds"] = "45",
-                ["Cache:DomainDefaults:ClientCacheability"] = "Public",
-                ["Cache:DomainDefaults:ClientTtlSeconds"] = "45",
-                ["Cache:DomainDefaults:ClientTtlMinSeconds"] = "15"
+                ["Cache:DomainDefaults:DataCache:Ttl"] = "00:02:03",
+                ["Cache:DomainDefaults:OutputCache:Ttl"] = "00:00:45",
+                ["Cache:DomainDefaults:ClientCache:Cacheability"] = "Public",
+                ["Cache:DomainDefaults:ClientCache:Ttl"] = "00:00:45",
+                ["Cache:DomainDefaults:ClientCache:TtlMin"] = "00:00:15"
             })
             .Build();
 
@@ -403,7 +403,7 @@ public class ConfigBehaviorTests
 
         cfg.Should().NotBeNull();
         cfg.Domain.Should().Be("unknown-domain-xyz");
-        cfg.FusionCacheSoftTtl.Should().Be(TimeSpan.FromSeconds(123));
+        cfg.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(123));
         cfg.OutputTtl.Should().Be(TimeSpan.FromSeconds(45));
         cfg.ClientCacheability.Should().Be(ClientCacheability.Public);
         cfg.ClientTtlSeconds.Should().Be(45);

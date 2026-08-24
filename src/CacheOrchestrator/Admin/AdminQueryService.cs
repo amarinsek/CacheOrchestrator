@@ -250,10 +250,10 @@ internal sealed class AdminQueryService
             Version = opts.Version,
             VersionIsRuntimeOverride = ov?.Version is not null,
             OutputCacheEnabled = opts.OutputCacheEnabled,
-            FusionCacheEnabled = opts.FusionCacheEnabled,
+            FusionCacheEnabled = opts.DataCacheEnabled,
             FusionCacheInstanceName = opts.FusionCacheInstanceName,
             OutputCacheTtlSeconds = (int)opts.OutputTtl.TotalSeconds,
-            FusionCacheSoftTtlSeconds = (int)opts.FusionCacheSoftTtl.TotalSeconds,
+            FusionCacheSoftTtlSeconds = (int)opts.DataCacheTtl.TotalSeconds,
             FusionCacheHardTtlSeconds = (int)opts.FusionCacheHardTtl.TotalSeconds,
             FusionCacheFailSafeSeconds = (int)opts.FusionCacheFailSafe.TotalSeconds,
             ClientTtlSeconds = opts.ClientTtlSeconds,
@@ -265,12 +265,12 @@ internal sealed class AdminQueryService
                 : new AdminRuntimeOverrideFlagsDto
                 {
                     Version = ov.Version is not null,
-                    OutputCacheTtl = ov.OutputCacheTtlSeconds is not null,
-                    FusionCacheSoftTtl = ov.FusionCacheSoftTtlSeconds is not null,
-                    FusionCacheHardTtl = ov.FusionCacheHardTtlSeconds is not null,
-                    FusionCacheFailSafe = ov.FusionCacheFailSafeSeconds is not null,
-                    ClientTtl = ov.ClientTtlSeconds is not null,
-                    ClientTtlMin = ov.ClientTtlMinSeconds is not null
+                    OutputCacheTtl = ov.OutputCacheTtl is not null,
+                    FusionCacheSoftTtl = ov.DataCacheTtl is not null,
+                    FusionCacheHardTtl = ov.FusionCacheHardTtl is not null,
+                    FusionCacheFailSafe = ov.FusionCacheFailSafe is not null,
+                    ClientTtl = ov.ClientTtl is not null,
+                    ClientTtlMin = ov.ClientTtlMin is not null
                 }
         };
     }

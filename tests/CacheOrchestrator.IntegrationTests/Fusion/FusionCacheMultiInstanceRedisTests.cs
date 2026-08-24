@@ -56,12 +56,12 @@ public sealed class FusionCacheMultiInstanceRedisTests : IAsyncLifetime
                 ["Cache:FusionCacheInstances:default:Redis:Configuration"] = _redisA.GetConnectionString(),
                 ["Cache:FusionCacheInstances:pii:Provider"] = "Redis",
                 ["Cache:FusionCacheInstances:pii:Redis:Configuration"] = _redisB.GetConnectionString(),
-                ["Cache:Domains:products:FusionCacheInstance"] = "default",
+                ["Cache:Domains:products:DataCache:Instance"] = "default",
                 ["Cache:Domains:products:Version"] = "v1",
-                ["Cache:Domains:products:FusionCacheSoftTtlSeconds"] = "120",
-                ["Cache:Domains:users:FusionCacheInstance"] = "pii",
+                ["Cache:Domains:products:DataCache:Ttl"] = "00:02:00",
+                ["Cache:Domains:users:DataCache:Instance"] = "pii",
                 ["Cache:Domains:users:Version"] = "v1",
-                ["Cache:Domains:users:FusionCacheSoftTtlSeconds"] = "120",
+                ["Cache:Domains:users:DataCache:Ttl"] = "00:02:00",
             })
             .Build();
 

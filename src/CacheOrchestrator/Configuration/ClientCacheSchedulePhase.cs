@@ -17,8 +17,6 @@ public enum ClientCacheSchedulePhase
     /// </summary>
     Hold = 2,
 
-    // TODO: v3.0.0 Change to NotApplicable = 3
-
     /// <summary>NoStore, no schedule, or client caching blocked – schedule not applied.</summary>
-    NotApplicable = 4
+    NotApplicable = 3
 }

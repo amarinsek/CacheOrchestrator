@@ -54,7 +54,7 @@ public class DomainCacheConfigProviderTests
     {
         var provider = CreateProvider(new CacheOrchestratorOptions
         {
-            Domains = { ["products"] = new() { OutputCacheTtlSeconds = 100 } }
+            Domains = { ["products"] = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(100) } } }
         });
         var http = new DefaultHttpContext();
 
@@ -71,8 +71,8 @@ public class DomainCacheConfigProviderTests
         {
             Domains =
             {
-                ["products"] = new() { OutputCacheTtlSeconds = 100, Version = "p1" },
-                ["catalog"] = new() { OutputCacheTtlSeconds = 200, Version = "c1" }
+                ["products"] = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(100) }, Version = "p1" },
+                ["catalog"] = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(200) }, Version = "c1" }
             }
         });
         var http = new DefaultHttpContext();
@@ -93,8 +93,8 @@ public class DomainCacheConfigProviderTests
     {
         var provider = CreateProvider(new CacheOrchestratorOptions
         {
-            DomainDefaults = new() { OutputCacheTtlSeconds = 60 },
-            Domains = { ["products"] = new() { OutputCacheTtlSeconds = 120 } }
+            DomainDefaults = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(60) } },
+            Domains = { ["products"] = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(120) } } }
         });
 
         var cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
@@ -110,8 +110,8 @@ public class DomainCacheConfigProviderTests
         {
             DomainDefaults = new()
             {
-                OutputCacheTtlSeconds = 90,
-                FusionCacheSoftTtlSeconds = 300
+                OutputCache = new() { Ttl = TimeSpan.FromSeconds(90) },
+                DataCache = new() { Ttl = TimeSpan.FromSeconds(300) }
             }
         });
 
@@ -119,7 +119,7 @@ public class DomainCacheConfigProviderTests
 
         cfg.Domain.Should().Be("unknown-domain");
         cfg.OutputTtl.Should().Be(TimeSpan.FromSeconds(90));
-        cfg.FusionCacheSoftTtl.Should().Be(TimeSpan.FromSeconds(300));
+        cfg.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(300));
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class DomainCacheConfigProviderTests
     {
         var provider = CreateProvider(new CacheOrchestratorOptions
         {
-            Domains = { ["products"] = new() { OutputCacheTtlSeconds = 150 } }
+            Domains = { ["products"] = new() { OutputCache = new() { Ttl = TimeSpan.FromSeconds(150) } } }
         });
 
         var cfg1 = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
@@ -198,13 +198,15 @@ public class DomainCacheConfigProviderTests
         var cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
 
         cfg.OutputCacheEnabled.Should().BeTrue();
-        cfg.FusionCacheEnabled.Should().BeTrue();
+        cfg.DataCacheEnabled.Should().BeTrue();
         cfg.CacheableStatusCodes.Should().Contain(200);
         cfg.OutputTtl.Should().Be(TimeSpan.FromSeconds(3700));
-        cfg.FusionCacheSoftTtl.Should().Be(TimeSpan.FromSeconds(3800));
+        cfg.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(3800));
         cfg.FusionCacheHardTtl.Should().Be(TimeSpan.FromSeconds(43200));
         cfg.FusionCacheFailSafe.Should().Be(TimeSpan.FromSeconds(86400));
         cfg.EncodingNormalizationList.Should().Equal("br", "gzip");
+        cfg.VaryByAccept.Should().BeTrue();
+        cfg.AcceptNormalizationList.Should().Equal("application/json", "application/xml");
         cfg.FusionRespectAuthBypass.Should().BeTrue();
         cfg.FusionCacheRespectNoStore.Should().BeTrue();
         cfg.FusionCacheVaryOnEncoding.Should().BeTrue();
@@ -217,7 +219,7 @@ public class DomainCacheConfigProviderTests
         DomainCacheOptions opts = new();
 
         opts.OutputCacheEnabled.Should().BeTrue();
-        opts.FusionCacheEnabled.Should().BeTrue();
+        opts.DataCacheEnabled.Should().BeTrue();
         opts.FusionCacheRespectNoStore.Should().BeTrue();
         opts.FusionCacheVaryOnEncoding.Should().BeTrue();
         opts.FusionCacheVaryOnPublicAddress.Should().BeTrue();
@@ -225,6 +227,7 @@ public class DomainCacheConfigProviderTests
         opts.FusionCacheAllowBackgroundDistributed.Should().BeTrue();
         opts.FusionCacheAllowBackgroundBackplane.Should().BeTrue();
         opts.EncodingNormalizationList.Should().Equal("br", "gzip");
+        opts.VaryByAccept.Should().BeFalse();
     }
 
     [Theory]
@@ -270,8 +273,8 @@ public class DomainCacheConfigProviderTests
                 ["catalog"] = new()
                 {
                     Version = "v1",
-                    OutputCacheTtlSeconds = 60,
-                    FusionCacheSoftTtlSeconds = 120
+                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(60) },
+                    DataCache = new() { Ttl = TimeSpan.FromSeconds(120) }
                 }
             }
         };
@@ -293,8 +296,8 @@ public class DomainCacheConfigProviderTests
                 ["catalog"] = new()
                 {
                     Version = "v2",
-                    OutputCacheTtlSeconds = 90,
-                    FusionCacheSoftTtlSeconds = 300
+                    OutputCache = new() { Ttl = TimeSpan.FromSeconds(90) },
+                    DataCache = new() { Ttl = TimeSpan.FromSeconds(300) }
                 }
             }
         };
@@ -308,7 +311,7 @@ public class DomainCacheConfigProviderTests
         after.Version.Should().Be("v2");
         after.VersionHex.Should().NotBe(versionHexBefore);
         after.OutputTtl.Should().Be(TimeSpan.FromSeconds(90));
-        after.FusionCacheSoftTtl.Should().Be(TimeSpan.FromSeconds(300));
+        after.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(300));
 
         // Subsequent calls share the new snapshot
         provider.GetOrCreateDomainOptions("catalog").Should().BeSameAs(after);

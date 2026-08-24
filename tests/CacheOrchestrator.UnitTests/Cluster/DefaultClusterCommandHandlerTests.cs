@@ -119,7 +119,7 @@ public class DefaultClusterCommandHandlerTests
 
         _overrides.Received(1).PatchSettings(
             "catalog",
-            Arg.Is<DomainSettingsPatch>(p => p.OutputCacheTtlSeconds == 42));
+            Arg.Is<DomainSettingsPatch>(p => p.OutputCacheTtl == TimeSpan.FromSeconds(42)));
     }
 
     [Fact]

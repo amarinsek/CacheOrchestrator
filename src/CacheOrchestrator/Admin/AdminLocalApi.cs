@@ -252,15 +252,7 @@ public static class AdminLocalApi
             if (body.Distribute && bus.IsEnabled)
             {
                 // Prefer legacy ttlPatch when TTL-only so older peers still apply.
-                DomainTtlPatch ttl = new()
-                {
-                    OutputCacheTtlSeconds = patch.OutputCacheTtlSeconds,
-                    FusionCacheSoftTtlSeconds = patch.FusionCacheSoftTtlSeconds,
-                    FusionCacheHardTtlSeconds = patch.FusionCacheHardTtlSeconds,
-                    FusionCacheFailSafeSeconds = patch.FusionCacheFailSafeSeconds,
-                    ClientTtlSeconds = patch.ClientTtlSeconds,
-                    ClientTtlMinSeconds = patch.ClientTtlMinSeconds,
-                };
+                DomainTtlPatch ttl = ToTtlPatch(patch);
                 TtlPatchCommand cmd = commands.CreateTtlPatch(domain, ttl);
                 publishConflict = await PublishMutationOrConflictAsync(
                         bus,
@@ -327,15 +319,7 @@ public static class AdminLocalApi
                 if (patch.IsTtlOnly)
                 {
 #pragma warning disable CS0618
-                    DomainTtlPatch ttl = new()
-                    {
-                        OutputCacheTtlSeconds = patch.OutputCacheTtlSeconds,
-                        FusionCacheSoftTtlSeconds = patch.FusionCacheSoftTtlSeconds,
-                        FusionCacheHardTtlSeconds = patch.FusionCacheHardTtlSeconds,
-                        FusionCacheFailSafeSeconds = patch.FusionCacheFailSafeSeconds,
-                        ClientTtlSeconds = patch.ClientTtlSeconds,
-                        ClientTtlMinSeconds = patch.ClientTtlMinSeconds,
-                    };
+                    DomainTtlPatch ttl = ToTtlPatch(patch);
                     cmd = commands.CreateTtlPatch(domain, ttl);
 #pragma warning restore CS0618
                     metricName = nameof(TtlPatchCommand);
@@ -433,32 +417,49 @@ public static class AdminLocalApi
 
     private static string? ValidateSettingsPatch(DomainSettingsPatch patch)
     {
+        static bool NegativeTs(TimeSpan? v) => v is { } t && t < TimeSpan.Zero;
         static bool Negative(int? v) => v is < 0;
 
-        if (Negative(patch.OutputCacheTtlSeconds)
-            || Negative(patch.FusionCacheSoftTtlSeconds)
-            || Negative(patch.FusionCacheHardTtlSeconds)
-            || Negative(patch.FusionCacheFailSafeSeconds)
-            || Negative(patch.ClientTtlSeconds)
-            || Negative(patch.ClientTtlMinSeconds)
-            || Negative(patch.FusionCacheJitterSeconds)
-            || Negative(patch.FusionCacheFactorySoftTimeoutSeconds)
-            || Negative(patch.FusionCacheFactoryHardTimeoutSeconds)
+        if (NegativeTs(patch.OutputCacheTtl)
+            || NegativeTs(patch.DataCacheTtl)
+            || NegativeTs(patch.FusionCacheHardTtl)
+            || NegativeTs(patch.FusionCacheFailSafe)
+            || NegativeTs(patch.ClientTtl)
+            || NegativeTs(patch.ClientTtlMin)
+            || NegativeTs(patch.FusionCacheJitter)
+            || NegativeTs(patch.FusionCacheFactorySoftTimeout)
+            || NegativeTs(patch.FusionCacheFactoryHardTimeout)
             || Negative(patch.FusionCacheMaxItemBytes))
         {
             return "Numeric settings must be non-negative.";
         }
 
-        if (patch.ClientTtlSeconds is int max
-            && patch.ClientTtlMinSeconds is int min
+        if (patch.ClientTtl is TimeSpan max
+            && patch.ClientTtlMin is TimeSpan min
             && min > max)
         {
-            return "clientTtlMinSeconds must be <= clientTtlSeconds when both are set.";
+            return "clientCache.ttlMin must be <= clientCache.ttl when both are set.";
         }
 
         if (patch.FusionCacheEagerRefreshRatio is double r && (r < 0 || r >= 1))
-            return "fusionCacheEagerRefreshRatio must be in [0, 1).";
+            return "fusionCache.eagerRefreshRatio must be in [0, 1).";
 
         return null;
     }
+
+#pragma warning disable CS0618
+    private static DomainTtlPatch ToTtlPatch(DomainSettingsPatch patch) =>
+        new()
+        {
+            OutputCacheTtlSeconds = ToSeconds(patch.OutputCacheTtl),
+            FusionCacheSoftTtlSeconds = ToSeconds(patch.DataCacheTtl),
+            FusionCacheHardTtlSeconds = ToSeconds(patch.FusionCacheHardTtl),
+            FusionCacheFailSafeSeconds = ToSeconds(patch.FusionCacheFailSafe),
+            ClientTtlSeconds = ToSeconds(patch.ClientTtl),
+            ClientTtlMinSeconds = ToSeconds(patch.ClientTtlMin),
+        };
+#pragma warning restore CS0618
+
+    private static int? ToSeconds(TimeSpan? value) =>
+        value is TimeSpan t ? (int)Math.Round(t.TotalSeconds) : null;
 }

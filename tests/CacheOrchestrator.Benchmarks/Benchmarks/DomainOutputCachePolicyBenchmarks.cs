@@ -76,7 +76,7 @@ public class DomainOutputCachePolicyBenchmarks
         {
             Domain = "catalog",
             OutputCacheEnabled = true,
-            BypassWhenAuthenticated = true,
+            AuthBypassMode = AuthBypassMode.AuthenticatedOrAuthorization,
             VaryOutputCacheByUser = true,
             OutputTtl = TimeSpan.FromSeconds(60),
             Version = "1",

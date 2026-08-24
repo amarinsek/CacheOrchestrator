@@ -42,7 +42,7 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         ArgumentNullException.ThrowIfNull(factory);
 
         IFusionCache fusion = _fusionProvider.GetCache(request.InstanceName);
-        FusionCacheEntryOptions entryOptions = request.DomainOptions.GetFusionEntryOptions();
+        FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(request.DomainOptions);
         string[] tags = request.Tags as string[] ?? [.. request.Tags];
 
         T result = await fusion.GetOrSetAsync<T>(

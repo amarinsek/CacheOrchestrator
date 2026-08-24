@@ -21,9 +21,9 @@ public class ClientCacheHeaderGeneratorTests
             ScheduledUpdateUtc = schedule,
             ClientMustRevalidateNearUpdate = mustRevalidateNear,
             OutputCacheEnabled = true,
-            FusionCacheEnabled = true,
+            DataCacheEnabled = true,
             OutputTtl = TimeSpan.FromSeconds(60),
-            FusionCacheSoftTtl = TimeSpan.FromSeconds(60),
+            DataCacheTtl = TimeSpan.FromSeconds(60),
             CacheableStatusCodes = [200],
             OutputCacheNamespace = "t",
             EncodingNormalizationList = null

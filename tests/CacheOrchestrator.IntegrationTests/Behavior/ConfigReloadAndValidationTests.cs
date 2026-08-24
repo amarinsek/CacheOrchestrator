@@ -28,11 +28,11 @@ public class ConfigReloadAndValidationTests
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:EmitDiagnosticsHeaders"] = "true",
             [$"Cache:Domains:{domain}:Version"] = "v1",
-            [$"Cache:Domains:{domain}:ClientCacheability"] = "Public",
-            [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "42",
-            [$"Cache:Domains:{domain}:ClientTtlMinSeconds"] = "42",
-            [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "1",
-            [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "300",
+            [$"Cache:Domains:{domain}:ClientCache:Cacheability"] = "Public",
+            [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "00:00:42",
+            [$"Cache:Domains:{domain}:ClientCache:TtlMin"] = "00:00:42",
+            [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:00:01",
+            [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:05:00",
         };
 
         var reloadSource = new ReloadableMemoryConfigurationSource(initial);
@@ -62,8 +62,8 @@ public class ConfigReloadAndValidationTests
             string cc1 = GetCacheControl(r1);
             cc1.Should().Contain("max-age=42");
 
-            reloadSource.Provider!.SetAndReload($"Cache:Domains:{domain}:ClientTtlSeconds", "77");
-            reloadSource.Provider.SetAndReload($"Cache:Domains:{domain}:ClientTtlMinSeconds", "77");
+            reloadSource.Provider!.SetAndReload($"Cache:Domains:{domain}:ClientCache:Ttl", "00:01:17");
+            reloadSource.Provider.SetAndReload($"Cache:Domains:{domain}:ClientCache:TtlMin", "00:01:17");
             await WaitForClientTtlAsync(app.Services, domain, 77);
 
             // Expire OC entry so response headers are regenerated from new options.
@@ -84,19 +84,14 @@ public class ConfigReloadAndValidationTests
     public async Task MidRequest_Reload_DoesNotMutatePinnedDomainOptionsOnHttpContext()
     {
         // Integration-level confirmation of L1 Items pin (unit also covers this).
-        var initial = new CacheOrchestratorOptions
-        {
-            Domains = { ["pin"] = new() { Version = "1", ClientTtlSeconds = 10 } }
-        };
-
         // Use real provider via DI + reloadable config for end-to-end monitor path.
         var data = new Dictionary<string, string?>
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
             ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Domains:pin:Version"] = "1",
-            ["Cache:Domains:pin:ClientTtlSeconds"] = "10",
-            ["Cache:Domains:pin:ClientTtlMinSeconds"] = "10",
+            ["Cache:Domains:pin:ClientCache:Ttl"] = "00:00:10",
+            ["Cache:Domains:pin:ClientCache:TtlMin"] = "00:00:10",
         };
         var reloadSource = new ReloadableMemoryConfigurationSource(data);
         IConfigurationRoot config = new ConfigurationBuilder().Add(reloadSource).Build();
@@ -113,7 +108,7 @@ public class ConfigReloadAndValidationTests
         pinned.ClientTtlSeconds.Should().Be(10);
 
         reloadSource.Provider!.SetAndReload("Cache:Domains:pin:Version", "2");
-        reloadSource.Provider.SetAndReload("Cache:Domains:pin:ClientTtlSeconds", "99");
+        reloadSource.Provider.SetAndReload("Cache:Domains:pin:ClientCache:Ttl", "00:01:39");
 
         // Force options rebind
         _ = sp.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>().CurrentValue;
@@ -168,9 +163,9 @@ public class ConfigReloadAndValidationTests
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCacheInstances:default:Provider"] = "InMemory",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{domain}:ClientTtlSeconds"] = "-1",
-                [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "60",
-                [$"Cache:Domains:{domain}:FusionCacheSoftTtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:ClientCache:Ttl"] = "-00:00:01",
+                [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:01:00",
+                [$"Cache:Domains:{domain}:DataCache:Ttl"] = "00:01:00",
             })
             .Build();
 
@@ -205,8 +200,8 @@ public class ConfigReloadAndValidationTests
                 caught = ex;
             }
 
-            caught.Should().NotBeNull("negative ClientTtlSeconds must fail IValidateOptions at host start");
-            caught!.ToString().Should().Contain("ClientTtlSeconds");
+            caught.Should().NotBeNull("negative ClientCache.Ttl must fail IValidateOptions at host start");
+            caught!.ToString().Should().Contain("ClientCache.Ttl");
         }
         finally
         {

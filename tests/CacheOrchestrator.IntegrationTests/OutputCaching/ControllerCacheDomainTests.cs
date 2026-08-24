@@ -55,9 +55,9 @@ public class ControllerCacheDomainTests
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
                 ["Cache:FusionCache:Provider"] = "InMemory",
-                [$"Cache:Domains:{domain}:OutputCacheTtlSeconds"] = "60",
+                [$"Cache:Domains:{domain}:OutputCache:Ttl"] = "00:01:00",
                 [$"Cache:Domains:{domain}:Version"] = "v1",
-                [$"Cache:Domains:{detailDomain}:OutputCacheTtlSeconds"] = "60",
+                [$"Cache:Domains:{detailDomain}:OutputCache:Ttl"] = "00:01:00",
                 [$"Cache:Domains:{detailDomain}:Version"] = "v1"
             })
             .Build();
