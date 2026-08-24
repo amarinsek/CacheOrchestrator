@@ -29,7 +29,7 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 
 - Not a replacement for FusionCache / HybridCache features — it **configures and scopes** them  
 - Does not own Redis topology/ops beyond connection options  
-- Libraries prefer `ICacheOrchestrator` (Core); web happy path may use AspNetCore `IDomainDataCache`
+- Libraries prefer `ICacheOrchestrator` + host-supplied `CacheDomainContext` (Core); web happy path may use AspNetCore `IDomainDataCache`
 
 ## Mental model
 
