@@ -35,12 +35,12 @@ Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion
 
 | # | Host | Data | Output Cache | Typical packages |
 |---|------|------|--------------|------------------|
-| **1** | Web | Fusion (InMemory) | yes | Meta |
-| **2** | Web | off | yes | Meta / AspNetCore |
-| **3** | Web | Fusion | no | Meta |
-| **4** | Web | Fusion (Redis L2) | yes (InMemory or Redis) | Meta + Redis |
+| **1** | Web | Fusion (InMemory) | yes | Meta *(or AspNetCore + Fusion)* |
+| **2** | Web | — | yes | AspNetCore only |
+| **3** | Web | Fusion | no | AspNetCore + FusionCache |
+| **4** | Web | Fusion (Redis L2) | yes | Meta + Redis |
 | **5** | Web | Hybrid | yes | AspNetCore + HybridCache |
-| **6** | Web | Fusion | yes (dynamic domain) | Meta |
+| **6** | Web | Fusion | yes (dynamic domain) | Meta *(or AspNetCore + Fusion)* |
 | **7** | Library + web / worker | Fusion | yes / n/a | Core in library; Meta (or Fusion) in host |
 
 Each scenario below uses the **same product endpoint shape** where possible. Differences are in **registration** and **config**. Base Output Cache policy is `NoCache` — without `.CacheOutputWithDomain` there is no OC entry.
@@ -49,9 +49,17 @@ Each scenario below uses the **same product endpoint shape** where possible. Dif
 
 ## 1. Typical web — OC + data cache + client headers (InMemory Fusion)
 
+Uses the **meta** package `CacheOrchestrator` (`AddCacheOrchestrator` = AspNetCore + Fusion). Equivalent without meta: reference `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache` and call `AddCacheOrchestratorAspNetCore` then `AddCacheOrchestratorFusionCache`.
+
+Per-domain flags `OutputCache:Enabled` / `DataCache:Enabled` turn layers on or off in config without changing the endpoint code (see also §2 / §3 when you want fewer packages).
+
 **Registration**
 
 ```csharp
+using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.OutputCache;
+
 builder.Services.AddCacheOrchestrator(builder.Configuration);
 ```
 
@@ -77,6 +85,9 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 **Code**
 
 ```csharp
+using CacheOrchestrator.DataCache;
+using CacheOrchestrator.OutputCache;
+
 app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
@@ -87,12 +98,17 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 
 ---
 
-## 2. Output Cache only (data cache disabled for the domain)
+## 2. Output Cache only (AspNetCore package)
+
+Packages: **`CacheOrchestrator.AspNetCore`** only (no Fusion / Hybrid). No data-cache provider — the handler does not use `IDomainDataCache`.
 
 **Registration**
 
 ```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration);
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.OutputCache;
+
+builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
 ```
 
 **Config**
@@ -101,11 +117,9 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 {
   "Cache": {
     "OutputCache": { "Provider": "InMemory" },
-    "DataCacheInstances": { "default": { "Provider": "InMemory" } },
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Enabled": false },
         "OutputCache": { "Enabled": true, "Ttl": "00:01:00" },
         "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
       }
@@ -114,27 +128,33 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 }
 ```
 
-**Code** (same as §1 — `GetOrSetAsync` runs the factory uncached when data cache is off)
+**Code**
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+using CacheOrchestrator.OutputCache;
+
+app.MapGet("/api/products/{id}", async (string id) =>
 {
-    var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
+    var data = await LoadProductAsync(id);
     return Results.Json(data);
 })
 .CacheOutputWithDomain("catalog");
 ```
 
-Alternatively omit `IDomainDataCache` and call `LoadProductAsync` directly in the handler; Output Cache still applies via `.CacheOutputWithDomain`.
-
 ---
 
-## 3. Data cache only (no Output Cache on the route)
+## 3. Data cache only (AspNetCore + FusionCache)
+
+Packages: **`CacheOrchestrator.AspNetCore`** + **`CacheOrchestrator.FusionCache`** (not the meta convenience entry). No `.CacheOutputWithDomain` — base Output Cache policy is `NoCache`.
 
 **Registration**
 
 ```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration);
+using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
+
+builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
+builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 ```
 
 **Config**
@@ -142,23 +162,22 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 ```json
 {
   "Cache": {
-    "OutputCache": { "Provider": "InMemory" },
     "DataCacheInstances": { "default": { "Provider": "InMemory" } },
     "Domains": {
       "catalog": {
         "Version": "1",
-        "DataCache": { "Enabled": true, "Ttl": "00:05:00" },
-        "OutputCache": { "Enabled": false },
-        "ClientCache": { "Cacheability": "Public", "Ttl": "00:00:30" }
+        "DataCache": { "Enabled": true, "Ttl": "00:05:00" }
       }
     }
   }
 }
 ```
 
-**Code** — same handler; **no** `.CacheOutputWithDomain` (base policy is `NoCache`). Pass the domain into `GetOrSetAsync` because endpoint metadata does not set it:
+**Code** — same `GetOrSetAsync` shape as §1; pass the domain because the route has no OC domain metadata:
 
 ```csharp
+using CacheOrchestrator.DataCache;
+
 app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, "catalog", ct => LoadProductAsync(id, ct));
@@ -166,15 +185,20 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 });
 ```
 
-Client `Cache-Control` from the domain is applied by the Output Cache domain policy; without `.CacheOutputWithDomain` those headers are not written by that policy.
-
 ---
 
 ## 4. Redis data-cache L2 (Fusion) + InMemory Output Cache
 
+Packages: **meta** `CacheOrchestrator` + **`CacheOrchestrator.Redis`**.
+
 **Registration**
 
 ```csharp
+using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.OutputCache;
+using CacheOrchestrator.Redis;
+
 builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBackend());
 ```
 
@@ -201,6 +225,9 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 **Code** (same as §1)
 
 ```csharp
+using CacheOrchestrator.DataCache;
+using CacheOrchestrator.OutputCache;
+
 app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
@@ -215,9 +242,15 @@ For Redis as the Output Cache store as well, set `"OutputCache": { "Provider": "
 
 ## 5. HybridCache data provider
 
+Packages: **`CacheOrchestrator.AspNetCore`** + **`CacheOrchestrator.HybridCache`** (+ Microsoft HybridCache).
+
 **Registration**
 
 ```csharp
+using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.OutputCache;
+
 builder.Services.AddHybridCache();
 builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
 builder.Services.AddCacheOrchestratorHybridCache();
@@ -245,6 +278,9 @@ builder.Services.AddCacheOrchestratorHybridCache();
 **Code** (same as §1)
 
 ```csharp
+using CacheOrchestrator.DataCache;
+using CacheOrchestrator.OutputCache;
+
 app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
@@ -253,19 +289,23 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 .CacheOutputWithDomain("catalog");
 ```
 
-Fusion-only domain knobs (`FusionCache` hard TTL / fail-safe / …) are ignored.
-
 ---
 
 ## 6. Dynamic domain from the route
 
+Packages: **meta** `CacheOrchestrator` (or AspNetCore + Fusion separately, as in §1).
+
 **Registration**
 
 ```csharp
+using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.OutputCache;
+
 builder.Services.AddCacheOrchestrator(builder.Configuration);
 ```
 
-**Config** — either domain defaults for all tenants, or one entry per resolved name (e.g. `tenant-acme`). Example with defaults:
+**Config** — domain defaults for all resolved names (or one `Domains` entry per name, e.g. `tenant-acme`):
 
 ```json
 {
@@ -281,9 +321,12 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 }
 ```
 
-**Code** — same `GetOrSetAsync` + `.CacheOutputWithDomain`, shared resolver:
+**Code**
 
 ```csharp
+using CacheOrchestrator.DataCache;
+using CacheOrchestrator.OutputCache;
+
 static string CatalogDomain(HttpContext http) =>
     $"tenant-{http.Request.RouteValues["tenant"]}";
 
@@ -299,11 +342,13 @@ app.MapGet("/t/{tenant}/products/{id}", async (HttpContext http, string id, IDom
 
 ## 7. Class library + host
 
-Http-free library takes a host-supplied domain binding on each call. Host registration/config match §1 (or §4 / §5). Endpoint code stays close to §1; the library owns the load logic.
+Library package references **`CacheOrchestrator.Core`**. Web host uses **meta** (or AspNetCore + Fusion) like §1.
 
-**Library** (references Core only)
+**Library**
 
 ```csharp
+using CacheOrchestrator.Orchestration;
+
 public sealed class CatalogService(ICacheOrchestrator cache)
 {
     public ValueTask<ProductDto?> GetProductAsync(
@@ -321,6 +366,10 @@ public sealed class CatalogService(ICacheOrchestrator cache)
 **Registration** (web host)
 
 ```csharp
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.Orchestration;
+using CacheOrchestrator.OutputCache;
+
 builder.Services.AddCacheOrchestrator(builder.Configuration);
 builder.Services.AddScoped<CatalogService>();
 ```
@@ -347,6 +396,9 @@ builder.Services.AddScoped<CatalogService>();
 **Code** (static domain)
 
 ```csharp
+using CacheOrchestrator.Orchestration;
+using CacheOrchestrator.OutputCache;
+
 var catalogDomain = new CacheDomainContext("catalog");
 
 app.MapGet("/api/products/{id}", async (string id, CatalogService catalog, CancellationToken ct) =>
@@ -360,6 +412,9 @@ app.MapGet("/api/products/{id}", async (string id, CatalogService catalog, Cance
 **Code** (dynamic domain — same library)
 
 ```csharp
+using CacheOrchestrator.Orchestration;
+using CacheOrchestrator.OutputCache;
+
 CacheDomainContext CatalogDomain(HttpContext http) =>
     new($"tenant-{http.Request.RouteValues["tenant"]}");
 
@@ -372,11 +427,14 @@ app.MapGet("/t/{tenant}/products/{id}", async (
 .CacheOutputWithDomain(http => CatalogDomain(http).Domain);
 ```
 
-**Worker** (same library, no Output Cache)
+**Worker** (same library; packages **Core** + **FusionCache**)
 
 ```csharp
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.Orchestration;
+
 builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
-// + Core orchestrator / options registration as used by your host
+// + host wiring for IOptions<CacheOrchestratorOptions> / ICacheOrchestrator as required
 builder.Services.AddScoped<CatalogService>();
 
 var domain = new CacheDomainContext($"tenant-{job.TenantId}");
