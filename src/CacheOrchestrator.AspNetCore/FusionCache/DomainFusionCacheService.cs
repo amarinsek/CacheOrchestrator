@@ -284,7 +284,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         bool factoryFailed = false;
         Stopwatch sw = Stopwatch.StartNew();
 
-        using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+        using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
         activity?.SetTag("domain", opts.Domain);
         if (primary is { } prim)
         {
@@ -436,7 +436,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             }
 
             using Activity? unresolvedActivity =
-                CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+                CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
             unresolvedActivity?.SetTag("domain", "_");
             unresolvedActivity?.SetTag("cache.result", "unresolved");
 
@@ -506,7 +506,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
     {
         if (!opts.DataCacheEnabled)
         {
-            using Activity? offActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+            using Activity? offActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
             offActivity?.SetTag("domain", opts.Domain);
             offActivity?.SetTag("cache.result", "off");
             return await InvokeFactoryUncachedAsync(
@@ -525,7 +525,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             if (_logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug("FusionCache skipped due to auth bypass (DataCacheRespectAuthBypass)");
 
-            using Activity? authBypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+            using Activity? authBypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
             authBypassActivity?.SetTag("domain", opts.Domain);
             authBypassActivity?.SetTag("cache.result", "bypass");
             return await InvokeFactoryUncachedAsync(
@@ -545,7 +545,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             if (_logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug("FusionCache skipped due to Cache-Control: no-store");
 
-            using Activity? bypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+            using Activity? bypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
             bypassActivity?.SetTag("domain", opts.Domain);
             bypassActivity?.SetTag("cache.result", "bypass");
             return await InvokeFactoryUncachedAsync(
@@ -598,7 +598,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         bool factoryFailed = false;
         Stopwatch sw = Stopwatch.StartNew();
 
-        using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+        using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
         activity?.SetTag("domain", opts.Domain);
         activity?.SetTag("provider", _dataCache.Name);
         if (normalizedEntityKind is not null)

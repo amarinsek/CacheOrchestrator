@@ -423,7 +423,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             Output = OutputCacheResult.Hit
         };
 
-        using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.output.hit");
+        using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.oc.hit");
         if (activity is not null)
         {
             if (feature.DomainOptions is { } opts)

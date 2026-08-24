@@ -11,7 +11,7 @@ public enum CacheInvalidationKind
     /// <summary>Entity tag(s) <c>entity:{domain}:{entityKind}:{id}</c>.</summary>
     Entity = 1,
 
-    /// <summary>Arbitrary tags (all Fusion instances).</summary>
+    /// <summary>Arbitrary tags (all data-cache instances).</summary>
     Tags = 2,
 
     /// <summary>Multiple domains in one call.</summary>

@@ -293,7 +293,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         activity?.SetTag("cache.tags", string.Join(',', tags));
 
         _logger.LogInformation(
-            "Invalidating cache scope '{Scope}' kind={Kind} (tags=[{Tags}], all_fc_instances={AllInstances})",
+            "Invalidating cache scope '{Scope}' kind={Kind} (tags=[{Tags}], all_dc_instances={AllInstances})",
             scopeLabel,
             kind,
             string.Join(", ", tags),
@@ -301,7 +301,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
 
         await NotifyBeforeAsync(observerContext, cancellationToken).ConfigureAwait(false);
 
-        bool fusionOk = true;
+        bool dataOk = true;
         bool outputOk = true;
         List<string> errors = [];
 
@@ -320,10 +320,10 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
                 }
                 catch (Exception ex)
                 {
-                    fusionOk = false;
+                    dataOk = false;
                     string msg = $"DataCache tag '{tag}' on '{instanceName}' ({_dataCache.Name}): {ex.Message}";
                     errors.Add(msg);
-                    activity?.AddEvent(new ActivityEvent("fusion.invalidate.failed"));
+                    activity?.AddEvent(new ActivityEvent("dc.invalidate.failed"));
                     _logger.LogWarning(
                         ex,
                         "Failed to invalidate data-cache tag '{Tag}' on instance '{Instance}' ({Provider})",
@@ -345,17 +345,17 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
                 outputOk = false;
                 string msg = $"OutputCache tag '{tag}': {ex.Message}";
                 errors.Add(msg);
-                activity?.AddEvent(new ActivityEvent("output.invalidate.failed"));
+                activity?.AddEvent(new ActivityEvent("oc.invalidate.failed"));
                 _logger.LogWarning(ex, "Failed to invalidate OutputCache tag '{Tag}'", tag);
             }
         }
 
-        activity?.SetTag("cache.fusion.ok", fusionOk);
-        activity?.SetTag("cache.output.ok", outputOk);
-        if (!fusionOk || !outputOk)
+        activity?.SetTag("cache.dc.ok", dataOk);
+        activity?.SetTag("cache.oc.ok", outputOk);
+        if (!dataOk || !outputOk)
             activity?.SetStatus(ActivityStatusCode.Error, "One or more invalidation targets failed");
 
-        if (fusionOk && outputOk)
+        if (dataOk && outputOk)
         {
             // Metrics domain tag must stay low-cardinality: never entity id / path.
             // scopeLabel may be "domain/entityKind/id" for entity invalidations.
@@ -384,7 +384,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             }
         }
 
-        CacheInvalidationResult result = new(scopeLabel, tags, fusionOk, outputOk, errors, clusterPublish);
+        CacheInvalidationResult result = new(scopeLabel, tags, dataOk, outputOk, errors, clusterPublish);
         await NotifyAfterAsync(observerContext, result, cancellationToken).ConfigureAwait(false);
         return result;
     }

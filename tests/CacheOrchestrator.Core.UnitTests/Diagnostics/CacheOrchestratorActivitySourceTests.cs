@@ -26,12 +26,12 @@ public class CacheOrchestratorActivitySourceTests
 
         ActivitySource.AddActivityListener(listener);
 
-        using var activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+        using var activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
 
         activity.Should().NotBeNull();
-        activity.OperationName.Should().Be("cache.fusion.get_or_set");
+        activity.OperationName.Should().Be("cache.dc.get_or_set");
         started.Should().NotBeNull();
-        started.OperationName.Should().Be("cache.fusion.get_or_set");
+        started.OperationName.Should().Be("cache.dc.get_or_set");
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public class CacheOrchestratorActivitySourceTests
         };
         ActivitySource.AddActivityListener(listener);
 
-        using var activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
+        using var activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
         activity.Should().NotBeNull();
 
         activity.SetTag("domain", "catalog");
@@ -81,9 +81,9 @@ public class CacheOrchestratorActivitySourceTests
         };
         ActivitySource.AddActivityListener(listener);
 
-        using var activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.output.hit");
+        using var activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.oc.hit");
 
         activity.Should().NotBeNull();
-        activity.OperationName.Should().Be("cache.output.hit");
+        activity.OperationName.Should().Be("cache.oc.hit");
     }
 }

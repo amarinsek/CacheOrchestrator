@@ -38,7 +38,7 @@ internal sealed class CacheOrchestratorHealthCheck : IHealthCheck
         };
 
         foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOpts) in opts.DataCacheInstances)
-            data[$"fusion_instance:{instanceName}"] = instanceOpts.Provider ?? "InMemory";
+            data[$"data_cache_instance:{instanceName}"] = instanceOpts.Provider ?? "InMemory";
 
         List<ICacheOrchestratorHealthProbe> probes = [.. _probes];
         if (probes.Count == 0)

@@ -77,19 +77,19 @@ Activity source name: **`CacheOrchestrator`**
 
 | Activity | When |
 |----------|------|
-| `cache.fusion.get_or_set` | Fusion get/set path |
-| `cache.output.hit` | Output cache hit |
+| `cache.dc.get_or_set` | Data-cache get/set path |
+| `cache.oc.hit` | Output cache hit |
 | `cache.invalidate` | Domain invalidation |
 
-Fusion activities tag `domain` and `cache.result` (including `unresolved` / `off` / `bypass`), plus `entity_kind` / `resource_id` when set. Invalidate activities use `cache.scope`, `cache.kind`, `cache.tags`, `cache.fusion.ok`, `cache.output.ok` — not `cache.result`.
+Wire names use the same short layer ids as `X-Cache` / metrics (`dc`, `oc`). Data-cache activities tag `domain` and `cache.result` (including `unresolved` / `off` / `bypass`), plus `entity_kind` / `resource_id` when set. Invalidate activities use `cache.scope`, `cache.kind`, `cache.tags`, `cache.dc.ok`, `cache.oc.ok` — not `cache.result`. Failure events: `dc.invalidate.failed`, `oc.invalidate.failed`.
 
 ## Logging
 
 | Component | Typical levels |
 |-----------|----------------|
-| Fusion HIT/MISS | Debug |
-| Fusion no domain (uncached factory) | Warning |
-| Fusion STALE / errors | Information / Warning |
+| Data-cache HIT/MISS | Debug |
+| Data-cache no domain (uncached factory) | Warning |
+| Data-cache STALE / errors | Information / Warning |
 | Invalidation start | Information |
 | Invalidation partial failure | Warning |
 | Cluster peer publish failure / bus open without ApiKey | Warning |

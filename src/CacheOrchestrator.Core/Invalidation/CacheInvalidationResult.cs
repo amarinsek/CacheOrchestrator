@@ -83,7 +83,7 @@ public sealed class CacheInvalidationResult
 
         List<string> tags = [];
         List<string> errors = [];
-        bool fusionOk = true;
+        bool dataOk = true;
         bool outputOk = true;
         bool anyWork = false;
         List<string> scopes = [];
@@ -93,7 +93,7 @@ public sealed class CacheInvalidationResult
             scopes.Add(part.Scope);
             tags.AddRange(part.Tags);
             errors.AddRange(part.Errors);
-            fusionOk &= part.DataCacheSucceeded;
+            dataOk &= part.DataCacheSucceeded;
             outputOk &= part.OutputSucceeded;
             if (!part.IsSkipped)
                 anyWork = true;
@@ -102,7 +102,7 @@ public sealed class CacheInvalidationResult
         return new CacheInvalidationResult(
             scope: string.Join(',', scopes),
             tags: tags,
-            dataCacheSucceeded: fusionOk,
+            dataCacheSucceeded: dataOk,
             outputSucceeded: outputOk,
             errors: errors,
             isSkipped: !anyWork);
