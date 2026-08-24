@@ -33,9 +33,9 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
     public string Name => "FusionCache";
 
     /// <inheritdoc />
-    public async ValueTask<T?> GetOrCreateAsync<T>(
+    public async ValueTask<T> GetOrCreateAsync<T>(
         DataCacheProviderRequest request,
-        Func<CancellationToken, ValueTask<T?>> factory,
+        Func<CancellationToken, ValueTask<T>> factory,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -45,7 +45,7 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         FusionCacheEntryOptions entryOptions = request.DomainOptions.GetFusionEntryOptions();
         string[] tags = request.Tags as string[] ?? [.. request.Tags];
 
-        T? result = await fusion.GetOrSetAsync<T?>(
+        T result = await fusion.GetOrSetAsync<T>(
                 request.Key,
                 async (_, token) => await factory(token).ConfigureAwait(false),
                 entryOptions,

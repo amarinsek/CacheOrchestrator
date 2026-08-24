@@ -15,9 +15,13 @@ public interface IDataCacheProvider
     /// <summary>
     /// Gets or creates a value at <paramref name="request"/>.Key with the given tags and domain policy.
     /// </summary>
-    ValueTask<T?> GetOrCreateAsync<T>(
+    /// <remarks>
+    /// <typeparamref name="T"/> is the stored type (may itself be nullable, e.g. <c>string?</c>).
+    /// Prefer this over a <c>T?</c> return so value-type entries stay <c>int</c> rather than <c>int?</c>.
+    /// </remarks>
+    ValueTask<T> GetOrCreateAsync<T>(
         DataCacheProviderRequest request,
-        Func<CancellationToken, ValueTask<T?>> factory,
+        Func<CancellationToken, ValueTask<T>> factory,
         CancellationToken cancellationToken = default);
 
     /// <summary>Removes / logically invalidates all entries associated with <paramref name="tag"/>.</summary>

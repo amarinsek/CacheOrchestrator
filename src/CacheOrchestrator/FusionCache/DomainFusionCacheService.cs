@@ -1,6 +1,7 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.Orchestration;
 using CacheOrchestrator.OutputCache;
 using CacheOrchestrator.Utilities;
 using Microsoft.AspNetCore.Http;
@@ -11,13 +12,15 @@ using ZiggyCreatures.Caching.Fusion;
 namespace CacheOrchestrator.FusionCache;
 
 /// <summary>
-/// Default <see cref="IDomainFusionCache"/> implementation backed by ZiggyCreatures FusionCache.
+/// Default <see cref="IDomainFusionCache"/> implementation: HTTP projection + domain policy,
+/// with physical get-or-set via <see cref="IDataCacheProvider"/> (Fusion today).
 /// </summary>
 internal sealed class DomainFusionCacheService : IDomainFusionCache
 {
     private readonly IFusionCacheProvider _fusionProvider;
     private readonly IDomainCacheOptionsProvider _domainConfig;
     private readonly IDomainKeyGenerator _keyGenerator;
+    private readonly IDataCacheProvider _dataCache;
     private readonly ILogger<DomainFusionCacheService> _logger;
     private readonly IAdminStatsCollector _adminStats;
 
@@ -28,17 +31,20 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         IFusionCacheProvider fusionProvider,
         IDomainCacheOptionsProvider domainConfig,
         IDomainKeyGenerator keyGenerator,
+        IDataCacheProvider dataCache,
         ILogger<DomainFusionCacheService> logger,
         IAdminStatsCollector? adminStats = null)
     {
         ArgumentNullException.ThrowIfNull(fusionProvider);
         ArgumentNullException.ThrowIfNull(domainConfig);
         ArgumentNullException.ThrowIfNull(keyGenerator);
+        ArgumentNullException.ThrowIfNull(dataCache);
         ArgumentNullException.ThrowIfNull(logger);
 
         _fusionProvider = fusionProvider;
         _domainConfig = domainConfig;
         _keyGenerator = keyGenerator;
+        _dataCache = dataCache;
         _logger = logger;
         _adminStats = adminStats ?? NoOpAdminStatsCollector.Instance;
     }
@@ -580,7 +586,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
         string? kindForKey = feature?.EntityKind;
         string? idForKey = feature?.ResourceId;
-        
+
         if (clearIdentityForKey && feature is not null)
         {
             feature.EntityKind = null;
@@ -601,9 +607,14 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
             }
         }
 
-        FusionCacheEntryOptions options = opts.GetFusionEntryOptions();
-        IFusionCache fusion = _fusionProvider.GetCache(opts.FusionCacheInstanceName);
         string[] tags = BuildTags(opts.Domain, normalizedEntityKind, normalizedResourceId);
+        DataCacheProviderRequest providerRequest = new()
+        {
+            Key = key,
+            InstanceName = opts.FusionCacheInstanceName,
+            Tags = tags,
+            DomainOptions = opts
+        };
 
         bool materialized = false;
         bool factoryFailed = false;
@@ -611,6 +622,7 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
 
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.fusion.get_or_set");
         activity?.SetTag("domain", opts.Domain);
+        activity?.SetTag("provider", _dataCache.Name);
         if (normalizedEntityKind is not null)
             activity?.SetTag("entity_kind", normalizedEntityKind);
         if (normalizedResourceId is not null)
@@ -619,31 +631,30 @@ internal sealed class DomainFusionCacheService : IDomainFusionCache
         T result;
         try
         {
-            result = await fusion.GetOrSetAsync<T>(
-                key,
-                async (_, token) =>
-                {
-                    materialized = true;
-                    try
+            result = await _dataCache.GetOrCreateAsync(
+                    providerRequest,
+                    async token =>
                     {
-                        return await factory(token).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        factoryFailed = true;
-                        if (_logger.IsEnabled(LogLevel.Debug))
-                            _logger.LogDebug("Factory canceled for Key={Key}", key);
-                        throw;
-                    }
-                    catch
-                    {
-                        factoryFailed = true;
-                        throw;
-                    }
-                },
-                options,
-                tags: tags,
-                token: cancellationToken).ConfigureAwait(false);
+                        materialized = true;
+                        try
+                        {
+                            return await factory(token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            factoryFailed = true;
+                            if (_logger.IsEnabled(LogLevel.Debug))
+                                _logger.LogDebug("Factory canceled for Key={Key}", key);
+                            throw;
+                        }
+                        catch
+                        {
+                            factoryFailed = true;
+                            throw;
+                        }
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

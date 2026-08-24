@@ -68,7 +68,11 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
 
         try
         {
-            T? value = await _dataCache.GetOrCreateAsync(providerRequest, factory, cancellationToken)
+            // Store type is T? so null values can be cached when the caller uses a nullable T.
+            T? value = await _dataCache.GetOrCreateAsync(
+                    providerRequest,
+                    factory,
+                    cancellationToken)
                 .ConfigureAwait(false);
             activity?.SetTag("cache.result", "ok");
             return value;

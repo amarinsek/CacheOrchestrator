@@ -52,8 +52,8 @@ public class FusionDataCacheProviderTests
         _fusionCache
             .GetOrSetAsync(
                 Arg.Any<string>(),
-                Arg.Any<Func<FusionCacheFactoryExecutionContext<string?>, CancellationToken, Task<string?>>>(),
-                Arg.Any<MaybeValue<string?>>(),
+                Arg.Any<Func<FusionCacheFactoryExecutionContext<string>, CancellationToken, Task<string>>>(),
+                Arg.Any<MaybeValue<string>>(),
                 Arg.Any<FusionCacheEntryOptions>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
@@ -61,7 +61,7 @@ public class FusionDataCacheProviderTests
             {
                 passedKey = callInfo.ArgAt<string>(0);
                 passedTags = callInfo.ArgAt<IEnumerable<string>?>(4);
-                return ValueTask.FromResult<string?>("hit");
+                return ValueTask.FromResult("hit");
             });
 
         DataCacheProviderRequest request = new()
@@ -72,9 +72,9 @@ public class FusionDataCacheProviderTests
             DomainOptions = domain
         };
 
-        string? result = await _sut.GetOrCreateAsync(
+        string result = await _sut.GetOrCreateAsync(
             request,
-            _ => ValueTask.FromResult<string?>("fresh"),
+            _ => ValueTask.FromResult("fresh"),
             TestContext.Current.CancellationToken);
 
         result.Should().Be("hit");

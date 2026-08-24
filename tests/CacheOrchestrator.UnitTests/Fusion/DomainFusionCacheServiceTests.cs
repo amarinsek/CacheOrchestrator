@@ -1,9 +1,11 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.Orchestration;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -15,15 +17,18 @@ public class DomainFusionCacheServiceTests
     private readonly IFusionCache _fusionCache = Substitute.For<IFusionCache>();
     private readonly IDomainCacheOptionsProvider _domainConfig = Substitute.For<IDomainCacheOptionsProvider>();
     private readonly IDomainKeyGenerator _keyGenerator = Substitute.For<IDomainKeyGenerator>();
+    private readonly IDataCacheProvider _dataCache;
     private readonly DomainFusionCacheService _sut;
 
     public DomainFusionCacheServiceTests()
     {
         _fusionProvider.GetCache(Arg.Any<string>()).Returns(_fusionCache);
+        _dataCache = CreateFusionDataCacheProvider(_fusionProvider);
         _sut = new DomainFusionCacheService(
             _fusionProvider,
             _domainConfig,
             _keyGenerator,
+            _dataCache,
             NullLogger<DomainFusionCacheService>.Instance);
     }
 
@@ -173,6 +178,7 @@ public class DomainFusionCacheServiceTests
             _fusionProvider,
             _domainConfig,
             _keyGenerator,
+            _dataCache,
             NullLogger<DomainFusionCacheService>.Instance,
             admin);
         var http = new DefaultHttpContext();
@@ -475,6 +481,7 @@ public class DomainFusionCacheServiceTests
             _fusionProvider,
             _domainConfig,
             realKeys,
+            _dataCache,
             NullLogger<DomainFusionCacheService>.Instance);
 
         var keys = new List<string>();
@@ -521,6 +528,7 @@ public class DomainFusionCacheServiceTests
             _fusionProvider,
             _domainConfig,
             realKeys,
+            _dataCache,
             NullLogger<DomainFusionCacheService>.Instance);
 
         var keys = new List<string>();
@@ -771,4 +779,14 @@ public class DomainFusionCacheServiceTests
             FusionCacheAllowBackgroundDistributed = true,
             FusionCacheAllowBackgroundBackplane = true
         };
+
+    private static FusionDataCacheProvider CreateFusionDataCacheProvider(IFusionCacheProvider fusionProvider)
+    {
+        IOptionsMonitor<CacheOrchestratorOptions> options = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
+        options.CurrentValue.Returns(new CacheOrchestratorOptions());
+        return new FusionDataCacheProvider(
+            fusionProvider,
+            options,
+            NullLogger<FusionDataCacheProvider>.Instance);
+    }
 }
