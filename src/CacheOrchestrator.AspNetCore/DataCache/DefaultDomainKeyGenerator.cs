@@ -10,7 +10,7 @@ using System.IO.Hashing;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace CacheOrchestrator.FusionCache;
+namespace CacheOrchestrator.DataCache;
 
 /// <summary>
 /// Default high-performance key generator using XxHash3.

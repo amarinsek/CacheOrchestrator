@@ -27,7 +27,8 @@ public class ClusterBusRegistrationTests
         }).Build();
 
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
         IClusterCommandBus bus = sp.GetRequiredService<IClusterCommandBus>();
@@ -52,7 +53,8 @@ public class ClusterBusRegistrationTests
         }).Build();
 
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
 
         // ServiceEndpointResolver is IAsyncDisposable-only — dispose async.
         await using ServiceProvider sp = services.BuildServiceProvider();
@@ -72,7 +74,8 @@ public class ClusterBusRegistrationTests
         }).Build();
 
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
         sp.GetRequiredService<IClusterCommandBus>().IsEnabled.Should().BeFalse();
@@ -91,7 +94,8 @@ public class ClusterBusRegistrationTests
         }).Build();
 
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
         sp.GetRequiredService<IClusterCommandBus>().Should().BeOfType<HttpClusterCommandBus>();
@@ -109,7 +113,8 @@ public class ClusterBusRegistrationTests
         }).Build();
 
         services.AddLogging();
-        var act = () => services.AddCacheOrchestrator(config, o => o.AddHttpClusterBus(" "), enableMvcConvention: false);
+        var act = () => services.AddCacheOrchestratorAspNetCore(config, o => o.AddHttpClusterBus(" "), enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
         act.Should().Throw<ArgumentException>();
     }
 }

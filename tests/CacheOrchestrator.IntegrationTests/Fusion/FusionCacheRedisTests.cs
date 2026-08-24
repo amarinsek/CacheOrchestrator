@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Redis;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
@@ -35,7 +35,8 @@ public class FusionCacheRedisTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
 
         return services.BuildServiceProvider();
     }
@@ -44,7 +45,7 @@ public class FusionCacheRedisTests
     public async Task GetOrSetAsync_SecondCall_IsCacheHit()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = new();
@@ -75,7 +76,7 @@ public class FusionCacheRedisTests
     public async Task GetOrSetAsync_AfterInvalidateDomain_IsMissAgain()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         ICacheOrchestratorInvalidator invalidator = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
         IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
@@ -110,7 +111,7 @@ public class FusionCacheRedisTests
     public async Task GetOrSetAsync_DifferentPaths_AreIndependent()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http1 = new();

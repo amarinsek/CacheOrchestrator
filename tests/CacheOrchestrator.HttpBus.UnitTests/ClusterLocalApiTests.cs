@@ -173,7 +173,8 @@ public class ClusterLocalApiTests
                     services.AddSingleton(config);
                     services.AddLogging();
                     services.AddRouting();
-                    services.AddCacheOrchestrator(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+                    services.AddCacheOrchestratorAspNetCore(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
                 });
                 web.Configure(app =>
                 {

@@ -1,7 +1,7 @@
 namespace CacheOrchestrator.Backends;
 
 /// <summary>
-/// Registers in-process memory backends for Output Cache and FusionCache.
+/// Registers the in-process memory Output Cache store.
 /// </summary>
 public sealed class InMemoryCacheBackendRegistrar : ICacheBackendRegistrar
 {
@@ -22,13 +22,6 @@ public sealed class InMemoryCacheBackendRegistrar : ICacheBackendRegistrar
             options.SizeLimit = 512 * 1024 * 1024;
             options.MaximumBodySize = 32 * 1024 * 1024;
         });
-    }
-
-    /// <inheritdoc />
-    public void RegisterFusionCache(FusionCacheRegistrationContext context)
-    {
-        // FusionCache already uses the registered IMemoryCache as L1.
-        // No L2 or backplane for InMemory.
     }
 
     /// <inheritdoc />

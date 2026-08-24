@@ -25,6 +25,15 @@ public interface IDataCacheProvider
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Overwrites the value at <paramref name="request"/>.Key with <paramref name="value"/>
+    /// and the request's tags / domain policy (used to refresh tags after a footprint-aware miss).
+    /// </summary>
+    ValueTask SetAsync<T>(
+        DataCacheProviderRequest request,
+        T value,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Removes / logically invalidates all entries associated with <paramref name="tag"/>
     /// on every configured data-cache instance.
     /// </summary>

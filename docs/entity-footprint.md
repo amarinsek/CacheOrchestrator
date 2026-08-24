@@ -31,7 +31,7 @@ Invalidation stays `InvalidateEntityAsync` / `InvalidateEntityKindAsync` / `Inva
 **Footprint:** primary `products:42`.
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, CancellationToken cancellationToken) =>
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, CancellationToken cancellationToken) =>
 {
     var product = await cache.GetOrSetEntityAsync(
         http,
@@ -104,7 +104,7 @@ The JSON denormalizes category, brand, and tag labels into the response. If mark
 [HttpGet("{id:int}")]
 public async Task<ActionResult<ProductDetailsDto>> GetDetails(
     int id,
-    IDomainFusionCache cache,
+    IDomainDataCache cache,
     CancellationToken cancellationToken)
 {
     var details = await cache.GetOrSetEntityAsync(HttpContext, async ct =>
@@ -157,7 +157,7 @@ The cached payload is the whole aggregate. Changing line `100`, reassigning the 
 [HttpGet("{id:int}")]
 public async Task<ActionResult<OrderDto>> GetOrder(
     int id,
-    IDomainFusionCache cache,
+    IDomainDataCache cache,
     CancellationToken cancellationToken)
 {
     var order = await cache.GetOrSetEntityAsync(HttpContext, async ct =>
@@ -201,7 +201,7 @@ await inv.InvalidateEntityAsync("store", "products", 42, cancellationToken);
 ```csharp
 [CacheDomain("store", entityKind: "products")]
 [HttpGet]
-public async Task<ActionResult<IReadOnlyList<Product>>> List(IDomainFusionCache cache, ...)
+public async Task<ActionResult<IReadOnlyList<Product>>> List(IDomainDataCache cache, ...)
 {
     var products = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
     {
@@ -236,7 +236,7 @@ await inv.InvalidateEntityAsync("store", "products", 15, cancellationToken);
 ```csharp
 [CacheDomain("store", entityKind: "products")]
 [HttpGet]
-public async Task<ActionResult<IReadOnlyList<Product>>> List(int? categoryId, IDomainFusionCache cache, ...)
+public async Task<ActionResult<IReadOnlyList<Product>>> List(int? categoryId, IDomainDataCache cache, ...)
 {
     var products = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
     {
@@ -276,7 +276,7 @@ The response is a **collection of reviews**, not the product document. Updating 
 ```csharp
 [CacheDomain("store", resourceRouteKey: "id", entityKind: "products")]
 [HttpGet("{id:int}/reviews")]
-public async Task<ActionResult<IReadOnlyList<Review>>> Reviews(int id, IDomainFusionCache cache, ...)
+public async Task<ActionResult<IReadOnlyList<Review>>> Reviews(int id, IDomainDataCache cache, ...)
 {
     var reviews = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
     {
@@ -311,7 +311,7 @@ await inv.InvalidateEntityAsync("store", "products", 42, cancellationToken);
 ```csharp
 [CacheDomain("store", entityKind: "products")]
 [HttpGet("batch")]
-public async Task<ActionResult<IReadOnlyList<Product>>> Batch([FromQuery] string[] ids, IDomainFusionCache cache, ...)
+public async Task<ActionResult<IReadOnlyList<Product>>> Batch([FromQuery] string[] ids, IDomainDataCache cache, ...)
 {
     var products = await cache.GetOrSetEntitySetAsync(HttpContext, async ct =>
     {
@@ -352,7 +352,7 @@ Editors often change stock or warehouse data without touching the product master
 [HttpGet("{id:int}/availability")]
 public async Task<ActionResult<AvailabilityDto>> Availability(
     int id,
-    IDomainFusionCache cache,
+    IDomainDataCache cache,
     CancellationToken cancellationToken)
 {
     var dto = await cache.GetOrSetEntityAsync(HttpContext, async ct =>
@@ -392,7 +392,7 @@ await inv.InvalidateEntityAsync("store", "warehouses", warehouseId, cancellation
 [HttpGet("{id:int}")]
 public async Task<ActionResult<Product>> Get(
     int id,
-    IDomainFusionCache cache,
+    IDomainDataCache cache,
     CancellationToken cancellationToken)
 {
     var product = await cache.GetOrSetEntityAsync(HttpContext, async ct =>
@@ -437,7 +437,7 @@ Any of those underlying rows changing should refresh the widget without bumping 
 ```csharp
 [CacheDomain("store")]
 [HttpGet("/api/home/widgets/storefront")]
-public async Task<ActionResult<StorefrontWidget>> Storefront(HttpContext http, IDomainFusionCache cache, ...)
+public async Task<ActionResult<StorefrontWidget>> Storefront(HttpContext http, IDomainDataCache cache, ...)
 {
     cache.SetEntityIdentity(http, "dashboard", "storefront");
     var widget = await cache.GetOrSetEntityAsync(http, async ct =>

@@ -42,6 +42,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
   </ItemGroup>
 
 </Project>

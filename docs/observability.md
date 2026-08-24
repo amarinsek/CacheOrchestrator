@@ -96,7 +96,7 @@ Wire names use the same short layer ids as `X-Cache` / metrics (`dc`, `oc`). Dat
 | Cluster ignore (namespace / self / dedupe) | Debug |
 | Unknown domain / missing Version | Warning |
 
-Log categories use the implementing type names (internal): `DomainFusionCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, and public `DomainOutputCachePolicy`. Cluster bus: `HttpClusterCommandBus`, `DefaultClusterCommandHandler`, `CacheOrchestrator.HttpBus`.
+Log categories use the implementing type names (internal): `DomainDataCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, and public `DomainOutputCachePolicy`. Cluster bus: `HttpClusterCommandBus`, `DefaultClusterCommandHandler`, `CacheOrchestrator.HttpBus`.
 
 ## Health checks
 

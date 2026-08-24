@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Redis;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
@@ -67,7 +67,8 @@ public sealed class FusionCacheMultiInstanceRedisTests : IAsyncLifetime
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
         return services.BuildServiceProvider();
     }
 
@@ -92,7 +93,7 @@ public sealed class FusionCacheMultiInstanceRedisTests : IAsyncLifetime
     public async Task GetOrSetAsync_WritesL2OnlyToInstanceRedis_AndInvalidationIsIsolated()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         ICacheOrchestratorInvalidator invalidator = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
         IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 

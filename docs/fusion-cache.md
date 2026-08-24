@@ -10,7 +10,7 @@ Fusion stores **serializable objects** (JSON via System.Text.Json): L1 in memory
 
 ## How Fusion finds the domain
 
-`IDomainFusionCache.GetOrSetAsync` looks for domain options in this order:
+`IDomainDataCache.GetOrSetAsync` looks for domain options in this order:
 
 1. The overload `GetOrSetAsync(http, domain, factory)` — same domain reuses the request snapshot; a **different** name replaces it (so `products` and `catalog` never share an entry).
 2. Already on the request — usually set by Output Cache when you use `.CacheOutputWithDomain` or `[CacheDomain]`.
@@ -20,7 +20,7 @@ Fusion stores **serializable objects** (JSON via System.Text.Json): L1 in memory
 ### With Output Cache
 
 ```csharp
-app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
+app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, LoadAsync);
     return Results.Json(data);
@@ -34,7 +34,7 @@ public class ProductsController : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get(
-        [FromServices] IDomainFusionCache cache,
+        [FromServices] IDomainDataCache cache,
         CancellationToken cancellationToken)
     {
         var data = await cache.GetOrSetAsync(HttpContext, LoadAsync, cancellationToken);
@@ -69,7 +69,7 @@ If you omit the domain:
 Entity identity is optional and lives **inside** a domain (domains stay the configuration unit). Endpoint metadata owns domain + primary kind/id; the data-cache HTTP helpers consume that identity on the happy path.
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, CancellationToken cancellationToken) =>
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, CancellationToken cancellationToken) =>
 {
     var product = await cache.GetOrSetEntityAsync(
         http,

@@ -1,6 +1,7 @@
-﻿using CacheOrchestrator.Backends;
+using CacheOrchestrator.Backends;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.FusionCache.Backends;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -9,7 +10,7 @@ namespace CacheOrchestrator.AspNetCore.UnitTests.Backends;
 
 public class FusionOnlyBackendTests
 {
-    private sealed class FusionOnlyRegistrar : ICacheBackendRegistrar
+    private sealed class FusionOnlyOcRegistrar : ICacheBackendRegistrar
     {
         public string Name => "FusionOnlyDb";
         public bool SupportsOutputCacheStore => false;
@@ -17,12 +18,21 @@ public class FusionOnlyBackendTests
         public void RegisterOutputCache(OutputCacheRegistrationContext context) =>
             throw new InvalidOperationException("Should not be called for Output Cache.");
 
+        public void RegisterHealthProbes(BackendHealthRegistrationContext context)
+        {
+        }
+    }
+
+    private sealed class FusionOnlyL2Registrar : IFusionCacheBackendRegistrar
+    {
+        public string Name => "FusionOnlyDb";
+
         public void RegisterFusionCache(FusionCacheRegistrationContext context)
         {
-            // No L2 â€” just prove the hook runs.
+            // No L2 — just prove the hook runs.
         }
 
-        public void RegisterHealthProbes(BackendHealthRegistrationContext context)
+        public void RegisterHealthProbes(FusionBackendHealthRegistrationContext context)
         {
         }
     }
@@ -41,7 +51,7 @@ public class FusionOnlyBackendTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        var act = () => services.AddCacheOrchestrator(config, o => o.AddBackend(new FusionOnlyRegistrar()));
+        var act = () => services.AddCacheOrchestratorAspNetCore(config, o => o.AddBackend(new FusionOnlyOcRegistrar()));
 
         act.Should().Throw<InvalidOperationException>()
            .WithMessage("*does not support an Output Cache store*");
@@ -61,7 +71,12 @@ public class FusionOnlyBackendTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        var act = () => services.AddCacheOrchestrator(config, o => o.AddBackend(new FusionOnlyRegistrar()));
+        var act = () =>
+        {
+            services.AddCacheOrchestratorAspNetCore(config);
+            services.AddFusionCacheBackend(new FusionOnlyL2Registrar());
+            services.AddCacheOrchestratorFusionCache(config);
+        };
 
         act.Should().NotThrow();
     }

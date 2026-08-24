@@ -23,7 +23,11 @@ public class RedisBackendRegistrationTests
 
         services.AddLogging();
 
-        var act = () => services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        var act = () =>
+        {
+            services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+            services.AddCacheOrchestratorFusionCache(config);
+        };
 
         act.Should().Throw<InvalidOperationException>()
            .WithMessage("*Redis*");
@@ -43,7 +47,8 @@ public class RedisBackendRegistrationTests
 
         ICacheOrchestratorBuilder? captured = null;
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => captured = o.AddRedisBackend());
+        services.AddCacheOrchestratorAspNetCore(config, o => captured = o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
 
         captured.Should().NotBeNull();
         using ServiceProvider sp = services.BuildServiceProvider();
@@ -64,7 +69,7 @@ public class RedisBackendRegistrationTests
             .Build();
 
         services.AddLogging();
-        var act = () => services.AddCacheOrchestrator(config, o => o.AddRedisBackend("  "));
+        var act = () => services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend("  "));
         act.Should().Throw<ArgumentException>();
     }
 }

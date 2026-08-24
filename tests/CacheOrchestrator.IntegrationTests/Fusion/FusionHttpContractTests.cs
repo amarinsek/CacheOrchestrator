@@ -1,5 +1,5 @@
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -60,7 +60,8 @@ public class FusionHttpContractTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<FactoryCounter>();
 
         WebApplication app = builder.Build();
@@ -106,7 +107,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache) =>
             {
                 cache.SetEntityIdentity(http, "items", "1");
                 string? entity = await cache.GetOrSetEntityAsync(
@@ -177,7 +178,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string cached = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -223,7 +224,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(DomainBase(domain), a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, domain, _ =>
                 {
@@ -273,7 +274,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 // Policy pins ocDomain on Items; explicit Fusion name must replace it.
                 string value = await cache.GetOrSetAsync(http, fcDomain, _ =>
@@ -317,7 +318,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -362,7 +363,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -402,7 +403,7 @@ public class FusionHttpContractTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(DomainBase(domain), a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {

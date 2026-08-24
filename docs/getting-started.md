@@ -16,10 +16,10 @@ See [samples/CacheOrchestrator.Minimal](../samples/CacheOrchestrator.Minimal).
 
 ## How the pieces fit
 
-A **domain** is a named policy, not a store. Output Cache, **data cache**, and client `Cache-Control` remain the three layers; CacheOrchestrator applies the same options to all three. In configuration it is a name (`catalog`, `osm-tiles`, …). It holds TTLs, Version, client headers, and which data-cache instance to use. You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. `IDomainFusionCache.GetOrSetAsync` uses the same options (HTTP projection over `ICacheOrchestrator`).
+A **domain** is a named policy, not a store. Output Cache, **data cache**, and client `Cache-Control` remain the three layers; CacheOrchestrator applies the same options to all three. In configuration it is a name (`catalog`, `osm-tiles`, …). It holds TTLs, Version, client headers, and which data-cache instance to use. You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. `IDomainDataCache.GetOrSetAsync` uses the same options (HTTP projection over `ICacheOrchestrator`).
 
 - **Output Cache** stores the full HTTP response. You enable it by putting the domain on the endpoint.
-- **Data cache** stores the object your factory produced (FusionCache by default with the meta package, or HybridCache). You call `IDomainFusionCache` or `ICacheOrchestrator`.
+- **Data cache** stores the object your factory produced (FusionCache by default with the meta package, or HybridCache). You call `IDomainDataCache` or `ICacheOrchestrator`.
 - **Client Cache-Control** is written from the domain on the way out. You do not set those headers by hand.
 
 In-memory stores are built in. Redis, Hybrid, the HTTP cluster bus, and EF hooks are separate packages — [packages.md](packages.md).
@@ -68,7 +68,7 @@ app.UseCacheOrchestrator();
 ## Apply
 
 ```csharp
-app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
+app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
     return Results.Json(data);
@@ -86,7 +86,7 @@ public sealed class ProductsController : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get(
-        [FromServices] IDomainFusionCache cache,
+        [FromServices] IDomainDataCache cache,
         CancellationToken cancellationToken)
     {
         var data = await cache.GetOrSetAsync(HttpContext, LoadProductsAsync, cancellationToken);

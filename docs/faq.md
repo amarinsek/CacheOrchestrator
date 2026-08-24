@@ -39,7 +39,7 @@ Details: [output-cache.md — Base policy](output-cache.md#base-policy-and-endpo
 
 ## Fusion runs uncached — why?
 
-`IDomainFusionCache.GetOrSetAsync` needs a **domain**. Resolution order:
+`IDomainDataCache.GetOrSetAsync` needs a **domain**. Resolution order:
 
 1. Explicit overload `GetOrSetAsync(http, domain, factory)` (replaces a different snapshot already on the request)
 2. Options already on the request (usually set by Output Cache policy)

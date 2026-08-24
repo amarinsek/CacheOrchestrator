@@ -54,7 +54,8 @@ public class AdminHealthHttpTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config, enableMvcConvention: false);
+        builder.Services.AddCacheOrchestratorAspNetCore(config, enableMvcConvention: false);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         if (registerFailingProbe)
             builder.Services.AddSingleton<ICacheOrchestratorHealthProbe, FailingProbe>();
         if (mapAspNetHealthChecks)

@@ -61,7 +61,7 @@ When you enable Redis L2 (Fusion provider), the registrar applies the data-cache
 
 ### Who builds them
 
-`IDomainFusionCache.GetOrSetAsync` → `IDomainKeyGenerator.Generate(options, http)`.
+`IDomainDataCache.GetOrSetAsync` → `IDomainKeyGenerator.Generate(options, http)`.
 
 Default implementation: **`DefaultDomainKeyGenerator`** (XxHash3 over request material, then a short string key).
 

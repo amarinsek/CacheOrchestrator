@@ -1,12 +1,13 @@
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Entity;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.OutputCache;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // InMemory only — no Redis package required for this sample.
-builder.Services.AddCacheOrchestrator(builder.Configuration);
+builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
+builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 
 var app = builder.Build();
 
@@ -15,7 +16,7 @@ app.MapCacheOrchestratorAdmin(); // no-op unless Cache:Admin:Enabled
 
 // Domain rules live in appsettings (Cache:Domains:hello).
 // One line on the endpoint wires Output Cache + data cache for this route.
-app.MapGet("/hello", async (HttpContext http, IDomainFusionCache cache) =>
+app.MapGet("/hello", async (HttpContext http, IDomainDataCache cache) =>
 {
     var payload = await cache.GetOrSetAsync(http, async ct =>
     {

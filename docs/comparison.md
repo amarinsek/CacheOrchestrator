@@ -125,7 +125,7 @@ app.UseCacheOrchestrator();
 
 app.MapGet("/tiles/{z}/{x}/{y}", async (
     HttpContext http,
-    IDomainFusionCache cache,
+    IDomainDataCache cache,
     int z, int x, int y,
     CancellationToken cancellationToken) =>
 {

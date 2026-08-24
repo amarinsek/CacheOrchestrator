@@ -16,7 +16,7 @@ public static class EntityCache
 }
 
 /// <summary>
-/// Factory result for entity get-or-set APIs (e.g. ASP.NET <c>IDomainFusionCache.GetOrSetEntityAsync</c>)
+/// Factory result for entity get-or-set APIs (e.g. ASP.NET <c>IDomainDataCache.GetOrSetEntityAsync</c>)
 /// that carries a value (or miss) plus optional footprint extensions.
 /// </summary>
 /// <typeparam name="T">Cached payload type.</typeparam>

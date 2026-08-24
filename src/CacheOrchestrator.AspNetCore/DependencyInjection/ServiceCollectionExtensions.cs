@@ -2,7 +2,7 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.Backends;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.Orchestration;
 using CacheOrchestrator.OutputCache;
@@ -12,18 +12,21 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
-using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.DependencyInjection;
 
 /// <summary>
-/// DI registration entry points for CacheOrchestrator.
+/// DI registration entry points for CacheOrchestrator ASP.NET Core host services.
 /// </summary>
+/// <remarks>
+/// Registers Output Cache, Core orchestration, and <see cref="IDomainDataCache"/>.
+/// Does <strong>not</strong> register a data-cache engine — call
+/// <c>AddCacheOrchestratorFusionCache</c> or <c>AddCacheOrchestratorHybridCache</c> (or use the meta package).
+/// </remarks>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers CacheOrchestrator services, options validation, Output Cache, and all named
-    /// FusionCache instances defined in <c>DataCacheInstances</c>.
+    /// Registers CacheOrchestrator ASP.NET services, options validation, and Output Cache.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Application configuration (binds the cache section).</param>
@@ -39,7 +42,11 @@ public static class ServiceCollectionExtensions
     /// MVC infrastructure via <c>AddControllers()</c>.
     /// </param>
     /// <returns>The same <paramref name="services"/> for chaining.</returns>
-    public static IServiceCollection AddCacheOrchestrator(
+    /// <remarks>
+    /// Meta package <c>CacheOrchestrator</c> exposes <c>AddCacheOrchestrator</c> as AspNet + Fusion.
+    /// Prefer this method for AspNet-only / Hybrid hosts, then call <c>AddCacheOrchestratorHybridCache</c>.
+    /// </remarks>
+    public static IServiceCollection AddCacheOrchestratorAspNetCore(
         this IServiceCollection services,
         IConfiguration configuration,
         Action<ICacheOrchestratorBuilder>? configure = null,
@@ -63,7 +70,7 @@ public static class ServiceCollectionExtensions
 
         CacheOrchestratorOptions opts = BindAndValidateOptions(services, configuration, configSection, builder);
 
-        RegisterCoreServices(services, configSection);
+        RegisterCoreServices(services);
         RegisterAdminServices(services, opts.Admin);
 
         if (enableMvcConvention)
@@ -72,24 +79,6 @@ public static class ServiceCollectionExtensions
         // Register Output Cache (single provider)
         ICacheBackendRegistrar outputRegistrar = builder.ResolveRegistrar(opts.OutputCache.Provider);
         RegisterOutputCache(services, configuration, opts, configSection, outputRegistrar, builder);
-
-        // Register each named FusionCache instance
-        services.AddMemoryCache();
-        foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOptions) in opts.DataCacheInstances)
-        {
-            ICacheBackendRegistrar fusionRegistrar = builder.ResolveRegistrar(instanceOptions.Provider);
-            RegisterFusionCacheInstance(
-                services, configuration, opts, configSection, instanceName, instanceOptions, fusionRegistrar);
-
-            fusionRegistrar.RegisterHealthProbes(new BackendHealthRegistrationContext(
-                services,
-                configuration,
-                configSection,
-                instanceName,
-                fusionRegistrar.Name,
-                opts,
-                instanceOptions));
-        }
 
         outputRegistrar.RegisterHealthProbes(new BackendHealthRegistrationContext(
             services,
@@ -135,7 +124,7 @@ public static class ServiceCollectionExtensions
         return opts;
     }
 
-    private static void RegisterCoreServices(IServiceCollection services, string configSection)
+    private static void RegisterCoreServices(IServiceCollection services)
     {
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
@@ -148,9 +137,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IClusterCommandHandler, DefaultClusterCommandHandler>();
         services.AddSingleton<IDomainCacheOptionsProvider, DomainCacheOptionsProvider>();
         services.AddSingleton<IRequestDomainCacheOptions, RequestDomainCacheOptionsProvider>();
-        services.AddSingleton<IDomainFusionCache, DomainFusionCacheService>();
-        // Fusion adapter package; TryAdd so a custom IDataCacheProvider can win if registered first.
-        services.AddCacheOrchestratorFusionCache(configSection);
+        services.AddSingleton<IDomainDataCache, DomainDataCacheService>();
         services.AddSingleton<ICacheOrchestrator, CacheOrchestratorService>();
         services.TryAddSingleton<IHttpCacheInvalidationSink, OutputCacheInvalidationSink>();
         services.AddSingleton<ICacheOrchestratorInvalidator, CacheOrchestratorInvalidator>();
@@ -233,51 +220,5 @@ public static class ServiceCollectionExtensions
         });
 
         context.RunStoreRegistrations();
-    }
-
-    private static void RegisterFusionCacheInstance(
-        IServiceCollection services,
-        IConfiguration configuration,
-        CacheOrchestratorOptions rootOpts,
-        string configSection,
-        string instanceName,
-        CacheOrchestratorOptions.DataCacheInstanceOptions instanceOpts,
-        ICacheBackendRegistrar registrar)
-    {
-        DistributedResilienceOptions resilience = rootOpts.GetEffectiveDistributedResilience();
-        bool isDistributed = !string.Equals(instanceOpts.Provider, "InMemory", StringComparison.OrdinalIgnoreCase);
-
-        // L2 is NOT wired here. Each backend registrar attaches its own distributed cache
-        // (Redis uses a keyed IDistributedCache per instance name so multi-cluster works).
-        IFusionCacheBuilder fusionBuilder = services
-            .AddFusionCache(instanceName)
-            .WithOptions(o =>
-            {
-                if (isDistributed)
-                {
-                    o.DistributedCacheCircuitBreakerDuration =
-                        TimeSpan.FromSeconds(Math.Max(0, resilience.CircuitBreakerSeconds));
-                    o.DefaultEntryOptions.DistributedCacheSoftTimeout =
-                        TimeSpan.FromSeconds(Math.Max(0, resilience.SoftTimeoutSeconds));
-                    o.DefaultEntryOptions.DistributedCacheHardTimeout =
-                        TimeSpan.FromSeconds(Math.Max(0, resilience.HardTimeoutSeconds));
-                    o.DefaultEntryOptions.AllowBackgroundDistributedCacheOperations = true;
-                }
-            })
-            .WithSystemTextJsonSerializer()
-            .TryWithRegisteredMemoryCache();
-
-        FusionCacheRegistrationContext context = new(
-            services,
-            configuration,
-            rootOpts,
-            configSection,
-            instanceName,
-            instanceOpts,
-            registrar.Name,
-            fusionBuilder,
-            resilience);
-
-        registrar.RegisterFusionCache(context);
     }
 }

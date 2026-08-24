@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;

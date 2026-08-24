@@ -173,6 +173,278 @@ public class CacheOrchestratorServiceTests
             .Should().Be("catalog:deadbeef:page:1");
     }
 
+    [Fact]
+    public async Task GetOrCreateAsync_WhenKeyIsPhysical_DoesNotReprefix()
+    {
+        DomainCacheOptions opts = CreateOptions(enabled: true, domain: "products", versionHex: "abc123");
+        _domainOptions.GetOrCreateDomainOptions("products").Returns(opts);
+
+        DataCacheProviderRequest? captured = null;
+        _dataCache
+            .GetOrCreateAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<string?>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                captured = callInfo.Arg<DataCacheProviderRequest>();
+                return ValueTask.FromResult<string?>("cached");
+            });
+
+        await _sut.GetOrCreateAsync(
+            new CacheEntryRequest
+            {
+                Domain = "products",
+                Key = "products:abc123:already-physical",
+                KeyIsPhysical = true
+            },
+            _ => ValueTask.FromResult<string?>("fresh"),
+            TestContext.Current.CancellationToken);
+
+        captured!.Key.Should().Be("products:abc123:already-physical");
+    }
+
+    [Fact]
+    public async Task GetOrCreateWithFootprintAsync_OnMiss_CallsSetAsyncWithFinalTags()
+    {
+        DomainCacheOptions opts = CreateOptions(enabled: true, domain: "store", versionHex: "v1");
+        _domainOptions.GetOrCreateDomainOptions("store").Returns(opts);
+
+        EntityRef primary = new("items", "42");
+        EntityFootprint early = new(primary);
+        EntityFootprint expanded = early.WithDependsOn([new EntityRef("categories", "9")]);
+
+        _dataCache
+            .GetOrCreateAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>> factory =
+                    callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1);
+                return factory(CancellationToken.None);
+            });
+
+        DataCacheProviderRequest? setRequest = null;
+        FootprintCacheBox<string?>? setValue = null;
+        _dataCache
+            .SetAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<FootprintCacheBox<string?>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                setRequest = callInfo.ArgAt<DataCacheProviderRequest>(0);
+                setValue = callInfo.ArgAt<FootprintCacheBox<string?>>(1);
+                return ValueTask.CompletedTask;
+            });
+
+        FootprintCacheBox<string?> box = await _sut.GetOrCreateWithFootprintAsync<string>(
+            new CacheEntryRequest
+            {
+                Domain = "store",
+                Key = "id:items:42",
+                Footprint = early
+            },
+            _ => ValueTask.FromResult(new FootprintCacheBox<string?>
+            {
+                Value = "payload",
+                IsMiss = false,
+                Footprint = expanded
+            }),
+            TestContext.Current.CancellationToken);
+
+        box.Value.Should().Be("payload");
+        box.Footprint.DependsOn.Should().ContainSingle(r => r.EntityKind == "categories" && r.ResourceId == "9");
+
+        setRequest.Should().NotBeNull();
+        setValue.Should().NotBeNull();
+        setRequest!.Tags.Should().Contain("entity:store:items:42");
+        setRequest.Tags.Should().Contain("entity:store:categories:9");
+        setRequest.Tags.Should().Contain("entitykind:store:categories");
+    }
+
+    [Fact]
+    public async Task GetOrCreateWithFootprintAsync_OnHit_DoesNotCallSetAsync()
+    {
+        DomainCacheOptions opts = CreateOptions(enabled: true, domain: "store", versionHex: "v1");
+        _domainOptions.GetOrCreateDomainOptions("store").Returns(opts);
+
+        EntityFootprint footprint = new(new EntityRef("items", "1"));
+        var cached = new FootprintCacheBox<string?>
+        {
+            Value = "hit",
+            IsMiss = false,
+            Footprint = footprint
+        };
+
+        _dataCache
+            .GetOrCreateAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult(cached));
+
+        FootprintCacheBox<string?> box = await _sut.GetOrCreateWithFootprintAsync<string>(
+            new CacheEntryRequest { Domain = "store", Key = "k", Footprint = footprint },
+            _ => throw new InvalidOperationException("factory should not run on hit"),
+            TestContext.Current.CancellationToken);
+
+        box.Value.Should().Be("hit");
+        await _dataCache.DidNotReceive()
+            .SetAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<FootprintCacheBox<string?>>(),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetOrCreateEntityAsync_TagsPrimaryAndReturnsValue()
+    {
+        DomainCacheOptions opts = CreateOptions(enabled: true, domain: "products", versionHex: "v1");
+        _domainOptions.GetOrCreateDomainOptions("products").Returns(opts);
+
+        DataCacheProviderRequest? getRequest = null;
+        _dataCache
+            .GetOrCreateAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                getRequest = callInfo.ArgAt<DataCacheProviderRequest>(0);
+                Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>> factory =
+                    callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1);
+                return factory(CancellationToken.None);
+            });
+
+        _dataCache
+            .SetAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<FootprintCacheBox<string?>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(ValueTask.CompletedTask);
+
+        string? value = await _sut.GetOrCreateEntityAsync(
+            "products",
+            "id:products:7",
+            new EntityRef("products", "7"),
+            _ => ValueTask.FromResult<string?>("sku-7"),
+            TestContext.Current.CancellationToken);
+
+        value.Should().Be("sku-7");
+        getRequest!.Key.Should().Be("products:v1:id:products:7");
+        getRequest.Tags.Should().Contain("entity:products:products:7");
+        getRequest.Tags.Should().Contain("entitykind:products:products");
+    }
+
+    [Fact]
+    public async Task GetOrCreateEntityAsync_EntityCacheFactory_MergesDependsOnTags()
+    {
+        DomainCacheOptions opts = CreateOptions(enabled: true, domain: "products", versionHex: "v1");
+        _domainOptions.GetOrCreateDomainOptions("products").Returns(opts);
+
+        DataCacheProviderRequest? setRequest = null;
+        _dataCache
+            .GetOrCreateAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>> factory =
+                    callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1);
+                return factory(CancellationToken.None);
+            });
+
+        _dataCache
+            .SetAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<FootprintCacheBox<string?>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                setRequest = callInfo.ArgAt<DataCacheProviderRequest>(0);
+                return ValueTask.CompletedTask;
+            });
+
+        string? value = await _sut.GetOrCreateEntityAsync(
+            "products",
+            "id:products:1",
+            new EntityRef("products", "1"),
+            _ => ValueTask.FromResult(
+                EntityCache.Create("p1").DependsOn("categories", "cat-1")),
+            TestContext.Current.CancellationToken);
+
+        value.Should().Be("p1");
+        setRequest!.Tags.Should().Contain("entity:products:categories:cat-1");
+    }
+
+    [Fact]
+    public async Task GetOrCreateEntitySetAsync_TagsMembersFromSet()
+    {
+        DomainCacheOptions opts = CreateOptions(enabled: true, domain: "products", versionHex: "v1");
+        _domainOptions.GetOrCreateDomainOptions("products").Returns(opts);
+
+        DataCacheProviderRequest? setRequest = null;
+        _dataCache
+            .GetOrCreateAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<IReadOnlyList<string>?>>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                Func<CancellationToken, ValueTask<FootprintCacheBox<IReadOnlyList<string>?>>> factory =
+                    callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<IReadOnlyList<string>?>>>>(1);
+                return factory(CancellationToken.None);
+            });
+
+        _dataCache
+            .SetAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<FootprintCacheBox<IReadOnlyList<string>?>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                setRequest = callInfo.ArgAt<DataCacheProviderRequest>(0);
+                return ValueTask.CompletedTask;
+            });
+
+        IReadOnlyList<string> list = await _sut.GetOrCreateEntitySetAsync(
+            "products",
+            "list:all",
+            "products",
+            _ => ValueTask.FromResult(EntitySet.Create(["a", "b"], id => id)),
+            TestContext.Current.CancellationToken);
+
+        list.Should().Equal("a", "b");
+        setRequest!.Tags.Should().Contain("entity:products:products:a");
+        setRequest.Tags.Should().Contain("entity:products:products:b");
+        setRequest.Tags.Should().Contain("entitykind:products:products");
+    }
+
+    [Fact]
+    public async Task GetOrCreateEntityAsync_WhenDataCacheDisabled_RunsFactoryUncached()
+    {
+        DomainCacheOptions opts = CreateOptions(enabled: false);
+        _domainOptions.GetOrCreateDomainOptions("products").Returns(opts);
+
+        string? value = await _sut.GetOrCreateEntityAsync(
+            "products",
+            "id:products:1",
+            new EntityRef("products", "1"),
+            _ => ValueTask.FromResult<string?>("fresh"),
+            TestContext.Current.CancellationToken);
+
+        value.Should().Be("fresh");
+        await _dataCache.DidNotReceive()
+            .GetOrCreateAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
+                Arg.Any<CancellationToken>());
+    }
+
     private static DomainCacheOptions CreateOptions(
         bool enabled = true,
         string domain = "products",

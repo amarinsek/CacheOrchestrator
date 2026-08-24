@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
@@ -71,7 +71,8 @@ public class RedisMultiNodeTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<HitCounter>();
 
         WebApplication app = builder.Build();
@@ -79,7 +80,7 @@ public class RedisMultiNodeTests
         app.UseCacheOrchestrator();
 
         HitCounter hits = app.Services.GetRequiredService<HitCounter>();
-        app.MapGet(path, async (HttpContext http, IDomainFusionCache cache, HitCounter h) =>
+        app.MapGet(path, async (HttpContext http, IDomainDataCache cache, HitCounter h) =>
         {
             h.Increment();
             string value = await cache.GetOrSetAsync(http, _ => Task.FromResult("shared-" + domain), http.RequestAborted);
@@ -161,15 +162,16 @@ public class RedisMultiNodeTests
 
             ServiceCollection services = new();
             services.AddLogging();
-            services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+            services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
             return services.BuildServiceProvider();
         }
 
         await using ServiceProvider spA = await BuildHostAsync();
         await using ServiceProvider spB = await BuildHostAsync();
 
-        IDomainFusionCache cacheA = spA.GetRequiredService<IDomainFusionCache>();
-        IDomainFusionCache cacheB = spB.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cacheA = spA.GetRequiredService<IDomainDataCache>();
+        IDomainDataCache cacheB = spB.GetRequiredService<IDomainDataCache>();
         IRequestDomainCacheOptions domainsA = spA.GetRequiredService<IRequestDomainCacheOptions>();
         IRequestDomainCacheOptions domainsB = spB.GetRequiredService<IRequestDomainCacheOptions>();
 
@@ -235,15 +237,16 @@ public class RedisMultiNodeTests
 
             ServiceCollection services = new();
             services.AddLogging();
-            services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+            services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
             return services.BuildServiceProvider();
         }
 
         await using ServiceProvider spA = await BuildHostAsync();
         await using ServiceProvider spB = await BuildHostAsync();
 
-        IDomainFusionCache cacheA = spA.GetRequiredService<IDomainFusionCache>();
-        IDomainFusionCache cacheB = spB.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cacheA = spA.GetRequiredService<IDomainDataCache>();
+        IDomainDataCache cacheB = spB.GetRequiredService<IDomainDataCache>();
         IRequestDomainCacheOptions domainsA = spA.GetRequiredService<IRequestDomainCacheOptions>();
         IRequestDomainCacheOptions domainsB = spB.GetRequiredService<IRequestDomainCacheOptions>();
 
@@ -303,7 +306,8 @@ public class RedisMultiNodeTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
         services.AddHealthChecks().AddCacheOrchestrator();
 
         await using ServiceProvider sp = services.BuildServiceProvider();

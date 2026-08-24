@@ -6,7 +6,7 @@ How the pieces fit. Schema and APIs live on the reference pages linked at the en
 
 ## A domain is a policy group
 
-A **domain** is a name in configuration (`catalog`, `osm-tiles`, `product-detail`). It holds TTLs, Version, client headers, vary rules, and which **data-cache instance** to use. You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. `IDomainFusionCache.GetOrSetAsync` (and Core’s `ICacheOrchestrator`) use the same options.
+A **domain** is a name in configuration (`catalog`, `osm-tiles`, `product-detail`). It holds TTLs, Version, client headers, vary rules, and which **data-cache instance** to use. You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. `IDomainDataCache.GetOrSetAsync` (and Core’s `ICacheOrchestrator`) use the same options.
 
 Different data wants different rules. The handler stays the same shape; the domain is what differs.
 
@@ -22,11 +22,11 @@ Details: [domain-profiles.md](../domain-profiles.md), [configuration.md](../conf
 |-------|--------|------------------|
 | **Client Cache-Control** | Browser / CDN | Nested `ClientCache` (cacheability, TTLs, optional schedule). You do not set those headers by hand. |
 | **Output Cache** | Full HTTP GET/HEAD response | Domain on the endpoint + nested `OutputCache` |
-| **Data cache** | The object your factory produced (L1 memory, optional L2 via Fusion or Hybrid) | Calling `IDomainFusionCache` / `ICacheOrchestrator`; nested `DataCache` (+ optional `FusionCache` engine knobs) |
+| **Data cache** | The object your factory produced (L1 memory, optional L2 via Fusion or Hybrid) | Calling `IDomainDataCache` / `ICacheOrchestrator`; nested `DataCache` (+ optional `FusionCache` engine knobs) |
 
 All three resolve the same `DomainCacheOptions`. If lifetimes and invalidation disagree, one layer undoes the other.
 
-Libraries take **`ICacheOrchestrator`** from Core. Web endpoints usually use AspNetCore’s **`IDomainFusionCache`** + `.CacheOutputWithDomain` / `[CacheDomain]` — the HTTP projection over the same orchestrator. Which engine backs the data layer is an `IDataCacheProvider` (Fusion by default; Hybrid optional).
+Libraries take **`ICacheOrchestrator`** from Core. Web endpoints usually use AspNetCore’s **`IDomainDataCache`** + `.CacheOutputWithDomain` / `[CacheDomain]` — the HTTP projection over the same orchestrator. Which engine backs the data layer is an `IDataCacheProvider` (Fusion by default; Hybrid optional).
 
 The core package is Http-free policy and contracts. ASP.NET Output Cache / client headers, Redis, the cluster HttpBus, and EF hooks are separate packages — [packages.md](../packages.md), [topologies](topologies.md).
 
@@ -48,7 +48,7 @@ Details: [invalidation.md](../invalidation.md), [cache-keys.md](../cache-keys.md
 
 ## How the data cache finds the domain
 
-`IDomainFusionCache.GetOrSetAsync` looks for options in this order:
+`IDomainDataCache.GetOrSetAsync` looks for options in this order:
 
 1. Explicit overload `GetOrSetAsync(http, domain, factory)` — same name reuses the request snapshot; a different name **replaces** it.
 2. Options already on the request (Output Cache policy usually set them).
@@ -83,7 +83,7 @@ Details: [vary.md](../vary.md), [output-cache.md](../output-cache.md), [FAQ](../
 |---------------|------------------|
 | `CacheOrchestrator` (meta) | Typical web app: AspNetCore + Fusion data provider |
 | `CacheOrchestrator.Core` | Policy, `ICacheOrchestrator`, invalidation / cluster **contracts** |
-| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache-Control, Admin API, `IDomainFusionCache` |
+| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache-Control, Admin API, `IDomainDataCache` |
 | `CacheOrchestrator.FusionCache` | Fusion as `IDataCacheProvider` (default with meta / AspNetCore) |
 | `CacheOrchestrator.HybridCache` | HybridCache as `IDataCacheProvider` (replace Fusion) |
 | `CacheOrchestrator.Redis` | Shared OC store and/or Fusion L2 + backplane. `"Provider": "Redis"` fails validation without it. |

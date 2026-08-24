@@ -7,7 +7,7 @@ How the library is put together.
 A **domain** is a named group of data (`products`, `reports`, …) with its own TTLs, flags, and Version. Output Cache, the **data cache** (`IDataCacheProvider`), and client headers all resolve the same `DomainCacheOptions`.
 
 1. **ASP.NET Core Output Caching** — full GET/HEAD responses (AspNetCore package).
-2. **Data cache** — objects from your factory via `ICacheOrchestrator` / `IDomainFusionCache` (Fusion or Hybrid as `IDataCacheProvider`; L1 memory, optional L2 / backplane for Fusion).
+2. **Data cache** — objects from your factory via `ICacheOrchestrator` / `IDomainDataCache` (Fusion or Hybrid as `IDataCacheProvider`; L1 memory, optional L2 / backplane for Fusion).
 3. **Client Cache-Control** — browser and CDN headers, including Client Cache Schedule.
 
 ## Design principles
@@ -26,7 +26,7 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 └───────────────┬──────────────────────────────┬──────────────────────┘
                 │                              │
                 ▼                              ▼
-     DomainOutputCachePolicy          IDomainFusionCache (HTTP)
+     DomainOutputCachePolicy          IDomainDataCache (HTTP)
      (IOutputCachePolicy)             └─► ICacheOrchestrator (Core)
                 │                              │
                 ▼                              ▼
@@ -51,7 +51,7 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 | `CacheOrchestrator.Core` | Domains, Version, portable `DataCache` / nested settings, entity footprint, `ICacheOrchestrator`, invalidation and cluster **contracts**, diagnostics |
 | `CacheOrchestrator.FusionCache` | ZiggyCreatures Fusion as `IDataCacheProvider`; JSON `FusionCache` knobs |
 | `CacheOrchestrator.HybridCache` | Microsoft HybridCache as `IDataCacheProvider` |
-| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache-Control, vary, Admin API, `IDomainFusionCache`, host `AddCacheOrchestrator` |
+| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache-Control, vary, Admin API, `IDomainDataCache`, host `AddCacheOrchestrator` |
 | `CacheOrchestrator` | Meta NuGet: AspNetCore + FusionCache |
 | `CacheOrchestrator.Redis` | Redis OC store + Fusion L2 + backplane |
 | `CacheOrchestrator.HttpBus` | HTTP cluster command bus + Static / ServiceDiscovery membership |
@@ -68,7 +68,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 |--------------------------|-----------------------------|
 | `AddCacheOrchestrator` / `UseCacheOrchestrator` / `ICacheOrchestratorBuilder` | `DefaultCacheOrchestratorBuilder` |
 | `ICacheOrchestrator`, `IDataCacheProvider` (**Core**) | Orchestrator / provider implementations |
-| `IDomainFusionCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainFusionCacheService` |
+| `IDomainDataCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainDataCacheService` |
 | `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainName`, `ICacheOrchestratorFeature`, options types | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator`, `CacheOrchestratorFeature` |
 | `ICacheOrchestratorInvalidator`, `CacheInvalidationResult`, `ICacheInvalidationObserver`, `CacheTags` | `CacheOrchestratorInvalidator` |
 | `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records (`InvalidateCommand`, `VersionBumpCommand`, `TtlPatchCommand`, `SettingsPatchCommand`, …) | `DefaultClusterCommandHandler` |
@@ -99,7 +99,7 @@ Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features
 
 ## Request flow — data cache
 
-1. Code calls `IDomainFusionCache.GetOrSetAsync` or Core `ICacheOrchestrator.GetOrCreateAsync`.  
+1. Code calls `IDomainDataCache.GetOrSetAsync` or Core `ICacheOrchestrator.GetOrCreateAsync`.  
 2. If domain still missing or data cache disabled → factory runs uncached.  
 3. Optional respect for request `no-store` / auth bypass.  
 4. Key from `IDomainKeyGenerator` (HTTP) or caller-supplied key (orchestrator).  

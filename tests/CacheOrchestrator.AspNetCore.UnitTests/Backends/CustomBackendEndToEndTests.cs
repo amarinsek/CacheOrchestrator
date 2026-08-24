@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
-using System.Text;
 using CacheOrchestrator.Backends;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.FusionCache.Backends;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
@@ -76,7 +76,7 @@ public class CustomBackendEndToEndTests
     /// <summary>
     /// Fusion-only custom backend (like a SQL L2 with no Output Cache store).
     /// </summary>
-    private sealed class FakeDbBackendRegistrar : ICacheBackendRegistrar
+    private sealed class FakeDbBackendRegistrar : ICacheBackendRegistrar, IFusionCacheBackendRegistrar
     {
         private readonly ConcurrentDictionary<string, DictionaryDistributedCache> _cachesByInstance;
 
@@ -97,14 +97,16 @@ public class CustomBackendEndToEndTests
                 context.InstanceName,
                 static _ => new DictionaryDistributedCache());
 
-            // Instance registration â€” same object can be shared across ServiceProviders in tests.
             context.Services.TryAddKeyedSingleton<IDistributedCache>(context.InstanceName, cache);
             context.FusionBuilder.WithRegisteredKeyedDistributedCache(context.InstanceName);
         }
 
         public void RegisterHealthProbes(BackendHealthRegistrationContext context)
         {
-            // Optional probe: proves health hook is callable for custom backends.
+        }
+
+        public void RegisterHealthProbes(FusionBackendHealthRegistrationContext context)
+        {
             context.Services.TryAddEnumerable(
                 ServiceDescriptor.Singleton<ICacheOrchestratorHealthProbe, FakeDbHealthProbe>());
         }
@@ -134,11 +136,14 @@ public class CustomBackendEndToEndTests
     private static ServiceProvider BuildHost(
         ConcurrentDictionary<string, DictionaryDistributedCache> sharedL2)
     {
+        IConfigurationRoot config = BuildConfig();
+        FakeDbBackendRegistrar registrar = new(sharedL2);
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(
-            BuildConfig(),
-            o => o.AddBackend(new FakeDbBackendRegistrar(sharedL2)));
+        // FakeDb is Fusion L2 only; InMemory remains the Output Cache provider.
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddFusionCacheBackend(registrar);
+        services.AddCacheOrchestratorFusionCache(config);
         return services.BuildServiceProvider();
     }
 
@@ -149,7 +154,7 @@ public class CustomBackendEndToEndTests
 
         // --- Host A: cold L1 + empty L2 â†’ factory once, write L2 ---
         await using ServiceProvider hostA = BuildHost(sharedL2);
-        IDomainFusionCache cacheA = hostA.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cacheA = hostA.GetRequiredService<IDomainDataCache>();
         IRequestDomainCacheOptions domainsA = hostA.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext httpA = new();
@@ -173,7 +178,7 @@ public class CustomBackendEndToEndTests
 
         // --- Host B: new process-like DI (empty L1), same shared L2 dictionary ---
         await using ServiceProvider hostB = BuildHost(sharedL2);
-        IDomainFusionCache cacheB = hostB.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cacheB = hostB.GetRequiredService<IDomainDataCache>();
         IRequestDomainCacheOptions domainsB = hostB.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext httpB = new();
@@ -222,7 +227,7 @@ public class CustomBackendEndToEndTests
         services.AddLogging();
         var shared = new ConcurrentDictionary<string, DictionaryDistributedCache>(StringComparer.OrdinalIgnoreCase);
 
-        var act = () => services.AddCacheOrchestrator(
+        var act = () => services.AddCacheOrchestratorAspNetCore(
             config,
             o => o.AddBackend(new FakeDbBackendRegistrar(shared)));
 

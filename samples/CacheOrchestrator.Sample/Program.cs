@@ -12,11 +12,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHostedService<AppSettingsPeerReloadService>();
 
 // InMemory always; Redis + HTTP cluster bus when enabled in configuration (see labs/compose).
-builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
+builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration, o =>
 {
     o.AddRedisBackend();
     o.AddHttpClusterBus();
 });
+builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 
 // Prometheus scrape endpoint for Admin Console App Metrics (compose labs or host scrape).
 builder.Services.AddOpenTelemetry()

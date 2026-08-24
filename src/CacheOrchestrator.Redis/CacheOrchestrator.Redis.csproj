@@ -26,6 +26,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
+		<ProjectReference Include="..\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
 		<PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" Version="2.6.0" />
 	</ItemGroup>
 

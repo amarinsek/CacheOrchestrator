@@ -79,7 +79,7 @@ app.UseCacheOrchestrator();
 Apply the domain to an endpoint:
 
 ```csharp
-app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
+app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
     return Results.Json(data);
@@ -87,7 +87,7 @@ app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =
 .CacheOutputWithDomain("catalog");
 ```
 
-On a controller, use `[CacheDomain("catalog")]` and inject `IDomainFusionCache` in the same way. Class libraries can depend on **`ICacheOrchestrator`** from Core instead — same domain policy, no `HttpContext`.
+On a controller, use `[CacheDomain("catalog")]` and inject `IDomainDataCache` in the same way. Class libraries can depend on **`ICacheOrchestrator`** from Core instead — same domain policy, no `HttpContext`.
 
 A longer walkthrough is in [docs/getting-started.md](docs/getting-started.md). Package composition matrix: [docs/packages.md](docs/packages.md). For the same endpoint written with Output Cache and FusionCache by hand, see [comparison](docs/comparison.md).
 

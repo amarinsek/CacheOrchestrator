@@ -53,7 +53,7 @@ app.UseCacheOrchestrator();
 ## Apply
 
 ```csharp
-app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
+app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
     return Results.Json(data);
@@ -61,6 +61,6 @@ app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =
 .CacheOutputWithDomain("catalog");
 ```
 
-Libraries can inject `ICacheOrchestrator` from Core instead of `IDomainFusionCache`.
+Libraries can inject `ICacheOrchestrator` from Core instead of `IDomainDataCache`.
 
 Docs: [getting started](../../docs/getting-started.md) · [packages](../../docs/packages.md) · [configuration](../../docs/configuration.md).

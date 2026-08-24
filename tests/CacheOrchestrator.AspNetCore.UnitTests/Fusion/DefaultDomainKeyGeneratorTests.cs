@@ -1,5 +1,5 @@
-﻿using CacheOrchestrator.Configuration;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.Configuration;
+using CacheOrchestrator.DataCache;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using System.IO.Hashing;

@@ -37,6 +37,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CacheOrchestrator.Core\CacheOrchestrator.Core.csproj" />
+    <ProjectReference Include="..\..\src\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
     <ProjectReference Include="..\..\src\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\CacheOrchestrator.EFCore.Invalidation\CacheOrchestrator.EFCore.Invalidation.csproj" />
   </ItemGroup>

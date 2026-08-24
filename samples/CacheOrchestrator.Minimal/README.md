@@ -19,7 +19,7 @@ The first response waits about 200 ms (`oc=miss`). The second is served from Out
 
 In a browser, open DevTools, enable **Disable cache** on the Network tab, and request the same URL twice. Otherwise the browser’s own cache hides the server hit.
 
-The domain lives in `appsettings.json` (`Cache:Domains:hello`). The endpoint uses `.CacheOutputWithDomain("hello")` and `IDomainFusionCache.GetOrSetAsync`.
+The domain lives in `appsettings.json` (`Cache:Domains:hello`). The endpoint uses `.CacheOutputWithDomain("hello")` and `IDomainDataCache.GetOrSetAsync`.
 
 ## Admin API
 

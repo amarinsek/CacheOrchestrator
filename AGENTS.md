@@ -29,7 +29,7 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 
 - Not a replacement for FusionCache / HybridCache features — it **configures and scopes** them  
 - Does not own Redis topology/ops beyond connection options  
-- Libraries prefer `ICacheOrchestrator` (Core); web happy path may use AspNetCore `IDomainFusionCache`
+- Libraries prefer `ICacheOrchestrator` (Core); web happy path may use AspNetCore `IDomainDataCache`
 
 ## Mental model
 
@@ -37,11 +37,11 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 Domain (config name)
   → DomainCacheOptions (resolved snapshot)
       → DomainOutputCachePolicy (HTTP)
-      → ICacheOrchestrator / IDomainFusionCache get-or-set (data)
+      → ICacheOrchestrator / IDomainDataCache get-or-set (data)
       → EntityFootprint tags (domain + entity / entitykind; optional members / dependsOn / aliases)
 ```
 
-**Domain for data cache** (`IDomainFusionCache.GetOrSetAsync` HTTP path):
+**Domain for data cache** (`IDomainDataCache.GetOrSetAsync` HTTP path):
 
 1. Explicit overload `GetOrSetAsync(http, domain, factory)` — same name reuses the request snapshot; a different name **replaces** it.  
 2. Else options already on request (Output Cache policy usually set them via `.CacheOutputWithDomain` / `[CacheDomain]`).  
@@ -49,9 +49,9 @@ Domain (config name)
 4. Else factory runs **uncached**.
 
 Happy path: **no** manual `EnsureDomainOptions` when OC domain is on the endpoint.  
-**Fusion-only** endpoints: use domain overload or `EnsureDomainOptions`.
+**Data-cache-only** endpoints: use domain overload or `EnsureDomainOptions`.
 
-**Entity identity:** declare once on `.CacheOutputWithDomain` / `[CacheDomain]` (`resourceRouteKey` + `entityKind` for detail, or `entityKind` alone for collections). `GetOrSetEntityAsync(http, factory)` / `GetOrSetEntitySetAsync` consume it. Extend tags with `EntityCache` / `EntitySet`. Fusion-only: `SetEntityIdentity`. Explicit kind/id overloads are obsolete.
+**Entity identity:** declare once on `.CacheOutputWithDomain` / `[CacheDomain]` (`resourceRouteKey` + `entityKind` for detail, or `entityKind` alone for collections). `GetOrSetEntityAsync(http, factory)` / `GetOrSetEntitySetAsync` consume it. Extend tags with `EntityCache` / `EntitySet`. Data-cache-only: `SetEntityIdentity`. Explicit kind/id overloads are obsolete.
 
 ### Client Cache Schedule (important product feature)
 
@@ -67,14 +67,14 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 
 | API | Namespace |
 |-----|-----------|
-| `AddCacheOrchestrator` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
-| `ICacheOrchestratorBuilder` / `ICacheBackendRegistrar` | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
-| `AddCacheOrchestratorFusionCache` | `CacheOrchestrator.DependencyInjection` (FusionCache package) |
+| `AddCacheOrchestrator` (meta = AspNet + Fusion) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
+| `ICacheOrchestratorBuilder` / `ICacheBackendRegistrar` (OC) | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
+| `AddCacheOrchestratorFusionCache` / `IFusionCacheBackendRegistrar` | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.FusionCache.Backends` |
 | `AddCacheOrchestratorHybridCache` | `CacheOrchestrator.DependencyInjection` (HybridCache package) |
 | `AddRedisBackend` / `RedisCacheBackendRegistrar` | `CacheOrchestrator.Redis` |
 | `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheOrchestrator.OutputCache` |
 | `[CacheDomain("…")]` | `CacheOrchestrator.OutputCache` |
-| `IDomainFusionCache` | `CacheOrchestrator.FusionCache` (HTTP API in AspNetCore) |
+| `IDomainDataCache` | `CacheOrchestrator.DataCache` (HTTP API in AspNetCore) |
 | `EntityCache` / `EntitySet` / `EntityFootprint` | `CacheOrchestrator.Entity` (Core) |
 | `ICacheVaryContributor` / `CacheVaryMaterializer` / `ICacheVaryBuilder` | `CacheOrchestrator.Vary` |
 | `AuthBypassMode` / `DomainAuthEvaluator` | `CacheOrchestrator.Configuration` |
@@ -90,7 +90,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 
 There is **no** `CacheOrchestrator.Abstractions` folder — interfaces sit beside implementations (`Backends`, `FusionCache`, `Diagnostics`, …).
 
-**Visibility:** default implementations (`DomainFusionCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, health check types, options validator, MVC convention) are **`internal`**. Apps use interfaces + DI. Unit tests use `InternalsVisibleTo`.
+**Visibility:** default implementations (`DomainDataCacheService`, `DomainCacheOptionsProvider`, `CacheOrchestratorInvalidator`, health check types, options validator, MVC convention) are **`internal`**. Apps use interfaces + DI. Unit tests use `InternalsVisibleTo`.
 
 ## Config vs runtime naming
 
@@ -122,11 +122,11 @@ Do not rename config property names without a breaking-change plan (bound from a
 
 ```
 src/CacheOrchestrator.Core/         Http-free: options, Entity footprint, orchestration, invalidation, cluster contracts
-src/CacheOrchestrator.FusionCache/  Fusion IDataCacheProvider + Fusion domain settings
+src/CacheOrchestrator.FusionCache/  Fusion IDataCacheProvider + named Ziggy instances + L2 registrars
 src/CacheOrchestrator.HybridCache/  HybridCache IDataCacheProvider
-src/CacheOrchestrator.AspNetCore/   HTTP: OutputCache, Vary, Admin API, IDomainFusionCache, DI host
-src/CacheOrchestrator/              meta NuGet PackageId CacheOrchestrator → AspNetCore + FusionCache
-src/CacheOrchestrator.Redis/        Redis OC store + Fusion L2/backplane
+src/CacheOrchestrator.AspNetCore/   HTTP: OutputCache, Vary, Admin API, IDomainDataCache (Core only)
+src/CacheOrchestrator/              meta NuGet: AspNetCore + FusionCache (`AddCacheOrchestrator` wires both)
+src/CacheOrchestrator.Redis/        Redis OC + Fusion L2/backplane (refs AspNetCore + FusionCache)
 src/CacheOrchestrator.HttpBus/      HTTP cluster command bus + membership
 src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges → invalidator (Core only)
 src/CacheOrchestrator.AdminConsole/ Admin Console App (not packable)

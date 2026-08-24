@@ -6,7 +6,7 @@ namespace CacheOrchestrator.Vary;
 /// </summary>
 /// <remarks>
 /// Contributors run after built-in domain settings. Prefer this over replacing
-/// <see cref="FusionCache.IDomainKeyGenerator"/> for small tenant/claim dimensions.
+/// <see cref="DataCache.IDomainKeyGenerator"/> for small tenant/claim dimensions.
 /// Hash secrets before <see cref="ICacheVaryBuilder.AddValue"/>; use <see cref="ICacheVaryBuilder.AddHashedValue"/> for raw secrets.
 /// </remarks>
 public interface ICacheVaryContributor

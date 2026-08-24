@@ -68,7 +68,8 @@ public class ControllerCacheDomainTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<ControllerHitCounter>();
         builder.Services.AddControllers()
             .AddApplicationPart(typeof(ProductsTestController).Assembly);

@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Entity;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -25,7 +25,8 @@ public class FusionCacheEntityInvalidationTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         return services.BuildServiceProvider();
     }
 
@@ -33,7 +34,7 @@ public class FusionCacheEntityInvalidationTests
     public async Task InvalidateEntityAsync_OnlyPurgesThatResource()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         ICacheOrchestratorInvalidator inv = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
 
@@ -99,7 +100,7 @@ public class FusionCacheEntityInvalidationTests
     public async Task DependsOn_InvalidationPurgesDependentEntry()
     {
         await using ServiceProvider sp = BuildProvider();
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         ICacheOrchestratorInvalidator inv = sp.GetRequiredService<ICacheOrchestratorInvalidator>();
 

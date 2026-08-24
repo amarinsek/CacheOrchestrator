@@ -2,7 +2,7 @@ using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.Http;
 using CacheOrchestrator.Entity;
 
-namespace CacheOrchestrator.FusionCache;
+namespace CacheOrchestrator.DataCache;
 
 /// <summary>
 /// Stages an <see cref="EntityFootprint"/> on the request for Output Cache late tagging.

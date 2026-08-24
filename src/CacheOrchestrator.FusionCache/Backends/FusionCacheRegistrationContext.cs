@@ -3,10 +3,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ZiggyCreatures.Caching.Fusion;
 
-namespace CacheOrchestrator.Backends;
+namespace CacheOrchestrator.FusionCache.Backends;
 
 /// <summary>
-/// Context passed to <see cref="ICacheBackendRegistrar.RegisterFusionCache"/> for one named instance.
+/// Context passed to <see cref="IFusionCacheBackendRegistrar.RegisterFusionCache"/> for one named instance.
 /// </summary>
 public sealed class FusionCacheRegistrationContext
 {
@@ -66,5 +66,5 @@ public sealed class FusionCacheRegistrationContext
     /// Section <c>{ConfigSection}:DataCacheInstances:{InstanceName}:{ProviderName}</c>.
     /// </summary>
     public IConfigurationSection BackendSection =>
-        BackendConfiguration.GetFusionBackendSection(Configuration, ConfigSection, InstanceName, ProviderName);
+        Configuration.GetSection($"{ConfigSection}:DataCacheInstances:{InstanceName}:{ProviderName}");
 }

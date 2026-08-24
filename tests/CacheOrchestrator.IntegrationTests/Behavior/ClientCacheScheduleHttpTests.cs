@@ -60,7 +60,8 @@ public class ClientCacheScheduleHttpTests
         builder.Logging.ClearProviders();
         // Replace system clock before AddCacheOrchestrator (TryAddSingleton).
         builder.Services.AddSingleton<TimeProvider>(clock);
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();

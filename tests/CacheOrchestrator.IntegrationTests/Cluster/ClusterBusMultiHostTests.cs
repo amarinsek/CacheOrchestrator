@@ -2,7 +2,7 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -138,7 +138,8 @@ public class ClusterBusMultiHostTests
         builder.WebHost.UseKestrel();
         builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
         builder.Services.AddSingleton<HitCounter>();
 
         WebApplication app = builder.Build();
@@ -149,7 +150,7 @@ public class ClusterBusMultiHostTests
             app.MapCacheOrchestratorAdmin();
 
         HitCounter hits = app.Services.GetRequiredService<HitCounter>();
-        app.MapGet(path, async (HttpContext http, IDomainFusionCache cache, HitCounter h) =>
+        app.MapGet(path, async (HttpContext http, IDomainDataCache cache, HitCounter h) =>
         {
             h.Increment();
             string value = await cache
@@ -270,14 +271,15 @@ public class ClusterBusMultiHostTests
             builder.Configuration.AddInMemoryCollection(BaseCfg(instanceId));
             builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{port}");
             builder.Logging.ClearProviders();
-            builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+            builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration, o => o.AddHttpClusterBus(), enableMvcConvention: false);
+        builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
             builder.Services.AddSingleton<HitCounter>();
             WebApplication app = builder.Build();
             app.UseRouting();
             app.UseCacheOrchestrator();
             app.MapCacheOrchestratorHttpBus();
             HitCounter hits = app.Services.GetRequiredService<HitCounter>();
-            app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, HitCounter h) =>
+            app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, HitCounter h) =>
             {
                 h.Increment();
                 string? v = await cache.GetOrSetEntityAsync(

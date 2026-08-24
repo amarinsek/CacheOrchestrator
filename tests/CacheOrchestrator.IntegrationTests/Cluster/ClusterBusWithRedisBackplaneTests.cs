@@ -1,6 +1,6 @@
 using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
@@ -135,11 +135,12 @@ public class ClusterBusWithRedisBackplaneTests
         builder.WebHost.UseKestrel();
         builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(
+        builder.Services.AddCacheOrchestratorAspNetCore(
             builder.Configuration,
             o =>
             {
                 o.AddRedisBackend();
+        builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
                 o.AddHttpClusterBus();
             },
             enableMvcConvention: false);
@@ -153,7 +154,7 @@ public class ClusterBusWithRedisBackplaneTests
             app.MapCacheOrchestratorAdmin();
 
         HitCounter hits = app.Services.GetRequiredService<HitCounter>();
-        app.MapGet(path, async (HttpContext http, IDomainFusionCache cache, HitCounter h) =>
+        app.MapGet(path, async (HttpContext http, IDomainDataCache cache, HitCounter h) =>
         {
             h.Increment();
             string value = await cache

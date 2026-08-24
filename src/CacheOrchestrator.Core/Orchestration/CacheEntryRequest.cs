@@ -16,10 +16,21 @@ public sealed class CacheEntryRequest
     public required string Domain { get; init; }
 
     /// <summary>
-    /// Caller-supplied logical key material (already stable for the entry).
+    /// Caller-supplied key material (already stable for the entry).
     /// Must not be null or whitespace.
     /// </summary>
+    /// <remarks>
+    /// When <see cref="KeyIsPhysical"/> is <see langword="false"/> (default), the orchestrator
+    /// prefixes <c>{domain}:{versionHex}:</c>. When <see langword="true"/>, <see cref="Key"/> is
+    /// passed to the provider as-is (HTTP adapters that already embed domain + Version).
+    /// </remarks>
     public required string Key { get; init; }
+
+    /// <summary>
+    /// When <see langword="true"/>, <see cref="Key"/> is the physical provider key.
+    /// Default: <see langword="false"/> (orchestrator builds the physical key).
+    /// </summary>
+    public bool KeyIsPhysical { get; init; }
 
     /// <summary>
     /// Invalidation footprint. When null, only the domain tag is applied.

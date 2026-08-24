@@ -15,7 +15,8 @@ public class EfCoreRegistrationTests
         ServiceCollection services = new();
         IConfiguration config = InMemoryCacheConfig();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, enableMvcConvention: false);
+        services.AddCacheOrchestratorAspNetCore(config, enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
         services.AddCacheOrchestratorEfCoreInvalidation(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
@@ -29,7 +30,8 @@ public class EfCoreRegistrationTests
         ServiceCollection services = new();
         IConfiguration config = InMemoryCacheConfig();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddEfCoreInvalidation(), enableMvcConvention: false);
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddEfCoreInvalidation(), enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
         sp.GetRequiredService<CacheInvalidationSaveChangesInterceptor>().Should().NotBeNull();
@@ -41,7 +43,8 @@ public class EfCoreRegistrationTests
         ServiceCollection services = new();
         IConfiguration config = InMemoryCacheConfig();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, enableMvcConvention: false);
+        services.AddCacheOrchestratorAspNetCore(config, enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
         services.AddCacheOrchestratorEfCoreInvalidation(config, o => o.Map<RegProduct>("store", "products"));
         services.AddDbContext<RegDbContext>((sp, opt) =>
         {

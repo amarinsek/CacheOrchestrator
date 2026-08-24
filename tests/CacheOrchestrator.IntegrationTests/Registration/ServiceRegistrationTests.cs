@@ -2,7 +2,7 @@ using CacheOrchestrator.Backends;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Redis;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Configuration;
@@ -28,12 +28,13 @@ public class ServiceRegistrationInMemoryTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
 
         sp.GetRequiredService<IDomainCacheOptionsProvider>().Should().NotBeNull();
-        sp.GetRequiredService<IDomainFusionCache>().Should().NotBeNull();
+        sp.GetRequiredService<IDomainDataCache>().Should().NotBeNull();
         sp.GetRequiredService<ICacheOrchestratorInvalidator>().Should().NotBeNull();
         sp.GetRequiredService<IDomainKeyGenerator>().Should().NotBeNull();
         sp.GetRequiredService<IFusionCacheProvider>().Should().NotBeNull();
@@ -46,9 +47,13 @@ public class ServiceRegistrationCustomBackendTests
     [Fact]
     public void AddCacheOrchestrator_CustomBackend_CallsRegistrarMethods()
     {
-        ICacheBackendRegistrar customRegistrar = Substitute.For<ICacheBackendRegistrar>();
-        customRegistrar.Name.Returns("CustomDB");
-        customRegistrar.SupportsOutputCacheStore.Returns(true);
+        ICacheBackendRegistrar customOc = Substitute.For<ICacheBackendRegistrar>();
+        customOc.Name.Returns("CustomDB");
+        customOc.SupportsOutputCacheStore.Returns(true);
+
+        CacheOrchestrator.FusionCache.Backends.IFusionCacheBackendRegistrar customFusion =
+            Substitute.For<CacheOrchestrator.FusionCache.Backends.IFusionCacheBackendRegistrar>();
+        customFusion.Name.Returns("CustomDB");
 
         IConfigurationRoot config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -60,15 +65,16 @@ public class ServiceRegistrationCustomBackendTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, builder => builder.AddBackend(customRegistrar));
+        services.AddCacheOrchestratorAspNetCore(config, builder => builder.AddBackend(customOc));
+        services.AddFusionCacheBackend(customFusion);
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
 
-        // Verify that the custom registrar was actually called to register things
-        customRegistrar.Received(1).RegisterOutputCache(Arg.Any<OutputCacheRegistrationContext>());
-        customRegistrar.Received(1).RegisterFusionCache(Arg.Any<FusionCacheRegistrationContext>());
-        // default FC instance + oc output health
-        customRegistrar.Received().RegisterHealthProbes(Arg.Any<BackendHealthRegistrationContext>());
+        customOc.Received(1).RegisterOutputCache(Arg.Any<OutputCacheRegistrationContext>());
+        customOc.Received().RegisterHealthProbes(Arg.Any<BackendHealthRegistrationContext>());
+        customFusion.Received(1).RegisterFusionCache(Arg.Any<CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext>());
+        customFusion.Received().RegisterHealthProbes(Arg.Any<CacheOrchestrator.FusionCache.Backends.FusionBackendHealthRegistrationContext>());
     }
 }
 
@@ -96,12 +102,13 @@ public class ServiceRegistrationRedisTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
 
         sp.GetRequiredService<IDomainCacheOptionsProvider>().Should().NotBeNull();
-        sp.GetRequiredService<IDomainFusionCache>().Should().NotBeNull();
+        sp.GetRequiredService<IDomainDataCache>().Should().NotBeNull();
         sp.GetRequiredService<ICacheOrchestratorInvalidator>().Should().NotBeNull();
         sp.GetRequiredService<IDomainKeyGenerator>().Should().NotBeNull();
         sp.GetRequiredService<IFusionCacheProvider>().Should().NotBeNull();
@@ -125,7 +132,8 @@ public class ServiceRegistrationRedisTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
         ICacheOrchestratorInvalidator invalidator = sp.GetRequiredService<ICacheOrchestratorInvalidator>();

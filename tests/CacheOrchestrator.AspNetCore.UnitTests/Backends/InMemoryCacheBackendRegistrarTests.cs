@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Backends;
+using CacheOrchestrator.Backends;
 using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Configuration;
@@ -37,26 +37,16 @@ public class InMemoryCacheBackendRegistrarTests
     }
 
     [Fact]
-    public void RegisterFusionCache_DoesNotThrow()
+    public void RegisterHealthProbes_DoesNotThrow()
     {
         var services = new ServiceCollection();
         var configuration = new ConfigurationBuilder().Build();
-        var builder = services.AddFusionCache();
         var options = new CacheOrchestratorOptions();
-        var instanceOpts = new CacheOrchestratorOptions.DataCacheInstanceOptions();
-        var context = new FusionCacheRegistrationContext(
-            services,
-            configuration,
-            options,
-            "Cache",
-            "default",
-            instanceOpts,
-            "InMemory",
-            builder,
-            options.GetEffectiveDistributedResilience());
+        var context = new BackendHealthRegistrationContext(
+            services, configuration, "Cache", "oc", "InMemory", options,
+            new CacheOrchestratorOptions.DataCacheInstanceOptions());
 
-        var act = () => _sut.RegisterFusionCache(context);
-
+        var act = () => _sut.RegisterHealthProbes(context);
         act.Should().NotThrow();
     }
 }

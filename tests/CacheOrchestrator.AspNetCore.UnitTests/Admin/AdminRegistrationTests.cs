@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Admin;
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
@@ -26,7 +26,8 @@ public class AdminRegistrationTests
         ServiceCollection services = new();
         IConfiguration config = BuildConfig(enabled: false);
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
         IAdminStatsCollector collector = sp.GetRequiredService<IAdminStatsCollector>();
@@ -40,7 +41,8 @@ public class AdminRegistrationTests
         ServiceCollection services = new();
         IConfiguration config = BuildConfig(enabled: true, apiKey: "secret");
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         services.AddRouting();
 
         using ServiceProvider sp = services.BuildServiceProvider();
@@ -209,7 +211,8 @@ public class AdminRegistrationTests
                     services.AddSingleton(config);
                     services.AddLogging();
                     services.AddRouting();
-                    services.AddCacheOrchestrator(config, enableMvcConvention: false);
+                    services.AddCacheOrchestratorAspNetCore(config, enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
                 });
                 web.Configure(app =>
                 {

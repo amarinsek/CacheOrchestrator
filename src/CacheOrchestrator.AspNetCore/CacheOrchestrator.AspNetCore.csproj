@@ -5,8 +5,8 @@
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
 		<PackageId>CacheOrchestrator.AspNetCore</PackageId>
-		<Description>ASP.NET Core integration for CacheOrchestrator: Output Cache, client Cache-Control, Admin API, and HTTP domain Fusion helpers.</Description>
-		<PackageTags>cache;caching;domain;outputcache;fusioncache;httpcache;aspnetcore;cacheorchestrator</PackageTags>
+		<Description>ASP.NET Core integration for CacheOrchestrator: Output Cache, client Cache-Control, Admin API, and HTTP domain data-cache helpers.</Description>
+		<PackageTags>cache;caching;domain;outputcache;datacache;httpcache;aspnetcore;cacheorchestrator</PackageTags>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>logo-small.png</PackageIcon>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -25,7 +25,6 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\CacheOrchestrator.Core\CacheOrchestrator.Core.csproj" />
-		<ProjectReference Include="..\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

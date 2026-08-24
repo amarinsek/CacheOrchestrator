@@ -55,7 +55,8 @@ public class OutputCacheRedisTests
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
         builder.Services.AddSingleton(config);
-        builder.Services.AddCacheOrchestrator(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<HitCounter>();
 
         WebApplication app = builder.Build();

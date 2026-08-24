@@ -38,7 +38,7 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 Use the same domain and kind on the HTTP path:
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, int id, IDomainFusionCache cache, AppDbContext db, CancellationToken cancellationToken) =>
+app.MapGet("/api/products/{id}", async (HttpContext http, int id, IDomainDataCache cache, AppDbContext db, CancellationToken cancellationToken) =>
 {
     var product = await cache.GetOrSetEntityAsync(
         http,

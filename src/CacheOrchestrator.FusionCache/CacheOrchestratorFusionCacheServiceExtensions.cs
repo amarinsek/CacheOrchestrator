@@ -1,29 +1,35 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.FusionCache.Backends;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.DependencyInjection;
 
 /// <summary>
-/// DI registration for the FusionCache <see cref="IDataCacheProvider"/>.
+/// DI registration for the FusionCache <see cref="IDataCacheProvider"/> and named Fusion instances.
 /// </summary>
 public static class CacheOrchestratorFusionCacheServiceExtensions
 {
     /// <summary>
-    /// Registers <see cref="FusionDataCacheProvider"/> as the default <see cref="IDataCacheProvider"/>
-    /// and Fusion domain settings resolution (<c>{configSection}:…:FusionCache</c> sections).
-    /// Named FusionCache instances must still be registered by the host (e.g. via AspNetCore <c>AddCacheOrchestrator</c>).
+    /// Registers Fusion domain settings, <see cref="FusionDataCacheProvider"/> as <see cref="IDataCacheProvider"/>,
+    /// and every named FusionCache instance under <c>DataCacheInstances</c> (L2 via registered backends).
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configuration">
+    /// Application configuration. When null, named instances are not registered (provider + settings only);
+    /// prefer passing configuration in hosts.
+    /// </param>
     /// <param name="configSection">Root configuration section (default <c>Cache</c>).</param>
     /// <returns>The same <paramref name="services"/> for chaining.</returns>
     public static IServiceCollection AddCacheOrchestratorFusionCache(
         this IServiceCollection services,
+        IConfiguration? configuration = null,
         string configSection = "Cache")
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -38,6 +44,10 @@ public static class CacheOrchestratorFusionCacheServiceExtensions
         services.TryAddSingleton<IFusionDomainRuntimeOverrideStore, FusionDomainRuntimeOverrideStore>();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IDomainSettingsPatchContributor, FusionDomainSettingsPatchContributor>());
+
+        if (configuration is not null)
+            services.TryAddSingleton(configuration);
+
         services.TryAddSingleton<IFusionDomainSettingsProvider>(sp =>
             new FusionDomainSettingsProvider(
                 sp.GetRequiredService<IConfiguration>(),
@@ -45,6 +55,110 @@ public static class CacheOrchestratorFusionCacheServiceExtensions
                 sp.GetService<IFusionDomainRuntimeOverrideStore>(),
                 section));
         services.TryAddSingleton<IDataCacheProvider, FusionDataCacheProvider>();
+
+        FusionCacheBackendRegistrarRegistry registry = FusionCacheBackendRegistrarRegistry.GetOrCreate(services);
+
+        if (configuration is not null)
+            RegisterNamedFusionInstances(services, configuration, section, registry);
+
         return services;
+    }
+
+    /// <summary>
+    /// Registers a custom Fusion L2 / backplane backend registrar.
+    /// </summary>
+    public static IServiceCollection AddFusionCacheBackend(
+        this IServiceCollection services,
+        IFusionCacheBackendRegistrar registrar)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(registrar);
+        FusionCacheBackendRegistrarRegistry.GetOrCreate(services).Add(registrar);
+        return services;
+    }
+
+    private static void RegisterNamedFusionInstances(
+        IServiceCollection services,
+        IConfiguration configuration,
+        string configSection,
+        FusionCacheBackendRegistrarRegistry registry)
+    {
+        CacheOrchestratorOptions rootOpts = new();
+        configuration.GetSection(configSection).Bind(rootOpts);
+
+        // Ensure options are bound when AspNet host was not used (worker / library).
+        services.AddOptions<CacheOrchestratorOptions>()
+            .Bind(configuration.GetSection(configSection));
+
+        services.AddMemoryCache();
+
+        foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOptions) in rootOpts.DataCacheInstances)
+        {
+            if (string.IsNullOrWhiteSpace(instanceName) || instanceOptions is null)
+                continue;
+
+            IFusionCacheBackendRegistrar fusionRegistrar = registry.Resolve(instanceOptions.Provider);
+            RegisterFusionCacheInstance(
+                services,
+                configuration,
+                rootOpts,
+                configSection,
+                instanceName,
+                instanceOptions,
+                fusionRegistrar);
+
+            fusionRegistrar.RegisterHealthProbes(new FusionBackendHealthRegistrationContext(
+                services,
+                configuration,
+                configSection,
+                instanceName,
+                fusionRegistrar.Name,
+                rootOpts,
+                instanceOptions));
+        }
+    }
+
+    private static void RegisterFusionCacheInstance(
+        IServiceCollection services,
+        IConfiguration configuration,
+        CacheOrchestratorOptions rootOpts,
+        string configSection,
+        string instanceName,
+        CacheOrchestratorOptions.DataCacheInstanceOptions instanceOpts,
+        IFusionCacheBackendRegistrar registrar)
+    {
+        DistributedResilienceOptions resilience = rootOpts.GetEffectiveDistributedResilience();
+        bool isDistributed = !string.Equals(instanceOpts.Provider, "InMemory", StringComparison.OrdinalIgnoreCase);
+
+        IFusionCacheBuilder fusionBuilder = services
+            .AddFusionCache(instanceName)
+            .WithOptions(o =>
+            {
+                if (isDistributed)
+                {
+                    o.DistributedCacheCircuitBreakerDuration =
+                        TimeSpan.FromSeconds(Math.Max(0, resilience.CircuitBreakerSeconds));
+                    o.DefaultEntryOptions.DistributedCacheSoftTimeout =
+                        TimeSpan.FromSeconds(Math.Max(0, resilience.SoftTimeoutSeconds));
+                    o.DefaultEntryOptions.DistributedCacheHardTimeout =
+                        TimeSpan.FromSeconds(Math.Max(0, resilience.HardTimeoutSeconds));
+                    o.DefaultEntryOptions.AllowBackgroundDistributedCacheOperations = true;
+                }
+            })
+            .WithSystemTextJsonSerializer()
+            .TryWithRegisteredMemoryCache();
+
+        FusionCacheRegistrationContext context = new(
+            services,
+            configuration,
+            rootOpts,
+            configSection,
+            instanceName,
+            instanceOpts,
+            registrar.Name,
+            fusionBuilder,
+            resilience);
+
+        registrar.RegisterFusionCache(context);
     }
 }

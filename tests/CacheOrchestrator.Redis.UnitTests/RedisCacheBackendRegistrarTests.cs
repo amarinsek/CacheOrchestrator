@@ -1,11 +1,13 @@
 using CacheOrchestrator.Backends;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.FusionCache.Backends;
 using CacheOrchestrator.Redis;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.Redis.UnitTests;
 
@@ -160,7 +162,14 @@ public class RedisCacheBackendRegistrarTests
     [Fact]
     public void RegisterHealthProbes_WhenContextIsNull_Throws()
     {
-        var act = () => _sut.RegisterHealthProbes(null!);
+        var act = () => _sut.RegisterHealthProbes((BackendHealthRegistrationContext)null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void RegisterFusionHealthProbes_WhenContextIsNull_Throws()
+    {
+        var act = () => _sut.RegisterHealthProbes((FusionBackendHealthRegistrationContext)null!);
         act.Should().Throw<ArgumentNullException>();
     }
 }

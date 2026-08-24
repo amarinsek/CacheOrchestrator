@@ -65,6 +65,31 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
     }
 
     /// <inheritdoc />
+    public async ValueTask SetAsync<T>(
+        DataCacheProviderRequest request,
+        T value,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        IFusionCache fusion = _fusionProvider.GetCache(request.InstanceName);
+        DomainFusionCacheSettings fusionSettings = _fusionDomainSettings.Get(request.DomainOptions.Domain);
+        FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(request.DomainOptions, fusionSettings);
+        string[] tags = request.Tags as string[] ?? [.. request.Tags];
+
+        await fusion.SetAsync(
+                request.Key,
+                value,
+                entryOptions,
+                tags: tags,
+                token: cancellationToken)
+            .ConfigureAwait(false);
+
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("FusionDataCacheProvider Set Key={Key}", request.Key);
+    }
+
+    /// <inheritdoc />
     public async ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tag);

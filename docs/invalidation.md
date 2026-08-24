@@ -95,7 +95,7 @@ Identity is declared once on the endpoint. Fusion and Output Cache share it; fac
 
 ```csharp
 // Minimal API — detail
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache, CancellationToken ct) =>
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, CancellationToken ct) =>
 {
     var product = await cache.GetOrSetEntityAsync(http, token => factory(token), ct);
     return product is null ? Results.NotFound() : Results.Ok(product);

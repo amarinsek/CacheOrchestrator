@@ -71,7 +71,7 @@ If a product changes under the same Version and you neither wait for TTL nor inv
 ### Endpoint
 
 ```csharp
-app.MapGet("/tiles/{z}/{x}/{y}", async (HttpContext http, IDomainFusionCache cache, int z, int x, int y) =>
+app.MapGet("/tiles/{z}/{x}/{y}", async (HttpContext http, IDomainDataCache cache, int z, int x, int y) =>
 {
     var tile = await cache.GetOrSetAsync(http, async ct => await LoadTileAsync(z, x, y, ct));
     return Results.Bytes(tile, "image/png");
@@ -125,7 +125,7 @@ No per-tile invalidation is required.
 
 ```csharp
 // GET — cache per product id
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache) =>
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
 {
     var product = await cache.GetOrSetEntityAsync(http, async ct =>
         await db.Products.FindAsync([id], ct));
@@ -174,7 +174,7 @@ When using `ETagMode: None`, you can manually set a precise, zero-allocation ETa
 > Always include the domain `Version` in your custom ETag. If you update your JSON schema and bump the domain version, the ETags must change even if the database timestamps haven't.
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainFusionCache cache) =>
+app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
 {
     var product = await cache.GetOrSetEntityAsync(http, async ct =>
         await db.Products.FindAsync([id], ct));

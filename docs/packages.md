@@ -15,15 +15,15 @@ Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion
 | [**CacheOrchestrator.Core**](../src/CacheOrchestrator.Core/README.md) | Domains, Version, portable `DataCache` policy, entity footprint/tags, `ICacheOrchestrator`, invalidation and cluster **contracts** |
 | [**CacheOrchestrator.FusionCache**](../src/CacheOrchestrator.FusionCache/README.md) | ZiggyCreatures FusionCache as `IDataCacheProvider`; owns JSON `FusionCache` knobs (hard TTL, fail-safe, factory timeouts, …) |
 | [**CacheOrchestrator.HybridCache**](../src/CacheOrchestrator.HybridCache/README.md) | Microsoft HybridCache as `IDataCacheProvider` (portable `DataCache.Ttl` only; no fail-safe) |
-| [**CacheOrchestrator.AspNetCore**](../src/CacheOrchestrator.AspNetCore/README.md) | Output Cache, Client Cache-Control, HTTP domain helpers, Local Admin API, host `AddCacheOrchestrator` |
-| [**CacheOrchestrator**](../src/CacheOrchestrator/README.md) (meta) | Convenience: AspNetCore + FusionCache for typical web apps |
+| [**CacheOrchestrator.AspNetCore**](../src/CacheOrchestrator.AspNetCore/README.md) | Output Cache, Client Cache-Control, HTTP `IDomainDataCache`, Local Admin API, `AddCacheOrchestratorAspNetCore` |
+| [**CacheOrchestrator**](../src/CacheOrchestrator/README.md) (meta) | Convenience: AspNetCore + FusionCache; `AddCacheOrchestrator` wires both |
 | [**CacheOrchestrator.Redis**](../src/CacheOrchestrator.Redis/README.md) | Redis Output Cache store and Fusion L2 / backplane |
 | [**CacheOrchestrator.HttpBus**](../src/CacheOrchestrator.HttpBus/README.md) | HTTP cluster command bus (invalidate, Version, settings) |
 | [**CacheOrchestrator.EFCore.Invalidation**](../src/CacheOrchestrator.EFCore.Invalidation/README.md) | After `SaveChanges`, purge via the invalidator |
 
 **Admin Console App** (`src/CacheOrchestrator.AdminConsole`) is a separate host, not a NuGet package. [admin.md](admin.md) · [deploy/admin](../deploy/admin/README.md).
 
-Libraries should take **`ICacheOrchestrator`** (and/or `ICacheOrchestratorInvalidator`) from Core. Web endpoints often use AspNetCore’s **`IDomainFusionCache`** + `.CacheOutputWithDomain` / `[CacheDomain]` — that is the HTTP projection over the same orchestrator.
+Libraries should take **`ICacheOrchestrator`** (and/or `ICacheOrchestratorInvalidator`) from Core (including entity/footprint helpers). Web endpoints often use AspNetCore’s **`IDomainDataCache`** + `.CacheOutputWithDomain` / `[CacheDomain]` — a thin HTTP projection over the same orchestrator (no Ziggy dependency in AspNetCore).
 
 ---
 
@@ -40,7 +40,7 @@ Same domain policy idea in every row. What changes is **which packages you insta
 | **E** | Web | unused | yes | yes | AspNetCore / meta — call OC/CC only; skip data get-or-set |
 | **F** | Web + EF | Fusion | yes | yes | **C** + EFCore.Invalidation |
 
-**Host registration today:** turnkey entry is AspNetCore’s `AddCacheOrchestrator` (also what the meta package exposes). It binds `Cache`, Output Cache, named `DataCacheInstances`, `ICacheOrchestrator`, and Fusion as the default data provider. Call `AddCacheOrchestratorHybridCache()` afterward to replace the provider with Hybrid (and call Microsoft `AddHybridCache()` first). Class libraries still depend only on Core contracts so the **call site below does not change**.
+**Host registration:** meta package `AddCacheOrchestrator` = `AddCacheOrchestratorAspNetCore` + `AddCacheOrchestratorFusionCache` (binds `Cache`, Output Cache, named Fusion instances, `ICacheOrchestrator`, `IDomainDataCache`). AspNetCore alone does **not** register a data engine — call Fusion or Hybrid explicitly. For Hybrid: `AddHybridCache()` → `AddCacheOrchestratorAspNetCore` → `AddCacheOrchestratorHybridCache()`. Class libraries still depend only on Core contracts so the **call site below does not change**.
 
 ---
 
@@ -67,18 +67,20 @@ This is the same for Fusion and Hybrid. The registered `IDataCacheProvider` is w
 
 ### Registration diffs
 
-**C — Web + Fusion (typical):**
+**C — Web + Fusion (typical, meta package):**
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
 // optional: o => o.AddRedisBackend()
+// Equivalent without meta:
+//   AddCacheOrchestratorAspNetCore(...) + AddCacheOrchestratorFusionCache(configuration)
 ```
 
 **D — Web + Hybrid:**
 
 ```csharp
 builder.Services.AddHybridCache();
-builder.Services.AddCacheOrchestrator(builder.Configuration);
+builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
 builder.Services.AddCacheOrchestratorHybridCache(); // replaces IDataCacheProvider
 ```
 
@@ -98,7 +100,7 @@ builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration);
 When AspNetCore is present, endpoints usually attach the domain once and use the HTTP helper:
 
 ```csharp
-app.MapGet("/api/products", async (HttpContext http, IDomainFusionCache cache) =>
+app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
     return Results.Json(data);

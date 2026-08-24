@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -62,7 +62,8 @@ public class FusionHttpAndDiTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<FactoryCounter>();
 
         WebApplication app = builder.Build();
@@ -116,7 +117,7 @@ public class FusionHttpAndDiTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(DomainBase(domain), a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 // Product happy path: domain already set by DomainOutputCachePolicy — no EnsureDomainOptions.
                 string value = await cache.GetOrSetAsync(http, _ =>
@@ -164,7 +165,7 @@ public class FusionHttpAndDiTests
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
             // Policy still attaches domain metadata even when OC is disabled for the domain.
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -214,10 +215,11 @@ public class FusionHttpAndDiTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         int factoryCalls = 0;
 
         DefaultHttpContext http1 = CreateHttp("/api/orphan");
@@ -262,10 +264,11 @@ public class FusionHttpAndDiTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         int factoryCalls = 0;
 
         DefaultHttpContext http = CreateHttp("/api/explicit");
@@ -322,14 +325,15 @@ public class FusionHttpAndDiTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<FactoryCounter>();
 
         WebApplication app = builder.Build();
         app.UseRouting();
         app.UseCacheOrchestrator();
 
-        app.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+        app.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
         {
             string value = await cache.GetOrSetAsync(http, _ =>
             {
@@ -425,7 +429,7 @@ public class FusionHttpAndDiTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {
@@ -485,10 +489,11 @@ public class FusionHttpAndDiTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         int factoryCalls = 0;
 
@@ -546,7 +551,7 @@ public class FusionHttpAndDiTests
 
         (HttpClient? client, WebApplication? app) = await StartHttpAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, FactoryCounter factory) =>
             {
                 string value = await cache.GetOrSetAsync(http, _ =>
                 {

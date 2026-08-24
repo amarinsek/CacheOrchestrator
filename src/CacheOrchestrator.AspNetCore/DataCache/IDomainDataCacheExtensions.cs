@@ -1,18 +1,18 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Http;
 
-namespace CacheOrchestrator.FusionCache;
+namespace CacheOrchestrator.DataCache;
 
 /// <summary>
-/// Generic extensions for <see cref="IDomainFusionCache"/> to avoid manual <c>.ToString()</c> calls.
+/// Generic extensions for <see cref="IDomainDataCache"/> to avoid manual <c>.ToString()</c> calls.
 /// </summary>
-public static class IDomainFusionCacheExtensions
+public static class IDomainDataCacheExtensions
 {
     /// <summary>
-    /// Sets entity identity on the request for Fusion-only endpoints using a generic resource id.
+    /// Sets entity identity on the request for data-cache-only endpoints using a generic resource id.
     /// </summary>
     public static void SetEntityIdentity<TId>(
-        this IDomainFusionCache cache,
+        this IDomainDataCache cache,
         HttpContext http,
         string entityKind,
         TId resourceId) where TId : notnull

@@ -11,9 +11,8 @@
 		<!-- NuGet.org shows this file (not the root GitHub README — HTML/logo-friendly for GitHub only). -->
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>logo-small.png</PackageIcon>
-		<GenerateDocumentationFile>false</GenerateDocumentationFile>
-		<IncludeBuildOutput>false</IncludeBuildOutput>
-		<NoWarn>$(NoWarn);NU5128</NoWarn>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);1591</NoWarn>
 		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 	</PropertyGroup>
 
@@ -23,7 +22,7 @@
 		<None Include="..\..\docs\assets\logo-small.png" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
-	<!-- Meta package: NuGet dependency on AspNetCore (+ Fusion via AspNetCore). -->
+	<!-- Meta package: AspNetCore + FusionCache with combined AddCacheOrchestrator. -->
 	<ItemGroup>
 		<ProjectReference Include="..\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
 		<ProjectReference Include="..\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />

@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.Http;
 
-namespace CacheOrchestrator.FusionCache;
+namespace CacheOrchestrator.DataCache;
 
 /// <summary>
 /// Generates deterministic cache keys for FusionCache based on the current HTTP request and domain configuration.

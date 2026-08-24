@@ -1,5 +1,5 @@
 using CacheOrchestrator.Entity;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using Microsoft.AspNetCore.Http;
 
 namespace CacheOrchestrator.Configuration;
@@ -12,7 +12,7 @@ namespace CacheOrchestrator.Configuration;
 /// Apps that previously read removed <c>CacheOrchestratorKeys</c> from <c>Items</c> should use
 /// <see cref="Microsoft.AspNetCore.Http.CacheOrchestratorHttpContextExtensions.GetDomainCacheOptions"/>
 /// or <c>http.Features.Get&lt;ICacheOrchestratorFeature&gt;()</c>. Mutate via
-/// <see cref="FusionCache.IDomainFusionCache.SetEntityIdentity"/> / domain resolution APIs when possible;
+/// <see cref="DataCache.IDomainDataCache.SetEntityIdentity"/> / domain resolution APIs when possible;
 /// installing a custom feature implementation is supported but uncommon.
 /// </remarks>
 public interface ICacheOrchestratorFeature

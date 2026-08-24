@@ -127,9 +127,8 @@ public class CacheOrchestratorOptionsValidatorTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    [InlineData("Memory")]
-    [InlineData("UnknownDB")]
-    public void Validate_InvalidFusionInstanceProvider_Fails(string? provider)
+    [InlineData("   ")]
+    public void Validate_BlankDataCacheInstanceProvider_Fails(string? provider)
     {
         var options = CreateValidOptions();
         options.DataCacheInstances["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions
@@ -143,6 +142,24 @@ public class CacheOrchestratorOptionsValidatorTests
         result.Failures.Should().Contain(f =>
             f.Contains("DataCacheInstances", StringComparison.OrdinalIgnoreCase) &&
             f.Contains("Provider", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData("Memory")]
+    [InlineData("UnknownDB")]
+    public void Validate_UnknownDataCacheInstanceProvider_IsDeferredToDataCachePackage(string provider)
+    {
+        // AspNet Output Cache registrars no longer constrain DataCacheInstances providers;
+        // Fusion/Hybrid resolve backends when registered.
+        var options = CreateValidOptions();
+        options.DataCacheInstances["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions
+        {
+            Provider = provider
+        };
+
+        var result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeTrue();
     }
 
     [Fact]

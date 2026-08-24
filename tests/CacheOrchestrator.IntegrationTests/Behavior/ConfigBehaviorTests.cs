@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -54,7 +54,8 @@ public class ConfigBehaviorTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
@@ -173,10 +174,11 @@ public class ConfigBehaviorTests
 
             ServiceCollection services = new();
             services.AddLogging();
-            services.AddCacheOrchestrator(config);
+            services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
             await using ServiceProvider sp = services.BuildServiceProvider();
 
-            IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+            IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
             IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
             DefaultHttpContext http = new();
@@ -236,7 +238,8 @@ public class ConfigBehaviorTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
@@ -285,10 +288,11 @@ public class ConfigBehaviorTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
-        IDomainFusionCache cache = sp.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
         IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
 
         DefaultHttpContext http = new();
@@ -341,7 +345,8 @@ public class ConfigBehaviorTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
@@ -393,7 +398,8 @@ public class ConfigBehaviorTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
         IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();

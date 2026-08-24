@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Cluster;
+using CacheOrchestrator.Cluster;
 using CacheOrchestrator.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +18,8 @@ public class ClusterBusRegistrationTests
         }).Build();
 
         services.AddLogging();
-        services.AddCacheOrchestrator(config, enableMvcConvention: false);
+        services.AddCacheOrchestratorAspNetCore(config, enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
         IClusterCommandBus bus = sp.GetRequiredService<IClusterCommandBus>();
@@ -41,7 +42,8 @@ public class ClusterBusRegistrationTests
         }).Build();
 
         services.AddLogging();
-        services.AddCacheOrchestrator(config, enableMvcConvention: false);
+        services.AddCacheOrchestratorAspNetCore(config, enableMvcConvention: false);
+        services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
         sp.GetRequiredService<IInstanceIdProvider>().InstanceId.Should().Be("unit-instance");

@@ -1,6 +1,6 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Configuration;
@@ -27,13 +27,14 @@ public class ServiceCollectionExtensionsTests
         });
 
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
 
         using var sp = services.BuildServiceProvider();
 
         sp.GetService<IDomainCacheOptionsProvider>().Should().NotBeNull();
         sp.GetService<IRequestDomainCacheOptions>().Should().NotBeNull();
-        sp.GetService<IDomainFusionCache>().Should().NotBeNull();
+        sp.GetService<IDomainDataCache>().Should().NotBeNull();
         sp.GetService<ICacheOrchestrator>().Should().NotBeNull();
         sp.GetService<IDataCacheProvider>().Should().NotBeNull();
         sp.GetService<IDataCacheProvider>()!.Name.Should().Be("FusionCache");
@@ -54,7 +55,8 @@ public class ServiceCollectionExtensionsTests
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory"
         });
 
-        var result = services.AddCacheOrchestrator(config);
+        var result = services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
 
         result.Should().BeSameAs(services);
     }
@@ -71,7 +73,8 @@ public class ServiceCollectionExtensionsTests
         });
 
         services.AddLogging();
-        services.AddCacheOrchestrator(config, configSection: "MyCache");
+        services.AddCacheOrchestratorAspNetCore(config, configSection: "MyCache");
+        services.AddCacheOrchestratorFusionCache(config);
 
         using var sp = services.BuildServiceProvider();
         var opts = sp.GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
@@ -93,14 +96,14 @@ public class ServiceCollectionExtensionsTests
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory"
         });
 
-        var act = () => services.AddCacheOrchestrator(config);
+        var act = () => services.AddCacheOrchestratorAspNetCore(config);
 
         act.Should().Throw<InvalidOperationException>()
            .WithMessage("*Unsupported cache provider*");
     }
 
     // =========================
-    // Redis name without Redis package â€“ unsupported provider
+    // Redis name without Redis package – unsupported provider
     // =========================
 
     [Fact]
@@ -115,7 +118,7 @@ public class ServiceCollectionExtensionsTests
 
         services.AddLogging();
 
-        var act = () => services.AddCacheOrchestrator(config);
+        var act = () => services.AddCacheOrchestratorAspNetCore(config);
 
         act.Should().Throw<InvalidOperationException>()
            .WithMessage("*Unsupported cache provider*Redis*");

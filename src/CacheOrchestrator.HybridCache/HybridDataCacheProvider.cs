@@ -77,6 +77,42 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
     }
 
     /// <inheritdoc />
+    public async ValueTask SetAsync<T>(
+        DataCacheProviderRequest request,
+        T value,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!string.Equals(request.InstanceName, "default", StringComparison.OrdinalIgnoreCase)
+            && _logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug(
+                "HybridCache provider ignores data-cache instance '{Instance}'; using the single DI HybridCache.",
+                request.InstanceName);
+        }
+
+        HybridCacheEntryOptions entryOptions = new()
+        {
+            Expiration = request.DomainOptions.DataCacheTtl,
+            LocalCacheExpiration = request.DomainOptions.DataCacheTtl,
+        };
+
+        string[] tags = request.Tags as string[] ?? [.. request.Tags];
+
+        await _cache.SetAsync(
+                request.Key,
+                value,
+                entryOptions,
+                tags,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("HybridDataCacheProvider Set Key={Key}", request.Key);
+    }
+
+    /// <inheritdoc />
     public ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tag);

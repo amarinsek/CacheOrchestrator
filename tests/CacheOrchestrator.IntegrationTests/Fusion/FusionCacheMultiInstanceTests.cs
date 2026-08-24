@@ -1,5 +1,5 @@
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -24,7 +24,8 @@ public class FusionCacheMultiInstanceTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
 
         return services.BuildServiceProvider();
     }
@@ -33,7 +34,7 @@ public class FusionCacheMultiInstanceTests
     public async Task GetOrSetAsync_WithMultiInstances_IsolatesDataAndInvalidation()
     {
         await using ServiceProvider provider = BuildProvider();
-        IDomainFusionCache cache = provider.GetRequiredService<IDomainFusionCache>();
+        IDomainDataCache cache = provider.GetRequiredService<IDomainDataCache>();
         ICacheOrchestratorInvalidator invalidator = provider.GetRequiredService<ICacheOrchestratorInvalidator>();
 
         DefaultHttpContext productsHttp = new();

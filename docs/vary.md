@@ -102,7 +102,7 @@ DataCacheRespectAuthBypass = false → OC still bypasses; data cache keeps cachi
 }
 ```
 
-Use this when a dashboard shell is authenticated but `IDomainFusionCache.GetOrSet*` loads public/shared domain data. Prefer **not** using `false` for “public tiles with an API key” — that pattern is better as `AuthBypassMode: Never` (and usually `VaryOutputCacheByUser: false` / `TreatAuthorizationAsAuthSignal: false`) so **both** layers intentionally cache.
+Use this when a dashboard shell is authenticated but `IDomainDataCache.GetOrSet*` loads public/shared domain data. Prefer **not** using `false` for “public tiles with an API key” — that pattern is better as `AuthBypassMode: Never` (and usually `VaryOutputCacheByUser: false` / `TreatAuthorizationAsAuthSignal: false`) so **both** layers intentionally cache.
 
 ### Opt into Accept vary early (planned 3.0 default)
 

@@ -57,13 +57,15 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
             if (!options.DataCacheInstances.ContainsKey("default"))
                 failures.Add("DataCacheInstances must contain an entry named 'default'.");
 
+            // Data-cache L2 providers are owned by the Fusion/Hybrid packages (e.g. IFusionCacheBackendRegistrar).
+            // AspNet host registrars only constrain OutputCache.Provider; unknown data-cache providers
+            // fail later when the data-cache package resolves the backend by name.
             foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOpts) in options.DataCacheInstances)
             {
-                if (!_validProviders.Contains(instanceOpts.Provider))
+                if (string.IsNullOrWhiteSpace(instanceOpts.Provider))
                 {
                     failures.Add(
-                        $"DataCacheInstances['{instanceName}'].Provider must be one of: {string.Join(", ", _validProviders)}. " +
-                        $"Current value: '{instanceOpts.Provider}'.");
+                        $"DataCacheInstances['{instanceName}'].Provider is required.");
                 }
             }
         }

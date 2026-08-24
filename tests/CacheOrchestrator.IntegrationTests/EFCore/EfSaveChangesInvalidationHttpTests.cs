@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.EFCore;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -60,7 +60,8 @@ public class EfSaveChangesInvalidationHttpTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(
             config,
             o => o.Map<Product>(domain, "products"));
@@ -78,7 +79,7 @@ public class EfSaveChangesInvalidationHttpTests
         app.MapGet("/api/products/{id:int}", async (
             HttpContext http,
             int id,
-            IDomainFusionCache cache,
+            IDomainDataCache cache,
             CatalogDbContext db,
             FactoryCounter factories,
             CancellationToken cancellationToken) =>
@@ -164,7 +165,7 @@ public class EfSaveChangesInvalidationHttpTests
                 a.MapGet("/api/products/{id:int}", async (
                     HttpContext http,
                     int id,
-                    IDomainFusionCache cache,
+                    IDomainDataCache cache,
                     CatalogDbContext db,
                     FactoryCounter factories,
                     CancellationToken cancellationToken) =>
@@ -207,7 +208,8 @@ public class EfSaveChangesInvalidationHttpTests
         IConfigurationRoot config = new ConfigurationBuilder().AddInMemoryCollection(configValues).Build();
 
         WebApplicationBuilder builder = CreateBuilder();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(
             config,
             o => o.Map<GuidProduct>(domain, "products"));
@@ -225,7 +227,7 @@ public class EfSaveChangesInvalidationHttpTests
         app.MapGet("/api/g/{id:guid}", async (
             HttpContext http,
             Guid id,
-            IDomainFusionCache cache,
+            IDomainDataCache cache,
             GuidCatalogDbContext db,
             FactoryCounter factories,
             CancellationToken cancellationToken) =>
@@ -295,7 +297,8 @@ public class EfSaveChangesInvalidationHttpTests
 
         IConfigurationRoot config = new ConfigurationBuilder().AddInMemoryCollection(BaseConfig(domain)).Build();
         WebApplicationBuilder builder = CreateBuilder();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(
             config,
             o => o.Map<Product>(domain, "products"));
@@ -312,7 +315,7 @@ public class EfSaveChangesInvalidationHttpTests
         app.MapGet("/api/products/{id:int}", async (
             HttpContext http,
             int id,
-            IDomainFusionCache cache,
+            IDomainDataCache cache,
             CatalogDbContext db,
             FactoryCounter factories,
             CancellationToken cancellationToken) =>
@@ -379,7 +382,8 @@ public class EfSaveChangesInvalidationHttpTests
 
         IConfigurationRoot config = new ConfigurationBuilder().AddInMemoryCollection(BaseConfig(domain)).Build();
         WebApplicationBuilder builder = CreateBuilder();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(config);
         builder.Services.AddSingleton<FactoryCounter>();
         builder.Services.AddDbContext<AttrCatalogDbContext>((sp, opt) =>
@@ -394,7 +398,7 @@ public class EfSaveChangesInvalidationHttpTests
         app.MapGet("/api/attr/{id:int}", async (
             HttpContext http,
             int id,
-            IDomainFusionCache cache,
+            IDomainDataCache cache,
             AttrCatalogDbContext db,
             FactoryCounter factories,
             CancellationToken cancellationToken) =>
@@ -496,7 +500,8 @@ public class EfSaveChangesInvalidationHttpTests
     {
         IConfigurationRoot config = new ConfigurationBuilder().AddInMemoryCollection(BaseConfig(domain)).Build();
         WebApplicationBuilder builder = CreateBuilder();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddCacheOrchestratorEfCoreInvalidation(
             config,
             o => o.Map<Product>(domain, "products"));

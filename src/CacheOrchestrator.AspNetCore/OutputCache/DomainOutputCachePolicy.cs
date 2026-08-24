@@ -2,7 +2,7 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Entity;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Utilities;
 using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
@@ -156,7 +156,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
 
     /// <summary>
     /// Resolves the cache domain for the current request (fixed, func, or template-backed).
-    /// Used by <see cref="FusionCache.IDomainFusionCache"/> when domain options are not yet on the request.
+    /// Used by <see cref="DataCache.IDomainDataCache"/> when domain options are not yet on the request.
     /// </summary>
     /// <param name="http">Current HTTP context.</param>
     /// <returns>Domain name, or empty if unresolved.</returns>

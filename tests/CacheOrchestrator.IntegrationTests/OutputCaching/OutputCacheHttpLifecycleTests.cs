@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.FusionCache;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -50,7 +50,8 @@ public class OutputCacheHttpLifecycleTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
         builder.Services.AddSingleton<HitCounter>();
         builder.Services.AddSingleton<FactoryCounter>();
 
@@ -176,7 +177,7 @@ public class OutputCacheHttpLifecycleTests
 
         (HttpClient? client, WebApplication? app) = await StartAsync(config, a =>
         {
-            a.MapGet("/x", async (HttpContext http, IDomainFusionCache cache, HitCounter hits, FactoryCounter factory) =>
+            a.MapGet("/x", async (HttpContext http, IDomainDataCache cache, HitCounter hits, FactoryCounter factory) =>
             {
                 hits.Increment();
                 string value = await cache.GetOrSetAsync(http, _ =>

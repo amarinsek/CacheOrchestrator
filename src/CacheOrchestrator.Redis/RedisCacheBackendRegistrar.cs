@@ -1,5 +1,6 @@
 using CacheOrchestrator.Backends;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.FusionCache.Backends;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,11 +13,11 @@ using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 namespace CacheOrchestrator.Redis;
 
 /// <summary>
-/// Registers Redis-backed Output Cache, distributed cache, backplane, and health probes.
+/// Registers Redis-backed Output Cache, Fusion L2 / backplane, and health probes.
 /// Each FusionCache instance gets its own keyed <see cref="IConnectionMultiplexer"/> and
 /// keyed <see cref="IDistributedCache"/> so multiple instances can target different Redis clusters.
 /// </summary>
-public sealed class RedisCacheBackendRegistrar : ICacheBackendRegistrar
+public sealed class RedisCacheBackendRegistrar : ICacheBackendRegistrar, IFusionCacheBackendRegistrar
 {
     /// <inheritdoc />
     public string Name => RedisConfiguration.ProviderName;
@@ -107,13 +108,23 @@ public sealed class RedisCacheBackendRegistrar : ICacheBackendRegistrar
         context.FusionBuilder.WithOptions(o => o.BackplaneChannelPrefix = backplaneChannel);
     }
 
-    /// <inheritdoc />
+    /// <inheritdoc cref="ICacheBackendRegistrar.RegisterHealthProbes" />
     public void RegisterHealthProbes(BackendHealthRegistrationContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+        RegisterHealthProbe(context.Services, context.InstanceName);
+    }
 
-        string instanceName = context.InstanceName;
-        context.Services.AddSingleton<ICacheOrchestratorHealthProbe>(sp =>
+    /// <inheritdoc cref="IFusionCacheBackendRegistrar.RegisterHealthProbes" />
+    public void RegisterHealthProbes(FusionBackendHealthRegistrationContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        RegisterHealthProbe(context.Services, context.InstanceName);
+    }
+
+    private static void RegisterHealthProbe(IServiceCollection services, string instanceName)
+    {
+        services.AddSingleton<ICacheOrchestratorHealthProbe>(sp =>
         {
             IConnectionMultiplexer mux = sp.GetRequiredKeyedService<IConnectionMultiplexer>(instanceName);
             return new RedisCacheHealthProbe($"redis:{instanceName}", mux);

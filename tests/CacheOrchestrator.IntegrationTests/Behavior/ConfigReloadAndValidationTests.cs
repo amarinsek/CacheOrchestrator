@@ -46,7 +46,8 @@ public class ConfigReloadAndValidationTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
@@ -98,7 +99,8 @@ public class ConfigReloadAndValidationTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestrator(config);
+        services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         await using ServiceProvider sp = services.BuildServiceProvider();
 
         IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
@@ -148,7 +150,8 @@ public class ConfigReloadAndValidationTests
         ServiceCollection services = new();
         services.AddLogging();
 
-        Action act = () => services.AddCacheOrchestrator(config);
+        Action act = () => services.AddCacheOrchestratorAspNetCore(config);
+        services.AddCacheOrchestratorFusionCache(config);
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*NotARealProvider*");
     }
@@ -175,7 +178,8 @@ public class ConfigReloadAndValidationTests
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
-        builder.Services.AddCacheOrchestrator(config);
+        builder.Services.AddCacheOrchestratorAspNetCore(config);
+        builder.Services.AddCacheOrchestratorFusionCache(config);
 
         WebApplication app = builder.Build();
         app.UseRouting();
