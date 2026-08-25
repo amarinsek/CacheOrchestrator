@@ -170,7 +170,8 @@ The library is **modular**. The Core package provides the foundational policies 
 | [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | ZiggyCreatures FusionCache data-cache provider. |
 | [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache data-cache provider. |
 | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Meta Redis: Output Cache store and Fusion L2 / backplane (`AddRedisBackend`). |
-| `CacheOrchestrator.AspNetCore.Redis` / `FusionCache.Redis` | Single-surface Redis backends (source / upcoming NuGet). |
+| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache store only (`AddRedisOutputCacheBackend`). From **3.0.0-beta.3**. |
+| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 / backplane only (`AddRedisFusionCacheBackend`). From **3.0.0-beta.3**. |
 | [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.2) | Syncs invalidations, versions, and settings across all instances via HTTP cluster bus. |
 | [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | Automatic cache invalidation after a successful Entity Framework Core `SaveChanges`. |
 

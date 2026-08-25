@@ -23,7 +23,7 @@ Typical web apps and labs (both surfaces):
 dotnet add package CacheOrchestrator.Redis --prerelease
 ```
 
-Single surface (from source / when published):
+Single surface (**from release 3.0.0-beta.3** onwards):
 
 ```bash
 dotnet add package CacheOrchestrator.AspNetCore.Redis --prerelease

@@ -65,11 +65,11 @@ Do **not** pack the root README into library packages (HTML/logo does not render
    This triggers [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml):
    - unit tests (Core / Fusion / Hybrid / AspNetCore / Redis.Shared / AspNetCore.Redis / FusionCache.Redis / Redis meta / HttpBus / EF) on net8 + net10; Admin Console on net10
    - integration tests on net8/net10 + Testcontainers Redis; Minimal sample smoke
-   - `dotnet pack` for **all eleven** NuGet libraries → `.nupkg` + `.snupkg` (includes Redis.Shared as support)
+   - `dotnet pack` for **all** packable NuGet libraries → `.nupkg` + `.snupkg` (includes Redis.Shared as support; see pack list in `publish.yml`)
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)
    - **Admin Console App Docker image** → `ghcr.io/amarinsek/cacheorchestrator-admin-console` (same version tags)
 
-6. Confirm nuget.org for all eleven packages (meta + Core + AspNetCore + FusionCache + HybridCache + Redis.Shared + AspNetCore.Redis + FusionCache.Redis + Redis meta + HttpBus + EFCore.Invalidation); optionally **unlist** old pre-release versions.  
+6. Confirm nuget.org for **all** packages produced by `publish.yml` (including support `Redis.Shared`); optionally **unlist** old pre-release versions.  
    Confirm GHCR package **cacheorchestrator-admin-console** (see [deploy/admin/README.md](../../deploy/admin/README.md)).  
    First-time: set the package **visibility** to Public if anonymous `docker pull` is desired.
 
@@ -86,7 +86,7 @@ Not enabled in CI. See historical notes: sign locally with `dotnet nuget sign` i
 
 ## Local pack smoke test
 
-Pack the eleven NuGet libraries (same set as `publish.yml`). Do **not** `dotnet pack` the whole solution — Benchmarks would produce an unwanted nupkg if packable.
+Pack **all** NuGet libraries listed in `publish.yml`. Do **not** `dotnet pack` the whole solution — Benchmarks would produce an unwanted nupkg if packable.
 
 ```bash
 mkdir -p nupkg

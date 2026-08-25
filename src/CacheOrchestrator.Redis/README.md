@@ -57,8 +57,8 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 | [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Http-free domains and `ICacheOrchestrator` |
 | [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, Admin API, `IDomainDataCache` |
 | [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | FusionCache data-cache provider |
-| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache only (not yet on nuget.org for the split line) |
-| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 only (not yet on nuget.org for the split line) |
+| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache only (from **3.0.0-beta.3**) |
+| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 only (from **3.0.0-beta.3**) |
 | `CacheOrchestrator.Redis.Shared` | Support / transitive — do not install alone |
 
 ## Documentation
