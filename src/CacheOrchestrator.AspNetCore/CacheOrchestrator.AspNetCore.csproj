@@ -25,10 +25,24 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\CacheOrchestrator.Core\CacheOrchestrator.Core.csproj" />
+		<ProjectReference Include="..\CacheOrchestrator.Analyzers\CacheOrchestrator.Analyzers.csproj"
+			PrivateAssets="all"
+			ReferenceOutputAssembly="false"
+			OutputItemType="Analyzer" />
+	</ItemGroup>
+
+	<!-- Embed analyzer into AspNetCore nupkg when the Analyzers project has been built. -->
+	<ItemGroup>
+		<None Include="..\CacheOrchestrator.Analyzers\bin\$(Configuration)\netstandard2.0\CacheOrchestrator.Analyzers.dll"
+			Pack="true"
+			PackagePath="analyzers/dotnet/cs"
+			Visible="false"
+			Condition="Exists('..\CacheOrchestrator.Analyzers\bin\$(Configuration)\netstandard2.0\CacheOrchestrator.Analyzers.dll')" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.IntegrationTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.Redis.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.Redis" />

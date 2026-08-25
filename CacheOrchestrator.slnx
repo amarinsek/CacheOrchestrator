@@ -20,6 +20,7 @@
     <Project Path="src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj" />
     <Project Path="src/CacheOrchestrator.HybridCache/CacheOrchestrator.HybridCache.csproj" />
     <Project Path="src/CacheOrchestrator.AspNetCore/CacheOrchestrator.AspNetCore.csproj" />
+    <Project Path="src/CacheOrchestrator.Analyzers/CacheOrchestrator.Analyzers.csproj" />
     <Project Path="src/CacheOrchestrator/CacheOrchestrator.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -36,5 +37,6 @@
     <Project Path="tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.Analyzers.UnitTests/CacheOrchestrator.Analyzers.UnitTests.csproj" />
   </Folder>
 </Solution>

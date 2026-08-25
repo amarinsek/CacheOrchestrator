@@ -55,6 +55,8 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 
 Without `.CacheOutputWithDomain` / `[CacheDomain]`, Output Cache does not store (base policy is `NoCache`).
 
+Without identity bindings, Output Cache applies to **GET/HEAD** with Url identity. For other methods (or a custom GET key), use `.WithCacheIdentity` / `[CacheIdentity]` or `.WithContentHashCacheIdentity` / `[ContentHashCacheIdentity]` (`CacheOrchestrator.Identity`). Register named contracts with `AddCacheIdentityContract<T>()`. Docs: [endpoint cache identity](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/cache-identity.md).
+
 For a single NuGet reference that already includes AspNetCore + Fusion, see **CacheOrchestrator**.
 
 ## Related packages
@@ -73,6 +75,7 @@ For a single NuGet reference that already includes AspNetCore + Fusion, see **Ca
 
 - [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
 - [Output Cache](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/output-cache.md)
+- [Endpoint cache identity](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/cache-identity.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

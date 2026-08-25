@@ -2,9 +2,11 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Entity;
+using CacheOrchestrator.Identity;
 using CacheOrchestrator.Orchestration;
 using CacheOrchestrator.OutputCache;
 using CacheOrchestrator.Utilities;
+using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
@@ -222,6 +224,16 @@ internal sealed class DomainDataCacheService : IDomainDataCache
             if (_logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug("Data cache skipped due to Cache-Control: no-store");
 
+            FootprintCacheBox<T?> bypass = await factory(cancellationToken).ConfigureAwait(false);
+            EntityFootprint staged = WithRequestPrimary(http, bypass.Footprint);
+            EntityFootprintStaging.Stage(http, staged);
+            SetData(http, DataCacheResult.Bypass);
+            RecordDataCacheAndAdmin(http, opts.Domain, opts.Domain, "bypass", null, null);
+            return bypass.IsMiss ? default : bypass.Value;
+        }
+
+        if (await TryBypassForIdentityAsync(http, opts, cancellationToken).ConfigureAwait(false))
+        {
             FootprintCacheBox<T?> bypass = await factory(cancellationToken).ConfigureAwait(false);
             EntityFootprint staged = WithRequestPrimary(http, bypass.Footprint);
             EntityFootprintStaging.Stage(http, staged);
@@ -478,6 +490,22 @@ internal sealed class DomainDataCacheService : IDomainDataCache
                 .ConfigureAwait(false);
         }
 
+        if (await TryBypassForIdentityAsync(http, opts, cancellationToken).ConfigureAwait(false))
+        {
+            using Activity? bypassActivity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
+            bypassActivity?.SetTag("domain", opts.Domain);
+            bypassActivity?.SetTag("cache.result", "bypass");
+            return await InvokeFactoryUncachedAsync(
+                    http,
+                    DataCacheResult.Bypass,
+                    "bypass",
+                    opts.Domain,
+                    opts.Domain,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         // URL-shaped GetOrSet must not pick up request entity identity stamped by OC / SetEntityIdentity.
         ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
         string? kindForKey = feature?.EntityKind;
@@ -654,6 +682,53 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         throw new InvalidOperationException(
             "Entity identity is not on the request. Use [CacheDomain(domain, resourceRouteKey, entityKind)] / " +
             "CacheOutputWithDomain(domain, resourceRouteKey, entityKind), or SetEntityIdentity.");
+    }
+
+    /// <summary>
+    /// When endpoint identity metadata is present, builds material (unless Output Cache already did)
+    /// and returns <see langword="true"/> when caching must be skipped (null material).
+    /// Absent identity metadata skips this path entirely.
+    /// </summary>
+    private async ValueTask<bool> TryBypassForIdentityAsync(
+        HttpContext http,
+        DomainCacheOptions opts,
+        CancellationToken cancellationToken)
+    {
+        if (http.Features.Get<ICacheOrchestratorFeature>() is CacheOrchestratorFeature existing
+            && existing.IdentityResolved)
+        {
+            return existing.IdentityBypass;
+        }
+
+        Endpoint? endpoint = http.GetEndpoint();
+        CacheIdentityEndpointMetadata? identityMeta =
+            endpoint?.Metadata.GetMetadata<CacheIdentityEndpointMetadata>();
+        if (identityMeta is null)
+            return false;
+
+        if (!identityMeta.IsResolved)
+            CacheIdentityEndpointResolver.EnsureResolved(endpoint!, http.RequestServices);
+
+        if (!identityMeta.TryGetBinding(http.Request.Method, out CacheIdentityBinding? binding)
+            || binding.Kind == CacheIdentityKind.Url)
+        {
+            // Method not bound, or Url-only: no extra identity material for data-cache keys.
+            CacheIdentityApplicator.StoreOnFeature(http, CacheIdentityMaterial.Empty, bypass: false, _logger);
+            return false;
+        }
+
+        CacheIdentityMaterial? material = await CacheIdentityApplicator
+            .BuildAsync(binding, http, opts, CacheVarySurface.Fusion, _logger, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (material is null)
+        {
+            CacheIdentityApplicator.StoreOnFeature(http, material: null, bypass: true, _logger);
+            return true;
+        }
+
+        CacheIdentityApplicator.StoreOnFeature(http, material, bypass: false, _logger);
+        return false;
     }
 
     /// <summary>

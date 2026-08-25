@@ -25,7 +25,7 @@ When to use snapshot vs CRUD profiles: [domain profiles](domain-profiles.md). En
 | Layer | Stores | You enable it by |
 |-------|--------|------------------|
 | **Client Cache-Control** | Browser / CDN | Nested `ClientCache` (cacheability, TTLs, optional schedule) |
-| **Output Cache** | Full HTTP GET/HEAD response | Domain on the endpoint + nested `OutputCache` |
+| **Output Cache** | Full HTTP response (**GET/HEAD** + Url by default; other methods via endpoint [cache identity](../reference/cache-identity.md)) | Domain on the endpoint + nested `OutputCache` |
 | **Data cache** | The object your factory produced | `IDomainDataCache` / `ICacheOrchestrator` + nested `DataCache` |
 
 All three resolve the same `DomainCacheOptions`. If lifetimes and invalidation disagree, one layer undoes the other — the problem this library exists to prevent.

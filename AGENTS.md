@@ -53,6 +53,8 @@ Happy path: **no** manual `EnsureDomainOptions` when OC domain is on the endpoin
 
 **Entity identity:** declare once on `.CacheOutputWithDomain` / `[CacheDomain]` (`resourceRouteKey` + `entityKind` for detail, or `entityKind` alone for collections). `GetOrSetEntityAsync(http, factory)` / `GetOrSetEntitySetAsync` consume it. Extend tags with `EntityCache` / `EntitySet`. Data-cache-only: `SetEntityIdentity`. Explicit kind/id overloads are obsolete.
 
+**Endpoint cache identity (HTTP method → key material):** without identity metadata, OC is GET/HEAD + Url. Opt in with `.WithCacheIdentity(methods, contractName)` / `.WithContentHashCacheIdentity(methods, …)` (or MVC attributes). A method is Output Cached only when it has a binding. Named contracts are resolved onto endpoint metadata at host start (not per request). Duplicate method bindings fail at registration / analyzer `COIDENTITY001`. Reference: `docs/reference/cache-identity.md`.
+
 ### Client Cache Schedule (important product feature)
 
 Feature name: **Client Cache Schedule**.  
@@ -76,6 +78,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `AddRedisFusionCacheBackend` | `CacheOrchestrator.FusionCache.Redis` |
 | `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheOrchestrator.OutputCache` |
 | `[CacheDomain("…")]` | `CacheOrchestrator.OutputCache` |
+| `WithCacheIdentity` / `WithContentHashCacheIdentity` / `[CacheIdentity]` / `[ContentHashCacheIdentity]` / `AddCacheIdentityContract<T>` / `ICacheIdentityContract` / `CacheIdentities.Url` | `CacheOrchestrator.Identity` |
 | `IDomainDataCache` | `CacheOrchestrator.DataCache` (HTTP API in AspNetCore) |
 | `EntityCache` / `EntitySet` / `EntityFootprint` | `CacheOrchestrator.Entity` (Core) |
 | `ICacheVaryContributor` / `CacheVaryMaterializer` / `ICacheVaryBuilder` | `CacheOrchestrator.Vary` |

@@ -2,7 +2,7 @@
 
 > **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md).
 
-Output Cache stores the **full HTTP response** for GET and HEAD. CacheOrchestrator applies ASP.NET Core Output Caching per **domain**: TTL, tags, vary rules, `Cache-Control`, and ETag all come from that domain.
+Output Cache stores the **full HTTP response**. By default that means **GET** and **HEAD** with Url identity (path, query, host, domain vary). Other methods are not Output-cached unless the endpoint opts in with **[endpoint cache identity](cache-identity.md)**. CacheOrchestrator applies ASP.NET Core Output Caching per **domain**: TTL, tags, vary rules, `Cache-Control`, and ETag all come from that domain.
 
 ## Register
 
@@ -92,7 +92,9 @@ app.MapGet(...).CacheOutputWithDomainAttribute();
 
 | Condition | Result |
 |-----------|--------|
-| Not GET/HEAD | No output caching |
+| No identity metadata and not GET/HEAD | No output caching |
+| Identity metadata present, method has no binding | No output caching |
+| Identity contract / content-hash returns null (or body oversize) | Bypass this request |
 | Request `Cache-Control: no-store` | Bypass; client `no-store` |
 | Auth signal matches `AuthBypassMode` (default `AuthenticatedOrAuthorization`) | Bypass; client blocked |
 | `AuthBypassMode: Never` (or legacy `BypassWhenAuthenticated: false`) | Cache allowed; optional `auth-user` vary |
@@ -102,13 +104,27 @@ app.MapGet(...).CacheOutputWithDomainAttribute();
 | `Set-Cookie` or response `Authorization` | No store; client blocked |
 | Signed-in user and `ClientCache.Cacheability: Public` (when `ClientForcePrivateWhenAuthenticated`) | Client header forced to **private** |
 
-**Vary:** host, query keys (tracking omitted; optional allow/deny lists), `Accept-Encoding`, optional `Accept` / `Accept-Language` / headers / cookies, `data-version` from `Version`. When authenticated traffic is cached and `VaryOutputCacheByUser` is true, also **`auth-user`**. Full matrix: [vary.md](vary.md).
+**Vary:** host, query keys (tracking omitted; optional allow/deny lists), `Accept-Encoding`, optional `Accept` / `Accept-Language` / headers / cookies, `data-version` from `Version`. When authenticated traffic is cached and `VaryOutputCacheByUser` is true, also **`auth-user`**. Identity material (when present) is folded into OC `VaryByValues` as `co-id:*` — see [cache-keys.md](cache-keys.md) and [cache-identity.md](cache-identity.md). Full domain vary matrix: [vary.md](vary.md).
 
 **Tags:** `domain:{name}`. If `resourceRouteKey` and `entityKind` resolve, also `entity:{domain}:{entityKind}:{id}` and `entitykind:{domain}:{entityKind}`.
 
 **ETag:** domain `ETagMode` — `Version` (generation), `Resource` (per URL or id), `None`. See [domain-profiles.md](../guide/domain-profiles.md).
 
-### Authenticated traffic
+## Endpoint cache identity
+
+Without identity bindings, Output Cache applies to **GET/HEAD** with Url identity. For read-only POST (search / GraphQL), custom GET keys, or Url identity on POST, bind identity per method.
+
+Full concept, rules, cheat sheet, and mixed Minimal API / MVC DX examples: **[cache-identity.md](cache-identity.md)**.
+
+```csharp
+using CacheOrchestrator.Identity;
+
+app.MapPost("/graphql", ...)
+   .CacheOutputWithDomain("graphql")
+   .WithContentHashCacheIdentity(["POST"], maxBodyBytes: 65_536);
+```
+
+## Authenticated traffic
 
 By default any signed-in user or `Authorization` header skips Output Cache (`AuthBypassMode: AuthenticatedOrAuthorization`). That is the safe setting for mixed public and private APIs.
 

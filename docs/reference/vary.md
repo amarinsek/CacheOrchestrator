@@ -4,6 +4,8 @@
 
 CacheOrchestrator shares one **vary model** between **Output Cache** and **FusionCache** (where it makes sense). Built-in toggles and allowlists live on the domain; apps can add small custom dimensions via `ICacheVaryContributor` without replacing `IDomainKeyGenerator`.
 
+**Endpoint cache identity** (`.WithCacheIdentity` / `[CacheIdentity]`, content-hash helpers) is **not** domain vary config. It is a per-endpoint, per-method binding that can add `co-id:*` material to OC `VaryByValues` and data-cache keys. See [cache-identity.md](cache-identity.md) and [cache-keys.md](cache-keys.md).
+
 See also: [cache-keys.md](cache-keys.md), [output-cache.md](output-cache.md), [configuration.md](configuration.md).
 
 Admin Console **Operations → Patch settings** can change these at runtime (bool / enum / numbers and comma-separated string lists). Playground domain **`vary-demo`** (`GET /api/vary-demo`) exercises Accept + `?lang=` allowlisting.

@@ -8,7 +8,8 @@ namespace CacheOrchestrator.OutputCache;
 /// </summary>
 /// <remarks>
 /// Action-level attributes override controller-level attributes. Registered automatically by
-/// <c>AddCacheOrchestrator</c>.
+/// <c>AddCacheOrchestrator</c>. Cache identity attributes use <c>IEndpointMetadataProvider</c>
+/// and do not need this convention.
 /// </remarks>
 internal sealed class CacheDomainConvention : IApplicationModelConvention
 {
