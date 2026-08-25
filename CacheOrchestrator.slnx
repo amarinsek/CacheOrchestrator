@@ -12,6 +12,9 @@
     <Project Path="src/CacheOrchestrator.AdminConsole/CacheOrchestrator.AdminConsole.csproj" />
     <Project Path="src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj" />
     <Project Path="src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj" />
+    <Project Path="src/CacheOrchestrator.Redis.Shared/CacheOrchestrator.Redis.Shared.csproj" />
+    <Project Path="src/CacheOrchestrator.AspNetCore.Redis/CacheOrchestrator.AspNetCore.Redis.csproj" />
+    <Project Path="src/CacheOrchestrator.FusionCache.Redis/CacheOrchestrator.FusionCache.Redis.csproj" />
     <Project Path="src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj" />
     <Project Path="src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj" />
     <Project Path="src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj" />
@@ -25,6 +28,9 @@
     <Project Path="tests/CacheOrchestrator.HttpBus.UnitTests/CacheOrchestrator.HttpBus.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/CacheOrchestrator.EFCore.Invalidation.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.Redis.Shared.UnitTests/CacheOrchestrator.Redis.Shared.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.AspNetCore.Redis.UnitTests/CacheOrchestrator.AspNetCore.Redis.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.FusionCache.Redis.UnitTests/CacheOrchestrator.FusionCache.Redis.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.Redis.UnitTests/CacheOrchestrator.Redis.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.Core.UnitTests/CacheOrchestrator.Core.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj" />

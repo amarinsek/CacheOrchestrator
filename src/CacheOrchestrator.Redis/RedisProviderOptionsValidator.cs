@@ -5,20 +5,21 @@ using Microsoft.Extensions.Options;
 namespace CacheOrchestrator.Redis;
 
 /// <summary>
-/// Validates that Redis is configured whenever <c>Provider</c> is <c>Redis</c>.
+/// Meta validator: Output Cache Redis + Fusion data-cache Redis instances.
 /// Registered by <see cref="CacheOrchestratorRedisBuilderExtensions.AddRedisBackend"/>.
+/// Leaf packages register surface-specific validators when used alone.
 /// </summary>
 internal sealed class RedisProviderOptionsValidator : IValidateOptions<CacheOrchestratorOptions>
 {
-    private readonly IConfiguration _configuration;
-    private readonly string _configSection;
+    private readonly RedisOutputCacheProviderOptionsValidator _outputCache;
+    private readonly RedisFusionCacheProviderOptionsValidator _fusionCache;
 
     public RedisProviderOptionsValidator(IConfiguration configuration, string configSection)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentException.ThrowIfNullOrWhiteSpace(configSection);
-        _configuration = configuration;
-        _configSection = configSection;
+        _outputCache = new RedisOutputCacheProviderOptionsValidator(configuration, configSection);
+        _fusionCache = new RedisFusionCacheProviderOptionsValidator(configuration, configSection);
     }
 
     /// <inheritdoc />
@@ -26,37 +27,18 @@ internal sealed class RedisProviderOptionsValidator : IValidateOptions<CacheOrch
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        ValidateOptionsResult oc = _outputCache.Validate(name, options);
+        ValidateOptionsResult fc = _fusionCache.Validate(name, options);
+
+        if (oc.Succeeded && fc.Succeeded)
+            return ValidateOptionsResult.Success;
+
         List<string> failures = [];
+        if (oc.Failed && oc.Failures is not null)
+            failures.AddRange(oc.Failures);
+        if (fc.Failed && fc.Failures is not null)
+            failures.AddRange(fc.Failures);
 
-        if (string.Equals(options.OutputCache.Provider, RedisConfiguration.ProviderName, StringComparison.OrdinalIgnoreCase))
-        {
-            RedisConnectionOptions redis = RedisConfiguration.ResolveForOutputCache(_configuration, _configSection);
-            if (string.IsNullOrWhiteSpace(redis.Configuration))
-            {
-                failures.Add(
-                    "OutputCache.Provider is 'Redis' but no connection string was found. " +
-                    $"Set '{_configSection}:Redis:Configuration' or '{_configSection}:OutputCache:Redis:Configuration'.");
-            }
-        }
-
-        foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOpts) in options.DataCacheInstances)
-        {
-            if (!string.Equals(instanceOpts.Provider, RedisConfiguration.ProviderName, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            RedisConnectionOptions redis =
-                RedisConfiguration.ResolveForFusionInstance(_configuration, _configSection, instanceName);
-            if (string.IsNullOrWhiteSpace(redis.Configuration))
-            {
-                failures.Add(
-                    $"DataCacheInstances['{instanceName}'].Provider is 'Redis' but no connection string was found. " +
-                    $"Set '{_configSection}:Redis:Configuration' or " +
-                    $"'{_configSection}:DataCacheInstances:{instanceName}:Redis:Configuration'.");
-            }
-        }
-
-        return failures.Count > 0
-            ? ValidateOptionsResult.Fail(failures)
-            : ValidateOptionsResult.Success;
+        return ValidateOptionsResult.Fail(failures);
     }
 }

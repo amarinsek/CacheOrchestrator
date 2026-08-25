@@ -20,7 +20,9 @@ Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion
 | HybridCache as data-cache engine | **HybridCache** (replaces the Fusion provider) |
 | Output Cache + Client Cache-Control + `IDomainDataCache` + Admin API | **AspNetCore** |
 | Typical web app (AspNet + Fusion) | **Meta** `CacheOrchestrator` |
-| Redis Output Cache store and/or Fusion L2 + backplane | **Redis** (`AddRedisBackend`) |
+| Redis Output Cache **and** Fusion L2 / backplane | **Meta** `CacheOrchestrator.Redis` (`AddRedisBackend`) |
+| Redis Output Cache only | **AspNetCore.Redis** (`AddRedisOutputCacheBackend`) |
+| Redis Fusion L2 / backplane only (no ASP.NET) | **FusionCache.Redis** (`AddRedisFusionCacheBackend`) |
 | Invalidate / Version / TTL on every InMemory node | **HttpBus** |
 | Purge after EF `SaveChanges` | **EF Core Invalidation** |
 | Dashboard across instances | Admin API on each app + **Admin Console App** (not a NuGet package) |
@@ -75,7 +77,9 @@ Root engines: `OutputCache` + **`DataCacheInstances`**. Full schema: [configurat
 | `DataCache.TtlSeconds` | Soft / duration | Expiration |
 | Hard TTL / fail-safe / factory timeouts | Yes | Ignored |
 | Named `DataCacheInstances` | Yes | Single DI HybridCache |
-| Redis L2 + backplane | Redis package | Configure Hybrid / `IDistributedCache` separately |
+| Redis L2 + backplane | `FusionCache.Redis` (or meta `Redis`) | Configure Hybrid / `IDistributedCache` separately |
+
+`CacheOrchestrator.Redis.Shared` is a **support** package (connection options / config resolve). It is pulled in transitively — **do not** install it alone; it is not listed as a product install target.
 
 Details: [data cache](../reference/data-cache.md). Hybrid wiring: [composition §5](../how-to/composition.md#scenario-5).
 

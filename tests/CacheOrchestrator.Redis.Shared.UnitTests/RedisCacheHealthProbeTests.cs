@@ -1,7 +1,7 @@
-using CacheOrchestrator.Redis;
+﻿using CacheOrchestrator.Redis;
 using StackExchange.Redis;
 
-namespace CacheOrchestrator.Redis.UnitTests;
+namespace CacheOrchestrator.Redis.Shared.UnitTests;
 
 public class RedisCacheHealthProbeTests
 {

@@ -44,6 +44,9 @@ jobs:
           tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj \
           tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj \
+          tests/CacheOrchestrator.Redis.Shared.UnitTests/CacheOrchestrator.Redis.Shared.UnitTests.csproj \
+          tests/CacheOrchestrator.AspNetCore.Redis.UnitTests/CacheOrchestrator.AspNetCore.Redis.UnitTests.csproj \
+          tests/CacheOrchestrator.FusionCache.Redis.UnitTests/CacheOrchestrator.FusionCache.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.Redis.UnitTests/CacheOrchestrator.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.HttpBus.UnitTests/CacheOrchestrator.HttpBus.UnitTests.csproj \
           tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/CacheOrchestrator.EFCore.Invalidation.UnitTests.csproj
@@ -59,6 +62,9 @@ jobs:
           tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj \
           tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj \
+          tests/CacheOrchestrator.Redis.Shared.UnitTests/CacheOrchestrator.Redis.Shared.UnitTests.csproj \
+          tests/CacheOrchestrator.AspNetCore.Redis.UnitTests/CacheOrchestrator.AspNetCore.Redis.UnitTests.csproj \
+          tests/CacheOrchestrator.FusionCache.Redis.UnitTests/CacheOrchestrator.FusionCache.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.Redis.UnitTests/CacheOrchestrator.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.HttpBus.UnitTests/CacheOrchestrator.HttpBus.UnitTests.csproj \
           tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/CacheOrchestrator.EFCore.Invalidation.UnitTests.csproj
@@ -110,6 +116,9 @@ jobs:
           src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj \
           src/CacheOrchestrator.HybridCache/CacheOrchestrator.HybridCache.csproj \
           src/CacheOrchestrator/CacheOrchestrator.csproj \
+          src/CacheOrchestrator.Redis.Shared/CacheOrchestrator.Redis.Shared.csproj \
+          src/CacheOrchestrator.AspNetCore.Redis/CacheOrchestrator.AspNetCore.Redis.csproj \
+          src/CacheOrchestrator.FusionCache.Redis/CacheOrchestrator.FusionCache.Redis.csproj \
           src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj \
           src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj \
           src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj
@@ -118,11 +127,11 @@ jobs:
         done
         ls -la ./nupkg
         echo "Packed with MinVer-derived version (see nupkg file names)."
-        # Expect 8 libraries (.nupkg) + 8 symbol packages (.snupkg).
+        # Expect 11 libraries (.nupkg) + 11 symbol packages (.snupkg).
         nupkg_count=$(ls -1 ./nupkg/*.nupkg | wc -l)
         snupkg_count=$(ls -1 ./nupkg/*.snupkg | wc -l)
-        test "$nupkg_count" -eq 8
-        test "$snupkg_count" -eq 8
+        test "$nupkg_count" -eq 11
+        test "$snupkg_count" -eq 11
 
     # NuGet Trusted Publishing: exchange GitHub OIDC token for a temporary API key.
     # Policy on nuget.org must match: owner, repo, workflow file publish.yml

@@ -16,7 +16,7 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 
 - Packages: `src/CacheOrchestrator.Core` (Http-free), `src/CacheOrchestrator.FusionCache`, `src/CacheOrchestrator.HybridCache` (Microsoft HybridCache data provider; subset of Fusion), `src/CacheOrchestrator.AspNetCore` (HTTP host; InMemory backend)  
 - Meta NuGet: `src/CacheOrchestrator` (PackageId `CacheOrchestrator` → AspNetCore + FusionCache)  
-- Redis package: `src/CacheOrchestrator.Redis` (`AddRedisBackend`)  
+- Redis: meta `src/CacheOrchestrator.Redis` (`AddRedisBackend`); leaves `AspNetCore.Redis` / `FusionCache.Redis`; support `Redis.Shared` (transitive only)  
 - HttpBus package: `src/CacheOrchestrator.HttpBus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
 - EF invalidation package: `src/CacheOrchestrator.EFCore.Invalidation` (`AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation`)  
 - Admin Console App: `src/CacheOrchestrator.AdminConsole` (fan-out UI/API; not a NuGet package; **net10.0 only**)  
@@ -71,7 +71,9 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `ICacheOrchestratorBuilder` / `ICacheBackendRegistrar` (OC) | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
 | `AddCacheOrchestratorFusionCache` / `IFusionCacheBackendRegistrar` | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.FusionCache.Backends` |
 | `AddCacheOrchestratorHybridCache` | `CacheOrchestrator.DependencyInjection` (HybridCache package) |
-| `AddRedisBackend` / `RedisCacheBackendRegistrar` | `CacheOrchestrator.Redis` |
+| `AddRedisBackend` / `RedisCacheBackendRegistrar` (meta) | `CacheOrchestrator.Redis` |
+| `AddRedisOutputCacheBackend` | `CacheOrchestrator.AspNetCore.Redis` |
+| `AddRedisFusionCacheBackend` | `CacheOrchestrator.FusionCache.Redis` |
 | `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheOrchestrator.OutputCache` |
 | `[CacheDomain("…")]` | `CacheOrchestrator.OutputCache` |
 | `IDomainDataCache` | `CacheOrchestrator.DataCache` (HTTP API in AspNetCore) |
@@ -128,7 +130,10 @@ src/CacheOrchestrator.FusionCache/  Fusion IDataCacheProvider + named Ziggy inst
 src/CacheOrchestrator.HybridCache/  HybridCache IDataCacheProvider
 src/CacheOrchestrator.AspNetCore/   HTTP: OutputCache, Vary, Admin API, IDomainDataCache (Core only)
 src/CacheOrchestrator/              meta NuGet: AspNetCore + FusionCache (`AddCacheOrchestrator` wires both)
-src/CacheOrchestrator.Redis/        Redis OC + Fusion L2/backplane (refs AspNetCore + FusionCache)
+src/CacheOrchestrator.Redis.Shared/ support Redis options/config (transitive)
+src/CacheOrchestrator.AspNetCore.Redis/  Redis Output Cache store
+src/CacheOrchestrator.FusionCache.Redis/ Redis Fusion L2 + backplane
+src/CacheOrchestrator.Redis/        meta Redis (AspNetCore.Redis + FusionCache.Redis)
 src/CacheOrchestrator.HttpBus/      HTTP cluster command bus + membership
 src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges → invalidator (Core only)
 src/CacheOrchestrator.AdminConsole/ Admin Console App (not packable)
@@ -136,6 +141,9 @@ tests/CacheOrchestrator.Core.UnitTests/
 tests/CacheOrchestrator.AspNetCore.UnitTests/
 tests/CacheOrchestrator.FusionCache.UnitTests/
 tests/CacheOrchestrator.HybridCache.UnitTests/
+tests/CacheOrchestrator.Redis.Shared.UnitTests/
+tests/CacheOrchestrator.AspNetCore.Redis.UnitTests/
+tests/CacheOrchestrator.FusionCache.Redis.UnitTests/
 tests/CacheOrchestrator.Redis.UnitTests/
 tests/CacheOrchestrator.HttpBus.UnitTests/
 tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/

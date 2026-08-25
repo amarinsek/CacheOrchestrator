@@ -76,7 +76,8 @@ XML docs ship with the NuGets. Choices: [packages](guide/packages.md). Scenarios
 | [AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | OC, Client Cache, Admin |
 | [FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | Fusion data provider |
 | [HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Hybrid data provider |
-| [Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Redis backends |
+| [Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Meta Redis (OC + Fusion L2) |
+| `AspNetCore.Redis` / `FusionCache.Redis` | Single-surface Redis (source / upcoming NuGet; no gallery link yet) |
 | [HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.2) | Cluster HTTP bus |
 | [EF Core Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | SaveChanges → purge |
 

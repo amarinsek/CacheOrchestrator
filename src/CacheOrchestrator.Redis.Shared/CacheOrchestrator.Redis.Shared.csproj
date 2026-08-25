@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+		<PackageId>CacheOrchestrator.Redis.Shared</PackageId>
+		<Description>Support library for CacheOrchestrator Redis backends (connection options and configuration resolution). Not intended to be referenced directly by applications — install CacheOrchestrator.Redis, CacheOrchestrator.AspNetCore.Redis, or CacheOrchestrator.FusionCache.Redis instead.</Description>
+		<PackageTags>cache;caching;redis;cacheorchestrator</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>logo-small.png</PackageIcon>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="..\..\docs\assets\logo-small.png" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\CacheOrchestrator.Core\CacheOrchestrator.Core.csproj" />
+		<PackageReference Include="StackExchange.Redis" Version="2.10.1" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+		<PackageReference Update="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="CacheOrchestrator.Redis.Shared.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.Redis" />
+		<InternalsVisibleTo Include="CacheOrchestrator.FusionCache.Redis" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Redis" />
+		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.Redis.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.FusionCache.Redis.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
+	</ItemGroup>
+</Project>

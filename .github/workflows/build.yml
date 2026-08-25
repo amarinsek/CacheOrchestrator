@@ -43,6 +43,9 @@ jobs:
           tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj \
           tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj \
+          tests/CacheOrchestrator.Redis.Shared.UnitTests/CacheOrchestrator.Redis.Shared.UnitTests.csproj \
+          tests/CacheOrchestrator.AspNetCore.Redis.UnitTests/CacheOrchestrator.AspNetCore.Redis.UnitTests.csproj \
+          tests/CacheOrchestrator.FusionCache.Redis.UnitTests/CacheOrchestrator.FusionCache.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.Redis.UnitTests/CacheOrchestrator.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.HttpBus.UnitTests/CacheOrchestrator.HttpBus.UnitTests.csproj \
           tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/CacheOrchestrator.EFCore.Invalidation.UnitTests.csproj
@@ -58,6 +61,9 @@ jobs:
           tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj \
           tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj \
+          tests/CacheOrchestrator.Redis.Shared.UnitTests/CacheOrchestrator.Redis.Shared.UnitTests.csproj \
+          tests/CacheOrchestrator.AspNetCore.Redis.UnitTests/CacheOrchestrator.AspNetCore.Redis.UnitTests.csproj \
+          tests/CacheOrchestrator.FusionCache.Redis.UnitTests/CacheOrchestrator.FusionCache.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.Redis.UnitTests/CacheOrchestrator.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.HttpBus.UnitTests/CacheOrchestrator.HttpBus.UnitTests.csproj \
           tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/CacheOrchestrator.EFCore.Invalidation.UnitTests.csproj
