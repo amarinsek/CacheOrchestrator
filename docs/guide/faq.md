@@ -154,12 +154,6 @@ Details: [deployment](../reference/deployment.md#using-multiple-datacache-instan
 | Data-cache `default` instance | `{Namespace}-fc` (historical `-fc`; no `-default` suffix) |
 | Data-cache named instance `pii` | `{Namespace}-fc-pii` |
 
-### Why did FusionCache warn about `CacheKeyPrefix`?
-
-Named FusionCache instances warn when Fusion’s `CacheKeyPrefix` is unset. CacheOrchestrator sets it from the effective data-cache namespace (`GetNamespace`, with a trailing `:`). Redis L2 isolation uses that Fusion prefix only — `IDistributedCache.InstanceName` is left empty so physical Redis keys are not double-prefixed.
-
-**Upgrade note:** Redis L2 key layout changes when moving from older builds that used Redis `InstanceName` for the FC namespace. Expect a cold L2 (flush or wait for TTL). Details: [cache keys](../reference/cache-keys.md).
-
 ### Custom backends (SQL Server, Memcached, …)
 
 Implement `ICacheBackendRegistrar`, register it, set `Provider` under `OutputCache` or `DataCacheInstances`. Example (Fusion L2 on SQL Server): [backends](../reference/backends.md).

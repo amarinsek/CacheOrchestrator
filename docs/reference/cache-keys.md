@@ -46,12 +46,10 @@ Default: `app-cache`. Effective store prefixes:
 | **Output Cache Redis store** | Yes | `InstanceName` = effective OC namespace |
 | **Data-cache logical key** (`DefaultDomainKeyGenerator`) | **No** | Key is `{domain}:{versionHex}:{hash}` only |
 | **Fusion `CacheKeyPrefix`** | Yes | Effective data-cache namespace + `:` (e.g. `my-app-fc:`) on every named Fusion instance |
-| **Fusion Redis L2** | Yes (via Fusion) | Redis `InstanceName` is **not** set; Fusion prefix is the single isolation layer |
+| **Fusion Redis L2** | Yes (via Fusion) | Redis `InstanceName` is **not** set; Fusion prefix is the single isolation layer (do not also set `InstanceName` to the same namespace) |
 | **Fusion backplane** | Yes | Channel prefix `{dcNamespace}:backplane` |
 
-### Logical key vs Fusion prefix
-
-Namespace is **not** embedded in the logical data-cache key (domain + version + hash stay readable). Fusion applies `CacheKeyPrefix` when talking to L1/L2 so named instances and shared stores stay isolated — including internal tag keys. Redis L2 must not also set `IDistributedCache.InstanceName` to the same namespace (that would double-prefix physical keys).
+Logical data-cache keys stay `{domain}:{versionHex}:{hash}` — Namespace is applied only via Fusion `CacheKeyPrefix` / backplane, not inside the CO key string.
 
 ---
 
