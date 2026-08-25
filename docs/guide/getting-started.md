@@ -23,7 +23,7 @@ A **domain** is a named policy in configuration — not a cache store of its own
 | Layer | What it stores | How you turn it on |
 |-------|----------------|--------------------|
 | **Client Cache-Control** | Browser / CDN headers | Nested `ClientCache` on the domain |
-| **Output Cache** | Full HTTP GET/HEAD response | `.CacheOutputWithDomain` / `[CacheDomain]` |
+| **Output Cache** | Full HTTP response (GET/HEAD + Url by default; other methods via [cache identity](../reference/cache-identity.md)) | `.CacheOutputWithDomain` / `[CacheDomain]` |
 | **Data cache** | The object your factory returns | `IDomainDataCache.GetOrSetAsync` (or Core `ICacheOrchestrator`) |
 
 In-memory stores ship with the meta package. Redis, HybridCache, the HTTP cluster bus, and EF invalidation are separate packages — [packages](packages.md).

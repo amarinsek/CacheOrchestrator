@@ -389,7 +389,7 @@ h2 {
 .domain-hint strong { color: var(--accent); }
 
 /* ── Inputs ── */
-select, input[type="text"] {
+select, input[type="text"], input[type="number"] {
     width: 100%;
     background: #0b0e13;
     color: var(--text);
@@ -400,9 +400,24 @@ select, input[type="text"] {
     font-family: inherit;
     outline: none;
     transition: border-color .15s;
+    box-sizing: border-box;
+    line-height: 1.25;
+    min-height: 38px;
 }
 
-select:focus, input[type="text"]:focus { border-color: var(--accent); }
+select:focus, input[type="text"]:focus, input[type="number"]:focus { border-color: var(--accent); }
+
+/* Align number fields with text/select (avoid browser spinner layout quirks) */
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
 
 .check {
     display: flex;

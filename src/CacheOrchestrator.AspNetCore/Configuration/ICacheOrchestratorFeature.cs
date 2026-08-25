@@ -53,6 +53,15 @@ internal sealed class CacheOrchestratorFeature : ICacheOrchestratorFeature
     public string? EntityKind { get; set; }
     public CacheDisposition? Disposition { get; set; }
     public EntityFootprint? PendingEntityFootprint { get; set; }
+
+    /// <summary>Identity material built for this request (Output Cache and/or data cache).</summary>
+    public Identity.CacheIdentityMaterial? IdentityMaterial { get; set; }
+
+    /// <summary>True after identity was evaluated for this request.</summary>
+    public bool IdentityResolved { get; set; }
+
+    /// <summary>True when identity returned null material and caching must be skipped.</summary>
+    public bool IdentityBypass { get; set; }
 }
 
 /// <summary>

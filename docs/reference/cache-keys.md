@@ -6,7 +6,7 @@ How the **data cache** and Output Cache decide that two requests are the **same*
 
 - **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` and `my-app-fc` (historical `-fc` suffix for data-cache instances).
 - **Domain** — the policy group (`products`, `product-detail`).
-- **Request material** — what varies inside a domain: path, route, query, host, encoding, resource id.
+- **Request material** — what varies inside a domain: path, route, query, host, encoding, resource id, and optional **endpoint cache identity** (`co-id:*`).
 
 **Tags** (`domain:{name}`, `entity:{domain}:{entityKind}:{id}`) group entries for purge. They are not part of lookup. A tag can delete an entry whose key never contains the domain name.
 
@@ -97,6 +97,7 @@ store:a1b2c3d4e5f60708:id:products:42:9c8b7a6d5e4f3210
 | Auth-user / claims | `AuthBypassMode: Never` (or claim list) + `VaryOutputCacheByUser` | Not applied under default auth-bypass modes (key stability) |
 | Scheme + host | `DataCache.VaryOnPublicAddress` | Domain setting |
 | `ICacheVaryContributor` values | When registered | After built-in material |
+| Endpoint cache identity | Identity metadata on the endpoint and material resolved for this method | Sorted `co-id:{name}` segments from `CacheIdentityMaterial` (named contract or content-hash). Absent / Url-only identity adds nothing. See [cache-identity.md](cache-identity.md). |
 
 Order of query keys does not matter: `?a=1&b=2` and `?b=2&a=1` produce the same hash.
 
@@ -156,6 +157,7 @@ The library does **not** emit a single custom string of the form `{domain}:{vers
 | Version | `VaryByValues["data-version"]` = `VersionHex` |
 | Encoding | `Accept-Encoding` in header vary when present |
 | Auth user | `VaryByValues["auth-user"]` when authenticated traffic is cached and `VaryOutputCacheByUser` is true |
+| Endpoint cache identity | `VaryByValues["co-id:{name}"]` from `CacheIdentityMaterial` when a named contract or content-hash binding produced values. Url identity (default GET/HEAD, or `CacheIdentities.Url`) adds no `co-id:*` entries. |
 
 ### Tags (Output Cache)
 
@@ -212,9 +214,10 @@ Implementation: shared helper used by `DefaultDomainKeyGenerator` and `DomainOut
 1. **Namespace** isolates **applications** on shared infrastructure; it is not a substitute for domain.  
 2. **Domain** is the unit of policy and purge. The data cache embeds it in the key because the data API is domain-first. Output Cache typically binds one fixed domain per route, so path + tags suffice; dynamic domains need an extra vary dimension.  
 3. **Version** partitions **generations** inside a domain without mass-deleting keys (prefer bump + TTL expiry for bulk cutovers).  
-4. **Request material** (path, query, host, encoding) partitions **resources** inside a generation.  
+4. **Request material** (path, query, host, encoding, optional identity) partitions **resources** inside a generation.  
 5. **Tags** answer “what to delete,” not “what to return on GET.”  
-6. **Entity id mode** gives stable data-cache identity and entity-level invalidation for CRUD without encoding the full URL into the key.
+6. **Entity id mode** gives stable data-cache identity and entity-level invalidation for CRUD without encoding the full URL into the key.  
+7. **Endpoint cache identity** is per-method binding on the route (not domain vary config). It folds stable contract / body-hash material into OC `VaryByValues` and the data-cache hash when present — [cache-identity.md](cache-identity.md).
 
 ---
 

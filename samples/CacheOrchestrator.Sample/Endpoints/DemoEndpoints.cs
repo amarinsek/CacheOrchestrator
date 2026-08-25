@@ -1,5 +1,6 @@
 using CacheOrchestrator.Entity;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.Identity;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -101,6 +102,65 @@ public static class DemoEndpoints
 
     private sealed record VaryDemoPayload(string Lang, DateTimeOffset GeneratedAt);
 
+    /// <summary>
+    /// POST identity playground: read-only search (named contract + GetOrSet) vs create (same domain, no identity).
+    /// </summary>
+    public static void MapPostIdentityDemoEndpoints(this WebApplication app)
+    {
+        const string domain = "product-search";
+        const int delayMs = 60;
+        int createSeq = 0;
+
+        app.MapPost("/api/demo/search", async (HttpContext http, IDomainDataCache cache) =>
+        {
+            var sw = Stopwatch.StartNew();
+            var data = await cache.GetOrSetAsync(http, async ct =>
+            {
+                await Task.Delay(delayMs, ct);
+                using StreamReader reader = new(http.Request.Body);
+                string raw = await reader.ReadToEndAsync(ct);
+                using JsonDocument doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(raw) ? "{}" : raw);
+                JsonElement root = doc.RootElement;
+                string q = root.TryGetProperty("q", out JsonElement qEl) ? qEl.GetString() ?? "" : "";
+                string sort = root.TryGetProperty("sort", out JsonElement sEl) ? sEl.GetString() ?? "relevance" : "relevance";
+                int page = root.TryGetProperty("page", out JsonElement pEl) && pEl.TryGetInt32(out int p) ? p : 1;
+                string? uiHint = root.TryGetProperty("uiHint", out JsonElement uEl) ? uEl.GetString() : null;
+
+                return new
+                {
+                    domain,
+                    q,
+                    sort,
+                    page,
+                    uiHint,
+                    note = "Identity is q+sort+page (normalized). uiHint is echoed but ignored by the contract.",
+                    generatedAt = DateTimeOffset.UtcNow,
+                };
+            });
+            sw.Stop();
+            http.Response.Headers["X-Demo-Elapsed-Ms"] = sw.ElapsedMilliseconds.ToString();
+            return Results.Json(data);
+        })
+        .CacheOutputWithDomain(domain)
+        .WithCacheIdentity(["POST"], "product-search-v1");
+
+        app.MapPost("/api/demo/products", async (HttpContext http) =>
+        {
+            await Task.Delay(delayMs, http.RequestAborted);
+            int id = Interlocked.Increment(ref createSeq);
+            http.Response.Headers["X-Demo-Elapsed-Ms"] = delayMs.ToString();
+            return Results.Json(new
+            {
+                domain,
+                created = true,
+                id,
+                note = "Same domain as search, but no identity binding — POST is not Output Cached.",
+                generatedAt = DateTimeOffset.UtcNow,
+            });
+        })
+        .CacheOutputWithDomain(domain);
+    }
+
     /// <summary>Studio control APIs for the demo UI.</summary>
     public static void MapDemoStudioEndpoints(this WebApplication app)
     {
@@ -162,7 +222,30 @@ public static class DemoEndpoints
                 },
             };
 
-            return Results.Json(fromConfig.Concat(varyMeta).Concat(crudMeta));
+            // POST identity panel (search + create contrast).
+            var postIdentityMeta = new[]
+            {
+                new
+                {
+                    url = "/api/demo/search",
+                    domain = "product-search",
+                    label = "POST search (identity contract)",
+                    backend = BackendFor("product-search"),
+                    method = "POST",
+                    source = "hardcoded",
+                },
+                new
+                {
+                    url = "/api/demo/products",
+                    domain = "product-search",
+                    label = "POST create (no identity)",
+                    backend = BackendFor("product-search"),
+                    method = "POST",
+                    source = "hardcoded",
+                },
+            };
+
+            return Results.Json(fromConfig.Concat(varyMeta).Concat(crudMeta).Concat(postIdentityMeta));
         }));
 
         // Returns the raw appsettings.json content for the JSON editor.

@@ -43,6 +43,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
+    <ProjectReference Include="..\..\src\CacheOrchestrator.Analyzers\CacheOrchestrator.Analyzers.csproj"
+      PrivateAssets="all"
+      ReferenceOutputAssembly="false"
+      OutputItemType="Analyzer" />
   </ItemGroup>
 
 </Project>

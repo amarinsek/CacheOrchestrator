@@ -1,4 +1,5 @@
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Identity;
 using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -86,6 +87,7 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                 AppendString(hasher, resourceId, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
 
                 AppendVaryMaterial(hasher, http, opts, vary, includeQuery: false, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
+                AppendIdentityMaterial(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
                 if (opts.DataCacheVaryOnPublicAddress)
                     AppendPublicAddress(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
@@ -124,6 +126,9 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
 
             // 2. Query + header/auth/custom vary (+ encoding via materializer)
             AppendVaryMaterial(hasher, http, opts, vary, includeQuery: true, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
+
+            // 2b. Endpoint cache identity (only when already resolved onto the request feature)
+            AppendIdentityMaterial(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
             // 3. Public address
             if (opts.DataCacheVaryOnPublicAddress)
@@ -169,6 +174,35 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
 
         AppendRaw(hasher, PrefixHost);
         AppendString(hasher, http.Request.Host.Value, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
+    }
+
+    private static void AppendIdentityMaterial(
+        XxHash3 hasher,
+        HttpContext http,
+        ref Span<byte> byteBuffer,
+        ref byte[]? rentedBytes,
+        ref Span<char> charBuffer,
+        ref char[]? rentedChars)
+    {
+        if (http.Features.Get<ICacheOrchestratorFeature>() is not CacheOrchestratorFeature feature
+            || !feature.IdentityResolved
+            || feature.IdentityMaterial is null
+            || feature.IdentityMaterial.Values.Count == 0)
+        {
+            return;
+        }
+
+        IReadOnlyDictionary<string, string> values = feature.IdentityMaterial.Values;
+        string[] keys = values.Keys.ToArray();
+        Array.Sort(keys, StringComparer.Ordinal);
+        for (int i = 0; i < keys.Length; i++)
+        {
+            string key = keys[i];
+            AppendRaw(hasher, PrefixVal);
+            AppendString(hasher, CacheIdentityApplicator.VaryValuePrefix + key, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
+            AppendRaw(hasher, Colon);
+            AppendString(hasher, values[key], ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
+        }
     }
 
     private static void AppendVaryMaterial(

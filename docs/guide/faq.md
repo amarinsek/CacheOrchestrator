@@ -185,9 +185,19 @@ Details: [admin](../reference/admin.md) · [operations](operations.md).
 
 ---
 
+## Output Cache methods
+
+### Can I Output-cache POST (search / GraphQL)?
+
+Only with an explicit identity binding. Without identity metadata, Output Cache applies to **GET/HEAD** with Url identity. Bind a method with `.WithCacheIdentity` / `[CacheIdentity]` (named contract) or `.WithContentHashCacheIdentity` / `[ContentHashCacheIdentity]` (bounded body hash). A method without a binding is not Output-cached, even when the domain is on the endpoint.
+
+Details: [endpoint cache identity](../reference/cache-identity.md).
+
+---
+
 ## Non-goals (by design)
 
-- No automatic Output Cache for non-GET/HEAD
+- No Output Cache for non-GET/HEAD unless the endpoint declares an explicit identity binding
 - No ownership of Redis HA / failover beyond connection options
 - No cross-instance consistency when both layers are InMemory without a backplane or bus
 - Concrete service types are **internal** — depend on interfaces + DI

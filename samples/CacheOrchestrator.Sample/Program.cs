@@ -1,8 +1,10 @@
 using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.Identity;
 using CacheOrchestrator.Redis;
 using CacheOrchestrator.Sample.Endpoints;
+using CacheOrchestrator.Sample.Identity;
 using CacheOrchestrator.Sample.Services;
 using OpenTelemetry.Metrics;
 
@@ -18,6 +20,7 @@ builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration, o =>
     o.AddHttpClusterBus();
 });
 builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
+builder.Services.AddCacheIdentityContract<ProductSearchIdentityContract>();
 
 // Prometheus scrape endpoint for Admin Console App Metrics (compose labs or host scrape).
 builder.Services.AddOpenTelemetry()
@@ -41,6 +44,7 @@ app.MapPrometheusScrapingEndpoint() // GET /metrics
 
 app.MapDemoDataEndpoints(builder.Configuration);
 app.MapVaryDemoEndpoint();
+app.MapPostIdentityDemoEndpoints();
 app.MapDemoStudioEndpoints();
 
 // Config reload only (no purge). Invalidation is a separate user action.

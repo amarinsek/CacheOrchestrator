@@ -45,6 +45,7 @@ README.md  →  docs/guide/  →  docs/how-to/  →  docs/reference/
 
 - [Configuration](reference/configuration.md) — `appsettings` schema and defaults
 - [Output Cache](reference/output-cache.md) — HTTP policies, auth flags, Minimal APIs and MVC
+- [Endpoint cache identity](reference/cache-identity.md) — per-method bindings for non-GET reads (contracts, content-hash, DX)
 - [Data cache](reference/data-cache.md) — Fusion / Hybrid, domain resolution, entity identity
 - [Entity footprint](reference/entity-footprint.md) — list, references, aggregate, nested, batch, aliases
 - [Cache keys](reference/cache-keys.md) — how OC and data-cache keys are built

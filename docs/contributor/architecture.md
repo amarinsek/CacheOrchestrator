@@ -6,7 +6,7 @@ How the library is put together.
 
 A **domain** is a named group of data (`products`, `reports`, …) with its own TTLs, flags, and Version. Output Cache, the **data cache** (`IDataCacheProvider`), and client headers all resolve the same `DomainCacheOptions`.
 
-1. **ASP.NET Core Output Caching** — full GET/HEAD responses (AspNetCore package).
+1. **ASP.NET Core Output Caching** — full HTTP responses; GET/HEAD + Url without identity bindings, other methods via endpoint [cache identity](../reference/cache-identity.md) (AspNetCore package).
 2. **Data cache** — objects from your factory via `ICacheOrchestrator` / `IDomainDataCache` (Fusion or Hybrid as `IDataCacheProvider`; L1 memory, optional L2 / backplane for Fusion).
 3. **Client Cache-Control** — browser and CDN headers, including Client Cache Schedule.
 
@@ -80,6 +80,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | `AuthBypassMode`, `DomainAuthEvaluator` | — |
 | `ICacheVaryContributor`, `CacheVaryMaterializer`, `ICacheVaryBuilder` | — |
 | `DomainOutputCachePolicy`, `[CacheDomain]`, `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheDomainConvention` |
+| Identity: `.WithCacheIdentity` / `.WithContentHashCacheIdentity`, `[CacheIdentity]` / `[ContentHashCacheIdentity]`, `ICacheIdentityContract`, `AddCacheIdentityContract<T>()`, `CacheIdentities.Url` | `CacheIdentityResolutionHostedService`, binding applicators |
 | Health: `AddCacheOrchestrator()`, `ICacheOrchestratorHealthProbe` | `CacheOrchestratorHealthCheck` |
 | Meter/activity **names** (`CacheOrchestrator`) | `CacheOrchestratorMetrics.Record*` |
 
@@ -95,7 +96,7 @@ Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features
 6. On hit → `ServeFromCacheAsync` marks disposition.  
 7. On response start → client `Cache-Control` + `X-Cache` headers.
 
-**Not cached:** non-GET/HEAD, `Cache-Control: no-store`, authenticated / `Authorization`, disabled domain, non-cacheable status codes, `Set-Cookie` responses.
+**Not cached:** methods without an identity binding when identity metadata is present (and non-GET/HEAD when identity metadata is absent), identity material null / content-hash oversize, `Cache-Control: no-store`, authenticated / `Authorization`, disabled domain, non-cacheable status codes, `Set-Cookie` responses. Opt-in non-GET via endpoint cache identity — [cache-identity.md](../reference/cache-identity.md).
 
 ## Request flow — data cache
 

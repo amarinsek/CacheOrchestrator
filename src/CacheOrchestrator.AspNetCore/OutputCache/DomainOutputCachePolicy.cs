@@ -3,6 +3,7 @@ using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Entity;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.Identity;
 using CacheOrchestrator.Utilities;
 using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
@@ -200,9 +201,9 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     /// Decides whether the request is cacheable and configures vary rules, tags, and TTL for the domain.
     /// </summary>
     /// <param name="context">The output cache context for the current request.</param>
-    /// <param name="cancellationToken">Cancellation token (unused; interface contract).</param>
-    /// <returns>A completed <see cref="ValueTask"/>.</returns>
-    public ValueTask CacheRequestAsync(OutputCacheContext context, CancellationToken cancellationToken)
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="ValueTask"/> that completes when the request has been evaluated.</returns>
+    public async ValueTask CacheRequestAsync(OutputCacheContext context, CancellationToken cancellationToken)
     {
         HttpContext http = context.HttpContext;
 
@@ -211,7 +212,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         {
             // Dynamic/template domain unresolved: do not leave the ASP.NET base policy enabled.
             context.EnableOutputCaching = false;
-            return ValueTask.CompletedTask;
+            return;
         }
 
         DomainCacheOptions opts = http.RequestServices
@@ -220,16 +221,32 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
 
         context.EnableOutputCaching = false;
 
-        // Cache only GET/HEAD
-        if (!HttpMethods.IsGet(http.Request.Method) && !HttpMethods.IsHead(http.Request.Method))
-            return ValueTask.CompletedTask;
+        // Identity metadata absent ⇒ GET/HEAD + Url only (no contract / body work).
+        // Present ⇒ method must have a binding or Output Cache stays disabled.
+        Endpoint? endpoint = http.GetEndpoint();
+        CacheIdentityEndpointMetadata? identityMeta =
+            endpoint?.Metadata.GetMetadata<CacheIdentityEndpointMetadata>();
+        CacheIdentityBinding? identityBinding = null;
+        if (identityMeta is null)
+        {
+            if (!HttpMethods.IsGet(http.Request.Method) && !HttpMethods.IsHead(http.Request.Method))
+                return;
+        }
+        else
+        {
+            if (!identityMeta.IsResolved)
+                CacheIdentityEndpointResolver.EnsureResolved(endpoint!, http.RequestServices);
+
+            if (!identityMeta.TryGetBinding(http.Request.Method, out identityBinding))
+                return;
+        }
 
         // Always respect request Cache-Control: no-store (HTTP semantics; token match, not substring).
         if (HttpHelper.ContainsCacheDirective(http.Request.Headers.CacheControl, "no-store"))
         {
             HttpHelper.ApplyNoCache(http.Response);
             RegisterResponseHeaders(http, opts, OutputCacheResult.Bypass, forceClient: ClientCacheClass.NoStore);
-            return ValueTask.CompletedTask;
+            return;
         }
 
         // Default: no shared caching for auth traffic (safe). Opt out per domain with AuthBypassMode=Never.
@@ -237,7 +254,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         {
             HttpHelper.ApplyNoCache(http.Response);
             RegisterResponseHeaders(http, opts, OutputCacheResult.Bypass, forceClient: ClientCacheClass.Blocked);
-            return ValueTask.CompletedTask;
+            return;
         }
 
         string? entityKind = TryResolveEntityKind(http);
@@ -247,7 +264,26 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         if (!opts.OutputCacheEnabled)
         {
             RegisterResponseHeaders(http, opts, OutputCacheResult.Off);
-            return ValueTask.CompletedTask;
+            return;
+        }
+
+        CacheIdentityMaterial? identityMaterial = null;
+        if (identityBinding is not null
+            && identityBinding.Kind is not CacheIdentityKind.Url)
+        {
+            ILogger<DomainOutputCachePolicy> logger = GetLogger(http);
+            identityMaterial = await CacheIdentityApplicator
+                .BuildAsync(identityBinding, http, opts, CacheVarySurface.OutputCache, logger, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (identityMaterial is null)
+            {
+                CacheIdentityApplicator.StoreOnFeature(http, material: null, bypass: true, logger);
+                RegisterResponseHeaders(http, opts, OutputCacheResult.Bypass);
+                return;
+            }
+
+            CacheIdentityApplicator.StoreOnFeature(http, identityMaterial, bypass: false, logger);
         }
 
         if (opts.EncodingNormalizationList != null)
@@ -274,6 +310,9 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
 
         foreach ((string key, string value) in vary.Values)
             context.CacheVaryByRules.VaryByValues[key] = value;
+
+        if (identityMaterial is not null)
+            CacheIdentityApplicator.ApplyToOutputCache(context, identityMaterial);
 
         if (vary.HeaderNames.Count > 0)
         {
@@ -312,7 +351,6 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         }
 
         RegisterResponseHeaders(http, opts, OutputCacheResult.Miss);
-        return ValueTask.CompletedTask;
     }
 
     private static void AppendResponseVary(HttpResponse response, IReadOnlyList<string> headerNames)

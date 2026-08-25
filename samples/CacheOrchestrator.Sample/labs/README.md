@@ -20,15 +20,15 @@ For a single process on your machine without Docker, use the [Playground sample]
 
 Each lab gives you a **running playground** (and Admin Console + Prometheus). Treat it as a sandpit:
 
-1. Open the **Playground** UI and pick a domain endpoint (catalog, product, search, CRUD, …).  
-2. Click **Fetch** more than once — watch badges and `X-Cache` (OC-HIT, DC-HIT, FACTORY, schedule phase, …).  
+1. Open the **Playground** UI: **Domain endpoints** (GET catalogue), **CRUD**, or **POST identity** (read-only search contract vs create without identity).  
+2. Click **Fetch** / **Search** more than once — watch badges and `X-Cache` (OC-HIT, DC-HIT, FACTORY, schedule phase, …).  
 3. Open **appsettings** in the UI, change a TTL, Version, or Client Cache Schedule value, save, then fetch again.  
 4. Open **Admin Console** — Overview, Domains, Hints, Metrics — and relate numbers to what you just did.  
 5. Move to the **next stage** when you want Redis, a second node, or the bus; the playground behaviour stays familiar, the **topology** changes.
 
 There is no single “correct” click path. Change settings, invalidate, compare two URLs, then look at Admin Console. That loop is how the domain model becomes concrete.
 
-**TTLs are playground-tuned on purpose.** Domain values are shorter than production so you can **see expiry at each layer** without waiting minutes. They are still long enough to fetch a few times, read badges, and think. Domains differ by intent (e.g. **search** is the shortest; **product-detail** / **product-crud** stay warmer so multi-step flows work). Open **appsettings** → `Cache:Domains` to inspect or change them.
+**TTLs are playground-tuned on purpose.** Domain values are shorter than production so you can **see expiry at each layer** without waiting minutes. They are still long enough to fetch a few times, read badges, and think. Domains differ by intent (e.g. **search** is the shortest; **product-detail** / **product-crud** / **product-search** stay warmer so multi-step flows work). Open **appsettings** → `Cache:Domains` to inspect or change them.
 
 If behaviour looks surprising, see **[Troubleshooting](#troubleshooting)** (browser cache toggle, TTLs, keys, multi-instance gaps, …).
 
@@ -458,6 +458,7 @@ Other simplifications exist for the same reason: **focus on cache behaviour** (O
 | Redis connection errors | Stage config uses service name `redis` / `redis-oc` / `redis-fc`, not `localhost` inside containers |
 | Settings back to defaults after `down` (stages 01–02) | Expected for single-node labs |
 | Multi-lab settings still changed after `down` (no `-v`) | Named volume keeps policy — use `down -v` then `up` to re-seed from `appsettings.seed.json` |
+| POST identity tab: unknown domain `product-search` / options miss | Stages **03–05** shared volume may predate that domain — `down -v` then `up --build` to re-seed. Stages **01–02**: rebuild playground image so baked `appsettings.json` includes `product-search`. |
 | `Error response from daemon: open /var/lib/docker/tmp/...` on `up --build` | Old compose used a **volume file subpath** mount (fragile on Docker Desktop). Current labs mount `/shared` as a directory + entrypoint symlink. Pull latest compose/Dockerfile; one-time `down -v` if an old broken mount is stuck, then `up --build -d`. |
 | Bus not distributing | Stages 04–05 only; peers use Docker DNS URLs in lab config |
 | No **BROWSER-CACHE**, or always server hits | Header toggle **Disable browser HTTP cache** is **on by default** (for server OC/FC demos). Uncheck only when you want client `max-age` / BROWSER-CACHE. |
@@ -476,7 +477,8 @@ Labs stay short on purpose: stages cover **topology**; use the sample README and
 
 | Topic | Start here |
 |-------|------------|
-| Playground UI, badges, CRUD, Client Cache Schedule, host `dotnet run` | [Sample README](../README.md) |
+| Playground UI, badges, CRUD, POST identity, Client Cache Schedule, host `dotnet run` | [Sample README](../README.md) · [POST identity](../README.md#post-identity-playground) |
+| Endpoint cache identity (contracts, content-hash) | [cache-identity.md](../../../docs/reference/cache-identity.md) |
 | Which layout / package | [Guide — topologies](../../../docs/guide/topologies.md) |
 | Docs index (getting started, config, OC/FC, invalidation, ops) | [docs/README.md](../../../docs/README.md) |
 | Product overview | [root README](../../../README.md) |

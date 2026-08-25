@@ -30,6 +30,7 @@ This playground can write `appsettings.json` from the browser. That is for this 
 
 - **Domain endpoints** panel: `Demo:Endpoints` from config (catalog, product, search, …). Add a line under `Demo:Endpoints` and restart (or save config) to expose another route.
 - **Entity invalidation (CRUD)** panel: fixed `GET /api/crud/products/42` + **Update price (PUT)** — separate from the domain dropdown.
+- **POST identity** panel: read-only search POST with a named contract vs create POST without identity (same domain). See [POST identity (playground)](#post-identity-playground).
 - **appsettings.json** (top right) opens an editor. Change a Version or TTL, save, and the process reloads configuration so the **next request** uses the new settings. That does **not** purge cache — use **Invalidate domain** (or entity) when you want a separate invalidation.
 - **Client Cache Schedule.** Set `ScheduledUpdateUtc` on a domain and watch the phase on each fetch:
   - **calm** — far from the cutover; client `max-age` is at its maximum
@@ -66,10 +67,43 @@ curl -i http://localhost:5289/api/crud/products/42
 
 `GET /api/crud/products` (list) is an uncached store dump — curl only. Background: [domain-profiles.md](../../docs/guide/domain-profiles.md).
 
+## POST identity (playground)
+
+Open the **POST identity playground** tab. Ordinary GET catalogues stay on domain-only Url identity; this panel is for **read-only POST** Output Cache (and data-cache keys) via a named contract.
+
+| Control | Role |
+|---------|------|
+| `q`, `sort`, `page` | Part of cache identity (normalized by the contract) |
+| `uiHint` | Sent in the JSON body but **ignored** by identity — changing it alone should still HIT |
+| **Search once / twice** | `POST /api/demo/search` + `GetOrSetAsync` |
+| **Create (no identity)** | `POST /api/demo/products` — same domain `product-search`, **no** identity binding → not Output Cached |
+
+Suggested UI flow: Search twice (OC-HIT) → change only **uiHint** → Search (still HIT) → change **q** or **page** → MISS → Create (never OC-HIT).
+
+Identity for search is normalized `q` + `sort` + `page` (empty `q` skips caching). Reference: [endpoint cache identity](../../docs/reference/cache-identity.md).
+
+```bash
+curl -i -X POST http://localhost:5289/api/demo/search \
+  -H "Content-Type: application/json" \
+  -d "{\"q\":\"widgets\",\"sort\":\"relevance\",\"page\":1,\"uiHint\":\"a\"}"
+
+# Same identity (uiHint ignored) → expect oc=hit on the second call
+curl -i -X POST http://localhost:5289/api/demo/search \
+  -H "Content-Type: application/json" \
+  -d "{\"q\":\"widgets\",\"sort\":\"relevance\",\"page\":1,\"uiHint\":\"b\"}"
+
+curl -i -X POST http://localhost:5289/api/demo/products \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"New item\"}"
+```
+
+Minimal sample has a simpler content-hash demo: `POST /echo` in [CacheOrchestrator.Minimal](../CacheOrchestrator.Minimal).
+
 ## Next
 
 - [labs/README.md](labs/README.md) — topology labs 01–05 (main learning path for multi-instance cache)
 - [Guide](../../docs/guide/README.md) — concepts, topologies, operations
 - [Getting started](../../docs/guide/getting-started.md)
+- [Endpoint cache identity](../../docs/reference/cache-identity.md)
 - [Client Cache Schedule](../../docs/guide/client-cache-schedule.md)
 - [Deployment](../../docs/reference/deployment.md) · [Cluster bus](../../docs/reference/cluster-bus.md)

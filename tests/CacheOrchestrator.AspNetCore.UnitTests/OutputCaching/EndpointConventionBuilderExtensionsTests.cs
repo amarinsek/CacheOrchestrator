@@ -1,7 +1,8 @@
-﻿using CacheOrchestrator.OutputCache;
+using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CacheOrchestrator.AspNetCore.UnitTests.OutputCaching;
@@ -147,6 +148,7 @@ public class EndpointConventionBuilderExtensionsTests
     private static WebApplication CreateApp()
     {
         var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
         return builder.Build();
     }
 

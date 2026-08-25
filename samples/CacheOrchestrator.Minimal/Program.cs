@@ -1,6 +1,6 @@
 using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.Entity;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.Identity;
 using CacheOrchestrator.OutputCache;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +33,21 @@ app.MapGet("/hello", async (HttpContext http, IDomainDataCache cache) =>
 })
 .CacheOutputWithDomain("hello");
 
+// Read-only POST with bounded body hash (GraphQL / search style).
+// Without WithContentHashCacheIdentity, POST would not be Output Cached.
+app.MapPost("/echo", async (HttpContext http) =>
+{
+    using StreamReader reader = new(http.Request.Body);
+    string body = await reader.ReadToEndAsync(http.RequestAborted);
+    return Results.Json(new
+    {
+        Echo = body,
+        GeneratedAtUtc = DateTimeOffset.UtcNow
+    });
+})
+.CacheOutputWithDomain("hello")
+.WithContentHashCacheIdentity(["POST"], maxBodyBytes: 65_536);
+
 app.MapGet("/", () => Results.Content(
     """
     <!DOCTYPE html>
@@ -53,6 +68,8 @@ app.MapGet("/", () => Results.Content(
         <li>Second request → <code>oc=hit</code> — served from Output Cache (fast).</li>
       </ol>
       <pre>curl -i http://localhost:5290/hello</pre>
+      <p>Optional: POST body identity on <code>/echo</code> (same body → hit):</p>
+      <pre>curl -i -X POST http://localhost:5290/echo -H "Content-Type: text/plain" -d "ping"</pre>
       <p class="ok">Tip: use curl (or DevTools → Disable cache) so the browser does not hide server hits.</p>
     </body>
     </html>
@@ -66,6 +83,7 @@ Console.WriteLine("  --------------------------------");
 Console.WriteLine($"  Open  {baseUrl}/");
 Console.WriteLine($"  Then  curl -i {baseUrl}/hello   (run twice)");
 Console.WriteLine("  Watch  X-Cache: ... oc=miss  then  oc=hit");
+Console.WriteLine($"  Optional POST identity: curl -i -X POST {baseUrl}/echo -d ping   (run twice)");
 Console.WriteLine();
 
 app.Run();

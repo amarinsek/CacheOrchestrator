@@ -3,6 +3,7 @@ using CacheOrchestrator.Backends;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.Identity;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.Orchestration;
 using CacheOrchestrator.OutputCache;
@@ -146,6 +147,9 @@ public static class ServiceCollectionExtensions
             new Vary.CacheVaryMaterializer(sp.GetServices<Vary.ICacheVaryContributor>()));
         services.TryAddSingleton<IDomainKeyGenerator>(sp =>
             new DefaultDomainKeyGenerator(sp.GetRequiredService<Vary.CacheVaryMaterializer>()));
+        services.TryAddSingleton<CacheIdentityContractCatalog>(sp =>
+            new CacheIdentityContractCatalog(sp.GetServices<ICacheIdentityContract>()));
+        services.AddHostedService<CacheIdentityResolutionHostedService>();
     }
 
     private static void RegisterAdminServices(
