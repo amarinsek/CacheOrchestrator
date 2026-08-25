@@ -30,7 +30,7 @@ public sealed class FusionCacheBackendRegistrarRegistry
 
         throw new InvalidOperationException(
             $"Unsupported FusionCache provider '{providerName}'. Supported values are: {string.Join(", ", _registrars.Keys)}. " +
-            "Register a backend with AddRedisBackend() or AddFusionBackend(...).");
+            "Register a backend with AddRedisFusionCacheBackend(...) / meta AddRedisBackend() or AddFusionBackend(...).");
     }
 
     /// <summary>Gets or creates the registry on <paramref name="services"/> (InMemory pre-registered).</summary>

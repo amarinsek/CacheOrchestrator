@@ -186,7 +186,7 @@ The maintainer folds each merged PR’s worklog Changelog into [CHANGELOG.md](CH
 
 Do **not** set `<Version>` manually in `Directory.Build.props` — MinVer owns it.
 
-All all NuGet packages  share the same MinVer version and `PACKAGE_RELEASE_NOTES.md`. Admin Console is Docker/GHCR only (`IsPackable=false`).
+All packable NuGet libraries share the same MinVer version and `PACKAGE_RELEASE_NOTES.md` (see `publish.yml` for the pack list). `CacheOrchestrator.Redis.Shared` is support/transitive (not an app install target). Admin Console is Docker/GHCR only (`IsPackable=false`).
 
 #### Optional package signing
 

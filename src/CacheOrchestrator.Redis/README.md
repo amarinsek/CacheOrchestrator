@@ -1,8 +1,12 @@
 # CacheOrchestrator.Redis
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
+[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model.
 
-This package adds **Redis** backends: Output Cache store, Fusion data-cache **L2**, Fusion **backplane**, and a connection health probe. Use it when several app instances must share cache data.
+This is the **meta** Redis package: Output Cache store **and** Fusion data-cache L2 / backplane. Prefer it for typical web apps.
+
+- Output Cache only: `CacheOrchestrator.AspNetCore.Redis`
+- Fusion L2 only (no ASP.NET): `CacheOrchestrator.FusionCache.Redis`
+- `CacheOrchestrator.Redis.Shared` is a **support** package pulled in transitively — do **not** install it alone.
 
 ## Install
 
@@ -50,18 +54,17 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 | Package | Role |
 |---------|------|
 | [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package (AspNetCore + Fusion) for typical web apps |
-| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Http-free domains and `ICacheOrchestrator` (libraries / workers) |
+| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Http-free domains and `ICacheOrchestrator` |
 | [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, Admin API, `IDomainDataCache` |
 | [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | FusionCache data-cache provider |
-| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache data-cache provider |
-| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.2) | Multi-instance invalidate / Version / settings bus |
-| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | Invalidate after EF `SaveChanges` |
+| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache only (from **3.0.0-beta.3**) |
+| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 only (from **3.0.0-beta.3**) |
+| `CacheOrchestrator.Redis.Shared` | Support / transitive — do not install alone |
 
 ## Documentation
 
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
-- [Backends](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/backends.md)
-- [Topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md)
+- [Packages](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md)
+- [Getting started](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/getting-started.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

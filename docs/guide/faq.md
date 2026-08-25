@@ -110,9 +110,12 @@ See [Client Cache Schedule](client-cache-schedule.md).
 
 | Package | Contains |
 |---------|----------|
-| `CacheOrchestrator` (meta) | AspNetCore + Fusion data provider |
-| Core / AspNetCore / FusionCache / HybridCache | Policy, HTTP host, Fusion or Hybrid provider — [packages](packages.md) |
-| `CacheOrchestrator.Redis` | Redis registrar, connection options, health probe |
+| `CacheOrchestrator` (Meta) | AspNetCore + Fusion data provider |
+| `CacheOrchestrator.Core` / `.AspNetCore` / `.FusionCache` / `.HybridCache` | Policy, HTTP host, Fusion or Hybrid provider — [packages](packages.md) |
+| `CacheOrchestrator.Redis` (Meta) | OC Redis + Fusion L2 (`AddRedisBackend`) |
+| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache only (`AddRedisOutputCacheBackend`; from **3.0.0-beta.3**) |
+| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 / backplane only (`AddRedisFusionCacheBackend`; from **3.0.0-beta.3**) |
+| `CacheOrchestrator.Redis.Shared` | Support / transitive — do not install alone |
 | `CacheOrchestrator.HttpBus` | HTTP cluster command bus |
 | `CacheOrchestrator.EFCore.Invalidation` | SaveChanges → entity invalidation |
 

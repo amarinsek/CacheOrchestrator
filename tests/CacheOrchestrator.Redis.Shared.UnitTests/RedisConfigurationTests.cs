@@ -1,7 +1,7 @@
-using CacheOrchestrator.Redis;
+﻿using CacheOrchestrator.Redis;
 using Microsoft.Extensions.Configuration;
 
-namespace CacheOrchestrator.Redis.UnitTests;
+namespace CacheOrchestrator.Redis.Shared.UnitTests;
 
 public class RedisConfigurationTests
 {

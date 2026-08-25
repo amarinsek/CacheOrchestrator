@@ -9,12 +9,25 @@ Policy (domains, TTLs, invalidation, client headers) is separate from **storage*
 | Provider | Package | Registration | Output Cache | Data-cache L2 (Fusion) |
 |----------|---------|--------------|--------------|------------------------|
 | **InMemory** | Core / AspNetCore / meta | Automatic | ASP.NET in-process store (+ size limits) | None (L1 only) |
-| **Redis** | `CacheOrchestrator.Redis` | `o.AddRedisBackend()` | Redis Output Cache store | Keyed Redis L2 + backplane |
+| **Redis** (meta) | `CacheOrchestrator.Redis` | `o.AddRedisBackend()` | Redis Output Cache store | Keyed Redis L2 + backplane |
+| **Redis** (OC only) | `CacheOrchestrator.AspNetCore.Redis` | `o.AddRedisOutputCacheBackend()` | Redis Output Cache store | — |
+| **Redis** (Fusion only) | `CacheOrchestrator.FusionCache.Redis` | `AddRedisFusionCacheBackend(...)` | — | Keyed Redis L2 + backplane |
+
+`CacheOrchestrator.Redis.Shared` is a **support** package (transitive). Do not install it alone.
 
 ## Install
 
+Typical web apps and labs (both surfaces):
+
 ```bash
 dotnet add package CacheOrchestrator.Redis --prerelease
+```
+
+Single surface (**from release 3.0.0-beta.3** onwards):
+
+```bash
+dotnet add package CacheOrchestrator.AspNetCore.Redis --prerelease
+dotnet add package CacheOrchestrator.FusionCache.Redis --prerelease
 ```
 
 ## Register

@@ -4,9 +4,9 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
-		<PackageId>CacheOrchestrator.AspNetCore</PackageId>
-		<Description>ASP.NET Core integration for CacheOrchestrator: Output Cache, client Cache-Control, Admin API, and HTTP domain data-cache helpers.</Description>
-		<PackageTags>cache;caching;domain;outputcache;datacache;httpcache;aspnetcore;cacheorchestrator</PackageTags>
+		<PackageId>CacheOrchestrator.AspNetCore.Redis</PackageId>
+		<Description>Redis Output Cache store for CacheOrchestrator.AspNetCore.</Description>
+		<PackageTags>cache;caching;redis;outputcache;cacheorchestrator;aspnetcore</PackageTags>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>logo-small.png</PackageIcon>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -24,18 +24,20 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\CacheOrchestrator.Core\CacheOrchestrator.Core.csproj" />
+		<ProjectReference Include="..\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
+		<ProjectReference Include="..\CacheOrchestrator.Redis.Shared\CacheOrchestrator.Redis.Shared.csproj" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+		<PackageReference Include="Microsoft.AspNetCore.OutputCaching.StackExchangeRedis" Version="8.0.22" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+		<PackageReference Include="Microsoft.AspNetCore.OutputCaching.StackExchangeRedis" Version="10.0.10" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.UnitTests" />
-		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.Redis.UnitTests" />
-		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.Redis" />
-		<InternalsVisibleTo Include="CacheOrchestrator.HttpBus.UnitTests" />
-		<InternalsVisibleTo Include="CacheOrchestrator.EFCore.Invalidation.UnitTests" />
-		<InternalsVisibleTo Include="CacheOrchestrator.Benchmarks" />
-		<InternalsVisibleTo Include="CacheOrchestrator.HttpBus" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Redis" />
 	</ItemGroup>
 </Project>
