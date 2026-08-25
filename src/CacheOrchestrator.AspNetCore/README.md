@@ -35,6 +35,7 @@ With Fusion as the data engine (install that package as well):
 
 ```bash
 dotnet add package CacheOrchestrator.FusionCache
+dotnet add package CacheOrchestrator.AspNetCore
 ```
 
 ```csharp
