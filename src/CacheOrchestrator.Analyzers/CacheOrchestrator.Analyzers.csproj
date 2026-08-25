@@ -7,25 +7,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>CacheOrchestrator.Analyzers</RootNamespace>
     <AssemblyName>CacheOrchestrator.Analyzers</AssemblyName>
-    <PackageId>CacheOrchestrator.Analyzers</PackageId>
-    <Description>Roslyn analyzers for CacheOrchestrator (cache identity attribute usage).</Description>
-    <PackageTags>cache;caching;roslyn;analyzer;cacheorchestrator</PackageTags>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <IsPackable>true</IsPackable>
-    <IncludeBuildOutput>false</IncludeBuildOutput>
-    <DevelopmentDependency>true</DevelopmentDependency>
-    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <Description>Roslyn analyzers for CacheOrchestrator (cache identity attribute usage). Shipped embedded in CacheOrchestrator.AspNetCore — not a separate NuGet package.</Description>
+    <IsPackable>false</IsPackable>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <IncludeSymbols>false</IncludeSymbols>
-    <SymbolPackageFormat />
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);NU5128;RS2008</NoWarn>
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="\" />
-    <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-  </ItemGroup>
 
   <ItemGroup>
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
