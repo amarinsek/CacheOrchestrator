@@ -45,15 +45,11 @@ Default: `app-cache`. Effective store prefixes:
 | **Output Cache key** | Yes | `CacheKeyPrefix` = effective OC namespace |
 | **Output Cache Redis store** | Yes | `InstanceName` = effective OC namespace |
 | **Data-cache logical key** (`DefaultDomainKeyGenerator`) | **No** | Key is `{domain}:{versionHex}:{hash}` only |
-| **Fusion Redis L2** | Yes | `IDistributedCache` `InstanceName` = effective data-cache namespace (`-fc`) |
+| **Fusion `CacheKeyPrefix`** | Yes | Effective data-cache namespace + `:` (e.g. `my-app-fc:`) on every named Fusion instance |
+| **Fusion Redis L2** | Yes (via Fusion) | Redis `InstanceName` is **not** set; Fusion prefix is the single isolation layer (do not also set `InstanceName` to the same namespace) |
 | **Fusion backplane** | Yes | Channel prefix `{dcNamespace}:backplane` |
-| **Data-cache InMemory (L1 only)** | **No** | Process-local `IMemoryCache`; no shared keyspace to isolate |
 
-### Why InMemory L1 skips Namespace
-
-Namespace exists for **shared external keyspaces**. In-process L1 is already isolated per host process (and per named `DataCacheInstances` entry). Adding Namespace into every logical data-cache key would not fix multi-app collisions (those apps do not share L1) and would only lengthen keys.
-
-When you enable Redis L2 (Fusion provider), the registrar applies the data-cache namespace as a **physical** Redis prefix. Logical keys stay domain-shaped; store-level isolation is separate.
+Logical data-cache keys stay `{domain}:{versionHex}:{hash}` — Namespace is applied only via Fusion `CacheKeyPrefix` / backplane, not inside the CO key string.
 
 ---
 
@@ -178,7 +174,7 @@ Output Cache stamps early tags in `CacheRequestAsync` (domain; primary entity wh
 | | Data cache | Output Cache |
 |--|------------|--------------|
 | **Logical shape** | `{domain}:{versionHex}:{hash}` | Framework key from prefix + vary |
-| **Namespace** | Logical key: no; Fusion Redis L2/backplane: yes (`-fc`) | Yes (`CacheKeyPrefix`) |
+| **Namespace** | Logical key: no; Fusion `CacheKeyPrefix` + backplane: yes (`-fc`) | Yes (`CacheKeyPrefix`) |
 | **Domain in key** | Yes | No (tag only) |
 | **Version in key** | Yes (`versionHex`) | Yes (`data-version` vary) |
 | **Route / path** | In hash (unless entity id mode) | Path in framework key |
