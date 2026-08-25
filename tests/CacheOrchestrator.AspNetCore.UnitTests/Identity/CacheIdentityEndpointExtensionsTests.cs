@@ -3,6 +3,7 @@ using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CacheOrchestrator.AspNetCore.UnitTests.Identity;
@@ -131,6 +132,7 @@ public class CacheIdentityEndpointExtensionsTests
     private static WebApplication CreateApp()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
         return builder.Build();
     }
 
