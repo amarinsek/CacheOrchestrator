@@ -7,6 +7,7 @@ using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 namespace CacheOrchestrator.IntegrationTests.Fusion;
 
@@ -20,17 +21,21 @@ public class FusionCacheRedisTests
         _redis = redis;
     }
 
-    private ServiceProvider BuildProvider()
+    private ServiceProvider BuildProvider(string? cacheNamespace = null)
     {
+        Dictionary<string, string?> settings = new()
+        {
+            ["Cache:OutputCache:Provider"] = "InMemory",
+            ["Cache:DataCacheInstances:default:Provider"] = "Redis",
+            ["Cache:Redis:Configuration"] = _redis.ConnectionString,
+            ["Cache:Domains:products:DataCache:TtlSeconds"] = "60",
+            ["Cache:Domains:products:Version"] = "v1"
+        };
+        if (!string.IsNullOrWhiteSpace(cacheNamespace))
+            settings["Cache:Namespace"] = cacheNamespace;
+
         IConfigurationRoot config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Cache:OutputCache:Provider"] = "InMemory",
-                ["Cache:DataCacheInstances:default:Provider"] = "Redis",
-                ["Cache:Redis:Configuration"] = _redis.ConnectionString,
-                ["Cache:Domains:products:DataCache:TtlSeconds"] = "60",
-                ["Cache:Domains:products:Version"] = "v1"
-            })
+            .AddInMemoryCollection(settings)
             .Build();
 
         ServiceCollection services = new();
@@ -127,5 +132,51 @@ public class FusionCacheRedisTests
 
         a.Should().Be("A");
         b.Should().Be("B");
+    }
+
+    [Fact]
+    public async Task GetOrSetAsync_RedisKeys_UseFusionCacheKeyPrefixOnce()
+    {
+        const string cacheNamespace = "prefix-probe";
+        string fcNamespace = cacheNamespace + "-fc";
+
+        await using ServiceProvider sp = BuildProvider(cacheNamespace);
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domainConfig = sp.GetRequiredService<IRequestDomainCacheOptions>();
+
+        DefaultHttpContext http = new();
+        http.Request.Method = "GET";
+        http.Request.Path = "/api/products/prefix-key";
+        domainConfig.EnsureDomainOptions(http, "products");
+
+        await cache.GetOrSetAsync(
+            http,
+            _ => Task.FromResult("prefixed"),
+            TestContext.Current.CancellationToken);
+
+        await using IConnectionMultiplexer mux =
+            await ConnectionMultiplexer.ConnectAsync(_redis.ConnectionString);
+        IServer server = mux.GetServers().First(s => s.IsConnected);
+
+        List<string> keys = [];
+        DateTimeOffset deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(10);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            keys.Clear();
+            await foreach (RedisKey key in server.KeysAsync(pattern: $"*{fcNamespace}*"))
+                keys.Add(key.ToString());
+
+            if (keys.Count > 0)
+                break;
+
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+
+        keys.Should().NotBeEmpty("Fusion L2 should write Redis keys under the FC namespace prefix");
+        keys.Should().OnlyContain(k => k.Contains(fcNamespace, StringComparison.Ordinal));
+        // Fusion CacheKeyPrefix owns isolation; Redis InstanceName must not apply the same namespace again.
+        string doubled = fcNamespace + ":" + fcNamespace;
+        keys.Should().NotContain(k => k.Contains(doubled, StringComparison.Ordinal));
+        keys.Should().NotContain(k => k.Contains(fcNamespace + fcNamespace, StringComparison.Ordinal));
     }
 }

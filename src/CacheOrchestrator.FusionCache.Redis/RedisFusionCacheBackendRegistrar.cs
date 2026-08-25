@@ -46,10 +46,11 @@ public sealed class RedisFusionCacheBackendRegistrar : IFusionCacheBackendRegist
         context.Services.TryAddKeyedSingleton<IDistributedCache>(instanceName, (sp, _) =>
         {
             IConnectionMultiplexer mux = sp.GetRequiredKeyedService<IConnectionMultiplexer>(instanceName);
+            // InstanceName left empty: Fusion CacheKeyPrefix (effective FC namespace) owns keyspace
+            // isolation so Redis keys are not double-prefixed.
             RedisCacheOptions redisCacheOptions = new()
             {
-                ConnectionMultiplexerFactory = () => Task.FromResult(mux),
-                InstanceName = fcNamespace
+                ConnectionMultiplexerFactory = () => Task.FromResult(mux)
             };
 
             return new RedisCache(Options.Create(redisCacheOptions));
