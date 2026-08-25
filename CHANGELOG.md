@@ -161,6 +161,7 @@ First stable release.
 - **Quality** — unit tests (net8 + net10), integration tests (net10 + Testcontainers Redis), Minimal sample CI smoke, SourceLink + snupkg, MinVer (`v*` tags), custom-backend E2E, config-reload snapshot tests, Fusion fail-safe STALE integration tests
 
 [Unreleased]: https://github.com/amarinsek/CacheOrchestrator/compare/v3.0.0-beta.1...HEAD
+[3.0.0-beta.2]: https://github.com/amarinsek/CacheOrchestrator/releases/tag/v3.0.0-beta.2
 [3.0.0-beta.1]: https://github.com/amarinsek/CacheOrchestrator/releases/tag/v3.0.0-beta.1
 [2.1.0]: https://github.com/amarinsek/CacheOrchestrator/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/amarinsek/CacheOrchestrator/compare/v1.0.0...v2.0.0
