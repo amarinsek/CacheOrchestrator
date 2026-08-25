@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0-beta.2] - 2026-08-25
+
+- **Docs:** Updated direct links to point to the correct NuGet package pages and updated `dotnet add package` instructions to include the `--prerelease` flag.
+
 ## [3.0.0-beta.1] - 2026-08-25
 
 Initial beta release of the completely redesigned v3 architecture, built around a new modular package ecosystem. This release separates the HTTP-free core orchestration from the ASP.NET host, introduces foundational support for both FusionCache and HybridCache providers, and is published for early integration testing and community feedback.

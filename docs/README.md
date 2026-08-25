@@ -71,14 +71,14 @@ XML docs ship with the NuGets. Choices: [packages](guide/packages.md). Scenarios
 
 | Package | |
 |---------|--|
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/) | Meta (AspNetCore + FusionCache) |
-| [Core](https://www.nuget.org/packages/CacheOrchestrator.Core/) | Domains, `ICacheOrchestrator` |
-| [AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/) | OC, Client Cache, Admin |
-| [FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/) | Fusion data provider |
-| [HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/) | Hybrid data provider |
-| [Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) | Redis backends |
-| [HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) | Cluster HTTP bus |
-| [EF Core Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) | SaveChanges → purge |
+| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta (AspNetCore + FusionCache) |
+| [Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Domains, `ICacheOrchestrator` |
+| [AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | OC, Client Cache, Admin |
+| [FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | Fusion data provider |
+| [HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Hybrid data provider |
+| [Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Redis backends |
+| [HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.2) | Cluster HTTP bus |
+| [EF Core Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | SaveChanges → purge |
 
 Admin Console App (not a NuGet package): [source](../src/CacheOrchestrator.AdminConsole/README.md) · [Docker](../deploy/admin/README.md).
 

@@ -14,7 +14,7 @@ Policy (domains, TTLs, invalidation, client headers) is separate from **storage*
 ## Install
 
 ```bash
-dotnet add package CacheOrchestrator.Redis
+dotnet add package CacheOrchestrator.Redis --prerelease
 ```
 
 ## Register

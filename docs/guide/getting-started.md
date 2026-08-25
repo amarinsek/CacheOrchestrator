@@ -33,7 +33,7 @@ In-memory stores ship with the meta package. Redis, HybridCache, the HTTP cluste
 ## 1. Install
 
 ```bash
-dotnet add package CacheOrchestrator
+dotnet add package CacheOrchestrator --prerelease
 ```
 
 That meta package is AspNetCore + FusionCache — the usual web stack. Other compositions: [packages](packages.md) · [composition how-to](../how-to/composition.md).
@@ -138,7 +138,7 @@ A successful second request typically shows `oc=hit`. Full field list: [observab
 ## Optional: Redis for the data cache
 
 ```bash
-dotnet add package CacheOrchestrator.Redis
+dotnet add package CacheOrchestrator.Redis --prerelease
 ```
 
 ```csharp

@@ -7,7 +7,7 @@ How to run CacheOrchestrator on one process or on several: in-memory stores, Red
 **Redis package:** any topology below that uses `"Provider": "Redis"` requires:
 
 ```bash
-dotnet add package CacheOrchestrator.Redis
+dotnet add package CacheOrchestrator.Redis --prerelease
 ```
 
 ```csharp
@@ -17,7 +17,7 @@ services.AddCacheOrchestrator(configuration, o => o.AddRedisBackend());
 **Cluster bus package** (optional): multi-instance **InMemory** invalidation / runtime Version-TTL without Redis backplane — see [cluster-bus.md](cluster-bus.md).
 
 ```bash
-dotnet add package CacheOrchestrator.HttpBus
+dotnet add package CacheOrchestrator.HttpBus --prerelease
 ```
 
 ```csharp
