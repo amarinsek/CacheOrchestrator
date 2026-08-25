@@ -11,10 +11,13 @@ COPY Directory.Build.props ./
 COPY PACKAGE_RELEASE_NOTES.md ./
 COPY docs/assets/logo-small.png docs/assets/logo-small.png
 
-# Project graph first for better layer caching (v3 package split).
+# Project graph first for better layer caching (v3 package split + Redis leaf packages).
 COPY src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj src/CacheOrchestrator.Core/
 COPY src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj src/CacheOrchestrator.FusionCache/
 COPY src/CacheOrchestrator.AspNetCore/CacheOrchestrator.AspNetCore.csproj src/CacheOrchestrator.AspNetCore/
+COPY src/CacheOrchestrator.Redis.Shared/CacheOrchestrator.Redis.Shared.csproj src/CacheOrchestrator.Redis.Shared/
+COPY src/CacheOrchestrator.AspNetCore.Redis/CacheOrchestrator.AspNetCore.Redis.csproj src/CacheOrchestrator.AspNetCore.Redis/
+COPY src/CacheOrchestrator.FusionCache.Redis/CacheOrchestrator.FusionCache.Redis.csproj src/CacheOrchestrator.FusionCache.Redis/
 COPY src/CacheOrchestrator.Redis/CacheOrchestrator.Redis.csproj src/CacheOrchestrator.Redis/
 COPY src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj src/CacheOrchestrator.HttpBus/
 COPY samples/CacheOrchestrator.Sample/CacheOrchestrator.Sample.csproj samples/CacheOrchestrator.Sample/
@@ -24,6 +27,9 @@ RUN dotnet restore samples/CacheOrchestrator.Sample/CacheOrchestrator.Sample.csp
 COPY src/CacheOrchestrator.Core/ src/CacheOrchestrator.Core/
 COPY src/CacheOrchestrator.FusionCache/ src/CacheOrchestrator.FusionCache/
 COPY src/CacheOrchestrator.AspNetCore/ src/CacheOrchestrator.AspNetCore/
+COPY src/CacheOrchestrator.Redis.Shared/ src/CacheOrchestrator.Redis.Shared/
+COPY src/CacheOrchestrator.AspNetCore.Redis/ src/CacheOrchestrator.AspNetCore.Redis/
+COPY src/CacheOrchestrator.FusionCache.Redis/ src/CacheOrchestrator.FusionCache.Redis/
 COPY src/CacheOrchestrator.Redis/ src/CacheOrchestrator.Redis/
 COPY src/CacheOrchestrator.HttpBus/ src/CacheOrchestrator.HttpBus/
 COPY samples/CacheOrchestrator.Sample/ samples/CacheOrchestrator.Sample/

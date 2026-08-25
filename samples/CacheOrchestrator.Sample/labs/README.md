@@ -91,6 +91,12 @@ One app process with full **ops surface**: Admin API (health, config, invalidate
 - Cache dies with the process  
 - A second replica would not see this process’s OC/FC entries  
 
+### Clean Docker for next lab
+
+```bash
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml down -v
+```
+
 ---
 
 ## Stage 02 — Redis as Fusion L2
@@ -152,6 +158,12 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml up 
 
 - Still one app process  
 - OC is not shared (by design here)  
+
+### Clean Docker for next lab
+
+```bash
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml down -v
+```
 
 ---
 
@@ -226,6 +238,12 @@ That gap is real multi-instance behaviour with OC InMemory and no command bus. S
 - **No bus** — process-local OC / Version / TTL overlays not pushed to peers (see **04**)  
 - OC not shared across nodes (see **05**)  
 
+### Clean Docker for next lab
+
+```bash
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/03-multi.yml down -v
+```
+
 ---
 
 ## Stage 04 — Cluster bus
@@ -298,6 +316,12 @@ Redis L2 + backplane handle **data / Fusion L1**. The **bus** carries **commands
 
 - Still one Redis for Fusion  
 - OC still InMemory (shared OC → Stage **05**)  
+
+### Clean Docker for next lab
+
+```bash
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/04-bus.yml down -v
+```
 
 ---
 
@@ -390,6 +414,12 @@ Host/port vary is off in multi-instance labs (same note as Stage 03).
 - One region / one compose network  
 - Topology teaching, not HA Redis ops  
 
+### Clean Docker for next lab
+
+```bash
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/05-dual-redis-bus.yml down -v
+```
+
 ---
 
 ## Lab vs production
@@ -411,8 +441,8 @@ With a load balancer you would not know which process answered. Here the goal is
 **Why shared settings on multi-instance labs?**  
 In production you must not run different TTLs or Versions on different replicas of the same app. The lab keeps **one shared policy file** so a UI save on A is what B loads too. On stages **03–05** a Docker **named volume** holds that file (seeded from `config/0N/appsettings.seed.json`); both playgrounds use it, the peer reloads within about a second after Save. Topology (Redis, bus, providers) stays in read-only `playground.Production.json`.
 
-Reset policy to seed: `docker compose -f …/0N-….yml down -v` then `up` again.  
-Normal rebuild (keep edited policy): `docker compose -f …/0N-….yml up --build -d` — no `-v`.
+Reset policy to seed / leave a stage: each stage ends with **Clean Docker for next lab** (`down -v`).  
+Normal rebuild (keep edited policy on stages 03–05): `docker compose -f …/0N-….yml up --build -d` — no `-v`.
 
 Other simplifications exist for the same reason: **focus on cache behaviour** (OC / Fusion / client headers, backplane, bus, Admin). The labs omit production-grade networking, certificate management, auto-scaling, and hardened Redis. After the cache story is clear, map the same ideas onto your real proxy, cluster, and ops stack — CacheOrchestrator’s domain model does not require the lab’s simplified front door.
 
@@ -422,6 +452,7 @@ Other simplifications exist for the same reason: **focus on cache behaviour** (O
 
 | Symptom | Check |
 |---------|--------|
+| `Bind for 0.0.0.0:9090` (or `5289` / `5290` / `5188` / `6379`) **failed: port is already allocated** | Another lab still holds the port. Run that stage’s **Clean Docker for next lab** (`down -v`) first. Only one lab stack at a time. |
 | Admin instance Down | Playground healthy? ApiKey `dev-admin-key`? |
 | Metrics empty | Traffic generated? Wait ~5–10s scrape; Prometheus targets UP? |
 | Redis connection errors | Stage config uses service name `redis` / `redis-oc` / `redis-fc`, not `localhost` inside containers |
