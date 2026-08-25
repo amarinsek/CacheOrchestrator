@@ -14,10 +14,15 @@ const btnOnceEl       = document.getElementById('btnOnce');
 const btnTwiceEl      = document.getElementById('btnTwice');
 const panelDomain     = document.getElementById('panelDomain');
 const panelCrud       = document.getElementById('panelCrud');
+const panelPost       = document.getElementById('panelPost');
 const crudBackendEl   = document.getElementById('crudBackend');
+const postBackendEl   = document.getElementById('postBackend');
 
 const CRUD_URL = '/api/crud/products/42';
 const CRUD_DOMAIN = 'product-crud';
+const POST_SEARCH_URL = '/api/demo/search';
+const POST_CREATE_URL = '/api/demo/products';
+const POST_DOMAIN = 'product-search';
 
 let endpoints = [];
 
@@ -66,6 +71,12 @@ async function loadEndpoints() {
     if (crudBackendEl) {
         crudBackendEl.textContent = crud?.backend || '…';
     }
+
+    const postMeta = all.find(e => e.source === 'hardcoded' && e.domain === POST_DOMAIN && (e.url || '').includes('/api/demo/search'))
+        || all.find(e => e.domain === POST_DOMAIN);
+    if (postBackendEl) {
+        postBackendEl.textContent = postMeta?.backend || '…';
+    }
 }
 
 function updateDomainLabel() {
@@ -76,11 +87,16 @@ function updateDomainLabel() {
 
 // ─── Panel switch ────────────────────────────────────────────────────────────
 function setPanel(name) {
-    const isDomain = name === 'domain';
-    panelDomain.classList.toggle('hidden', !isDomain);
-    panelDomain.hidden = !isDomain;
-    panelCrud.classList.toggle('hidden', isDomain);
-    panelCrud.hidden = isDomain;
+    const panels = [
+        { el: panelDomain, key: 'domain' },
+        { el: panelCrud, key: 'crud' },
+        { el: panelPost, key: 'post' },
+    ];
+    for (const p of panels) {
+        const on = p.key === name;
+        p.el?.classList.toggle('hidden', !on);
+        if (p.el) p.el.hidden = !on;
+    }
 
     document.querySelectorAll('.panel-tab').forEach((tab) => {
         const on = tab.dataset.panel === name;
@@ -108,10 +124,10 @@ function pickDomainUrl() {
  * Default cache: 'no-store' (server OC/DC visible). Checkbox uses cache: 'default' for client max-age demos.
  */
 /**
- * @param {'GET'|'PUT'} [method]
- * @param {{ disableBrowserCache?: boolean, price?: number }} [opts]
+ * @param {'GET'|'PUT'|'POST'} [method]
+ * @param {{ disableBrowserCache?: boolean, price?: number, jsonBody?: object }} [opts]
  */
-function buildFetchInit(method = 'GET', { disableBrowserCache = true, price } = {}) {
+function buildFetchInit(method = 'GET', { disableBrowserCache = true, price, jsonBody } = {}) {
     /** @type {RequestInit} */
     const init = {
         method,
@@ -130,7 +146,22 @@ function buildFetchInit(method = 'GET', { disableBrowserCache = true, price } = 
             price: Number(price),
         });
     }
+    if (method === 'POST' && jsonBody !== undefined) {
+        init.headers = { 'Content-Type': 'application/json', ...init.headers };
+        init.body = JSON.stringify(jsonBody);
+    }
     return init;
+}
+
+function readPostSearchBody() {
+    const q = document.getElementById('postSearchQ')?.value?.trim() ?? '';
+    const sort = document.getElementById('postSearchSort')?.value || 'relevance';
+    const pageRaw = Number(document.getElementById('postSearchPage')?.value);
+    const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+    const pageEl = document.getElementById('postSearchPage');
+    if (pageEl) pageEl.value = String(page);
+    const uiHint = document.getElementById('postSearchUiHint')?.value ?? '';
+    return { q, sort, page, uiHint };
 }
 
 /** @returns {number|null} */
@@ -403,6 +434,27 @@ document.getElementById('btnInvalidateEntity').onclick = async () => {
 };
 document.getElementById('btnClear').onclick = clearLog;
 document.getElementById('btnCrudClear').onclick = clearLog;
+document.getElementById('btnPostClear').onclick = clearLog;
+
+async function fetchPostSearchOnce() {
+    const disableBrowserCache = document.getElementById('disableBrowserCache')?.checked ?? true;
+    const body = readPostSearchBody();
+    await runRequest(POST_SEARCH_URL, buildFetchInit('POST', { disableBrowserCache, jsonBody: body }));
+}
+
+document.getElementById('btnPostSearchOnce').onclick = () => fetchPostSearchOnce();
+document.getElementById('btnPostSearchTwice').onclick = async () => {
+    await fetchPostSearchOnce();
+    await fetchPostSearchOnce();
+};
+document.getElementById('btnPostCreate').onclick = async () => {
+    const disableBrowserCache = document.getElementById('disableBrowserCache')?.checked ?? true;
+    await runRequest(POST_CREATE_URL, buildFetchInit('POST', {
+        disableBrowserCache,
+        jsonBody: { name: 'New item' },
+    }));
+};
+
 endpointEl.onchange = updateDomainLabel;
 
 document.getElementById('btnInvalidate').onclick = async () => {

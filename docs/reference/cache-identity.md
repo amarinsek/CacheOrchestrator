@@ -1,8 +1,8 @@
 # Endpoint cache identity
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Related: [Output Cache](output-cache.md), [cache keys](cache-keys.md), [vary](vary.md). Catalog: [documentation index](../README.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Related: [Output Cache](output-cache.md), [data cache](data-cache.md), [cache keys](cache-keys.md), [vary](vary.md). Catalog: [documentation index](../README.md).
 
-Per-endpoint, per-HTTP-method binding that decides **whether** Output Cache may run for a method and **how** lookup identity is built (named contract or bounded body hash). Domain configuration stays shared policy (TTL, Version, tags, client headers, auth) — it does not define identity strategies.
+Per-endpoint, per-HTTP-method binding that decides **whether** Output Cache may run for a method and **how** lookup identity is built (named contract or bounded body hash). The same identity material is reused for **data-cache keys** when `IDomainDataCache.GetOrSet*` runs. Domain configuration stays shared policy (TTL, Version, tags, client headers, auth) — it does not define identity strategies.
 
 Namespace: `CacheOrchestrator.Identity`.
 
@@ -45,7 +45,20 @@ Contract   → reusable named extractor (DI); instance stored on endpoint metada
 6. **Duplicates** fail early: Roslyn analyzer **COIDENTITY001** on attributes; `InvalidOperationException` on fluent registration. Not first/last wins.
 7. Create / webhook / mutating POSTs: keep the domain if you need data-cache or client headers, but **omit** identity helpers so those methods stay uncached for Output Cache.
 
-Identity material (when present) is folded into Output Cache `VaryByValues` as `co-id:*` and into the data-cache key hash — see [cache-keys.md](cache-keys.md). Domain vary toggles are configured separately — [vary.md](vary.md).
+Domain vary toggles are configured separately — [vary.md](vary.md).
+
+### Output Cache and data cache
+
+Identity bindings apply to **both** layers when each layer is in use:
+
+| Layer | Effect of identity |
+|-------|--------------------|
+| **Output Cache** | Method may be cached; material goes into OC `VaryByValues` as `co-id:*` (Url binding adds no `co-id:*`). |
+| **Data cache** | Same material is folded into the Fusion/Hybrid key hash when the handler calls `IDomainDataCache.GetOrSetAsync` (or entity helpers) and data cache is enabled for the domain. |
+
+Identity does **not** call the data cache by itself. Without `GetOrSet*`, only Output Cache (if enabled) stores the HTTP response.
+
+Logical data-cache key shape remains `{domain}:{versionHex}:{hash}`; identity adds sorted `co-id:{name}` segments into the hash (named contract / content-hash). `CacheIdentities.Url` adds no extra segments. `null` material / content-hash oversize → data-cache bypass for that request. Details: [cache-keys.md](cache-keys.md). Example wiring: [With data cache (GetOrSet)](#with-data-cache-getorset).
 
 ---
 
@@ -93,6 +106,8 @@ Do **not** use Url on POST when the body carries search criteria, GraphQL docume
 
 Examples are **POST-oriented** (the common identity opt-in). GET routes in the snippets use domain only. Domain settings under `Cache:Domains:…` are omitted.
 
+Runnable demos: content-hash `POST /echo` in [CacheOrchestrator.Minimal](../../samples/CacheOrchestrator.Minimal); named-contract search + create contrast in the [Sample playground — POST identity](../../samples/CacheOrchestrator.Sample/README.md#post-identity-playground).
+
 ### Why a named contract?
 
 Use a contract when **Url or raw body hash is the wrong cache key** for your business rule. Typical POST cases:
@@ -110,11 +125,17 @@ Example: product search over **POST**. Business rule — two requests are the sa
 ```csharp
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using CacheOrchestrator.Identity;
 using Microsoft.AspNetCore.Http;
 
 public sealed class ProductSearchIdentityContract : ICacheIdentityContract
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     public string Name => "product-search-v1";
 
     public async ValueTask<CacheIdentityMaterial?> BuildAsync(
@@ -126,7 +147,7 @@ public sealed class ProductSearchIdentityContract : ICacheIdentityContract
         // POST body: { "q": "widgets", "sort": "price", "page": 2, "uiHint": "..." }
         request.EnableBuffering();
         SearchBody? body = await JsonSerializer
-            .DeserializeAsync<SearchBody>(request.Body, cancellationToken: cancellationToken)
+            .DeserializeAsync<SearchBody>(request.Body, JsonOptions, cancellationToken)
             .ConfigureAwait(false);
         request.Body.Position = 0;
 
@@ -147,9 +168,16 @@ public sealed class ProductSearchIdentityContract : ICacheIdentityContract
 
     private sealed class SearchBody
     {
+        [JsonPropertyName("q")]
         public string? Q { get; set; }
+
+        [JsonPropertyName("sort")]
         public string? Sort { get; set; }
+
+        [JsonPropertyName("page")]
         public int? Page { get; set; }
+
+        [JsonPropertyName("uiHint")]
         public string? UiHint { get; set; }
     }
 }
@@ -180,6 +208,25 @@ app.MapPost("/api/products", ...)
 app.MapPost("/api/reports/run", ...)
    .CacheOutputWithDomain("reports")
    .WithCacheIdentity(["POST"], CacheIdentities.Url);
+```
+
+### With data cache (GetOrSet)
+
+Same identity binding feeds the data-cache key when the handler uses `IDomainDataCache` and data cache is enabled on the domain:
+
+```csharp
+using CacheOrchestrator.DataCache;
+using CacheOrchestrator.Identity;
+using CacheOrchestrator.OutputCache;
+
+app.MapPost("/api/products/search", async (HttpContext http, IDomainDataCache cache) =>
+{
+    // Fusion (± Redis L2): key hash includes co-id:* from product-search-v1
+    var data = await cache.GetOrSetAsync(http, ct => LoadSearchAsync(ct));
+    return Results.Json(data);
+})
+.CacheOutputWithDomain("product-search")
+.WithCacheIdentity(["POST"], "product-search-v1");
 ```
 
 ### Simple GraphQL (content-hash)
@@ -298,8 +345,9 @@ If one request needs both field extraction and hashing, implement that in a **si
 ## Related
 
 - [Output Cache](output-cache.md) — domain policies, auth, tags, ETag
+- [Data cache](data-cache.md) — `IDomainDataCache` / Fusion / Hybrid
 - [Cache keys](cache-keys.md) — how `co-id:*` enters OC and data-cache keys
 - [Vary](vary.md) — domain vary matrix (separate from endpoint identity)
 - [FAQ — Output Cache methods](../guide/faq.md#can-i-output-cache-post-search--graphql)
-- Minimal sample: `POST /echo` in [CacheOrchestrator.Minimal](../../samples/CacheOrchestrator.Minimal)
+- Samples: content-hash `POST /echo` in [CacheOrchestrator.Minimal](../../samples/CacheOrchestrator.Minimal); named-contract search + create contrast in the [Sample playground — POST identity](../../samples/CacheOrchestrator.Sample/README.md#post-identity-playground)
 

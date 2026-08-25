@@ -57,6 +57,9 @@
                 <button type="button" class="panel-tab" role="tab" id="tabCrud" aria-selected="false" aria-controls="panelCrud" data-panel="crud">
                     Entity invalidation (CRUD) playground
                 </button>
+                <button type="button" class="panel-tab" role="tab" id="tabPost" aria-selected="false" aria-controls="panelPost" data-panel="post">
+                    POST identity playground
+                </button>
             </div>
 
             <!-- 1) Classic domain-scoped routes from Demo:Endpoints -->
@@ -124,6 +127,57 @@
                 <p class="panel-foot muted">
                     Suggested: Fetch → Fetch twice (OC-HIT) → Invalidate entity → Fetch (MISS, same price) → Update price → Fetch (MISS, new price).
                     Keep header <em>Disable browser HTTP cache</em> checked to see server OC/DC clearly.
+                </p>
+            </div>
+
+            <!-- 3) POST cache identity (named contract vs no binding) -->
+            <div class="cmd-panel hidden" id="panelPost" role="tabpanel" aria-labelledby="tabPost" hidden>
+                <p class="panel-lead">
+                    <strong>POST</strong> Output Cache via endpoint identity (domain <code>product-search</code>).
+                    Search uses a named contract (<code>q</code> + <code>sort</code> + <code>page</code>);
+                    <code>uiHint</code> is <em>ignored</em> by identity (must not fragment the cache).
+                    Create shares the domain but has <strong>no</strong> identity binding — not Output Cached.
+                </p>
+                <div class="playground-controls">
+                    <div class="control-row">
+                        <label class="control-label">
+                            q
+                            <input id="postSearchQ" type="text" value="widgets" autocomplete="off" />
+                        </label>
+                        <label class="control-label">
+                            sort
+                            <select id="postSearchSort">
+                                <option value="relevance" selected>relevance</option>
+                                <option value="price">price</option>
+                                <option value="name">name</option>
+                            </select>
+                        </label>
+                        <label class="control-label">
+                            page
+                            <input id="postSearchPage" type="number" min="1" step="1" value="1" inputmode="numeric" />
+                        </label>
+                        <label class="control-label">
+                            uiHint <span class="muted">(ignored by identity)</span>
+                            <input id="postSearchUiHint" type="text" value="panel-a" autocomplete="off" placeholder="not in cache key" />
+                        </label>
+                    </div>
+                    <div class="control-row checks-and-buttons">
+                        <div class="btn-group">
+                            <p class="domain-hint">
+                                <span class="crud-method">POST</span>
+                                <code>/api/demo/search</code>
+                                Domain: <strong>product-search</strong>
+                                <span id="postBackend" class="status-pill" style="margin-left:8px; padding:3px 8px; font-size:10px;">…</span>
+                            </p>
+                            <button id="btnPostSearchOnce" type="button" class="btn">Search once</button>
+                            <button id="btnPostSearchTwice" type="button" class="btn primary">Search twice</button>
+                            <button id="btnPostCreate" type="button" class="btn accent" title="Same domain, no identity — not OC-cached">Create (no identity)</button>
+                            <button id="btnPostClear" type="button" class="btn ghost">Clear log</button>
+                        </div>
+                    </div>
+                </div>
+                <p class="panel-foot muted">
+                    Suggested: Search twice (OC-HIT) → change only <em>uiHint</em> → Search once (still HIT) → change <em>q</em> or <em>page</em> → MISS → Create (never OC-HIT).
                 </p>
             </div>
         </section>
