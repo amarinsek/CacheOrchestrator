@@ -27,8 +27,8 @@ Decision tables: [packages](../guide/packages.md) · [topologies](../guide/topol
 Uses the **meta** package `CacheOrchestrator` (`AddCacheOrchestrator` = AspNetCore + Fusion). You can instead install the two packages separately:
 
 ```bash
-dotnet add package CacheOrchestrator.AspNetCore
-dotnet add package CacheOrchestrator.FusionCache
+dotnet add package CacheOrchestrator.AspNetCore --prerelease
+dotnet add package CacheOrchestrator.FusionCache --prerelease
 ```
 
 and call `AddCacheOrchestratorAspNetCore` then `AddCacheOrchestratorFusionCache`.
@@ -38,7 +38,7 @@ Per-domain `OutputCache:Enabled` / `DataCache:Enabled` turn layers on or off in 
 **Packages**
 
 ```bash
-dotnet add package CacheOrchestrator
+dotnet add package CacheOrchestrator --prerelease
 ```
 
 **Registration**
@@ -87,7 +87,7 @@ No Fusion / Hybrid. Handler does not use `IDomainDataCache`.
 **Packages**
 
 ```bash
-dotnet add package CacheOrchestrator.AspNetCore
+dotnet add package CacheOrchestrator.AspNetCore --prerelease
 ```
 
 **Registration**
@@ -134,8 +134,8 @@ Not the meta package. No `.CacheOutputWithDomain` — base Output Cache policy i
 **Packages**
 
 ```bash
-dotnet add package CacheOrchestrator.AspNetCore
-dotnet add package CacheOrchestrator.FusionCache
+dotnet add package CacheOrchestrator.AspNetCore --prerelease
+dotnet add package CacheOrchestrator.FusionCache --prerelease
 ```
 
 **Registration**
@@ -179,8 +179,8 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 **Packages**
 
 ```bash
-dotnet add package CacheOrchestrator
-dotnet add package CacheOrchestrator.Redis
+dotnet add package CacheOrchestrator --prerelease
+dotnet add package CacheOrchestrator.Redis --prerelease
 ```
 
 **Registration**
@@ -230,8 +230,8 @@ For Redis as the Output Cache store as well, set `"OutputCache": { "Provider": "
 **Packages**
 
 ```bash
-dotnet add package CacheOrchestrator.AspNetCore
-dotnet add package CacheOrchestrator.HybridCache
+dotnet add package CacheOrchestrator.AspNetCore --prerelease
+dotnet add package CacheOrchestrator.HybridCache --prerelease
 dotnet add package Microsoft.Extensions.Caching.Hybrid
 ```
 
@@ -283,7 +283,7 @@ Same packages as §1 (meta, or AspNetCore + Fusion separately).
 **Packages**
 
 ```bash
-dotnet add package CacheOrchestrator
+dotnet add package CacheOrchestrator --prerelease
 ```
 
 **Registration**
@@ -330,7 +330,7 @@ app.MapGet("/t/{tenant}/products/{id}", async (HttpContext http, string id, IDom
 **Library packages**
 
 ```bash
-dotnet add package CacheOrchestrator.Core
+dotnet add package CacheOrchestrator.Core --prerelease
 ```
 
 **Library**
@@ -353,7 +353,7 @@ public sealed class CatalogService(ICacheOrchestrator cache)
 **Host packages** (web — same as §1)
 
 ```bash
-dotnet add package CacheOrchestrator
+dotnet add package CacheOrchestrator --prerelease
 ```
 
 **Registration** (web host)
@@ -413,8 +413,8 @@ app.MapGet("/t/{tenant}/products/{id}", async (
 **Worker** (same library)
 
 ```bash
-dotnet add package CacheOrchestrator.Core
-dotnet add package CacheOrchestrator.FusionCache
+dotnet add package CacheOrchestrator.Core --prerelease
+dotnet add package CacheOrchestrator.FusionCache --prerelease
 ```
 
 ```csharp
@@ -436,8 +436,8 @@ Same read path as §1, plus SaveChanges → automatic entity tag purge. Domain a
 **Packages**
 
 ```bash
-dotnet add package CacheOrchestrator
-dotnet add package CacheOrchestrator.EFCore.Invalidation
+dotnet add package CacheOrchestrator --prerelease
+dotnet add package CacheOrchestrator.EFCore.Invalidation --prerelease
 ```
 
 **Registration**
@@ -508,7 +508,7 @@ Library owns DbContext usage and cache reads/writes. Host wires CacheOrchestrato
 **Library packages**
 
 ```bash
-dotnet add package CacheOrchestrator.Core
+dotnet add package CacheOrchestrator.Core --prerelease
 dotnet add package Microsoft.EntityFrameworkCore
 ```
 
@@ -555,8 +555,8 @@ modelBuilder.Entity<Product>().CacheInvalidate("catalog", "products");
 **Host packages**
 
 ```bash
-dotnet add package CacheOrchestrator
-dotnet add package CacheOrchestrator.EFCore.Invalidation
+dotnet add package CacheOrchestrator --prerelease
+dotnet add package CacheOrchestrator.EFCore.Invalidation --prerelease
 ```
 
 **Registration**

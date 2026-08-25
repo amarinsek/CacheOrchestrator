@@ -3,7 +3,7 @@
 # CacheOrchestrator
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2010.0-blueviolet.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/)
+[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2010.0-blueviolet.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/amarinsek/CacheOrchestrator/build.yml?branch=main&style=flat-square)](https://github.com/amarinsek/CacheOrchestrator/actions)
 
 
@@ -39,7 +39,7 @@ See the code [comparison](docs/guide/comparison.md) to see how much boilerplate 
 Install the meta package (AspNetCore + FusionCache):
 
 ```bash
-dotnet add package CacheOrchestrator
+dotnet add package CacheOrchestrator --prerelease
 ```
 
 Configure a domain in `appsettings.json`:
@@ -164,14 +164,14 @@ The library is **modular**. The Core package provides the foundational policies 
 
 | Package | Purpose |
 |---------|---------|
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/) | Meta package: AspNetCore + FusionCache (for typical web apps). |
-| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/) | Domain models, `ICacheOrchestrator`, and invalidation contracts (no ASP.NET dependency). |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/) | Output Cache, Client Cache-Control, HTTP helpers, and embedded Local Admin. |
-| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/) | ZiggyCreatures FusionCache data-cache provider. |
-| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/) | Microsoft HybridCache data-cache provider. |
-| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/) | Redis integration for Output Cache and L2 / backplane support. |
-| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/) | Syncs invalidations, versions, and settings across all instances via HTTP cluster bus. |
-| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/) | Automatic cache invalidation after a successful Entity Framework Core `SaveChanges`. |
+| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package: AspNetCore + FusionCache (for typical web apps). |
+| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Domain models, `ICacheOrchestrator`, and invalidation contracts (no ASP.NET dependency). |
+| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache-Control, HTTP helpers, and embedded Local Admin. |
+| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | ZiggyCreatures FusionCache data-cache provider. |
+| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache data-cache provider. |
+| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Redis integration for Output Cache and L2 / backplane support. |
+| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.2) | Syncs invalidations, versions, and settings across all instances via HTTP cluster bus. |
+| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | Automatic cache invalidation after a successful Entity Framework Core `SaveChanges`. |
 
 
 ---
@@ -187,16 +187,13 @@ The library is **modular**. The Core package provides the foundational policies 
 <br>
 
 > [!NOTE]
-> **Important Versioning Notice**
-> 
-> **CacheOrchestrator** is currently undergoing a **full redesign**, culminating in the upcoming **v3.0.0** release.
-> 
-> * **v1.0.0 & v2.1.x (Legacy):** Published on NuGet strictly to ensure continuity for existing environments. These versions are no longer receiving active feature development. 
-> * **v3.0.0 (Active Development):** This major release is a completely new architectural surface. It brings a modernized, highly modular codebase, but **does not preserve API compatibility** with 1.x/2.x.
-> 
-> **For new projects:** If you are evaluating CacheOrchestrator or planning a new integration, we strongly recommend waiting for the v3.0.0 release, as there will be no direct migration path from v2 to v3. 
-> 
-> **Early access & contributing:** If you want an early look at the new architecture or wish to contribute to v3, you are welcome to clone the `main` branch. Please be aware that `main` is under heavy development and subject to breaking changes.
+> **v3 is in prerelease (beta)**
+>
+> CacheOrchestrator **v3** is a **full redesign**. It is **not** API-compatible with **v1.0.0** or **v2.1.x**, and there is **no migration path** from those lines. Legacy packages remain on NuGet only for existing environments; they are not under active feature development.
+>
+> **Try v3 now** with the Quick start above (`dotnet add package … --prerelease`). Expect breaking changes until the stable **v3.0.0** release.
+>
+> Prefer building from source or contributing? Clone this repository — `main` tracks the same v3 work and may move faster than the latest beta package.
 
 
 ## Documentation

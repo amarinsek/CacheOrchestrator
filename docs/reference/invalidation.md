@@ -259,7 +259,7 @@ Details: [deployment.md](deployment.md), [backends.md](backends.md).
 Full reference: **[cluster-bus.md](cluster-bus.md)** (install, membership Static/ServiceDiscovery, commands, Admin Console App, metrics, security).
 
 ```bash
-dotnet add package CacheOrchestrator.HttpBus
+dotnet add package CacheOrchestrator.HttpBus --prerelease
 ```
 
 ```csharp

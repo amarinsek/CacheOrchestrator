@@ -53,8 +53,8 @@ InvalidateEntitiesAsync  or  InvalidateEntityKindAsync (OnBulk)
 Full **packages + registration + config + endpoint** samples (in-app EF, and EF inside a class library): [packages.md §8–§9](../guide/packages.md).
 
 ```bash
-dotnet add package CacheOrchestrator
-dotnet add package CacheOrchestrator.EFCore.Invalidation
+dotnet add package CacheOrchestrator --prerelease
+dotnet add package CacheOrchestrator.EFCore.Invalidation --prerelease
 ```
 
 | API | Notes |

@@ -36,8 +36,8 @@ Peer HTTP/timeout failures are reported in `ClusterPublishResult` (not swallowed
 ## Install
 
 ```bash
-dotnet add package CacheOrchestrator
-dotnet add package CacheOrchestrator.HttpBus
+dotnet add package CacheOrchestrator --prerelease
+dotnet add package CacheOrchestrator.HttpBus --prerelease
 ```
 
 ## Register

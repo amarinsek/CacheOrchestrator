@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0-beta.2] - 2026-08-25
+
+- **Docs:** Updated direct links to point to the correct NuGet package pages and updated `dotnet add package` instructions to include the `--prerelease` flag.
+
 ## [3.0.0-beta.1] - 2026-08-25
 
 Initial beta release of the completely redesigned v3 architecture, built around a new modular package ecosystem. This release separates the HTTP-free core orchestration from the ASP.NET host, introduces foundational support for both FusionCache and HybridCache providers, and is published for early integration testing and community feedback.
@@ -157,6 +161,7 @@ First stable release.
 - **Quality** — unit tests (net8 + net10), integration tests (net10 + Testcontainers Redis), Minimal sample CI smoke, SourceLink + snupkg, MinVer (`v*` tags), custom-backend E2E, config-reload snapshot tests, Fusion fail-safe STALE integration tests
 
 [Unreleased]: https://github.com/amarinsek/CacheOrchestrator/compare/v3.0.0-beta.1...HEAD
+[3.0.0-beta.2]: https://github.com/amarinsek/CacheOrchestrator/releases/tag/v3.0.0-beta.2
 [3.0.0-beta.1]: https://github.com/amarinsek/CacheOrchestrator/releases/tag/v3.0.0-beta.1
 [2.1.0]: https://github.com/amarinsek/CacheOrchestrator/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/amarinsek/CacheOrchestrator/compare/v1.0.0...v2.0.0
