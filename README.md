@@ -5,7 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2010.0-blueviolet.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/amarinsek/CacheOrchestrator/build.yml?branch=main&style=flat-square)](https://github.com/amarinsek/CacheOrchestrator/actions)
+[![NuGet](https://img.shields.io/nuget/vpre/CacheOrchestrator.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2)
 
+**CacheOrchestrator is a multi-tier cache coordination and synchronized invalidation library for .NET.**
 
 **CacheOrchestrator** unifies the configuration of Output Cache, data cache, and client Cache-Control within a single **domain** model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
 
@@ -18,21 +20,29 @@ The picture is the path a request can take:
 - **Output Cache (OC)** — serves the stored HTTP response so the endpoint need not run.
 - **Data cache (L1/L2)** — serves the stored object so the factory (your database or service) need not run.
 
-In real-world applications, these layers are often fragmented - for example, an in-memory Output Cache on one end, a Fusion Cache with Redis L2 data cache on the other, all with varying TTLs. When these layers aren't synchronized, they actively work against each other. CacheOrchestrator unifies these layers within a single **domain** model, keeping lifetimes and invalidations perfectly in step. 
+In real-world applications, these layers are often fragmented - for example, an in-memory Output Cache on one end, a Fusion Cache with Redis L2 data cache on the other, all with varying TTLs. When these layers aren't synchronized, they actively work against each other. CacheOrchestrator unifies these layers within a single **domain** model, keeping lifetimes perfectly in step. 
 
 Cache **invalidation** presents the exact same coordination problem. Clearing the data cache is useless if the Output Cache or the client's browser is still serving a stale HTTP response. CacheOrchestrator solves this by treating invalidation as a single, unified action—when data changes, it is reliably retired across every layer that holds it. 
 
----
 
-## Benefits
 
-- **Less code on the endpoint.** Output Cache policies, data-cache options, and Client Cache-Control settings live in the domain model. Your endpoints stay clean and just load data. 
-- **Policy and topology in settings.** TTLs, client cacheability, InMemory versus Redis, a second data-cache instance, or a planned cutover are all handled via configuration. You don't need to change the handler.
-- **One generation, one invalidation.** A coordinated invalidation or a new generation stamp reliably retires the stale data in every layer that still holds it.
+## Table of Contents
+- [Why CacheOrchestrator](#why-cacheorchestrator)
+- [Quick start](#quick-start)
+- [A one-minute trial](#a-one-minute-trial)
+- [Playground topology labs](#playground-topology-labs)
+- [Why domains](#why-domains)
+- [Features](#features)
+- [Packages and applications](#packages-and-applications)
+- [Prerelease NOTE](#prerelease-note)
+- [Documentation](#documentation)
 
-See the code [comparison](docs/guide/comparison.md) to see how much boilerplate CacheOrchestrator actually removes.
+## Why CacheOrchestrator
 
----
+- **One domain, three layers.** Output Cache, data cache, and Client Cache-Control share the same policy — less endpoint boilerplate. [comparison](docs/guide/comparison.md)
+- **Config, not handlers.** TTLs, topology, and cutovers live in settings; endpoint code stays stable.
+- **Coordinated invalidation.** Purge by domain, kind, or id (with entity footprints) across layers — or bump `Version` / use a Client Cache Schedule for planned cutovers.
+- **Fits your stack.** Modular packages (e.g. EF Core auto-invalidation), Redis L2, diagnostics, and Admin when you need them.
 
 ## Quick start
 
@@ -49,9 +59,7 @@ Configure a domain in `appsettings.json`:
   "Cache": {
     "Namespace": "my-app",
     "OutputCache": { "Provider": "InMemory" },
-    "DataCacheInstances": {
-      "default": { "Provider": "InMemory" }
-    },
+    "DataCacheInstances": { "default": { "Provider": "InMemory" } },
     "Domains": {
       "catalog": {
         "Version": "1",
@@ -73,21 +81,59 @@ var app = builder.Build();
 app.UseCacheOrchestrator();
 ```
 
-Apply the domain to an endpoint. The `IDomainDataCache` automatically inherits the policies defined for the `"catalog"` domain:
+Apply the domain to an endpoint. Declare entity identity once on the route (`resourceRouteKey` + `entityKind`); `IDomainDataCache` reuses the same domain policies:
 
 ```csharp
-app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
+app.MapGet("/api/products/{id}", async (HttpContext http, int id, IDomainDataCache cache) =>
 {
-    var data = await cache.GetOrSetAsync(http, LoadProductsAsync);
-    return Results.Json(data);
+    // Seamlessly caches across data cache, Output Cache, and applies Cache-Control headers
+    var product = await cache.GetOrSetEntityAsync(http, ct => LoadProductAsync(id, ct));
+    return product is null ? Results.NotFound() : Results.Json(product);
 })
-.CacheOutputWithDomain("catalog");
+.CacheOutputWithDomain("catalog", entityKind: "products", resourceRouteKey: "id");
+```
+
+When that product changes, purge only that entity across Output Cache and data cache:
+
+```csharp
+app.MapPut("/api/products/{id}", async (int id, Product updatedProduct, ICacheOrchestratorInvalidator invalidator) =>
+{
+    await UpdateProductAsync(id, updatedProduct);
+    // Invalidates Output Cache and data cache simultaneously
+    await invalidator.InvalidateEntityAsync("catalog", "products", id);
+    return Results.NoContent();
+});
 ```
 
 > **Note for Controllers & Class Libraries:**
-> On a traditional controller, use the `[CacheDomain("catalog")]` attribute and inject `IDomainDataCache` in the same way. Class libraries can depend directly on `ICacheOrchestrator` from the Core package instead, using the exact same domain policies, without needing an `HttpContext`.
+> On a traditional controller, use the `[CacheDomain("catalog", "id", "products")]` attribute and inject `IDomainDataCache` in the same way. Class libraries can depend directly on `ICacheOrchestrator` from the Core package instead, using the exact same domain policies, without needing an `HttpContext`.
 
----
+> **Tip for Entity Framework Core users:**
+> You can eliminate manual invalidation entirely with the `CacheOrchestrator.EFCore.Invalidation` package. After a successful `SaveChangesAsync()`, it automatically invalidates all changed entities.
+
+### Scaling with Redis
+
+If you later want a Redis L2 cache layer, all you need to do is add the package and update your configuration. Your endpoint code stays completely **unchanged**. 
+
+Install Redis package:
+
+```bash
+dotnet add package CacheOrchestrator.Redis --prerelease
+```
+
+Register the library in your `Program.cs`:
+```csharp
+builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBackend());
+```
+
+Configure Redis in `appsettings.json`:
+```json
+...
+"DataCacheInstances": { "default": { "Provider": "Redis" } },
+"Redis": { "Configuration": "localhost:6379" }
+...
+```
+
 
 ## A one-minute trial
 
@@ -109,7 +155,6 @@ The first response is an Output Cache miss (the sample waits about 200 ms). The 
 * **Minimal Sample:** [samples/CacheOrchestrator.Minimal](samples/CacheOrchestrator.Minimal) — Notes for the sample above.
 * **Full Playground:** [samples/CacheOrchestrator.Sample](samples/CacheOrchestrator.Sample) — Features TTLs, schedule, Redis, and CRUD.
 
----
 
 ## Playground topology labs
 
@@ -123,8 +168,6 @@ Stages climb from a single InMemory playground to a dual Redis + HTTP bus archit
 
 * **Full guide & diagrams:** [samples/CacheOrchestrator.Sample/labs/README.md](samples/CacheOrchestrator.Sample/labs/README.md) — See what each stage teaches and how they evolve.
 
----
-
 ## Why domains
 
 A domain is a named set of cache rules: lifetimes, which layers to use, and where those layers live. Different data requires a different mix. For example:
@@ -136,29 +179,30 @@ A domain is a named set of cache rules: lifetimes, which layers to use, and wher
 
 The endpoint code is the same shape in every case. The domain is what differs.
 
-Domains are the unit of configuration. Within a domain you can optionally use **entity identity** (`entityKind` + id, and related footprints) so per-row keys and invalidation are possible.
+Domains are the unit of configuration. Within a domain you can optionally use **entity identity** (`entityKind` + id, and related footprints) so per-entity keys and invalidation are possible.
 
----
-
-## Also included
+## Features
 
 - **Coordinated policies.** A single domain governs both client and backend cache policies. [Output Cache](docs/reference/output-cache.md) · [Data cache](docs/reference/data-cache.md) · [Packages](docs/guide/packages.md)
 
-- **Coordinated invalidation.** Invalidation by domain, entity kind, or specific ID is seamlessly coordinated across Output Cache and data cache. [Invalidation](docs/reference/invalidation.md)
-
-- **Variety of cache topologies.** InMemory only; InMemory Output Cache with Redis L2 data cache; Redis for both plus a backplane; or InMemory nodes synchronized via the HTTP cluster bus. [Backends](docs/reference/backends.md) · [Deployment](docs/reference/deployment.md) · [Cluster bus](docs/reference/cluster-bus.md)
+- **Coordinated invalidation.** Purge by domain, kind, or id across layers; use entity footprints (`members` / `dependsOn` / `aliases`) when one change must clear related entries too. [Invalidation](docs/reference/invalidation.md) · [Entity footprint](docs/reference/entity-footprint.md)
 
 - **Planned cutovers.** A Version bump starts a new generation, or a [Client Cache Schedule](docs/guide/client-cache-schedule.md) eases clients perfectly into the cutover.
 
-- **Multiple instances.** Shared data-cache objects use Redis L2 and the FusionCache backplane. When Output Cache stays per-process, the [cluster bus](docs/reference/cluster-bus.md) carries invalidation commands and runtime Version/settings across instances.
+- **Variety of cache topologies.** InMemory only; InMemory Output Cache with Redis L2 data cache; Redis for both plus a backplane; or InMemory nodes synchronized via the HTTP cluster bus. [Backends](docs/reference/backends.md) · [Deployment](docs/reference/deployment.md) · [Cluster bus](docs/reference/cluster-bus.md)
+
+- **Multiple instances.** Shared data-cache objects use Redis L2 via your chosen data-cache engine (FusionCache or Microsoft's HybridCache). When Output Cache stays per-process, the [cluster bus](docs/reference/cluster-bus.md) carries invalidation commands and runtime Version/settings across instances.
 
 - **Diagnostics.** Insights via the `X-Cache` response header (domain, `oc`/`dc` status, schedule phase), plus OpenTelemetry metrics, activity sources, and health checks. [Observability](docs/reference/observability.md)
 
+- **Extensibility.** Hook into vary (`ICacheVaryContributor`), cache identity (`ICacheIdentityContract`), invalidation (`ICacheInvalidationObserver`), and storage backends (`ICacheBackendRegistrar`) — or swap the data engine (FusionCache / HybridCache) — without rewriting endpoints. [Vary](docs/reference/vary.md) · [Cache identity](docs/reference/cache-identity.md) · [Backends](docs/reference/backends.md)
+
+- **Modular packages.** The core stays small; capabilities arrive as optional packages when you need them — for example EF Core automatic invalidation after `SaveChanges`. [Packages](docs/guide/packages.md)
+
 - **Admin API & Console.** An embedded Admin API and a standalone **Admin Console App** for monitoring and managing your cache instances. [Admin](docs/reference/admin.md)
 
----
 
-## Packages
+## Packages and applications
 
 The library is **modular**. The Core package provides the foundational policies and the ICacheOrchestrator interface. From there, you can opt into specific packages to match your stack: FusionCache or HybridCache for the data engine, ASP.NET Output and Client Cache, Redis, an HTTP cluster bus, and EF Core for automatic invalidation. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
 
@@ -176,17 +220,13 @@ The library is **modular**. The Core package provides the foundational policies 
 | [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | Automatic cache invalidation after a successful Entity Framework Core `SaveChanges`. |
 
 
----
-
-## Applications
 
 | Application | Purpose |
 |---------|---------|
 | [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Standalone Admin Console for live stats, domain configuration, triggering invalidations, and adjusting Versions or TTLs on the fly. Available as a Docker image: `ghcr.io/amarinsek/cacheorchestrator-admin-console` — see [Admin Console](src/CacheOrchestrator.AdminConsole/) · [Deploy Admin](deploy/admin/README.md). |
 
----
 
-<br>
+## Prerelease NOTE
 
 > [!NOTE]
 > **v3 is in prerelease (beta)**
@@ -196,7 +236,6 @@ The library is **modular**. The Core package provides the foundational policies 
 > **Try v3 now** with the Quick start above (`dotnet add package … --prerelease`). Expect breaking changes until the stable **v3.0.0** release.
 >
 > Prefer building from source or contributing? Clone this repository — `main` tracks the same v3 work and may move faster than the latest beta package.
-
 
 ## Documentation
 
@@ -210,3 +249,4 @@ The library is **modular**. The Core package provides the foundational policies 
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 - [License](LICENSE.md) (MIT)
+
