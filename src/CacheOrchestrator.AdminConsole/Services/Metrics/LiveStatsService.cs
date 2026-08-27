@@ -148,7 +148,7 @@ public sealed class LiveStatsService
             };
 
             Dictionary<string, double> instRps = ToMap(await instOc.ConfigureAwait(false), "instance_id");
-            List<InstanceStatusDto> liveInstances = instances.Select(i =>
+            var liveInstances = instances.Select(i =>
             {
                 string key = i.ReportedInstanceId ?? i.Id;
                 long? requests = null;
@@ -176,7 +176,7 @@ public sealed class LiveStatsService
             MergeRate(domains, await domFac.ConfigureAwait(false), "domain", (b, v) => b.Factory += v);
             MergeRate(domains, await domFail.ConfigureAwait(false), "domain", (b, v) => b.Fail += v);
 
-            List<LiveEntityRateDto> domainRates = domains
+            var domainRates = domains
                 .Where(kv => !string.IsNullOrEmpty(kv.Key) && kv.Key is not "_" && !kv.Key.Contains('/', StringComparison.Ordinal))
                 .Select(kv => ToEntity(kv.Key, domain: null, kv.Value))
                 .Where(e => e.RequestRate > 0)
@@ -202,7 +202,7 @@ public sealed class LiveStatsService
             MergeRate(endpoints, await epFail.ConfigureAwait(false), "route", (b, v) => b.Fail += v);
 
             // All live endpoints (client applies search/sort); no artificial top-N cut.
-            List<LiveEntityRateDto> endpointRates = endpoints
+            var endpointRates = endpoints
                 .Select(kv => ToEntity(kv.Key, epDomain.GetValueOrDefault(kv.Key), kv.Value))
                 .Where(e => e.RequestRate > 0)
                 .OrderByDescending(e => e.RequestRate)
@@ -227,13 +227,13 @@ public sealed class LiveStatsService
             AdminHintSummaryDto hintSummary = LiveHintProjector.Evaluate(
                 _hints, domainRates, endpointRates, quietNames, configByName);
 
-            List<AdminDomainStatsDto> domainRows = domainRates.Select(e =>
+            var domainRows = domainRates.Select(e =>
             {
                 configByName.TryGetValue(e.Name, out AdminDomainConfigDto? cfgDto);
                 return _hints.WithHints(LiveHintProjector.ToDomainStats(e, cfgDto), cfgDto);
             }).ToList();
 
-            List<AdminEndpointStatsDto> endpointRows = endpointRates
+            var endpointRows = endpointRates
                 .Select(e => _hints.WithHints(LiveHintProjector.ToEndpointStats(e)))
                 .ToList();
 

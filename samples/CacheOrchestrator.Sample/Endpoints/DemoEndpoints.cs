@@ -1,9 +1,11 @@
-using CacheOrchestrator.Entity;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.Entity;
 using CacheOrchestrator.Identity;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Primitives;
 using System.Diagnostics;
 using System.Text.Json;
 
@@ -26,9 +28,9 @@ public static class DemoEndpoints
     /// </summary>
     public static void MapDemoDataEndpoints(this WebApplication app, IConfiguration config)
     {
-        var entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
+        List<DemoEndpointConfig> entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
 
-        foreach (var entry in entries)
+        foreach (DemoEndpointConfig entry in entries)
         {
             var path = entry.Path;
             var domain = entry.Domain;
@@ -70,7 +72,7 @@ public static class DemoEndpoints
             VaryDemoPayload data = await cache.GetOrSetAsync(http, async _ =>
             {
                 await Task.Delay(40);
-                string lang = http.Request.Query.TryGetValue("lang", out var lv) && lv.Count > 0
+                string lang = http.Request.Query.TryGetValue("lang", out StringValues lv) && lv.Count > 0
                     ? lv.ToString()
                     : "en";
                 return new VaryDemoPayload(lang, DateTimeOffset.UtcNow);
@@ -119,7 +121,7 @@ public static class DemoEndpoints
                 await Task.Delay(delayMs, ct);
                 using StreamReader reader = new(http.Request.Body);
                 string raw = await reader.ReadToEndAsync(ct);
-                using JsonDocument doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(raw) ? "{}" : raw);
+                using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(raw) ? "{}" : raw);
                 JsonElement root = doc.RootElement;
                 string q = root.TryGetProperty("q", out JsonElement qEl) ? qEl.GetString() ?? "" : "";
                 string sort = root.TryGetProperty("sort", out JsonElement sEl) ? sEl.GetString() ?? "relevance" : "relevance";
@@ -173,10 +175,10 @@ public static class DemoEndpoints
 
         NoOutputCache(app.MapGet("/api/demo/endpoints", (IConfiguration config, CacheOrchestrator.Configuration.IDomainCacheOptionsProvider provider) =>
         {
-            var entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
+            List<DemoEndpointConfig> entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
             string BackendFor(string domain)
             {
-                var opts = provider.GetOrCreateDomainOptions(domain);
+                DomainCacheOptions opts = provider.GetOrCreateDomainOptions(domain);
                 var fcName = opts.DataCacheInstanceName ?? "default";
                 var fcProvider = config[$"Cache:DataCacheInstances:{fcName}:Provider"] ?? "InMemory";
                 var ocProvider = config["Cache:OutputCache:Provider"] ?? "InMemory";
@@ -316,7 +318,7 @@ public static class DemoEndpoints
             string id,
             ICacheOrchestratorInvalidator inv) =>
         {
-            var result = await inv.InvalidateEntityAsync(domain, entityKind, id);
+            CacheInvalidationResult result = await inv.InvalidateEntityAsync(domain, entityKind, id);
             return Results.Ok(new
             {
                 invalidatedEntity = new { domain, entityKind, id },
@@ -339,7 +341,7 @@ public static class DemoEndpoints
             var product = await cache.GetOrSetEntityAsync(http, async ct =>
             {
                 await Task.Delay(40, ct);
-                if (!productStore.TryGetValue(id, out var row))
+                if (!productStore.TryGetValue(id, out ProductRecord? row))
                     return null;
                 return new
                 {
@@ -361,7 +363,7 @@ public static class DemoEndpoints
         {
             var updated = new ProductRecord(
                 id,
-                string.IsNullOrWhiteSpace(body.Name) ? $"Product {id}" : body.Name!,
+                string.IsNullOrWhiteSpace(body.Name) ? $"Product {id}" : body.Name,
                 body.Price,
                 DateTimeOffset.UtcNow);
 

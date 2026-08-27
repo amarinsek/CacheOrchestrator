@@ -2,7 +2,6 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Entity;
-using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Identity;
 using CacheOrchestrator.Utilities;
 using CacheOrchestrator.Vary;
@@ -415,23 +414,16 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
                 break;
 
             case ETagMode.Resource:
-                if (resourceId is not null && entityKind is not null)
-                {
-                    http.Response.Headers.ETag = CacheETagFactory.FromVersionAndResource(
-                        opts.VersionHex, entityKind.AsSpan(), ":".AsSpan(), resourceId.AsSpan());
-                }
-                else if (resourceId is not null)
-                {
-                    http.Response.Headers.ETag = CacheETagFactory.FromVersionAndResource(
-                        opts.VersionHex, resourceId.AsSpan());
-                }
-                else
-                {
-                    http.Response.Headers.ETag = CacheETagFactory.FromVersionAndResource(
-                        opts.VersionHex, 
-                        (http.Request.Path.Value ?? "/").AsSpan(), 
+                http.Response.Headers.ETag = resourceId is not null && entityKind is not null
+                    ? CacheETagFactory.FromVersionAndResource(
+                        opts.VersionHex, entityKind.AsSpan(), ":".AsSpan(), resourceId.AsSpan())
+                    : resourceId is not null
+                        ? CacheETagFactory.FromVersionAndResource(
+                        opts.VersionHex, resourceId.AsSpan())
+                        : CacheETagFactory.FromVersionAndResource(
+                        opts.VersionHex,
+                        (http.Request.Path.Value ?? "/").AsSpan(),
                         (http.Request.QueryString.Value ?? string.Empty).AsSpan());
-                }
                 break;
 
             case ETagMode.Version:
@@ -517,8 +509,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             string tag = tags[i];
             if (tag.StartsWith(CacheTags.DomainPrefix, StringComparison.Ordinal))
                 continue;
-            if (!context.Tags.Contains(tag))
-                context.Tags.Add(tag);
+            context.Tags.Add(tag);
         }
     }
 

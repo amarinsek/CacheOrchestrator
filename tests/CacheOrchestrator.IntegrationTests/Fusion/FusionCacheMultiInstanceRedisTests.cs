@@ -1,9 +1,9 @@
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.Redis;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
+using CacheOrchestrator.Redis;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;

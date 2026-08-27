@@ -51,7 +51,7 @@ public class DomainDataCacheServiceTests
     public async Task GetOrSetAsync_WithDomainOverload_WhenConfigMissing_EnsuresDomain()
     {
         var http = new DefaultHttpContext();
-        var cfg = CreateConfig(domain: "reports");
+        DomainCacheOptions cfg = CreateConfig(domain: "reports");
         _domainConfig.GetDomainOptions(http).Returns((DomainCacheOptions?)null);
         _domainConfig.EnsureDomainOptions(http, "reports").Returns(cfg);
         _keyGenerator.Generate(cfg, http).Returns("reports:v:key");
@@ -67,7 +67,7 @@ public class DomainDataCacheServiceTests
     public async Task GetOrSetAsync_WhenConfigMissing_ResolvesDomainFromPolicyMetadata()
     {
         var http = new DefaultHttpContext();
-        var cfg = CreateConfig(domain: "catalog");
+        DomainCacheOptions cfg = CreateConfig(domain: "catalog");
         _domainConfig.GetDomainOptions(http).Returns((DomainCacheOptions?)null);
         _domainConfig.EnsureDomainOptions(http, "catalog").Returns(cfg);
         _keyGenerator.Generate(cfg, http).Returns("key");
@@ -130,7 +130,7 @@ public class DomainDataCacheServiceTests
 
         result.Should().Be("ok");
         captured.Should().NotBeNull();
-        captured!.Key.Should().Be("products:abc:hash");
+        captured.Key.Should().Be("products:abc:hash");
         captured.KeyIsPhysical.Should().BeTrue();
         captured.Domain.Should().Be("products");
     }
@@ -155,7 +155,7 @@ public class DomainDataCacheServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1);
+                Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>> factory = callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1);
                 return factory(CancellationToken.None);
             });
 
@@ -197,7 +197,7 @@ public class DomainDataCacheServiceTests
     [Fact]
     public async Task GetOrSetAsync_WhenDisabled_RecordsFactoryRunOnAdmin()
     {
-        var admin = Substitute.For<IAdminStatsCollector>();
+        IAdminStatsCollector admin = Substitute.For<IAdminStatsCollector>();
         admin.IsEnabled.Returns(true);
         var sut = new DomainDataCacheService(
             _orchestrator,

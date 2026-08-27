@@ -47,7 +47,7 @@ public sealed record MetricsWindow(
         }
 
         string resolved = MetricsRange.Normalize(range, "1h");
-        TimeSpan duration = MetricsRange.ToTimeSpan(resolved);
+        var duration = MetricsRange.ToTimeSpan(resolved);
         string stepToken = MetricsRange.StepFor(resolved);
         DateTimeOffset end = now;
         DateTimeOffset start = end - duration;
@@ -111,7 +111,10 @@ public sealed record MetricsWindow(
         if (DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
                 out DateTimeOffset dto))
+        {
             return dto;
+        }
+
         if (DateTimeOffset.TryParse(s, out dto))
             return dto.ToUniversalTime();
         return null;

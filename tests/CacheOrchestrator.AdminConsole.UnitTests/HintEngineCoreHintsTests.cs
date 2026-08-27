@@ -288,8 +288,6 @@ public class HintEngineCoreHintsTests
         hints.Should().Contain(h => h.Code == "runtime-override" && h.Severity == "Info");
     }
 
-
-
     [Fact]
     public void EvaluateDomain_ScheduleCannotRamp_EmitsInfo()
     {

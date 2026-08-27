@@ -9,7 +9,7 @@ public class MultiInstanceOptionsTests
 {
     private static IRequestDomainCacheOptions BuildProvider(CacheOrchestratorOptions opts)
     {
-        var monitor = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
+        IOptionsMonitor<CacheOrchestratorOptions> monitor = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
         monitor.CurrentValue.Returns(opts);
         monitor.OnChange(Arg.Any<Action<CacheOrchestratorOptions, string?>>()).Returns((IDisposable?)null);
         DomainCacheOptionsProvider inner = new(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
@@ -41,7 +41,7 @@ public class MultiInstanceOptionsTests
     [Fact]
     public void GetOrCreateDomainOptions_DomainWithExplicitInstance_ResolvesCorrectInstance()
     {
-        var provider = BuildProvider(TwoInstanceOptions());
+        IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("users");
 
@@ -51,7 +51,7 @@ public class MultiInstanceOptionsTests
     [Fact]
     public void GetOrCreateDomainOptions_DomainWithDefaultInstance_ResolvesDefault()
     {
-        var provider = BuildProvider(TwoInstanceOptions());
+        IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("products");
 
@@ -61,7 +61,7 @@ public class MultiInstanceOptionsTests
     [Fact]
     public void GetOrCreateDomainOptions_UnknownDomain_FallsBackToDefault()
     {
-        var provider = BuildProvider(TwoInstanceOptions());
+        IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("news");
 
@@ -71,12 +71,12 @@ public class MultiInstanceOptionsTests
     [Fact]
     public void GetOrCreateDomainOptions_DomainWithNullInstance_FallsBackToDefault()
     {
-        var options = TwoInstanceOptions();
+        CacheOrchestratorOptions options = TwoInstanceOptions();
         options.Domains["reports"] = new CacheOrchestratorOptions.DomainCacheSettings
         {
             DataCache = new() { Instance = null }
         };
-        var provider = BuildProvider(options);
+        IRequestDomainCacheOptions provider = BuildProvider(options);
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("reports");
 
@@ -86,10 +86,10 @@ public class MultiInstanceOptionsTests
     [Fact]
     public void GetOrCreateDomainOptions_DomainDefaultsFusionInstance_PropagatesDown()
     {
-        var options = TwoInstanceOptions();
+        CacheOrchestratorOptions options = TwoInstanceOptions();
         options.DomainDefaults.DataCache = new() { Instance = "pii" };
         // "products" has explicit "default", "users" has "pii", "news" has no override
-        var provider = BuildProvider(options);
+        IRequestDomainCacheOptions provider = BuildProvider(options);
 
         // "news" has no entry â†’ inherits DomainDefaults â†’ "pii"
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("news");
@@ -100,10 +100,10 @@ public class MultiInstanceOptionsTests
     [Fact]
     public void GetOrCreateDomainOptions_ExplicitInstanceOverridesDomainDefaults()
     {
-        var options = TwoInstanceOptions();
+        CacheOrchestratorOptions options = TwoInstanceOptions();
         options.DomainDefaults.DataCache = new() { Instance = "pii" };
         // "products" explicitly overrides to "default"
-        var provider = BuildProvider(options);
+        IRequestDomainCacheOptions provider = BuildProvider(options);
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("products");
 
@@ -117,7 +117,7 @@ public class MultiInstanceOptionsTests
     [Fact]
     public void GetOrCreateDomainOptions_PiiInstance_UsesInstanceNamespace()
     {
-        var provider = BuildProvider(TwoInstanceOptions());
+        IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("users");
 
@@ -127,7 +127,7 @@ public class MultiInstanceOptionsTests
     [Fact]
     public void GetOrCreateDomainOptions_DefaultInstance_UsesGeneratedNamespace()
     {
-        var provider = BuildProvider(TwoInstanceOptions());
+        IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("products");
 
@@ -142,7 +142,7 @@ public class MultiInstanceOptionsTests
     [Fact]
     public void EnsureDomainOptions_SetsCorrectInstanceNameOnHttp()
     {
-        var provider = BuildProvider(TwoInstanceOptions());
+        IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
         var http = new DefaultHttpContext();
 
         DomainCacheOptions opts = provider.EnsureDomainOptions(http, "users");
@@ -157,7 +157,7 @@ public class MultiInstanceOptionsTests
     [Fact]
     public void GetOrCreateDomainOptions_CalledTwice_ReturnsSameInstance()
     {
-        var provider = BuildProvider(TwoInstanceOptions());
+        IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
         DomainCacheOptions first = provider.GetOrCreateDomainOptions("products");
         DomainCacheOptions second = provider.GetOrCreateDomainOptions("products");

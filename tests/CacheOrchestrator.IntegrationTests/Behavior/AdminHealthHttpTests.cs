@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Http.Json;
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
@@ -12,6 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Net.Http.Json;
 
 namespace CacheOrchestrator.IntegrationTests.Behavior;
 
@@ -100,7 +100,7 @@ public class AdminHealthHttpTests
             AdminHealthDto? body = await response.Content.ReadFromJsonAsync<AdminHealthDto>(
                 cancellationToken: TestContext.Current.CancellationToken);
             body.Should().NotBeNull();
-            body!.Healthy.Should().BeTrue();
+            body.Healthy.Should().BeTrue();
             body.AdminEnabled.Should().BeTrue();
             body.InstanceId.Should().Be("it-admin-health");
         }
@@ -129,7 +129,7 @@ public class AdminHealthHttpTests
             AdminHealthDto? body = await response.Content.ReadFromJsonAsync<AdminHealthDto>(
                 cancellationToken: TestContext.Current.CancellationToken);
             body.Should().NotBeNull();
-            body!.Healthy.Should().BeFalse();
+            body.Healthy.Should().BeFalse();
             body.AdminEnabled.Should().BeTrue();
         }
         finally

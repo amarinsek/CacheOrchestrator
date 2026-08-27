@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
-using CacheOrchestrator.DataCache;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;

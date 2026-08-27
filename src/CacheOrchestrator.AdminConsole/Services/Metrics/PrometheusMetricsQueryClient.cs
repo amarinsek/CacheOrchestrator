@@ -1,10 +1,10 @@
+using CacheOrchestrator.AdminConsole.Models;
+using CacheOrchestrator.AdminConsole.Options;
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using CacheOrchestrator.AdminConsole.Models;
-using CacheOrchestrator.AdminConsole.Options;
-using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.AdminConsole.Services.Metrics;
 
@@ -55,7 +55,7 @@ public sealed class PrometheusMetricsQueryClient : IMetricsQueryClient
         }
 
         HttpClient client = CreateClient();
-        Stopwatch sw = Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
         try
         {
             // Prefer Prometheus readiness; fall back to buildinfo for some proxies.
@@ -136,8 +136,10 @@ public sealed class PrometheusMetricsQueryClient : IMetricsQueryClient
             .ConfigureAwait(false);
         string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
+        {
             throw new InvalidOperationException(
                 $"Prometheus query_range HTTP {(int)response.StatusCode}: {Truncate(json, 300)}");
+        }
 
         return ParseMatrix(json);
     }
@@ -163,8 +165,10 @@ public sealed class PrometheusMetricsQueryClient : IMetricsQueryClient
             .ConfigureAwait(false);
         string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
+        {
             throw new InvalidOperationException(
                 $"Prometheus query HTTP {(int)response.StatusCode}: {Truncate(json, 300)}");
+        }
 
         return ParseVector(json);
     }
@@ -209,7 +213,7 @@ public sealed class PrometheusMetricsQueryClient : IMetricsQueryClient
 
     private static IReadOnlyList<PrometheusMatrixSeries> ParseMatrix(string json)
     {
-        using JsonDocument doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         JsonElement root = doc.RootElement;
         EnsurePrometheusSuccess(root);
 
@@ -242,7 +246,7 @@ public sealed class PrometheusMetricsQueryClient : IMetricsQueryClient
 
     private static IReadOnlyList<PrometheusInstantSample> ParseVector(string json)
     {
-        using JsonDocument doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         JsonElement root = doc.RootElement;
         EnsurePrometheusSuccess(root);
 
@@ -303,8 +307,10 @@ public sealed class PrometheusMetricsQueryClient : IMetricsQueryClient
         JsonElement? valEl = null;
         foreach (JsonElement el in pair.EnumerateArray())
         {
-            if (i == 0) tsEl = el;
-            else if (i == 1) valEl = el;
+            if (i == 0)
+                tsEl = el;
+            else if (i == 1)
+                valEl = el;
             i++;
         }
 

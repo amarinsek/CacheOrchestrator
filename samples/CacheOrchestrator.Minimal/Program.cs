@@ -1,15 +1,15 @@
-using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Identity;
 using CacheOrchestrator.OutputCache;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // InMemory only — no Redis package required for this sample.
 builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
 builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 app.UseCacheOrchestrator();
 app.MapCacheOrchestratorAdmin(); // no-op unless Cache:Admin:Enabled

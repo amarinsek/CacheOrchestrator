@@ -13,7 +13,7 @@ public class HintRuleRegistryAndDisableStoreTests
     [Fact]
     public void Registry_LoadsCorePack_AndReloadKeepsRules()
     {
-        using TestHintHost host = TestHintHost.Create();
+        using var host = TestHintHost.Create();
         HintRuleLoadStatus status = host.Registry.GetLoadStatus();
         status.Ok.Should().BeTrue();
         status.RuleCount.Should().BeGreaterThan(0);
@@ -28,7 +28,7 @@ public class HintRuleRegistryAndDisableStoreTests
     [Fact]
     public async Task DisableStore_PersistsAndAffectsEngineCatalog()
     {
-        using TestHintHost host = TestHintHost.Create();
+        using var host = TestHintHost.Create();
         host.Engine.GetCatalog()
             .Should().Contain(e => e.Code == "high-factory-share" && e.Enabled);
 
@@ -50,7 +50,7 @@ public class HintRuleRegistryAndDisableStoreTests
     [Fact]
     public async Task DisableStore_DisabledCode_DoesNotEmitHints()
     {
-        using TestHintHost host = TestHintHost.Create();
+        using var host = TestHintHost.Create();
         await host.Disable.SetEnabledAsync("critical-factory-share", enabled: false, TestContext.Current.CancellationToken);
 
         (_, AdminLayerDto outputCache, AdminDataCacheLayerDto dataCache, AdminPipelineDto pipe) =
@@ -89,7 +89,7 @@ public class HintRuleRegistryAndDisableStoreTests
             Directory.CreateDirectory(Path.Combine(root, "hints"));
             string? core = FindCoreHintsPath();
             core.Should().NotBeNull("core-hints.json must be discoverable from the test host");
-            File.Copy(core!, Path.Combine(root, "hints", "core-hints.json"), overwrite: true);
+            File.Copy(core, Path.Combine(root, "hints", "core-hints.json"), overwrite: true);
 
             AdminConsoleOptions opts = new()
             {

@@ -1,5 +1,5 @@
-using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;

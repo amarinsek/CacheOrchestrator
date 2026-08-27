@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,7 +51,7 @@ public class FailSafeStaleTests
     }
 
     private static CacheDisposition? GetDisposition(HttpContext http) =>
-        http.Features.Get<ICacheOrchestratorFeature>()?.Disposition as CacheDisposition;
+        http.Features.Get<ICacheOrchestratorFeature>()?.Disposition;
 
     [Fact]
     public async Task GetOrSetAsync_WhenFactoryFailsAfterSoftExpiry_ReturnsStaleValueAndDisposition()

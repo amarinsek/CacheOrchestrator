@@ -12,7 +12,7 @@ public class EntityCacheTests
         int id = 42;
 
         // Act
-        var updated = cache.DependsOn("category", id);
+        EntityCache<string> updated = cache.DependsOn("category", id);
 
         // Assert
         Assert.Contains(updated.Footprint.DependsOn, r => r.EntityKind == "category" && r.ResourceId == "42");
@@ -26,7 +26,7 @@ public class EntityCacheTests
         Guid[] ids = [Guid.Parse("11111111-1111-1111-1111-111111111111")];
 
         // Act
-        var updated = cache.Members("user", ids);
+        EntityCache<string> updated = cache.Members("user", ids);
 
         // Assert
         Assert.Contains(updated.Footprint.Members, r => r.EntityKind == "user" && r.ResourceId == "11111111-1111-1111-1111-111111111111");
@@ -40,7 +40,7 @@ public class EntityCacheTests
         long id = 123456789;
 
         // Act
-        var updated = cache.Alias("sku", id);
+        EntityCache<string> updated = cache.Alias("sku", id);
 
         // Assert
         Assert.Contains(updated.Footprint.Aliases, r => r.EntityKind == "sku" && r.ResourceId == "123456789");

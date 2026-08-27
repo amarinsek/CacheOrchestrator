@@ -7,8 +7,6 @@ namespace CacheOrchestrator.Identity;
 /// </summary>
 internal sealed class CacheIdentityContractCatalog
 {
-    private readonly IReadOnlyDictionary<string, ICacheIdentityContract> _byName;
-
     public CacheIdentityContractCatalog(IEnumerable<ICacheIdentityContract> contracts)
     {
         ArgumentNullException.ThrowIfNull(contracts);
@@ -38,11 +36,11 @@ internal sealed class CacheIdentityContractCatalog
             }
         }
 
-        _byName = new ReadOnlyDictionary<string, ICacheIdentityContract>(map);
+        ByName = new ReadOnlyDictionary<string, ICacheIdentityContract>(map);
     }
 
-    public IReadOnlyDictionary<string, ICacheIdentityContract> ByName => _byName;
+    public IReadOnlyDictionary<string, ICacheIdentityContract> ByName { get; }
 
     public bool TryGet(string name, out ICacheIdentityContract contract) =>
-        _byName.TryGetValue(name, out contract!);
+        ByName.TryGetValue(name, out contract!);
 }

@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using CacheOrchestrator.Backends;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DataCache;
@@ -10,6 +9,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Collections.Concurrent;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.AspNetCore.UnitTests.Backends;
@@ -227,7 +227,7 @@ public class CustomBackendEndToEndTests
         services.AddLogging();
         var shared = new ConcurrentDictionary<string, DictionaryDistributedCache>(StringComparer.OrdinalIgnoreCase);
 
-        var act = () => services.AddCacheOrchestratorAspNetCore(
+        Func<IServiceCollection> act = () => services.AddCacheOrchestratorAspNetCore(
             config,
             o => o.AddBackend(new FakeDbBackendRegistrar(shared)));
 

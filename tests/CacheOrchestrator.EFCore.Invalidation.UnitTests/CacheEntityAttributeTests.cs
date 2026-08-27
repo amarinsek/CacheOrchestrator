@@ -10,7 +10,7 @@ public class CacheEntityAttributeTests
     [InlineData("   ")]
     public void Constructor_WhenDomainIsNullOrWhitespace_Throws(string? domain)
     {
-        var act = () => new CacheEntityAttribute(domain!, "products");
+        Func<CacheEntityAttribute> act = () => new CacheEntityAttribute(domain!, "products");
         act.Should().Throw<ArgumentException>().WithParameterName("domain");
     }
 
@@ -20,7 +20,7 @@ public class CacheEntityAttributeTests
     [InlineData("   ")]
     public void Constructor_WhenEntityKindIsNullOrWhitespace_Throws(string? kind)
     {
-        var act = () => new CacheEntityAttribute("store", kind!);
+        Func<CacheEntityAttribute> act = () => new CacheEntityAttribute("store", kind!);
         act.Should().Throw<ArgumentException>().WithParameterName("entityKind");
     }
 

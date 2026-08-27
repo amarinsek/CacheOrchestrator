@@ -47,7 +47,7 @@ internal static class LiveHintProjector
     public static AdminDomainStatsDto ToDomainStats(LiveEntityRateDto e, AdminDomainConfigDto? config = null)
     {
         long requests = EstimateRequests(e.RequestRate);
-        var (outputCache, dataCache, pipe) = BuildLayers(requests, e);
+        (AdminLayerDto? outputCache, AdminDataCacheLayerDto? dataCache, AdminPipelineDto? pipe) = BuildLayers(requests, e);
         return new AdminDomainStatsDto
         {
             Name = e.Name,
@@ -65,7 +65,7 @@ internal static class LiveHintProjector
     public static AdminEndpointStatsDto ToEndpointStats(LiveEntityRateDto e)
     {
         long requests = EstimateRequests(e.RequestRate);
-        var (outputCache, dataCache, pipe) = BuildLayers(requests, e);
+        (AdminLayerDto? outputCache, AdminDataCacheLayerDto? dataCache, AdminPipelineDto? pipe) = BuildLayers(requests, e);
         return new AdminEndpointStatsDto
         {
             Route = e.Name,

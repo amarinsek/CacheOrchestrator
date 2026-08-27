@@ -27,21 +27,21 @@ public class DomainOutputCachePolicyTests
     [InlineData("   ")]
     public void Constructor_WhenDomainIsNullOrWhitespace_Throws(string? domain)
     {
-        var act = () => new DomainOutputCachePolicy(domain!);
+        Func<DomainOutputCachePolicy> act = () => new DomainOutputCachePolicy(domain!);
         act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
     public void Constructor_WhenDomainResolverIsNull_Throws()
     {
-        var act = () => new DomainOutputCachePolicy((Func<HttpContext, string>)null!);
+        Func<DomainOutputCachePolicy> act = () => new DomainOutputCachePolicy((Func<HttpContext, string>)null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
     public void Constructor_WhenEntityKindIsGarbage_Throws()
     {
-        var act = () => new DomainOutputCachePolicy("store", "id", "!!!");
+        Func<DomainOutputCachePolicy> act = () => new DomainOutputCachePolicy("store", "id", "!!!");
         act.Should().Throw<ArgumentException>().WithParameterName("entityKind");
     }
 
@@ -60,7 +60,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenDomainIsEmpty_DoesNotEnableCaching()
     {
         var policy = new DomainOutputCachePolicy(_ => string.Empty);
-        var (context, _) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext _) = CreateContext();
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
@@ -76,7 +76,7 @@ public class DomainOutputCachePolicyTests
     {
         var policy = new DomainOutputCachePolicy("products");
 
-        var (context, _) = CreateContext(method: method);
+        (OutputCacheContext? context, DefaultHttpContext _) = CreateContext(method: method);
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
@@ -87,7 +87,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenUserIsAuthenticated_DoesNotEnableCaching()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
 
         var identity = new System.Security.Claims.ClaimsIdentity(authenticationType: "test");
         http.User = new System.Security.Claims.ClaimsPrincipal(identity);
@@ -102,7 +102,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenAuthorizationHeaderPresent_DoesNotEnableCaching()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
         http.Request.Headers.Authorization = "Bearer token";
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
@@ -115,7 +115,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenAuthenticated_AndBypassDisabled_EnablesCachingAndVariesByUser()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext(bypassWhenAuthenticated: false, varyOutputCacheByUser: true);
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(bypassWhenAuthenticated: false, varyOutputCacheByUser: true);
 
         var identity = new System.Security.Claims.ClaimsIdentity(
             [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "alice")],
@@ -132,7 +132,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenAuthorizationOnly_BypassDisabled_VariesByAuthHash()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext(bypassWhenAuthenticated: false, varyOutputCacheByUser: true);
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(bypassWhenAuthenticated: false, varyOutputCacheByUser: true);
         http.Request.Headers.Authorization = "Bearer secret-token";
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
@@ -145,7 +145,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenAuthenticated_BypassDisabled_VaryByUserFalse_DoesNotAddUserVary()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext(bypassWhenAuthenticated: false, varyOutputCacheByUser: false);
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(bypassWhenAuthenticated: false, varyOutputCacheByUser: false);
         http.Request.Headers.Authorization = "Bearer map-api-key";
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
@@ -158,7 +158,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenOutputCacheDisabled_DoesNotEnableCaching()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, _) = CreateContext(outputCacheEnabled: false);
+        (OutputCacheContext? context, DefaultHttpContext _) = CreateContext(outputCacheEnabled: false);
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
@@ -169,7 +169,7 @@ public class DomainOutputCachePolicyTests
     public async Task OnStarting_WhenOutputCacheDisabled_WritesOutputOff()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext(outputCacheEnabled: false);
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(outputCacheEnabled: false);
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
         await FlushHeadersAsync(http);
@@ -182,7 +182,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenRequestHasNoStore_DoesNotEnableCaching()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
         http.Request.Headers.CacheControl = "no-store";
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
@@ -195,7 +195,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenCacheControlIsMaxAgeOnly_StillEnablesCaching()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
         http.Request.Headers.CacheControl = "private, max-age=60";
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
@@ -207,7 +207,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenCacheControlValueLooksLikeNoStore_StillEnablesCaching()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
         http.Request.Headers.CacheControl = "max-age=no-store";
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
@@ -219,7 +219,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenHead_EnablesCaching()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, _) = CreateContext(method: "HEAD");
+        (OutputCacheContext? context, DefaultHttpContext _) = CreateContext(method: "HEAD");
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
@@ -236,7 +236,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenValidGetRequest_EnablesCaching()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, _) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext _) = CreateContext();
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
@@ -250,7 +250,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_AddsDomainTag()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, _) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext _) = CreateContext();
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
@@ -261,7 +261,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_SetsExpirationFromConfig()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, _) = CreateContext(outputTtlSeconds: 120);
+        (OutputCacheContext? context, DefaultHttpContext _) = CreateContext(outputTtlSeconds: 120);
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
@@ -272,7 +272,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_SetsETag()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext(version: "v1");
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(version: "v1");
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
@@ -284,7 +284,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_IgnoresTrackingQueryParametersInVary()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
         http.Request.QueryString = new QueryString("?id=1&utm_source=google&fbclid=abc");
 
         // Re-create query collection properly
@@ -306,7 +306,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_SetsDataVersionAndNamespacePrefix()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, _) = CreateContext(version: "v1");
+        (OutputCacheContext? context, DefaultHttpContext _) = CreateContext(version: "v1");
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
@@ -319,7 +319,7 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenEntityRoute_AddsEntityTags()
     {
         var policy = new DomainOutputCachePolicy("store", "id", "products");
-        var (context, http) = CreateContext(domain: "store");
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(domain: "store");
         http.Request.RouteValues["id"] = "42";
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
@@ -337,11 +337,11 @@ public class DomainOutputCachePolicyTests
     public async Task ServeResponseAsync_WhenStatusNotCacheable_DisablesStorage()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
         http.Response.StatusCode = 500;
 
         // Simulate that EnsureConfig already ran
-        var cfg = CreateEffectiveConfig();
+        DomainCacheOptions cfg = CreateEffectiveConfig();
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
         context.AllowCacheStorage = true;
 
@@ -354,11 +354,11 @@ public class DomainOutputCachePolicyTests
     public async Task ServeResponseAsync_WhenSetCookiePresent_DisablesStorage()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
         http.Response.StatusCode = 200;
         http.Response.Headers.SetCookie = "session=abc";
 
-        var cfg = CreateEffectiveConfig();
+        DomainCacheOptions cfg = CreateEffectiveConfig();
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
         context.AllowCacheStorage = true;
 
@@ -371,10 +371,10 @@ public class DomainOutputCachePolicyTests
     public async Task ServeResponseAsync_WhenStatus200AndNoSensitiveHeaders_KeepsStorageEnabled()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
         http.Response.StatusCode = 200;
 
-        var cfg = CreateEffectiveConfig();
+        DomainCacheOptions cfg = CreateEffectiveConfig();
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
         context.AllowCacheStorage = true;
 
@@ -391,7 +391,7 @@ public class DomainOutputCachePolicyTests
     public async Task ServeFromCacheAsync_ThenOnStarting_WritesHitWithoutData()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
         await policy.ServeFromCacheAsync(context, CancellationToken.None);
@@ -410,9 +410,9 @@ public class DomainOutputCachePolicyTests
     public async Task OnStarting_WhenHoldSchedule_WritesFloorMaxAgeAndPhaseHold()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddMinutes(5);
+        DateTimeOffset now = schedule.AddMinutes(5);
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext(
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(
             scheduledUpdateUtc: schedule,
             clientTtlSeconds: 3600,
             clientTtlMinSeconds: 90,
@@ -429,9 +429,9 @@ public class DomainOutputCachePolicyTests
     public async Task OnStarting_WhenFarFromSchedule_WritesMaxTtlAndPhaseCalm()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddHours(-2);
+        DateTimeOffset now = schedule.AddHours(-2);
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext(
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(
             scheduledUpdateUtc: schedule,
             clientTtlSeconds: 3600,
             clientTtlMinSeconds: 90,
@@ -448,9 +448,9 @@ public class DomainOutputCachePolicyTests
     public async Task OnStarting_WhenMidwayToSchedule_WritesLinearMaxAgeAndPhaseApproaching()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddSeconds(-1800);
+        DateTimeOffset now = schedule.AddSeconds(-1800);
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext(
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(
             scheduledUpdateUtc: schedule,
             clientTtlSeconds: 3600,
             clientTtlMinSeconds: 90,
@@ -467,7 +467,7 @@ public class DomainOutputCachePolicyTests
     public async Task OnStarting_WhenAuthenticatedAndPublic_ForcesPrivateClientHeader()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext(bypassWhenAuthenticated: false);
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(bypassWhenAuthenticated: false);
         http.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.Name, "alice")],
             authenticationType: "test"));
@@ -483,7 +483,7 @@ public class DomainOutputCachePolicyTests
     public async Task OnStarting_WhenEmitDiagnosticsHeadersFalse_OmitsXCache()
     {
         var policy = new DomainOutputCachePolicy("products");
-        var (context, http) = CreateContext(
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(
             orchestratorOptions: new CacheOrchestratorOptions { EmitDiagnosticsHeaders = false });
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
@@ -524,7 +524,7 @@ public class DomainOutputCachePolicyTests
         http.Request.Method = method;
         http.Request.Path = "/api/products";
 
-        var cfg = CreateEffectiveConfig(
+        DomainCacheOptions cfg = CreateEffectiveConfig(
             outputCacheEnabled,
             outputTtlSeconds,
             version,
@@ -535,7 +535,7 @@ public class DomainOutputCachePolicyTests
             clientTtlSeconds,
             clientTtlMinSeconds);
 
-        var domainConfig = Substitute.For<IRequestDomainCacheOptions>();
+        IRequestDomainCacheOptions domainConfig = Substitute.For<IRequestDomainCacheOptions>();
         domainConfig.EnsureDomainOptions(http, Arg.Any<string>()).Returns(call =>
         {
             http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
@@ -610,7 +610,6 @@ public class DomainOutputCachePolicyTests
     private sealed class OnStartingResponseFeature : IHttpResponseFeature, IHttpResponseBodyFeature
     {
         private readonly List<(Func<object, Task> Callback, object State)> _onStarting = [];
-        private PipeWriter? _writer;
 
         public int StatusCode { get; set; } = 200;
         public string? ReasonPhrase { get; set; }
@@ -618,7 +617,7 @@ public class DomainOutputCachePolicyTests
         public Stream Body { get; set; } = new MemoryStream();
         public bool HasStarted { get; private set; }
         public Stream Stream => Body;
-        public PipeWriter Writer => _writer ??= PipeWriter.Create(Body);
+        public PipeWriter Writer => field ??= PipeWriter.Create(Body);
 
         public void OnStarting(Func<object, Task> callback, object state)
         {

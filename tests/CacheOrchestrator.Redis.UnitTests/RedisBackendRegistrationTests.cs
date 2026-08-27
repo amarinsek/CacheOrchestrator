@@ -13,7 +13,7 @@ public class RedisBackendRegistrationTests
     public void AddCacheOrchestrator_RedisWithoutConnectionString_ThrowsAtRegistration()
     {
         var services = new ServiceCollection();
-        var config = new ConfigurationBuilder()
+        IConfigurationRoot config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "Redis",
@@ -23,7 +23,7 @@ public class RedisBackendRegistrationTests
 
         services.AddLogging();
 
-        var act = () =>
+        Action act = () =>
         {
             services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
             services.AddCacheOrchestratorFusionCache(config);
@@ -37,7 +37,7 @@ public class RedisBackendRegistrationTests
     public void AddRedisBackend_WhenProvidersAreInMemory_RegistersValidatorAndReturnsBuilder()
     {
         var services = new ServiceCollection();
-        var config = new ConfigurationBuilder()
+        IConfigurationRoot config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
@@ -60,7 +60,7 @@ public class RedisBackendRegistrationTests
     public void AddRedisBackend_WhenSectionIsWhitespace_Throws()
     {
         var services = new ServiceCollection();
-        var config = new ConfigurationBuilder()
+        IConfigurationRoot config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:OutputCache:Provider"] = "InMemory",
@@ -69,7 +69,7 @@ public class RedisBackendRegistrationTests
             .Build();
 
         services.AddLogging();
-        var act = () => services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend("  "));
+        Func<IServiceCollection> act = () => services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend("  "));
         act.Should().Throw<ArgumentException>();
     }
 }

@@ -47,7 +47,7 @@ public sealed class MetricsWindowStatsService
         CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = _time.GetUtcNow();
-        MetricsWindow window = MetricsWindow.Resolve(range, from, to, now);
+        var window = MetricsWindow.Resolve(range, from, to, now);
         string statsWindow = window.IsAbsolute
             ? $"Metrics store · {window.Start:u} → {window.End:u}"
             : $"Metrics store · last {window.RangeLabel}";
@@ -193,7 +193,9 @@ public sealed class MetricsWindowStatsService
                         .Select(kv => ToDomain(name, kv.Value, instanceId: kv.Key))
                         .ToList();
                     if (byInstance.Count == 0)
+                    {
                         byInstance = null;
+                    }
                     else
                     {
                         spread = new AdminInstanceSpreadDto
@@ -234,7 +236,9 @@ public sealed class MetricsWindowStatsService
                         .Select(kv => ToEndpoint(route, dom, kv.Value, instanceId: kv.Key))
                         .ToList();
                     if (byInstance.Count == 0)
+                    {
                         byInstance = null;
+                    }
                     else
                     {
                         spread = new AdminInstanceSpreadDto
@@ -274,7 +278,8 @@ public sealed class MetricsWindowStatsService
             foreach (AdminEndpointStatsDto ep in endpointRows)
             {
                 string d = ep.ConfiguredDomain ?? "";
-                if (d.Length == 0) continue;
+                if (d.Length == 0)
+                    continue;
                 if (!byDom.TryGetValue(d, out List<AdminEndpointStatsDto>? list))
                 {
                     list = [];
@@ -311,7 +316,7 @@ public sealed class MetricsWindowStatsService
             }).ToList();
 
             LayerBucket cluster = domains.Values.Aggregate(new LayerBucket(), (a, b) => a.Add(b));
-            var (req, oc, fc, pipe) = cluster.BuildLayers();
+            (long req, AdminLayerDto? oc, AdminDataCacheLayerDto? fc, AdminPipelineDto? pipe) = cluster.BuildLayers();
             CacheImpactKpiDto impact = ImpactMath.Compute(
                 req,
                 cluster.FactoryRuns,
@@ -569,17 +574,27 @@ public sealed class MetricsWindowStatsService
         {
             switch (result)
             {
-                case "hit": b.OutputCacheHits += n; break;
-                case "miss": b.OutputCacheMisses += n; break;
-                case "bypass": b.OutputCacheBypass += n; break;
-                case "off": b.OutputCacheOff += n; break;
+                case "hit":
+                    b.OutputCacheHits += n;
+                    break;
+                case "miss":
+                    b.OutputCacheMisses += n;
+                    break;
+                case "bypass":
+                    b.OutputCacheBypass += n;
+                    break;
+                case "off":
+                    b.OutputCacheOff += n;
+                    break;
             }
         }
         else
         {
             switch (result)
             {
-                case "hit": b.DataCacheHits += n; break;
+                case "hit":
+                    b.DataCacheHits += n;
+                    break;
                 case "miss":
                     b.DataCacheMisses += n;
                     b.FactoryRuns += n;
@@ -641,7 +656,7 @@ public sealed class MetricsWindowStatsService
         IReadOnlyList<AdminDomainStatsDto>? byInstance = null,
         AdminInstanceSpreadDto? spread = null)
     {
-        var (req, outputCache, dataCache, pipe) = b.BuildLayers();
+        (long req, AdminLayerDto? outputCache, AdminDataCacheLayerDto? dataCache, AdminPipelineDto? pipe) = b.BuildLayers();
         return new AdminDomainStatsDto
         {
             Name = name,
@@ -670,7 +685,7 @@ public sealed class MetricsWindowStatsService
         IReadOnlyList<AdminEndpointStatsDto>? byInstance = null,
         AdminInstanceSpreadDto? spread = null)
     {
-        var (req, outputCache, dataCache, pipe) = b.BuildLayers();
+        (long req, AdminLayerDto? outputCache, AdminDataCacheLayerDto? dataCache, AdminPipelineDto? pipe) = b.BuildLayers();
         return new AdminEndpointStatsDto
         {
             Route = route,

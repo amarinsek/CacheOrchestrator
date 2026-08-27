@@ -16,12 +16,12 @@ public class EndpointConventionBuilderExtensionsTests
     [Fact]
     public void CacheOutputWithDomain_WithString_AddsDomainOutputCachePolicy()
     {
-        using var app = CreateApp();
-        var builder = app.MapGet("/products", () => Results.Ok());
+        using WebApplication app = CreateApp();
+        RouteHandlerBuilder builder = app.MapGet("/products", () => Results.Ok());
 
         builder.CacheOutputWithDomain("products");
 
-        var endpoint = GetEndpoint(app, builder);
+        Endpoint endpoint = GetEndpoint(app, builder);
         endpoint.Metadata.OfType<DomainOutputCachePolicy>().Should().ContainSingle();
     }
 
@@ -31,10 +31,10 @@ public class EndpointConventionBuilderExtensionsTests
     [InlineData("   ")]
     public void CacheOutputWithDomain_WithInvalidString_Throws(string? domain)
     {
-        using var app = CreateApp();
-        var builder = app.MapGet("/products", () => Results.Ok());
+        using WebApplication app = CreateApp();
+        RouteHandlerBuilder builder = app.MapGet("/products", () => Results.Ok());
 
-        var act = () => builder.CacheOutputWithDomain(domain!);
+        Func<RouteHandlerBuilder> act = () => builder.CacheOutputWithDomain(domain!);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -42,8 +42,8 @@ public class EndpointConventionBuilderExtensionsTests
     [Fact]
     public void CacheOutputWithDomain_WithDomainAndEntityKind_AddsKindScopedPolicy()
     {
-        using var app = CreateApp();
-        var builder = app.MapGet("/products", () => Results.Ok());
+        using WebApplication app = CreateApp();
+        RouteHandlerBuilder builder = app.MapGet("/products", () => Results.Ok());
 
         builder.CacheOutputWithDomain("store", "products");
 
@@ -59,22 +59,22 @@ public class EndpointConventionBuilderExtensionsTests
     [Fact]
     public void CacheOutputWithDomain_WithResolver_AddsDomainOutputCachePolicy()
     {
-        using var app = CreateApp();
-        var builder = app.MapGet("/products", () => Results.Ok());
+        using WebApplication app = CreateApp();
+        RouteHandlerBuilder builder = app.MapGet("/products", () => Results.Ok());
 
         builder.CacheOutputWithDomain(ctx => "dynamic-domain");
 
-        var endpoint = GetEndpoint(app, builder);
+        Endpoint endpoint = GetEndpoint(app, builder);
         endpoint.Metadata.OfType<DomainOutputCachePolicy>().Should().ContainSingle();
     }
 
     [Fact]
     public void CacheOutputWithDomain_WithNullResolver_Throws()
     {
-        using var app = CreateApp();
-        var builder = app.MapGet("/products", () => Results.Ok());
+        using WebApplication app = CreateApp();
+        RouteHandlerBuilder builder = app.MapGet("/products", () => Results.Ok());
 
-        var act = () => builder.CacheOutputWithDomain((Func<HttpContext, string>)null!);
+        Func<RouteHandlerBuilder> act = () => builder.CacheOutputWithDomain((Func<HttpContext, string>)null!);
 
         act.Should().Throw<ArgumentNullException>();
     }
@@ -86,12 +86,12 @@ public class EndpointConventionBuilderExtensionsTests
     [Fact]
     public void CacheOutputWithDomainTemplate_AddsDomainOutputCachePolicy()
     {
-        using var app = CreateApp();
-        var builder = app.MapGet("/products", () => Results.Ok());
+        using WebApplication app = CreateApp();
+        RouteHandlerBuilder builder = app.MapGet("/products", () => Results.Ok());
 
         builder.CacheOutputWithDomainTemplate("tenant-{host}");
 
-        var endpoint = GetEndpoint(app, builder);
+        Endpoint endpoint = GetEndpoint(app, builder);
         endpoint.Metadata.OfType<DomainOutputCachePolicy>().Should().ContainSingle();
     }
 
@@ -100,10 +100,10 @@ public class EndpointConventionBuilderExtensionsTests
     [InlineData("")]
     public void CacheOutputWithDomainTemplate_WithInvalidTemplate_Throws(string? template)
     {
-        using var app = CreateApp();
-        var builder = app.MapGet("/products", () => Results.Ok());
+        using WebApplication app = CreateApp();
+        RouteHandlerBuilder builder = app.MapGet("/products", () => Results.Ok());
 
-        var act = () => builder.CacheOutputWithDomainTemplate(template!);
+        Func<RouteHandlerBuilder> act = () => builder.CacheOutputWithDomainTemplate(template!);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -122,7 +122,7 @@ public class EndpointConventionBuilderExtensionsTests
         conventionBuilder.CacheOutputWithDomainAttribute();
 
         // Apply recorded conventions
-        foreach (var convention in conventionBuilder.Conventions)
+        foreach (Action<EndpointBuilder> convention in conventionBuilder.Conventions)
             convention(endpointBuilder);
 
         endpointBuilder.Metadata.OfType<DomainOutputCachePolicy>().Should().ContainSingle();
@@ -135,7 +135,7 @@ public class EndpointConventionBuilderExtensionsTests
         var conventionBuilder = new TestConventionBuilder();
         conventionBuilder.CacheOutputWithDomainAttribute();
 
-        foreach (var convention in conventionBuilder.Conventions)
+        foreach (Action<EndpointBuilder> convention in conventionBuilder.Conventions)
             convention(endpointBuilder);
 
         endpointBuilder.Metadata.OfType<DomainOutputCachePolicy>().Should().BeEmpty();
@@ -147,7 +147,7 @@ public class EndpointConventionBuilderExtensionsTests
 
     private static WebApplication CreateApp()
     {
-        var builder = WebApplication.CreateBuilder();
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         return builder.Build();
     }
@@ -158,7 +158,7 @@ public class EndpointConventionBuilderExtensionsTests
         app.StartAsync().GetAwaiter().GetResult();
         try
         {
-            var endpointDataSource = app.Services.GetRequiredService<EndpointDataSource>();
+            EndpointDataSource endpointDataSource = app.Services.GetRequiredService<EndpointDataSource>();
             return endpointDataSource.Endpoints.Last();
         }
         finally

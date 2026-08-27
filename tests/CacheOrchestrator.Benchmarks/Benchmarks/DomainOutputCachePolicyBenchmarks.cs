@@ -105,7 +105,10 @@ public class DomainOutputCachePolicyBenchmarks
     {
         private readonly DomainCacheOptions _opts;
 
-        public FixedDomainOptionsProvider(DomainCacheOptions opts) => _opts = opts;
+        public FixedDomainOptionsProvider(DomainCacheOptions opts)
+        {
+            _opts = opts;
+        }
 
         public DomainCacheOptions EnsureDomainOptions(HttpContext http, string domain)
         {

@@ -73,7 +73,7 @@ public class AdminRegistrationTests
         health.StatusCode.Should().Be(HttpStatusCode.OK);
         AdminHealthDto? body = await health.Content.ReadFromJsonAsync<AdminHealthDto>(cancellationToken: Ct);
         body.Should().NotBeNull();
-        body!.InstanceId.Should().Be("unit-1");
+        body.InstanceId.Should().Be("unit-1");
         body.AdminEnabled.Should().BeTrue();
         body.Healthy.Should().BeTrue();
 
@@ -113,7 +113,7 @@ public class AdminRegistrationTests
         AdminDomainMutationResultDto? versionResult =
             await versionResponse.Content.ReadFromJsonAsync<AdminDomainMutationResultDto>(cancellationToken: Ct);
         versionResult.Should().NotBeNull();
-        versionResult!.Effective.Version.Should().Be("admin-v2");
+        versionResult.Effective.Version.Should().Be("admin-v2");
         versionResult.Effective.VersionIsRuntimeOverride.Should().BeTrue();
 
         using StringContent settingsBody = new(
@@ -130,7 +130,7 @@ public class AdminRegistrationTests
         AdminDomainMutationResultDto? settingsResult =
             await settingsResponse.Content.ReadFromJsonAsync<AdminDomainMutationResultDto>(cancellationToken: Ct);
         settingsResult.Should().NotBeNull();
-        settingsResult!.Effective.OutputCacheTtlSeconds.Should().Be(42);
+        settingsResult.Effective.OutputCacheTtlSeconds.Should().Be(42);
         settingsResult.Effective.ClientTtlSeconds.Should().Be(7);
         settingsResult.Effective.Version.Should().Be("admin-v2");
     }
@@ -150,7 +150,7 @@ public class AdminRegistrationTests
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         string json = await response.Content.ReadAsStringAsync(Ct);
-        using JsonDocument doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         doc.RootElement.TryGetProperty("succeeded", out _).Should().BeTrue();
 
         // Admin Console LocalAdminClient deserializes this type with Web defaults â€” must round-trip.
@@ -158,7 +158,7 @@ public class AdminRegistrationTests
             json,
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
         parsed.Should().NotBeNull();
-        parsed!.Succeeded.Should().BeTrue();
+        parsed.Succeeded.Should().BeTrue();
         parsed.IsSkipped.Should().BeFalse();
     }
 
@@ -212,7 +212,7 @@ public class AdminRegistrationTests
                     services.AddLogging();
                     services.AddRouting();
                     services.AddCacheOrchestratorAspNetCore(config, enableMvcConvention: false);
-        services.AddCacheOrchestratorFusionCache(config);
+                    services.AddCacheOrchestratorFusionCache(config);
                 });
                 web.Configure(app =>
                 {

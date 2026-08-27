@@ -1,6 +1,6 @@
-using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.HttpBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -118,7 +118,7 @@ public class ClusterBusRegistrationTests
         }).Build();
 
         services.AddLogging();
-        var act = () => services.AddCacheOrchestratorAspNetCore(config, o => o.AddHttpClusterBus(" "), enableMvcConvention: false);
+        Func<IServiceCollection> act = () => services.AddCacheOrchestratorAspNetCore(config, o => o.AddHttpClusterBus(" "), enableMvcConvention: false);
         services.AddCacheOrchestratorFusionCache(config);
         act.Should().Throw<ArgumentException>();
     }

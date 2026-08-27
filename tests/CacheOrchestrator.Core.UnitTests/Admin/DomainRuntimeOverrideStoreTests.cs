@@ -146,7 +146,10 @@ public class DomainRuntimeOverrideStoreTests
     {
         private event Action<CacheOrchestratorOptions, string?>? _onChange;
 
-        public TestOptionsMonitor(CacheOrchestratorOptions current) => CurrentValue = current;
+        public TestOptionsMonitor(CacheOrchestratorOptions current)
+        {
+            CurrentValue = current;
+        }
 
         public CacheOrchestratorOptions CurrentValue { get; private set; }
         public CacheOrchestratorOptions Get(string? name) => CurrentValue;

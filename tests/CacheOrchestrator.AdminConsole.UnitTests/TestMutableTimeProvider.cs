@@ -5,7 +5,10 @@ internal sealed class TestMutableTimeProvider : TimeProvider
 {
     private DateTimeOffset _utcNow;
 
-    public TestMutableTimeProvider(DateTimeOffset utcNow) => _utcNow = utcNow;
+    public TestMutableTimeProvider(DateTimeOffset utcNow)
+    {
+        _utcNow = utcNow;
+    }
 
     public override DateTimeOffset GetUtcNow() => _utcNow;
 

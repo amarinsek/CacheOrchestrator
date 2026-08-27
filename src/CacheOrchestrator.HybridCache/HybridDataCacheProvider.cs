@@ -15,11 +15,11 @@ namespace CacheOrchestrator.HybridCache;
 /// </remarks>
 internal sealed class HybridDataCacheProvider : IDataCacheProvider
 {
-    private readonly global::Microsoft.Extensions.Caching.Hybrid.HybridCache _cache;
+    private readonly Microsoft.Extensions.Caching.Hybrid.HybridCache _cache;
     private readonly ILogger<HybridDataCacheProvider> _logger;
 
     public HybridDataCacheProvider(
-        global::Microsoft.Extensions.Caching.Hybrid.HybridCache cache,
+        Microsoft.Extensions.Caching.Hybrid.HybridCache cache,
         ILogger<HybridDataCacheProvider> logger)
     {
         ArgumentNullException.ThrowIfNull(cache);
@@ -63,8 +63,7 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
         T result = await _cache.GetOrCreateAsync(
                 request.Key,
                 factory,
-                static async (Func<CancellationToken, ValueTask<T>> f, CancellationToken cancel) =>
-                    await f(cancel).ConfigureAwait(false),
+                static async (f, cancel) => await f(cancel).ConfigureAwait(false),
                 entryOptions,
                 tags,
                 cancellationToken)

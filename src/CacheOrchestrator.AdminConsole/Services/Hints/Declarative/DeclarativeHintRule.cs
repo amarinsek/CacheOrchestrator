@@ -1,6 +1,6 @@
+using CacheOrchestrator.Admin;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using CacheOrchestrator.Admin;
 
 namespace CacheOrchestrator.AdminConsole.Services.Hints.Declarative;
 
@@ -10,7 +10,6 @@ public sealed partial class DeclarativeHintRule : IHintRule
     private readonly HintCondition _when;
     private readonly string _messageTemplate;
     private readonly string _severity;
-    private readonly bool _definitionEnabled;
 
     public DeclarativeHintRule(
         string id,
@@ -37,7 +36,7 @@ public sealed partial class DeclarativeHintRule : IHintRule
         _severity = severity;
         _messageTemplate = messageTemplate;
         _when = when;
-        _definitionEnabled = definitionEnabled;
+        DefinitionEnabled = definitionEnabled;
         DefinitionJson = definitionJson;
         EmittedCodes = [code];
     }
@@ -56,11 +55,11 @@ public sealed partial class DeclarativeHintRule : IHintRule
     public string? DefinitionJson { get; }
 
     /// <summary>False when the rule file marks <c>enabled: false</c>.</summary>
-    public bool DefinitionEnabled => _definitionEnabled;
+    public bool DefinitionEnabled { get; }
 
     public IEnumerable<AdminHintDto> Evaluate(HintEvaluationContext context)
     {
-        if (!_definitionEnabled)
+        if (!DefinitionEnabled)
             yield break;
 
         string scope = Scope.ToLowerInvariant();

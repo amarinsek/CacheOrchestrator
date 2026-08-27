@@ -11,13 +11,11 @@ public sealed class CacheIdentityEndpointMetadata
     private readonly Dictionary<string, CacheIdentityBinding> _bindings =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private bool _resolved;
-
     /// <summary>Number of method bindings on this endpoint.</summary>
     public int Count => _bindings.Count;
 
     /// <summary>True after startup has resolved named contract instances.</summary>
-    public bool IsResolved => _resolved;
+    public bool IsResolved { get; private set; }
 
     /// <summary>
     /// Looks up the binding for <paramref name="httpMethod"/> (case-insensitive).
@@ -50,5 +48,5 @@ public sealed class CacheIdentityEndpointMetadata
         _bindings[method] = binding;
     }
 
-    internal void MarkResolved() => _resolved = true;
+    internal void MarkResolved() => IsResolved = true;
 }

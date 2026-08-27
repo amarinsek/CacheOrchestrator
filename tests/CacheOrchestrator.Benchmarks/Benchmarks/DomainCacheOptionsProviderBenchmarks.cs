@@ -63,7 +63,10 @@ public class DomainCacheOptionsProviderBenchmarks : IDisposable
     private sealed class FixedOptionsMonitor<T> : IOptionsMonitor<T>
         where T : class
     {
-        public FixedOptionsMonitor(T current) => CurrentValue = current;
+        public FixedOptionsMonitor(T current)
+        {
+            CurrentValue = current;
+        }
 
         public T CurrentValue { get; }
 

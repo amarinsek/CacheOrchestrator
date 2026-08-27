@@ -1,7 +1,5 @@
 using CacheOrchestrator.Backends;
 using Microsoft.AspNetCore.OutputCaching;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CacheOrchestrator.DependencyInjection;
 

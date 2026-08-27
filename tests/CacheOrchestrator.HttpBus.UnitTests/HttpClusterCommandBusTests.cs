@@ -1,6 +1,6 @@
-using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -211,7 +211,7 @@ public class HttpClusterCommandBusTests
             enabled: true,
             new RecordingHandler([], HttpStatusCode.OK));
 
-        var act = () => bus.PublishAsync(null!, TestContext.Current.CancellationToken);
+        Func<Task<ClusterPublishResult>> act = () => bus.PublishAsync(null!, TestContext.Current.CancellationToken);
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 

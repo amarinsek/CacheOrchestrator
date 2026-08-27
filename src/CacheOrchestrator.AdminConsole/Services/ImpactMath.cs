@@ -43,12 +43,12 @@ public static class ImpactMath
         long? factoryResultSizeSumBytes = null,
         long factoryResultSizeCount = 0)
     {
-        bool lowRequest = requests is > 0 and < LowRequestSampleThreshold || requests == 0;
+        bool lowRequest = requests is (> 0 and < LowRequestSampleThreshold) or 0;
         bool lowDuration = factoryDurationCount < LowDurationSampleThreshold;
         bool lowSize = factoryResultSizeCount < LowSizeSampleThreshold;
 
         double? factoryShare = requests > 0 ? (double)factoryRuns / requests : null;
-        double? avoidance = requests > 0 ? 1.0 - (double)factoryRuns / requests : null;
+        double? avoidance = requests > 0 ? 1.0 - ((double)factoryRuns / requests) : null;
 
         double? avgMs = factoryDurationCount > 0 && factoryDurationSumMs is double sum
             ? sum / factoryDurationCount
@@ -123,7 +123,8 @@ public static class ImpactMath
         };
     }
 
-    /// <param name="factoryRuns">
+    /// <param name="timeSavedMs"></param>
+    /// <param name="paidMs"></param>    /// <param name="factoryRuns">
     /// Pass 0 to allow ratio=1 when only time-saved exists; pass -1 to skip that special case
     /// (used when substituting a summed estimate).
     /// </param>
@@ -170,7 +171,7 @@ public static class ImpactMath
     /// <summary>Picks the higher of two cost levels (UNKNOWN is ignored unless both unknown).</summary>
     public static string MaxCost(string a, string b)
     {
-        int Ra(string c) => c switch
+        static int Ra(string c) => c switch
         {
             "HIGH" => 3,
             "MEDIUM" => 2,

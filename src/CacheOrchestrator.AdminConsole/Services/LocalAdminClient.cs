@@ -2,10 +2,8 @@ using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Models;
 using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.Invalidation;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
-using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace CacheOrchestrator.AdminConsole.Services;
@@ -146,7 +144,7 @@ public sealed class LocalAdminClient : ILocalAdminClient
         if (body is not null && method != HttpMethod.Get)
             request.Content = JsonContent.Create(body, options: JsonOptions);
 
-        Stopwatch sw = Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
         try
         {
             using HttpResponseMessage response = await client
@@ -251,7 +249,9 @@ public sealed class LocalAdminClient : ILocalAdminClient
     {
         if (!string.IsNullOrEmpty(mediaType)
             && mediaType.Contains("json", StringComparison.OrdinalIgnoreCase))
+        {
             return false;
+        }
 
         ReadOnlySpan<char> trimmed = raw.AsSpan().TrimStart();
         if (trimmed.IsEmpty)
@@ -264,7 +264,9 @@ public sealed class LocalAdminClient : ILocalAdminClient
             && (mediaType.Contains("html", StringComparison.OrdinalIgnoreCase)
                 || mediaType.Contains("text/plain", StringComparison.OrdinalIgnoreCase))
             && trimmed[0] is not '{' and not '[')
+        {
             return true;
+        }
 
         return false;
     }
@@ -287,7 +289,7 @@ public sealed class LocalAdminClient : ILocalAdminClient
 
         try
         {
-            using JsonDocument doc = JsonDocument.Parse(trimmed);
+            using var doc = JsonDocument.Parse(trimmed);
             if (doc.RootElement.ValueKind == JsonValueKind.Object
                 && doc.RootElement.TryGetProperty("error", out JsonElement err)
                 && err.ValueKind == JsonValueKind.String)

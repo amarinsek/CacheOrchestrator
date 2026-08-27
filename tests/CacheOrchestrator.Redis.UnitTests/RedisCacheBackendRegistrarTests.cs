@@ -31,7 +31,7 @@ public class RedisCacheBackendRegistrarTests
     {
         var services = new ServiceCollection();
         var options = new CacheOrchestratorOptions { OutputCache = { Provider = "Redis" } };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:Redis:Configuration"] = "localhost:6379"
@@ -41,7 +41,7 @@ public class RedisCacheBackendRegistrarTests
         var context = new OutputCacheRegistrationContext(
             services, configuration, options, "Cache", "Redis", configurators);
 
-        var act = () => _sut.RegisterOutputCache(context);
+        Action act = () => _sut.RegisterOutputCache(context);
         act.Should().NotThrow();
     }
 
@@ -49,10 +49,10 @@ public class RedisCacheBackendRegistrarTests
     public void RegisterFusionCache_WhenConnectionStringPresent_DoesNotThrow()
     {
         var services = new ServiceCollection();
-        var builder = services.AddFusionCache();
+        IFusionCacheBuilder builder = services.AddFusionCache();
         var options = new CacheOrchestratorOptions();
         var instanceOpts = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:Redis:Configuration"] = "localhost:6379"
@@ -62,7 +62,7 @@ public class RedisCacheBackendRegistrarTests
             services, configuration, options, "Cache", "default", instanceOpts, "Redis", builder,
             options.GetEffectiveDistributedResilience());
 
-        var act = () => _sut.RegisterFusionCache(context);
+        Action act = () => _sut.RegisterFusionCache(context);
         act.Should().NotThrow();
     }
 }

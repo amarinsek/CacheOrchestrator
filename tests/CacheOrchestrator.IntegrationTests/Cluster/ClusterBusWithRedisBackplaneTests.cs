@@ -1,6 +1,6 @@
-using CacheOrchestrator.HttpBus;
-using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
@@ -31,7 +31,10 @@ public class ClusterBusWithRedisBackplaneTests
 
     private readonly RedisFixture _redis;
 
-    public ClusterBusWithRedisBackplaneTests(RedisFixture redis) => _redis = redis;
+    public ClusterBusWithRedisBackplaneTests(RedisFixture redis)
+    {
+        _redis = redis;
+    }
 
     private sealed class HitCounter
     {
@@ -140,7 +143,7 @@ public class ClusterBusWithRedisBackplaneTests
             o =>
             {
                 o.AddRedisBackend();
-        builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
+                builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
                 o.AddHttpClusterBus();
             },
             enableMvcConvention: false);
@@ -259,7 +262,7 @@ public class ClusterBusWithRedisBackplaneTests
             Admin.AdminDomainConfigDto? bDomain = await b.Client
                 .GetFromJsonAsync<Admin.AdminDomainConfigDto>($"/cache-admin/local/domains/{domain}", Ct);
             bDomain.Should().NotBeNull();
-            bDomain!.Version.Should().Be("redis-bus-v1");
+            bDomain.Version.Should().Be("redis-bus-v1");
             bDomain.VersionIsRuntimeOverride.Should().BeTrue();
         }
     }

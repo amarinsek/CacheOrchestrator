@@ -70,7 +70,7 @@ public class CacheOrchestratorServiceTests
 
         value.Should().Be("cached");
         captured.Should().NotBeNull();
-        captured!.Key.Should().Be("products:abc123:product:42");
+        captured.Key.Should().Be("products:abc123:product:42");
         captured.InstanceName.Should().Be("default");
         captured.Tags.Should().Equal("domain:products");
         captured.DomainOptions.Should().BeSameAs(opts);
@@ -260,7 +260,7 @@ public class CacheOrchestratorServiceTests
 
         setRequest.Should().NotBeNull();
         setValue.Should().NotBeNull();
-        setRequest!.Tags.Should().Contain("entity:store:items:42");
+        setRequest.Tags.Should().Contain("entity:store:items:42");
         setRequest.Tags.Should().Contain("entity:store:categories:9");
         setRequest.Tags.Should().Contain("entitykind:store:categories");
     }

@@ -1,8 +1,8 @@
+using CacheOrchestrator.Identity;
+using Microsoft.AspNetCore.Http;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using CacheOrchestrator.Identity;
-using Microsoft.AspNetCore.Http;
 
 namespace CacheOrchestrator.Sample.Identity;
 
@@ -47,7 +47,7 @@ public sealed class ProductSearchIdentityContract : ICacheIdentityContract
         if (string.IsNullOrWhiteSpace(q))
             return null;
 
-        string sort = string.IsNullOrWhiteSpace(body?.Sort) ? "relevance" : body!.Sort!;
+        string sort = string.IsNullOrWhiteSpace(body?.Sort) ? "relevance" : body.Sort;
         int page = body?.Page is > 0 ? body.Page.Value : 1;
 
         return new CacheIdentityMaterial(

@@ -10,14 +10,14 @@ public class RedisProviderOptionsValidatorTests
     [Fact]
     public void Validate_RedisOutputWithoutConnection_Fails()
     {
-        var config = new ConfigurationBuilder().Build();
+        IConfigurationRoot config = new ConfigurationBuilder().Build();
         var validator = new RedisProviderOptionsValidator(config, "Cache");
         var options = new CacheOrchestratorOptions
         {
             OutputCache = { Provider = "Redis" }
         };
 
-        var result = validator.Validate(null, options);
+        ValidateOptionsResult result = validator.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
         result.Failures.Should().Contain(f => f.Contains("OutputCache", StringComparison.OrdinalIgnoreCase));
@@ -26,7 +26,7 @@ public class RedisProviderOptionsValidatorTests
     [Fact]
     public void Validate_RedisFusionWithoutConnection_Fails()
     {
-        var config = new ConfigurationBuilder().Build();
+        IConfigurationRoot config = new ConfigurationBuilder().Build();
         var validator = new RedisProviderOptionsValidator(config, "Cache");
         var options = new CacheOrchestratorOptions
         {
@@ -36,7 +36,7 @@ public class RedisProviderOptionsValidatorTests
             }
         };
 
-        var result = validator.Validate(null, options);
+        ValidateOptionsResult result = validator.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
         result.Failures.Should().Contain(f => f.Contains("DataCacheInstances['default']", StringComparison.OrdinalIgnoreCase));
@@ -45,7 +45,7 @@ public class RedisProviderOptionsValidatorTests
     [Fact]
     public void Validate_RedisWithGlobalConnection_Succeeds()
     {
-        var config = new ConfigurationBuilder()
+        IConfigurationRoot config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:Redis:Configuration"] = "localhost:6379"
@@ -61,7 +61,7 @@ public class RedisProviderOptionsValidatorTests
             }
         };
 
-        var result = validator.Validate(null, options);
+        ValidateOptionsResult result = validator.Validate(null, options);
 
         result.Succeeded.Should().BeTrue();
     }
@@ -98,14 +98,14 @@ public class RedisProviderOptionsValidatorTests
     public void Validate_WhenOptionsAreNull_Throws()
     {
         var validator = new RedisProviderOptionsValidator(new ConfigurationBuilder().Build(), "Cache");
-        var act = () => validator.Validate(null, null!);
+        Func<ValidateOptionsResult> act = () => validator.Validate(null, null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
     public void Constructor_WhenConfigSectionIsWhitespace_Throws()
     {
-        var act = () => new RedisProviderOptionsValidator(new ConfigurationBuilder().Build(), " ");
+        Func<RedisProviderOptionsValidator> act = () => new RedisProviderOptionsValidator(new ConfigurationBuilder().Build(), " ");
         act.Should().Throw<ArgumentException>();
     }
 }

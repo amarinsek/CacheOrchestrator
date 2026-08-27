@@ -1,8 +1,8 @@
-using System.Net;
-using System.Net.Http.Json;
 using CacheOrchestrator.AdminConsole.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using System.Net;
+using System.Net.Http.Json;
 
 namespace CacheOrchestrator.AdminConsole.UnitTests;
 
@@ -13,7 +13,10 @@ public class AdminConsoleHostTests : IClassFixture<AdminConsoleHostTests.Factory
 {
     private readonly Factory _factory;
 
-    public AdminConsoleHostTests(Factory factory) => _factory = factory;
+    public AdminConsoleHostTests(Factory factory)
+    {
+        _factory = factory;
+    }
 
     [Fact]
     public async Task Health_ReturnsOk()
@@ -35,7 +38,7 @@ public class AdminConsoleHostTests : IClassFixture<AdminConsoleHostTests.Factory
             await response.Content.ReadFromJsonAsync<Dictionary<string, object?>>(
                 cancellationToken: TestContext.Current.CancellationToken);
         payload.Should().NotBeNull();
-        payload!["product"]?.ToString().Should().Contain("Admin Console");
+        payload["product"]?.ToString().Should().Contain("Admin Console");
     }
 
     [Fact]
@@ -46,7 +49,7 @@ public class AdminConsoleHostTests : IClassFixture<AdminConsoleHostTests.Factory
             "/api/metrics/status",
             TestContext.Current.CancellationToken);
         status.Should().NotBeNull();
-        status!.Status.Should().Be(MetricsStoreStatusCodes.NotConfigured);
+        status.Status.Should().Be(MetricsStoreStatusCodes.NotConfigured);
     }
 
     [Fact]
@@ -57,10 +60,9 @@ public class AdminConsoleHostTests : IClassFixture<AdminConsoleHostTests.Factory
             "/api/stats/window?range=1h",
             TestContext.Current.CancellationToken);
         window.Should().NotBeNull();
-        window!.Status.Should().Be(MetricsStoreStatusCodes.NotConfigured);
+        window.Status.Should().Be(MetricsStoreStatusCodes.NotConfigured);
         window.Domains.Should().BeEmpty();
     }
-
 
     [Fact]
     public async Task Invalidate_MissingDomain_ReturnsBadRequest()
@@ -131,7 +133,7 @@ public class AdminConsoleHostTests : IClassFixture<AdminConsoleHostTests.Factory
             "/api/metrics/catalog",
             TestContext.Current.CancellationToken);
         catalog.Should().NotBeNull();
-        catalog!.Status.Should().Be(MetricsStoreStatusCodes.NotConfigured);
+        catalog.Status.Should().Be(MetricsStoreStatusCodes.NotConfigured);
         catalog.Panels.Should().BeEmpty("catalog panels are empty until a metrics store is configured");
     }
 
@@ -143,7 +145,7 @@ public class AdminConsoleHostTests : IClassFixture<AdminConsoleHostTests.Factory
             "/api/distribution",
             TestContext.Current.CancellationToken);
         cap.Should().NotBeNull();
-        cap!.RecommendedMode.Should().Be(DistributionModes.FanOut);
+        cap.RecommendedMode.Should().Be(DistributionModes.FanOut);
         cap.BusAvailable.Should().BeFalse();
     }
 

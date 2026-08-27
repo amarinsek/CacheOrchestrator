@@ -70,7 +70,7 @@ public class EfCoreRegistrationTests
     {
         ServiceCollection services = new();
         IConfiguration config = InMemoryCacheConfig();
-        var act = () => services.AddCacheOrchestratorEfCoreInvalidation(config, configSection: " ");
+        Func<IServiceCollection> act = () => services.AddCacheOrchestratorEfCoreInvalidation(config, configSection: " ");
         act.Should().Throw<ArgumentException>();
     }
 

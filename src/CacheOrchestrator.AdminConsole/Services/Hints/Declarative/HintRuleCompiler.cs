@@ -279,7 +279,7 @@ public sealed partial class HintRuleCompiler
         }
 
         bool needsValue = op is not ("exists" or "notexists" or "!exists");
-        JsonValue value = JsonValue.FromObject(null);
+        var value = JsonValue.FromObject(null);
         if (needsValue)
         {
             if (!el.TryGetProperty("value", out JsonElement valEl))

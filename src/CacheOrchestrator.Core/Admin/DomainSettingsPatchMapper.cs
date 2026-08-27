@@ -1,6 +1,6 @@
+using CacheOrchestrator.Configuration;
 using System.Globalization;
 using System.Text.Json;
-using CacheOrchestrator.Configuration;
 
 namespace CacheOrchestrator.Admin;
 
@@ -67,36 +67,96 @@ public static class DomainSettingsPatchMapper
             string id = entry.Id;
             switch (id)
             {
-                case "outputCache.enabled": outputCacheEnabled = ReadBool(el, id); break;
-                case "dataCache.enabled": dataCacheEnabled = ReadBool(el, id); break;
-                case "authBypassMode": authBypassMode = ReadEnum<AuthBypassMode>(el, id); break;
-                case "varyOutputCacheByUser": varyOutputCacheByUser = ReadBool(el, id); break;
-                case "treatAuthorizationAsAuthSignal": treatAuthorizationAsAuthSignal = ReadBool(el, id); break;
-                case "authVaryIncludeAuthorizationHash": authVaryIncludeAuthorizationHash = ReadBool(el, id); break;
-                case "dataCacheRespectAuthBypass": dataCacheRespectAuthBypass = ReadBool(el, id); break;
-                case "clientCache.forcePrivateWhenAuthenticated": clientForcePrivateWhenAuthenticated = ReadBool(el, id); break;
-                case "varyByAccept": varyByAccept = ReadBool(el, id); break;
-                case "varyByAcceptLanguage": varyByAcceptLanguage = ReadBool(el, id); break;
-                case "emitResponseVary": emitResponseVary = ReadBool(el, id); break;
-                case "acceptNormalizationList": acceptNormalizationList = ReadStringArray(el, id, max: 16); break;
-                case "acceptLanguageNormalizationList": acceptLanguageNormalizationList = ReadStringArray(el, id, max: 16); break;
-                case "varyByHeaders": varyByHeaders = ReadStringArray(el, id, max: MaxVaryByHeaders); break;
-                case "varyByQueryKeys": varyByQueryKeys = ReadStringArray(el, id, max: 32); break;
-                case "ignoreQueryKeys": ignoreQueryKeys = ReadStringArray(el, id, max: 32); break;
-                case "varyByCookies": varyByCookies = ReadStringArray(el, id, max: MaxVaryByCookies); break;
-                case "varyByAuthClaims": varyByAuthClaims = ReadStringArray(el, id, max: 16); break;
-                case "outputCache.eTagMode": eTagMode = ReadEnum<ETagMode>(el, id); break;
-                case "clientCache.cacheability": clientCacheability = ReadEnum<ClientCacheability>(el, id); break;
-                case "clientCache.ttlSeconds": clientTtl = ReadNonNegSecondsAsTimeSpan(el, id); break;
-                case "clientCache.ttlMinSeconds": clientTtlMin = ReadNonNegSecondsAsTimeSpan(el, id); break;
-                case "clientCache.scheduledUpdateUtc": scheduledUpdateUtc = ReadDateTimeOffset(el, id); break;
-                case "clientCache.mustRevalidateNearUpdate": clientMustRevalidateNearUpdate = ReadBool(el, id); break;
-                case "outputCache.ttlSeconds": outputCacheTtl = ReadNonNegSecondsAsTimeSpan(el, id); break;
-                case "dataCache.ttlSeconds": dataCacheTtl = ReadNonNegSecondsAsTimeSpan(el, id); break;
-                case "dataCache.respectNoStore": dataCacheRespectNoStore = ReadBool(el, id); break;
-                case "dataCache.varyOnPublicAddress": dataCacheVaryOnPublicAddress = ReadBool(el, id); break;
-                case "dataCache.varyOnEncoding": dataCacheVaryOnEncoding = ReadBool(el, id); break;
-                case "outputCache.varyByHost": outputCacheVaryByHost = ReadBool(el, id); break;
+                case "outputCache.enabled":
+                    outputCacheEnabled = ReadBool(el, id);
+                    break;
+                case "dataCache.enabled":
+                    dataCacheEnabled = ReadBool(el, id);
+                    break;
+                case "authBypassMode":
+                    authBypassMode = ReadEnum<AuthBypassMode>(el, id);
+                    break;
+                case "varyOutputCacheByUser":
+                    varyOutputCacheByUser = ReadBool(el, id);
+                    break;
+                case "treatAuthorizationAsAuthSignal":
+                    treatAuthorizationAsAuthSignal = ReadBool(el, id);
+                    break;
+                case "authVaryIncludeAuthorizationHash":
+                    authVaryIncludeAuthorizationHash = ReadBool(el, id);
+                    break;
+                case "dataCacheRespectAuthBypass":
+                    dataCacheRespectAuthBypass = ReadBool(el, id);
+                    break;
+                case "clientCache.forcePrivateWhenAuthenticated":
+                    clientForcePrivateWhenAuthenticated = ReadBool(el, id);
+                    break;
+                case "varyByAccept":
+                    varyByAccept = ReadBool(el, id);
+                    break;
+                case "varyByAcceptLanguage":
+                    varyByAcceptLanguage = ReadBool(el, id);
+                    break;
+                case "emitResponseVary":
+                    emitResponseVary = ReadBool(el, id);
+                    break;
+                case "acceptNormalizationList":
+                    acceptNormalizationList = ReadStringArray(el, id, max: 16);
+                    break;
+                case "acceptLanguageNormalizationList":
+                    acceptLanguageNormalizationList = ReadStringArray(el, id, max: 16);
+                    break;
+                case "varyByHeaders":
+                    varyByHeaders = ReadStringArray(el, id, max: MaxVaryByHeaders);
+                    break;
+                case "varyByQueryKeys":
+                    varyByQueryKeys = ReadStringArray(el, id, max: 32);
+                    break;
+                case "ignoreQueryKeys":
+                    ignoreQueryKeys = ReadStringArray(el, id, max: 32);
+                    break;
+                case "varyByCookies":
+                    varyByCookies = ReadStringArray(el, id, max: MaxVaryByCookies);
+                    break;
+                case "varyByAuthClaims":
+                    varyByAuthClaims = ReadStringArray(el, id, max: 16);
+                    break;
+                case "outputCache.eTagMode":
+                    eTagMode = ReadEnum<ETagMode>(el, id);
+                    break;
+                case "clientCache.cacheability":
+                    clientCacheability = ReadEnum<ClientCacheability>(el, id);
+                    break;
+                case "clientCache.ttlSeconds":
+                    clientTtl = ReadNonNegSecondsAsTimeSpan(el, id);
+                    break;
+                case "clientCache.ttlMinSeconds":
+                    clientTtlMin = ReadNonNegSecondsAsTimeSpan(el, id);
+                    break;
+                case "clientCache.scheduledUpdateUtc":
+                    scheduledUpdateUtc = ReadDateTimeOffset(el, id);
+                    break;
+                case "clientCache.mustRevalidateNearUpdate":
+                    clientMustRevalidateNearUpdate = ReadBool(el, id);
+                    break;
+                case "outputCache.ttlSeconds":
+                    outputCacheTtl = ReadNonNegSecondsAsTimeSpan(el, id);
+                    break;
+                case "dataCache.ttlSeconds":
+                    dataCacheTtl = ReadNonNegSecondsAsTimeSpan(el, id);
+                    break;
+                case "dataCache.respectNoStore":
+                    dataCacheRespectNoStore = ReadBool(el, id);
+                    break;
+                case "dataCache.varyOnPublicAddress":
+                    dataCacheVaryOnPublicAddress = ReadBool(el, id);
+                    break;
+                case "dataCache.varyOnEncoding":
+                    dataCacheVaryOnEncoding = ReadBool(el, id);
+                    break;
+                case "outputCache.varyByHost":
+                    outputCacheVaryByHost = ReadBool(el, id);
+                    break;
                 default:
                     throw new ArgumentException($"Setting '{id}' is not mapped for overlay.", nameof(settings));
             }

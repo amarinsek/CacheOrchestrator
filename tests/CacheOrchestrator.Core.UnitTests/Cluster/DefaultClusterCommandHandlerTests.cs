@@ -105,7 +105,7 @@ public class DefaultClusterCommandHandlerTests
     [Fact]
     public async Task ApplyLocalAsync_DuplicateCommandId_IsIgnored()
     {
-        Guid id = Guid.NewGuid();
+        var id = Guid.NewGuid();
         InvalidateCommand cmd = CreateInvalidate(ns: "app1", origin: "remote-2") with { CommandId = id };
 
         _invalidator

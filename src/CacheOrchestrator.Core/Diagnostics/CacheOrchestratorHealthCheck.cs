@@ -50,7 +50,7 @@ internal sealed class CacheOrchestratorHealthCheck : IHealthCheck
         {
             try
             {
-                using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(context.Registration.Timeout);
                 await probe.ProbeAsync(cts.Token).ConfigureAwait(false);
                 data[$"probe:{probe.Name}"] = "ok";

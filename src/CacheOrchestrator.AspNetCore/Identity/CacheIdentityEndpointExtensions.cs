@@ -26,7 +26,7 @@ public static class CacheIdentityEndpointExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(contractName);
 
         string[] methodList = NormalizeMethods(methods);
-        CacheIdentityBinding binding = CacheIdentityBinding.CreateNamed(contractName);
+        var binding = CacheIdentityBinding.CreateNamed(contractName);
 
         builder.Add(endpointBuilder =>
             ApplyBinding(endpointBuilder, methodList, binding));
@@ -52,7 +52,7 @@ public static class CacheIdentityEndpointExtensions
         ArgumentNullException.ThrowIfNull(methods);
 
         string[] methodList = NormalizeMethods(methods);
-        CacheIdentityBinding binding = CacheIdentityBinding.CreateContentHash(maxBodyBytes);
+        var binding = CacheIdentityBinding.CreateContentHash(maxBodyBytes);
 
         builder.Add(endpointBuilder =>
             ApplyBinding(endpointBuilder, methodList, binding));

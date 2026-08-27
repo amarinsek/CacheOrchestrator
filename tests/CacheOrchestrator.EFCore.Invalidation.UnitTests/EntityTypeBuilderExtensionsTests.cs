@@ -1,6 +1,7 @@
 using CacheOrchestrator.EFCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CacheOrchestrator.EFCore.Invalidation.UnitTests;
 
@@ -21,7 +22,7 @@ public class EntityTypeBuilderExtensionsTests
     public void CacheInvalidate_WhenDomainIsWhitespace_Throws()
     {
         ModelBuilder modelBuilder = new();
-        var act = () => modelBuilder.Entity<Widget>().CacheInvalidate("  ", "widgets");
+        Func<EntityTypeBuilder<Widget>> act = () => modelBuilder.Entity<Widget>().CacheInvalidate("  ", "widgets");
         act.Should().Throw<ArgumentException>();
     }
 

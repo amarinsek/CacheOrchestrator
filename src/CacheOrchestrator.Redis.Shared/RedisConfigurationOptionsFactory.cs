@@ -16,7 +16,7 @@ public static class RedisConfigurationOptionsFactory
         if (string.IsNullOrWhiteSpace(redis.Configuration))
             throw new ArgumentException("Redis Configuration (connection string) is required.", nameof(redis));
 
-        ConfigurationOptions options = ConfigurationOptions.Parse(redis.Configuration);
+        var options = ConfigurationOptions.Parse(redis.Configuration);
         options.AbortOnConnectFail = false;
         options.ConnectTimeout = redis.ConnectTimeout;
         options.SyncTimeout = redis.SyncTimeout;

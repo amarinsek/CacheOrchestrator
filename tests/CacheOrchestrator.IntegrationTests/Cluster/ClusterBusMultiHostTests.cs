@@ -1,8 +1,8 @@
 using CacheOrchestrator.Admin;
-using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Cluster;
-using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -272,7 +272,7 @@ public class ClusterBusMultiHostTests
             builder.WebHost.UseKestrel().UseUrls($"http://127.0.0.1:{port}");
             builder.Logging.ClearProviders();
             builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration, o => o.AddHttpClusterBus(), enableMvcConvention: false);
-        builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
+            builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
             builder.Services.AddSingleton<HitCounter>();
             WebApplication app = builder.Build();
             app.UseRouting();
@@ -398,7 +398,7 @@ public class ClusterBusMultiHostTests
         (await host.Client.GetAsync("/api/x", Ct)).EnsureSuccessStatusCode();
         host.Hits.Count.Should().Be(1);
 
-        Guid commandId = Guid.NewGuid();
+        var commandId = Guid.NewGuid();
         InvalidateCommand cmd = new()
         {
             CommandId = commandId,
@@ -449,7 +449,7 @@ public class ClusterBusMultiHostTests
             AdminDomainConfigDto? bDomain = await b.Client
                 .GetFromJsonAsync<AdminDomainConfigDto>($"/cache-admin/local/domains/{domain}", Ct);
             bDomain.Should().NotBeNull();
-            bDomain!.Version.Should().Be("cluster-v9");
+            bDomain.Version.Should().Be("cluster-v9");
             bDomain.VersionIsRuntimeOverride.Should().BeTrue();
         }
     }
@@ -521,7 +521,7 @@ public class ClusterBusMultiHostTests
                 await a.Client.GetAsync("/cache-admin/local/cluster/info", Ct);
             response.EnsureSuccessStatusCode();
             string json = await response.Content.ReadAsStringAsync(Ct);
-            using JsonDocument doc = JsonDocument.Parse(json);
+            using var doc = JsonDocument.Parse(json);
             doc.RootElement.GetProperty("busEnabled").GetBoolean().Should().BeTrue();
             doc.RootElement.GetProperty("membership").GetString().Should().Be("Static");
             doc.RootElement.GetProperty("peerCount").GetInt32().Should().Be(2);
@@ -755,7 +755,7 @@ public class ClusterBusMultiHostTests
         result.DataCacheSucceeded.Should().BeTrue();
         result.OutputSucceeded.Should().BeTrue();
         result.ClusterPublish.Should().NotBeNull();
-        result.ClusterPublish!.AllSucceeded.Should().BeFalse();
+        result.ClusterPublish.AllSucceeded.Should().BeFalse();
         result.Errors.Should().NotBeEmpty();
 
         (await host.Client.GetAsync("/api/x", Ct)).EnsureSuccessStatusCode();

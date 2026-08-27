@@ -108,7 +108,10 @@ public readonly struct JsonValue
 {
     private readonly object? _raw;
 
-    private JsonValue(object? raw) => _raw = raw;
+    private JsonValue(object? raw)
+    {
+        _raw = raw;
+    }
 
     public static JsonValue From(System.Text.Json.JsonElement el) => el.ValueKind switch
     {

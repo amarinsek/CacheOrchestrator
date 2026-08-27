@@ -1,7 +1,7 @@
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
-using CacheOrchestrator.DataCache;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
@@ -26,7 +26,10 @@ public class RedisMultiNodeTests
 {
     private readonly RedisFixture _redis;
 
-    public RedisMultiNodeTests(RedisFixture redis) => _redis = redis;
+    public RedisMultiNodeTests(RedisFixture redis)
+    {
+        _redis = redis;
+    }
 
     private sealed class HitCounter
     {
@@ -163,7 +166,7 @@ public class RedisMultiNodeTests
             ServiceCollection services = new();
             services.AddLogging();
             services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
-        services.AddCacheOrchestratorFusionCache(config);
+            services.AddCacheOrchestratorFusionCache(config);
             return services.BuildServiceProvider();
         }
 
@@ -238,7 +241,7 @@ public class RedisMultiNodeTests
             ServiceCollection services = new();
             services.AddLogging();
             services.AddCacheOrchestratorAspNetCore(config, o => o.AddRedisBackend());
-        services.AddCacheOrchestratorFusionCache(config);
+            services.AddCacheOrchestratorFusionCache(config);
             return services.BuildServiceProvider();
         }
 
