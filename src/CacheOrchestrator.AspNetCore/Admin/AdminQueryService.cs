@@ -72,7 +72,7 @@ internal sealed class AdminQueryService
             ICacheOrchestratorHealthProbe probe = _probes[i];
             try
             {
-                using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(TimeSpan.FromSeconds(2));
                 await probe.ProbeAsync(cts.Token).ConfigureAwait(false);
             }
@@ -105,7 +105,7 @@ internal sealed class AdminQueryService
         AdminLiveStatsRawSnapshot raw = _stats.GetRawSnapshot();
         IReadOnlyList<AdminEndpointInfoDto> discovered = _endpoints.GetEndpoints();
 
-        Dictionary<string, AdminEndpointInfoDto> discoveredByRoute =
+        var discoveredByRoute =
             discovered.ToDictionary(e => e.Route, StringComparer.Ordinal);
 
         Dictionary<string, List<AdminEndpointCountersDto>> byDomain = new(StringComparer.Ordinal);
@@ -150,7 +150,7 @@ internal sealed class AdminQueryService
                 domainNames.Add(ep.ConfiguredDomain);
         }
 
-        Dictionary<string, AdminDomainCountersDto> rawDomains =
+        var rawDomains =
             raw.Domains.ToDictionary(d => d.Name, StringComparer.Ordinal);
 
         List<AdminDomainCountersDto> domains = [];

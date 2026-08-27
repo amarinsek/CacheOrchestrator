@@ -9,7 +9,7 @@ Directory.CreateDirectory(artifacts);
 
 Console.WriteLine($"Artifacts path: {artifacts}");
 
-var config = DefaultConfig.Instance.WithArtifactsPath(artifacts);
+ManualConfig config = DefaultConfig.Instance.WithArtifactsPath(artifacts);
 
 BenchmarkSwitcher
     .FromAssembly(typeof(Program).Assembly)

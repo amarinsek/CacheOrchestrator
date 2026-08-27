@@ -154,6 +154,6 @@ public class CacheIdentityEndpointExtensionsTests
         Endpoint endpoint = GetEndpoint(app, builder);
         CacheIdentityEndpointMetadata? meta = endpoint.Metadata.GetMetadata<CacheIdentityEndpointMetadata>();
         meta.Should().NotBeNull();
-        return meta!;
+        return meta;
     }
 }

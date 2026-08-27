@@ -205,7 +205,7 @@ public class ConfigReloadAndValidationTests
             }
 
             caught.Should().NotBeNull("negative ClientCache.TtlSeconds must fail IValidateOptions at host start");
-            caught!.ToString().Should().ContainEquivalentOf("ClientCache.TtlSeconds");
+            caught.ToString().Should().ContainEquivalentOf("ClientCache.TtlSeconds");
         }
         finally
         {

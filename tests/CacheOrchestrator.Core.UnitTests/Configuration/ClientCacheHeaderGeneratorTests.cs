@@ -37,8 +37,8 @@ public class ClientCacheHeaderGeneratorTests
     public void NoStore_IgnoresSchedule_AndReturnsNoStore()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddDays(-10);
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddDays(-10);
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ClientCacheability.NoStore, schedule: schedule), now);
 
         result.Header.Should().Be("no-store");
@@ -54,7 +54,7 @@ public class ClientCacheHeaderGeneratorTests
     public void NoSchedule_UsesMaxTtl()
     {
         var now = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
-        var result = ClientCacheHeaderGenerator.Build(
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 120, ttlMin: 30, schedule: null), now);
 
         result.Header.Should().Be("public, max-age=120");
@@ -66,7 +66,7 @@ public class ClientCacheHeaderGeneratorTests
     public void Private_NoSchedule_UsesPrivateDirective()
     {
         var now = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
-        var result = ClientCacheHeaderGenerator.Build(
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ClientCacheability.Private, ttl: 90, ttlMin: 10), now);
 
         result.Header.Should().Be("private, max-age=90");
@@ -80,8 +80,8 @@ public class ClientCacheHeaderGeneratorTests
     public void FarFromSchedule_UsesMaxTtl_PhaseCalm()
     {
         var schedule = new DateTimeOffset(2026, 12, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddSeconds(-10_000); // >> 3600
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddSeconds(-10_000); // >> 3600
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 3600, ttlMin: 60, schedule: schedule), now);
 
         result.MaxAgeSeconds.Should().Be(3600);
@@ -98,8 +98,8 @@ public class ClientCacheHeaderGeneratorTests
     {
         // secondsToSchedule == max ? edge of calm/ramp; implementation treats >= max as Calm
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddSeconds(-3600);
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddSeconds(-3600);
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 3600, ttlMin: 60, schedule: schedule), now);
 
         result.Phase.Should().Be(ClientCacheSchedulePhase.Calm);
@@ -111,8 +111,8 @@ public class ClientCacheHeaderGeneratorTests
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
         // halfway in time between min and max window: T = (60+3600)/2 = 1830
-        var now = schedule.AddSeconds(-1830);
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddSeconds(-1830);
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 3600, ttlMin: 60, schedule: schedule), now);
 
         result.Phase.Should().Be(ClientCacheSchedulePhase.Approaching);
@@ -125,8 +125,8 @@ public class ClientCacheHeaderGeneratorTests
     public void NearSchedule_MaxAgeAtMin_PhaseApproaching()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddSeconds(-60); // T == min
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddSeconds(-60); // T == min
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 3600, ttlMin: 60, schedule: schedule), now);
 
         result.Phase.Should().Be(ClientCacheSchedulePhase.Approaching);
@@ -137,8 +137,8 @@ public class ClientCacheHeaderGeneratorTests
     public void InsideLastMinuteBeforeSchedule_StaysAtMinFloor()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddSeconds(-1);
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddSeconds(-1);
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 3600, ttlMin: 60, schedule: schedule), now);
 
         result.Phase.Should().Be(ClientCacheSchedulePhase.Approaching);
@@ -149,7 +149,7 @@ public class ClientCacheHeaderGeneratorTests
     public void CacheabilityOverride_Private_WinsOverPublicConfig()
     {
         var now = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
-        var result = ClientCacheHeaderGenerator.Build(
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ClientCacheability.Public, ttl: 90),
             now,
             ClientCacheability.Private);
@@ -161,8 +161,8 @@ public class ClientCacheHeaderGeneratorTests
     public void MinGreaterThanMax_IsClampedToMax()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddSeconds(-30);
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddSeconds(-30);
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 60, ttlMin: 3600, schedule: schedule), now);
 
         result.MaxAgeSeconds.Should().Be(60);
@@ -173,8 +173,8 @@ public class ClientCacheHeaderGeneratorTests
     public void NearFloor_WithMustRevalidate_AppendsMustRevalidate()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddSeconds(-60);
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddSeconds(-60);
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 3600, ttlMin: 60, schedule: schedule, mustRevalidateNear: true), now);
 
         result.Header.Should().Be("public, max-age=60, must-revalidate");
@@ -189,8 +189,8 @@ public class ClientCacheHeaderGeneratorTests
     public void AfterSchedule_UsesMin_PhaseHold()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddMinutes(5);
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddMinutes(5);
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 3600, ttlMin: 90, schedule: schedule), now);
 
         result.MaxAgeSeconds.Should().Be(90);
@@ -202,8 +202,8 @@ public class ClientCacheHeaderGeneratorTests
     public void AfterSchedule_WithMustRevalidate_AppendsDirective()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddHours(1);
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddHours(1);
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 3600, ttlMin: 60, schedule: schedule, mustRevalidateNear: true), now);
 
         result.Header.Should().Contain("must-revalidate");
@@ -220,8 +220,8 @@ public class ClientCacheHeaderGeneratorTests
     public void MinEqualsMax_AlwaysThatValue()
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddSeconds(-500);
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddSeconds(-500);
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 300, ttlMin: 300, schedule: schedule), now);
 
         result.MaxAgeSeconds.Should().Be(300);
@@ -239,8 +239,8 @@ public class ClientCacheHeaderGeneratorTests
     public void Phase_MatchesSecondsBeforeSchedule(int secondsBeforeSchedule, ClientCacheSchedulePhase expected)
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var now = schedule.AddSeconds(-secondsBeforeSchedule);
-        var result = ClientCacheHeaderGenerator.Build(
+        DateTimeOffset now = schedule.AddSeconds(-secondsBeforeSchedule);
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
             Cfg(ttl: 3600, ttlMin: 60, schedule: schedule), now);
 
         result.Phase.Should().Be(expected);
@@ -255,11 +255,11 @@ public class ClientCacheHeaderGeneratorTests
     {
         var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
         int ttl = 3600;
-        var justInside = schedule.AddSeconds(-(ttl - 1));
-        var justOutside = schedule.AddSeconds(-(ttl + 1));
+        DateTimeOffset justInside = schedule.AddSeconds(-(ttl - 1));
+        DateTimeOffset justOutside = schedule.AddSeconds(-(ttl + 1));
 
-        var inside = ClientCacheHeaderGenerator.Build(Cfg(ttl: ttl, ttlMin: 60, schedule: schedule), justInside);
-        var outside = ClientCacheHeaderGenerator.Build(Cfg(ttl: ttl, ttlMin: 60, schedule: schedule), justOutside);
+        ClientCacheHeaderGenerator.Result inside = ClientCacheHeaderGenerator.Build(Cfg(ttl: ttl, ttlMin: 60, schedule: schedule), justInside);
+        ClientCacheHeaderGenerator.Result outside = ClientCacheHeaderGenerator.Build(Cfg(ttl: ttl, ttlMin: 60, schedule: schedule), justOutside);
 
         outside.Phase.Should().Be(ClientCacheSchedulePhase.Calm);
         inside.Phase.Should().Be(ClientCacheSchedulePhase.Approaching);

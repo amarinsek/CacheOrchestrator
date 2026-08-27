@@ -117,7 +117,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             parts.Add(await InvalidateDomainAsync(requested[i], cancellationToken).ConfigureAwait(false));
         }
 
-        CacheInvalidationResult aggregate = CacheInvalidationResult.Aggregate(parts);
+        var aggregate = CacheInvalidationResult.Aggregate(parts);
         await NotifyAfterAsync(batch, aggregate, cancellationToken).ConfigureAwait(false);
         return aggregate;
     }

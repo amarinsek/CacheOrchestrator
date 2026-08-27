@@ -1,6 +1,6 @@
-using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.HttpBus;
 using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.HttpBus.UnitTests;
@@ -43,7 +43,7 @@ public class StaticClusterMembershipTests
     [Fact]
     public void Constructor_WhenOptionsIsNull_Throws()
     {
-        var act = () => new StaticClusterMembership(null!);
+        Func<StaticClusterMembership> act = () => new StaticClusterMembership(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 

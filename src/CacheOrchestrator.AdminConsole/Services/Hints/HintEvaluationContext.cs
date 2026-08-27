@@ -76,32 +76,45 @@ public sealed class HintEvaluationContext
         if (target is AdminDomainStatsDto domain)
         {
             if (name.Equals("hasSchedule", StringComparison.OrdinalIgnoreCase))
+            {
                 return !string.IsNullOrEmpty(domain.SchedulePhase)
                     && !string.Equals(domain.SchedulePhase, "n/a", StringComparison.OrdinalIgnoreCase);
+            }
+
             if (name.Equals("factoryFailureRate", StringComparison.OrdinalIgnoreCase))
+            {
                 return domain.DataCache.FactoryRuns > 0
                     ? (double)domain.DataCache.FactoryFailures / domain.DataCache.FactoryRuns
                     : null;
+            }
+
             if (name.Equals("invalidationShare", StringComparison.OrdinalIgnoreCase))
+            {
                 return domain.Requests > 0
                     ? (double)domain.Invalidations / domain.Requests
                     : null;
+            }
         }
 
         if (target is AdminEndpointStatsDto ep)
         {
             if (name.Equals("factoryFailureRate", StringComparison.OrdinalIgnoreCase))
+            {
                 return ep.DataCache.FactoryRuns > 0
                     ? (double)ep.DataCache.FactoryFailures / ep.DataCache.FactoryRuns
                     : null;
+            }
         }
 
         if (target is AdminDomainConfigDto config)
         {
             if (name.Equals("hasSchedule", StringComparison.OrdinalIgnoreCase))
+            {
                 return config.ScheduledUpdateUtc is not null
                     || (!string.IsNullOrEmpty(config.SchedulePhase)
                         && !string.Equals(config.SchedulePhase, "n/a", StringComparison.OrdinalIgnoreCase));
+            }
+
             if (name.Equals("holdAgeHours", StringComparison.OrdinalIgnoreCase))
             {
                 if (config.ScheduledUpdateUtc is not DateTimeOffset scheduled)
@@ -115,12 +128,16 @@ public sealed class HintEvaluationContext
                 return (double)config.ClientTtlSeconds / config.OutputCacheTtlSeconds;
             }
             if (name.Equals("clientTtlCannotRamp", StringComparison.OrdinalIgnoreCase))
+            {
                 return config.ClientTtlSeconds > 0
                     && config.ClientTtlMinSeconds >= config.ClientTtlSeconds;
+            }
             // Fusion hard/soft comparison is owned by the Fusion package; Core Admin DTO no longer carries HardTtl.
             if (name.Equals("dataCacheHardLtSoft", StringComparison.OrdinalIgnoreCase)
                 || name.Equals("fusionHardLtSoft", StringComparison.OrdinalIgnoreCase))
+            {
                 return false;
+            }
         }
 
         if (target is AdminDataCacheLayerDto dataCache)

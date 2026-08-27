@@ -9,7 +9,7 @@ public class CacheOrchestratorInvalidatorExtensionsTests
     public async Task InvalidateEntityAsync_WithInt_FormatsUsingInvariantCulture()
     {
         // Arrange
-        var invalidator = Substitute.For<ICacheOrchestratorInvalidator>();
+        ICacheOrchestratorInvalidator invalidator = Substitute.For<ICacheOrchestratorInvalidator>();
         int id = 42;
         var token = new CancellationToken();
 
@@ -24,31 +24,31 @@ public class CacheOrchestratorInvalidatorExtensionsTests
     public async Task InvalidateEntityAsync_WithGuid_FormatsCorrectly()
     {
         // Arrange
-        var invalidator = Substitute.For<ICacheOrchestratorInvalidator>();
-        Guid id = new Guid("11111111-1111-1111-1111-111111111111");
+        ICacheOrchestratorInvalidator invalidator = Substitute.For<ICacheOrchestratorInvalidator>();
+        var id = new Guid("11111111-1111-1111-1111-111111111111");
 
         // Act
-        await invalidator.InvalidateEntityAsync("store", "users", id);
+        await invalidator.InvalidateEntityAsync("store", "users", id, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        await invalidator.Received(1).InvalidateEntityAsync("store", "users", "11111111-1111-1111-1111-111111111111", default);
+        await invalidator.Received(1).InvalidateEntityAsync("store", "users", "11111111-1111-1111-1111-111111111111", TestContext.Current.CancellationToken);
     }
 
     [Fact]
     public async Task InvalidateEntitiesAsync_WithInts_FormatsAllUsingInvariantCulture()
     {
         // Arrange
-        var invalidator = Substitute.For<ICacheOrchestratorInvalidator>();
+        ICacheOrchestratorInvalidator invalidator = Substitute.For<ICacheOrchestratorInvalidator>();
         int[] ids = [1, 2, 3];
 
         // Act
-        await invalidator.InvalidateEntitiesAsync("store", "products", ids);
+        await invalidator.InvalidateEntitiesAsync("store", "products", ids, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         await invalidator.Received(1).InvalidateEntitiesAsync(
             "store",
             "products",
             Arg.Is<IEnumerable<string>>(list => list.SequenceEqual(new[] { "1", "2", "3" })),
-            default);
+            TestContext.Current.CancellationToken);
     }
 }

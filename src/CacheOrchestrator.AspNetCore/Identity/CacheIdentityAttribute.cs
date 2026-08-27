@@ -1,6 +1,6 @@
-using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Metadata;
+using System.Reflection;
 
 namespace CacheOrchestrator.Identity;
 

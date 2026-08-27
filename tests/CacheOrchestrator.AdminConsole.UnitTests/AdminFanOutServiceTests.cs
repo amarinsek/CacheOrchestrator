@@ -1,8 +1,8 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.AdminConsole.Models;
-using CacheOrchestrator.Configuration;
 using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.AdminConsole.Services;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Options;
 
@@ -27,7 +27,6 @@ public class AdminFanOutServiceTests
         overview.TotalRequests.Should().Be(0);
         overview.StatsWindow.Should().Be("metrics-store");
     }
-
 
     [Fact]
     public async Task GetInstancesAsync_SkipsKnownDownInstance_OnSecondCall()
@@ -264,7 +263,7 @@ public class AdminFanOutServiceTests
         result.Results.Should().HaveCount(2);
         result.Results.Should().OnlyContain(r => r.Succeeded);
         result.Data.Should().NotBeNull();
-        result.Data!.Select(d => d.Name).Should().BeEquivalentTo(["catalog", "maps"]);
+        result.Data.Select(d => d.Name).Should().BeEquivalentTo(["catalog", "maps"]);
     }
 
     [Fact]

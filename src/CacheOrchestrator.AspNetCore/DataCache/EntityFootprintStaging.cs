@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
-using Microsoft.AspNetCore.Http;
 using CacheOrchestrator.Entity;
+using Microsoft.AspNetCore.Http;
 
 namespace CacheOrchestrator.DataCache;
 
@@ -17,13 +17,6 @@ internal static class EntityFootprintStaging
 
         ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
 
-        if (feature.PendingEntityFootprint is { } previous)
-        {
-            feature.PendingEntityFootprint = previous.Merge(footprint);
-        }
-        else
-        {
-            feature.PendingEntityFootprint = footprint;
-        }
+        feature.PendingEntityFootprint = feature.PendingEntityFootprint is { } previous ? previous.Merge(footprint) : footprint;
     }
 }

@@ -1,10 +1,10 @@
-using System.Text.Json.Serialization;
 using CacheOrchestrator.AdminConsole.Endpoints;
 using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.AdminConsole.Services;
 using CacheOrchestrator.AdminConsole.Services.Hints;
 using CacheOrchestrator.AdminConsole.Services.Metrics;
 using Scalar.AspNetCore;
+using System.Text.Json.Serialization;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 

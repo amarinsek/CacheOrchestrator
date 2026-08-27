@@ -32,7 +32,7 @@ public class EfCoreInvalidationOptionsTests
     public void Map_WhenDomainOrKindMissing_Throws(string? domain, string? kind)
     {
         EfCoreInvalidationOptions options = new();
-        var act = () => options.Map<MappedRow>(domain!, kind!);
+        Func<EfCoreInvalidationOptions> act = () => options.Map<MappedRow>(domain!, kind!);
         act.Should().Throw<ArgumentException>();
     }
 

@@ -230,21 +230,30 @@ public static class MetricsRange
     /// <summary>Step size for an arbitrary window duration (absolute from/to).</summary>
     public static string StepForDuration(TimeSpan duration)
     {
-        if (duration <= TimeSpan.FromMinutes(20)) return "15s";
-        if (duration <= TimeSpan.FromHours(2)) return "30s";
-        if (duration <= TimeSpan.FromHours(8)) return "1m";
-        if (duration <= TimeSpan.FromHours(30)) return "2m";
-        if (duration <= TimeSpan.FromDays(8)) return "15m";
+        if (duration <= TimeSpan.FromMinutes(20))
+            return "15s";
+        if (duration <= TimeSpan.FromHours(2))
+            return "30s";
+        if (duration <= TimeSpan.FromHours(8))
+            return "1m";
+        if (duration <= TimeSpan.FromHours(30))
+            return "2m";
+        if (duration <= TimeSpan.FromDays(8))
+            return "15m";
         return "1h";
     }
 
     /// <summary>Best relative token for a duration (summary rate window / display).</summary>
     public static string NearestToken(TimeSpan duration)
     {
-        if (duration <= TimeSpan.FromMinutes(20)) return "15m";
-        if (duration <= TimeSpan.FromHours(2)) return "1h";
-        if (duration <= TimeSpan.FromHours(8)) return "6h";
-        if (duration <= TimeSpan.FromHours(30)) return "24h";
+        if (duration <= TimeSpan.FromMinutes(20))
+            return "15m";
+        if (duration <= TimeSpan.FromHours(2))
+            return "1h";
+        if (duration <= TimeSpan.FromHours(8))
+            return "6h";
+        if (duration <= TimeSpan.FromHours(30))
+            return "24h";
         return "7d";
     }
 

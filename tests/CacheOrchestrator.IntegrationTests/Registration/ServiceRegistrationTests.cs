@@ -1,10 +1,10 @@
 using CacheOrchestrator.Backends;
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.Redis;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
+using CacheOrchestrator.Redis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

@@ -126,7 +126,7 @@ public class RedisConfigurationTests
     public void GetGlobalSection_WhenSectionIsWhitespace_Throws()
     {
         IConfigurationRoot config = new ConfigurationBuilder().Build();
-        var act = () => RedisConfiguration.GetGlobalSection(config, "  ");
+        Func<IConfigurationSection> act = () => RedisConfiguration.GetGlobalSection(config, "  ");
         act.Should().Throw<ArgumentException>();
     }
 }

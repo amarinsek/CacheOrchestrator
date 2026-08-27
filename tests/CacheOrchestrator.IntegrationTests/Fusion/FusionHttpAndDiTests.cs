@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -104,7 +104,7 @@ public class FusionHttpAndDiTests
     }
 
     private static CacheDisposition? Disposition(HttpContext http) =>
-        http.Features.Get<ICacheOrchestratorFeature>()?.Disposition as CacheDisposition;
+        http.Features.Get<ICacheOrchestratorFeature>()?.Disposition;
 
     // =========================================================================
     // B13 / B15 — Happy path: domain from OC policy metadata, no EnsureDomainOptions
@@ -361,7 +361,7 @@ public class FusionHttpAndDiTests
             app.Services.GetRequiredService<FactoryCounter>().Count.Should().Be(1);
 
             reloadSource.Provider.Should().NotBeNull();
-            reloadSource.Provider!.SetAndReload($"Cache:Domains:{domain}:Version", "v2");
+            reloadSource.Provider.SetAndReload($"Cache:Domains:{domain}:Version", "v2");
             await WaitForDomainVersionAsync(app.Services, domain, "v2");
 
             (HttpResponseMessage r3, string x3, string b3) = await GetAsync(client, "/x");

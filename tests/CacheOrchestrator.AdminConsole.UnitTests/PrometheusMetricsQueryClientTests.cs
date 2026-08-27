@@ -1,9 +1,9 @@
-using System.Net;
-using System.Text;
 using CacheOrchestrator.AdminConsole.Options;
 using CacheOrchestrator.AdminConsole.Services.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using System.Net;
+using System.Text;
 
 namespace CacheOrchestrator.AdminConsole.UnitTests;
 
@@ -124,7 +124,7 @@ public class PrometheusMetricsQueryClientTests
         RecordingHandler handler = new((req, _) =>
         {
             req.Headers.Authorization.Should().NotBeNull();
-            req.Headers.Authorization!.Scheme.Should().Be("Bearer");
+            req.Headers.Authorization.Scheme.Should().Be("Bearer");
             req.Headers.Authorization.Parameter.Should().Be("tok");
             return Json(json);
         });

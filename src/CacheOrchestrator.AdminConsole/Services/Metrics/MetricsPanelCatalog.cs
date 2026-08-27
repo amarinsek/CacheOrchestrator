@@ -1,5 +1,5 @@
-using System.Text;
 using CacheOrchestrator.AdminConsole.Models;
+using System.Text;
 
 namespace CacheOrchestrator.AdminConsole.Services.Metrics;
 
@@ -42,8 +42,64 @@ public static class MetricsPanelCatalog
     /// <summary>OTel tag for stable endpoint key.</summary>
     public const string RouteLabel = "route";
 
-    private static readonly IReadOnlyList<MetricsPanelInfoDto> All =
+    /// <summary>Default Metrics page panels.</summary>
+    public static readonly IReadOnlyList<string> DefaultPagePanels =
     [
+        "request_rate",
+        "oc_hit_share",
+        "dc_hit_rate",
+        "dc_stale_share",
+        "factory_share",
+        "factory_run_rate",
+        "factory_p95_ms",
+        "factory_size_p95",
+        "invalidation_rate",
+        "schedule_phase",
+        "cluster_publish_failures",
+        "dc_p95_ms",
+    ];
+
+    /// <summary>Domain detail panels.</summary>
+    public static readonly IReadOnlyList<string> DomainDetailPanels =
+    [
+        "request_rate",
+        "oc_hit_share",
+        "dc_hit_rate",
+        "factory_share",
+        "factory_run_rate",
+        "factory_p95_ms",
+        "invalidation_rate",
+        "schedule_phase",
+        "dc_p95_ms",
+    ];
+
+    /// <summary>Instance detail panels.</summary>
+    public static readonly IReadOnlyList<string> InstanceDetailPanels =
+    [
+        "request_rate",
+        "oc_hit_share",
+        "dc_hit_rate",
+        "factory_share",
+        "factory_run_rate",
+        "factory_p95_ms",
+        "invalidation_rate",
+        "dc_p95_ms",
+        "cluster_publish_failures",
+    ];
+
+    /// <summary>Endpoint detail panels (require <c>route</c> label samples).</summary>
+    public static readonly IReadOnlyList<string> EndpointDetailPanels =
+    [
+        "request_rate",
+        "oc_hit_share",
+        "dc_hit_rate",
+        "factory_share",
+        "factory_p95_ms",
+        "dc_p95_ms",
+    ];
+
+    /// <summary>All allowlisted panels.</summary>
+    public static IReadOnlyList<MetricsPanelInfoDto> Panels { get; } = [
         new()
         {
             Id = "request_rate",
@@ -142,71 +198,12 @@ public static class MetricsPanelCatalog
         },
     ];
 
-    /// <summary>Default Metrics page panels.</summary>
-    public static readonly IReadOnlyList<string> DefaultPagePanels =
-    [
-        "request_rate",
-        "oc_hit_share",
-        "dc_hit_rate",
-        "dc_stale_share",
-        "factory_share",
-        "factory_run_rate",
-        "factory_p95_ms",
-        "factory_size_p95",
-        "invalidation_rate",
-        "schedule_phase",
-        "cluster_publish_failures",
-        "dc_p95_ms",
-    ];
-
-    /// <summary>Domain detail panels.</summary>
-    public static readonly IReadOnlyList<string> DomainDetailPanels =
-    [
-        "request_rate",
-        "oc_hit_share",
-        "dc_hit_rate",
-        "factory_share",
-        "factory_run_rate",
-        "factory_p95_ms",
-        "invalidation_rate",
-        "schedule_phase",
-        "dc_p95_ms",
-    ];
-
-    /// <summary>Instance detail panels.</summary>
-    public static readonly IReadOnlyList<string> InstanceDetailPanels =
-    [
-        "request_rate",
-        "oc_hit_share",
-        "dc_hit_rate",
-        "factory_share",
-        "factory_run_rate",
-        "factory_p95_ms",
-        "invalidation_rate",
-        "dc_p95_ms",
-        "cluster_publish_failures",
-    ];
-
-    /// <summary>Endpoint detail panels (require <c>route</c> label samples).</summary>
-    public static readonly IReadOnlyList<string> EndpointDetailPanels =
-    [
-        "request_rate",
-        "oc_hit_share",
-        "dc_hit_rate",
-        "factory_share",
-        "factory_p95_ms",
-        "dc_p95_ms",
-    ];
-
-    /// <summary>All allowlisted panels.</summary>
-    public static IReadOnlyList<MetricsPanelInfoDto> Panels => All;
-
     /// <summary>Looks up panel metadata by id (case-insensitive).</summary>
     public static MetricsPanelInfoDto? Find(string? panelId)
     {
         if (string.IsNullOrWhiteSpace(panelId))
             return null;
-        return All.FirstOrDefault(p =>
+        return Panels.FirstOrDefault(p =>
             string.Equals(p.Id, panelId.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 
@@ -336,14 +333,17 @@ public static class MetricsPanelCatalog
             parts.Add(extra);
 
         string d = BuildRegexMatcher("domain", domains);
-        if (d.Length > 0) parts.Add(d);
+        if (d.Length > 0)
+            parts.Add(d);
 
         string i = BuildRegexMatcher(InstanceIdLabel, instanceIds);
-        if (i.Length > 0) parts.Add(i);
+        if (i.Length > 0)
+            parts.Add(i);
 
         // Route values contain spaces (METHOD pattern) — quote carefully.
         string r = BuildRegexMatcher(RouteLabel, routes, allowSpace: true);
-        if (r.Length > 0) parts.Add(r);
+        if (r.Length > 0)
+            parts.Add(r);
 
         if (parts.Count == 0)
             return "";

@@ -23,7 +23,7 @@ public class InstanceReachabilityCacheTests
         sut.ShouldSkipUnreachable("a").Should().BeTrue();
         CachedInstanceHealth? cached = sut.TryGetSkippedDown("a");
         cached.Should().NotBeNull();
-        cached!.Status.Should().Be(InstanceHealthStatus.Down);
+        cached.Status.Should().Be(InstanceHealthStatus.Down);
         cached.Error.Should().Be("timeout");
 
         time.Advance(TimeSpan.FromSeconds(14));

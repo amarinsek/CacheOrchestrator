@@ -1,10 +1,10 @@
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.Redis;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
+using CacheOrchestrator.Redis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;

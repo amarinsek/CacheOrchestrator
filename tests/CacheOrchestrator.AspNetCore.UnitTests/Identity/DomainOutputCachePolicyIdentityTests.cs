@@ -73,7 +73,7 @@ public class DomainOutputCachePolicyIdentityTests
     public async Task CacheRequestAsync_WithContract_AppliesVaryValues()
     {
         DomainOutputCachePolicy policy = new("products");
-        CacheIdentityBinding binding = CacheIdentityBinding.CreateNamed("search-v1");
+        var binding = CacheIdentityBinding.CreateNamed("search-v1");
         binding.SetContract(new FixedContract("search-v1", new CacheIdentityMaterial(
         [
             new KeyValuePair<string, string>("q", "widgets"),
@@ -95,7 +95,7 @@ public class DomainOutputCachePolicyIdentityTests
     public async Task CacheRequestAsync_WhenContractReturnsNull_DoesNotEnable()
     {
         DomainOutputCachePolicy policy = new("products");
-        CacheIdentityBinding binding = CacheIdentityBinding.CreateNamed("search-v1");
+        var binding = CacheIdentityBinding.CreateNamed("search-v1");
         binding.SetContract(new FixedContract("search-v1", material: null));
 
         CacheIdentityEndpointMetadata identity = new();
@@ -107,7 +107,7 @@ public class DomainOutputCachePolicyIdentityTests
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
         context.EnableOutputCaching.Should().BeFalse();
-        CacheOrchestratorFeature feature = (CacheOrchestratorFeature)http.Features.Get<ICacheOrchestratorFeature>()!;
+        var feature = (CacheOrchestratorFeature)http.Features.Get<ICacheOrchestratorFeature>()!;
         feature.IdentityBypass.Should().BeTrue();
     }
 
@@ -226,7 +226,6 @@ public class DomainOutputCachePolicyIdentityTests
     private sealed class OnStartingResponseFeature : IHttpResponseFeature, IHttpResponseBodyFeature
     {
         private readonly List<(Func<object, Task> Callback, object State)> _onStarting = [];
-        private PipeWriter? _writer;
 
         public int StatusCode { get; set; } = 200;
         public string? ReasonPhrase { get; set; }
@@ -234,7 +233,7 @@ public class DomainOutputCachePolicyIdentityTests
         public Stream Body { get; set; } = new MemoryStream();
         public bool HasStarted { get; private set; }
         public Stream Stream => Body;
-        public PipeWriter Writer => _writer ??= PipeWriter.Create(Body);
+        public PipeWriter Writer => field ??= PipeWriter.Create(Body);
 
         public void OnStarting(Func<object, Task> callback, object state)
         {

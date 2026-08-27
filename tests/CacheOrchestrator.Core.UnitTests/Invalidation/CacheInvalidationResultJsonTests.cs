@@ -28,7 +28,7 @@ public class CacheInvalidationResultJsonTests
         CacheInvalidationResult? back = JsonSerializer.Deserialize<CacheInvalidationResult>(json, Web);
 
         back.Should().NotBeNull();
-        back!.Scope.Should().Be("domain:store");
+        back.Scope.Should().Be("domain:store");
         back.Tags.Should().Equal("domain:store");
         back.DataCacheSucceeded.Should().BeTrue();
         back.OutputSucceeded.Should().BeTrue();
@@ -36,18 +36,18 @@ public class CacheInvalidationResultJsonTests
         back.Succeeded.Should().BeTrue();
         back.Errors.Should().Equal("warn");
         back.ClusterPublish.Should().NotBeNull();
-        back.ClusterPublish!.Peers.Should().BeEmpty();
+        back.ClusterPublish.Peers.Should().BeEmpty();
     }
 
     [Fact]
     public void Roundtrip_Skipped_WebDefaults()
     {
-        CacheInvalidationResult original = CacheInvalidationResult.Skipped("empty");
+        var original = CacheInvalidationResult.Skipped("empty");
         string json = JsonSerializer.Serialize(original, Web);
         CacheInvalidationResult? back = JsonSerializer.Deserialize<CacheInvalidationResult>(json, Web);
 
         back.Should().NotBeNull();
-        back!.IsSkipped.Should().BeTrue();
+        back.IsSkipped.Should().BeTrue();
         back.Succeeded.Should().BeFalse();
         back.Errors.Should().ContainSingle().Which.Should().Be("empty");
     }

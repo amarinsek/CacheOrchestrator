@@ -55,21 +55,21 @@ public class ClientCacheHeaderGeneratorBenchmarks
         DateTimeOffset? schedule,
         ClientCacheability cacheability = ClientCacheability.Public,
         bool mustRevalidateNear = false) => new()
-    {
-        Domain = "catalog",
-        Version = "1",
-        VersionHex = "01",
-        ClientCacheability = cacheability,
-        ClientTtlSeconds = 3600,
-        ClientTtlMinSeconds = 60,
-        ScheduledUpdateUtc = schedule,
-        ClientMustRevalidateNearUpdate = mustRevalidateNear,
-        OutputCacheEnabled = true,
-        DataCacheEnabled = true,
-        OutputTtl = TimeSpan.FromSeconds(60),
-        DataCacheTtl = TimeSpan.FromSeconds(60),
-        CacheableStatusCodes = [200],
-        OutputCacheNamespace = "b",
-        EncodingNormalizationList = null,
-    };
+        {
+            Domain = "catalog",
+            Version = "1",
+            VersionHex = "01",
+            ClientCacheability = cacheability,
+            ClientTtlSeconds = 3600,
+            ClientTtlMinSeconds = 60,
+            ScheduledUpdateUtc = schedule,
+            ClientMustRevalidateNearUpdate = mustRevalidateNear,
+            OutputCacheEnabled = true,
+            DataCacheEnabled = true,
+            OutputTtl = TimeSpan.FromSeconds(60),
+            DataCacheTtl = TimeSpan.FromSeconds(60),
+            CacheableStatusCodes = [200],
+            OutputCacheNamespace = "b",
+            EncodingNormalizationList = null,
+        };
 }

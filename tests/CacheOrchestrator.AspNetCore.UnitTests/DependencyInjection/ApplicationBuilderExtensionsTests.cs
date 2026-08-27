@@ -9,11 +9,11 @@ public class ApplicationBuilderExtensionsTests
     [Fact]
     public void UseCacheOrchestrator_ReturnsSameApplicationBuilder()
     {
-        var builder = WebApplication.CreateBuilder();
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.Services.AddOutputCache();
-        var app = builder.Build();
+        WebApplication app = builder.Build();
 
-        var result = app.UseCacheOrchestrator();
+        IApplicationBuilder result = app.UseCacheOrchestrator();
 
         result.Should().BeSameAs(app);
     }
@@ -21,11 +21,11 @@ public class ApplicationBuilderExtensionsTests
     [Fact]
     public void UseCacheOrchestrator_DoesNotThrow_WhenOutputCacheIsRegistered()
     {
-        var builder = WebApplication.CreateBuilder();
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.Services.AddOutputCache();
-        var app = builder.Build();
+        WebApplication app = builder.Build();
 
-        var act = () => app.UseCacheOrchestrator();
+        Func<IApplicationBuilder> act = () => app.UseCacheOrchestrator();
 
         act.Should().NotThrow();
     }
@@ -33,11 +33,11 @@ public class ApplicationBuilderExtensionsTests
     [Fact]
     public void UseCacheOrchestrator_CanBeChained()
     {
-        var builder = WebApplication.CreateBuilder();
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.Services.AddOutputCache();
-        var app = builder.Build();
+        WebApplication app = builder.Build();
 
-        var act = () => app
+        Func<IApplicationBuilder> act = () => app
             .UseCacheOrchestrator()
             .Use(async (ctx, next) => await next());
 

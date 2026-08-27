@@ -165,7 +165,7 @@ public class CacheIdentityHttpTests
         meta.Should().NotBeNull("identity metadata should be present after the host starts");
 
         // Startup may defer resolution until ApplicationStarted; force the same path explicitly.
-        meta!.IsResolved.Should().BeFalse(
+        meta.IsResolved.Should().BeFalse(
             "unknown contract must not mark identity metadata as resolved");
 
         Action resolve = () => CacheIdentityEndpointResolver.ResolveAll(app.Services);

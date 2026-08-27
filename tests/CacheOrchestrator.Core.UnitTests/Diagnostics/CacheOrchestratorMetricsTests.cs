@@ -251,7 +251,7 @@ public class CacheOrchestratorMetricsTests
 
     private static string? ReadTag(ReadOnlySpan<KeyValuePair<string, object?>> tags, string key)
     {
-        foreach (var tag in tags)
+        foreach (KeyValuePair<string, object?> tag in tags)
         {
             if (tag.Key == key)
                 return tag.Value?.ToString();

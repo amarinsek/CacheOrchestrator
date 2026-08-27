@@ -38,6 +38,6 @@ public class DomainSettingCatalogTests
         DomainSettingCatalogEntry? b = DomainSettingCatalog.Find("outputCache.ttlSeconds");
         Assert.NotNull(a);
         Assert.NotNull(b);
-        Assert.Equal(a!.Id, b!.Id);
+        Assert.Equal(a.Id, b.Id);
     }
 }

@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.IntegrationTests.Infrastructure;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -89,7 +89,7 @@ public class ConfigBehaviorTests
 
             // --- Live config reload: Version v1 → v2 (same process, IOptionsMonitor path) ---
             reloadSource.Provider.Should().NotBeNull();
-            reloadSource.Provider!.SetAndReload($"Cache:Domains:{domain}:Version", "v2");
+            reloadSource.Provider.SetAndReload($"Cache:Domains:{domain}:Version", "v2");
 
             await WaitForDomainVersionAsync(app.Services, domain, expectedVersion: "v2");
 
@@ -175,7 +175,7 @@ public class ConfigBehaviorTests
             ServiceCollection services = new();
             services.AddLogging();
             services.AddCacheOrchestratorAspNetCore(config);
-        services.AddCacheOrchestratorFusionCache(config);
+            services.AddCacheOrchestratorFusionCache(config);
             await using ServiceProvider sp = services.BuildServiceProvider();
 
             IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();

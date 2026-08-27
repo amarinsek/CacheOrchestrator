@@ -45,7 +45,7 @@ public sealed class AdminFanOutService
         List<InstanceCallOutcome<AdminHealthDto>> outcomes =
             await FanOutAsync(
                     instances,
-                    (inst, ct) => _client.GetHealthAsync(inst, ct),
+                    _client.GetHealthAsync,
                     cancellationToken,
                     skipKnownDown: true)
                 .ConfigureAwait(false);
@@ -137,7 +137,7 @@ public sealed class AdminFanOutService
         List<InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>>> outcomes =
             await FanOutAsync(
                     instances,
-                    (inst, ct) => _client.GetDomainsAsync(inst, ct),
+                    _client.GetDomainsAsync,
                     cancellationToken,
                     skipKnownDown: true)
                 .ConfigureAwait(false);
@@ -179,7 +179,7 @@ public sealed class AdminFanOutService
         List<InstanceCallOutcome<LocalClusterInfoDto>> outcomes =
             await FanOutAsync(
                     all,
-                    (inst, ct) => _client.GetClusterInfoAsync(inst, ct),
+                    _client.GetClusterInfoAsync,
                     cancellationToken,
                     skipKnownDown: true)
                 .ConfigureAwait(false);
@@ -191,7 +191,7 @@ public sealed class AdminFanOutService
                 _reachability.RecordSuccess(o.InstanceId, o.Value?.InstanceId, o.LatencyMs);
         }
 
-        List<InstanceClusterProbeDto> probes = outcomes.Select(o =>
+        var probes = outcomes.Select(o =>
         {
             bool busOn = o.Succeeded
                 && o.Value is { BusEnabled: true }

@@ -1,7 +1,7 @@
-using System.Text.Json;
 using CacheOrchestrator.AdminConsole.Models;
 using CacheOrchestrator.AdminConsole.Options;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 namespace CacheOrchestrator.AdminConsole.Services.Metrics;
 
@@ -148,7 +148,7 @@ public sealed class MetricsQueryService
         CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = _time.GetUtcNow();
-        MetricsWindow window = MetricsWindow.Resolve(range, from, to, now);
+        var window = MetricsWindow.Resolve(range, from, to, now);
 
         MetricsStatusDto status = await GetStatusAsync(probe: true, cancellationToken).ConfigureAwait(false);
         if (status.Status != MetricsStoreStatusCodes.Connected)
@@ -225,7 +225,7 @@ public sealed class MetricsQueryService
                 .QueryRangeAsync(promQl, start, end, step, cancellationToken)
                 .ConfigureAwait(false);
 
-            List<MetricsSeriesDto> series = matrix
+            var series = matrix
                 .Select(m => new MetricsSeriesDto
                 {
                     Name = SeriesName(info.Id, m.Metric),
@@ -276,7 +276,7 @@ public sealed class MetricsQueryService
         CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = _time.GetUtcNow();
-        MetricsWindow window = MetricsWindow.Resolve(range, from, to, now);
+        var window = MetricsWindow.Resolve(range, from, to, now);
         // Summary rate() windows use a relative token nearest the absolute duration.
         string rateWindow = window.IsAbsolute
             ? MetricsRange.NearestToken(window.End - window.Start)

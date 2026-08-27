@@ -15,11 +15,11 @@ public class CacheDomainConventionTests
     [Fact]
     public void Apply_WhenNoAttribute_DoesNotAddFilter()
     {
-        var application = CreateApplicationModel(typeof(ControllerWithoutAttribute));
+        ApplicationModel application = CreateApplicationModel(typeof(ControllerWithoutAttribute));
 
         _sut.Apply(application);
 
-        var action = application.Controllers[0].Actions[0];
+        ActionModel action = application.Controllers[0].Actions[0];
         action.Filters.OfType<DomainOutputCachePolicy>().Should().BeEmpty();
     }
 
@@ -30,18 +30,18 @@ public class CacheDomainConventionTests
     [Fact]
     public void Apply_WhenControllerHasAttribute_AddsPolicyToAllActions()
     {
-        var application = CreateApplicationModel(typeof(ControllerWithAttribute));
+        ApplicationModel application = CreateApplicationModel(typeof(ControllerWithAttribute));
 
         _sut.Apply(application);
 
-        var controller = application.Controllers[0];
+        ControllerModel controller = application.Controllers[0];
         controller.Actions.Should().HaveCount(2);
 
-        foreach (var action in controller.Actions)
+        foreach (ActionModel action in controller.Actions)
         {
-            var policy = action.Filters.OfType<DomainOutputCachePolicy>().SingleOrDefault();
+            DomainOutputCachePolicy? policy = action.Filters.OfType<DomainOutputCachePolicy>().SingleOrDefault();
             policy.Should().NotBeNull();
-            policy!.FixedDomain.Should().Be("products");
+            policy.FixedDomain.Should().Be("products");
         }
     }
 
@@ -52,16 +52,16 @@ public class CacheDomainConventionTests
     [Fact]
     public void Apply_WhenActionHasAttribute_AddsPolicyToThatAction()
     {
-        var application = CreateApplicationModel(typeof(ControllerWithActionAttribute));
+        ApplicationModel application = CreateApplicationModel(typeof(ControllerWithActionAttribute));
 
         _sut.Apply(application);
 
-        var controller = application.Controllers[0];
+        ControllerModel controller = application.Controllers[0];
 
-        var actionWithAttr = controller.Actions.Single(a => a.ActionName == nameof(ControllerWithActionAttribute.GetCached));
+        ActionModel actionWithAttr = controller.Actions.Single(a => a.ActionName == nameof(ControllerWithActionAttribute.GetCached));
         actionWithAttr.Filters.OfType<DomainOutputCachePolicy>().Should().HaveCount(1);
 
-        var actionWithoutAttr = controller.Actions.Single(a => a.ActionName == nameof(ControllerWithActionAttribute.GetNotCached));
+        ActionModel actionWithoutAttr = controller.Actions.Single(a => a.ActionName == nameof(ControllerWithActionAttribute.GetNotCached));
         actionWithoutAttr.Filters.OfType<DomainOutputCachePolicy>().Should().BeEmpty();
     }
 
@@ -72,11 +72,11 @@ public class CacheDomainConventionTests
     [Fact]
     public void Apply_WhenBothControllerAndActionHaveAttribute_ActionWins()
     {
-        var application = CreateApplicationModel(typeof(ControllerWithBothAttributes));
+        ApplicationModel application = CreateApplicationModel(typeof(ControllerWithBothAttributes));
 
         _sut.Apply(application);
 
-        var action = application.Controllers[0].Actions
+        ActionModel action = application.Controllers[0].Actions
             .Single(a => a.ActionName == nameof(ControllerWithBothAttributes.GetDetail));
 
         DomainOutputCachePolicy policy = action.Filters.OfType<DomainOutputCachePolicy>().Should().ContainSingle().Subject;
@@ -95,7 +95,7 @@ public class CacheDomainConventionTests
             ControllerName = controllerType.Name.Replace("Controller", "")
         };
 
-        foreach (var method in controllerType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly))
+        foreach (MethodInfo method in controllerType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly))
         {
             var actionModel = new ActionModel(method, [.. method.GetCustomAttributes(inherit: true).Cast<object>()])
             {

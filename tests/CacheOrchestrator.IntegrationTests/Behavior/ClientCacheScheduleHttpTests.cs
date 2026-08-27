@@ -300,7 +300,7 @@ public class ClientCacheScheduleHttpTests
             // Clock stays after T0; only config moves the schedule to the next planned cutover.
             DateTimeOffset t1 = clock.GetUtcNow().AddSeconds(10_000);
             reload.Provider.Should().NotBeNull();
-            reload.Provider!.SetAndReload(
+            reload.Provider.SetAndReload(
                 $"Cache:Domains:{domain}:ClientCache:ScheduledUpdateUtc",
                 t1.ToString("O"));
             await WaitForScheduledUpdateAsync(app.Services, domain, t1);

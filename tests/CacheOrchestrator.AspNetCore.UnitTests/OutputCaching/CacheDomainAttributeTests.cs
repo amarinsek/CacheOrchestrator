@@ -10,7 +10,7 @@ public class CacheDomainAttributeTests
     [InlineData("   ")]
     public void Constructor_WhenDomainIsNullOrWhitespace_Throws(string? domain)
     {
-        var act = () => new CacheDomainAttribute(domain!);
+        Func<CacheDomainAttribute> act = () => new CacheDomainAttribute(domain!);
 
         act.Should().Throw<ArgumentException>()
            .WithParameterName("domain");
@@ -46,7 +46,7 @@ public class CacheDomainAttributeTests
     [Fact]
     public void EntityConstructor_WhenEntityKindMissing_Throws()
     {
-        var act = () => new CacheDomainAttribute("store", "id", "  ");
+        Func<CacheDomainAttribute> act = () => new CacheDomainAttribute("store", "id", "  ");
 
         act.Should().Throw<ArgumentException>().WithParameterName("entityKind");
     }

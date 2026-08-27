@@ -42,7 +42,7 @@ public class InMemoryAdminStatsCollectorTests
 
         AdminEndpointStatsDto? ep = snap.UnassignedEndpoints.SingleOrDefault(e => e.Route == "GET /api/products/{id}");
         ep.Should().NotBeNull();
-        ep!.OutputCache.Hits.Should().Be(1);
+        ep.OutputCache.Hits.Should().Be(1);
         ep.DataCache.Misses.Should().Be(1);
         ep.ConfiguredDomain.Should().Be("catalog");
         ep.Pipeline.OutputCacheHitShare.Should().BeApproximately(0.5, 0.001);
@@ -149,7 +149,7 @@ public class InMemoryAdminStatsCollectorTests
         AdminDomainCountersDto d = collector.GetRawSnapshot().Domains.Single();
         d.FactoryDurationCount.Should().Be(2); // miss + stale, not hit
         d.FactoryDurationSumMs.Should().NotBeNull();
-        d.FactoryDurationSumMs!.Value.Should().BeApproximately(20.0, 2.0);
+        d.FactoryDurationSumMs.Value.Should().BeApproximately(20.0, 2.0);
     }
 
     [Fact]

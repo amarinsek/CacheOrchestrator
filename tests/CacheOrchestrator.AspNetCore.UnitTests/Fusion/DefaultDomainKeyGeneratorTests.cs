@@ -18,8 +18,8 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_SameRequest_ProducesSameKey()
     {
-        var cfg = CreateConfig();
-        var http = CreateHttpContext();
+        DomainCacheOptions cfg = CreateConfig();
+        DefaultHttpContext http = CreateHttpContext();
 
         string key1 = _sut.Generate(cfg, http);
         string key2 = _sut.Generate(cfg, http);
@@ -30,8 +30,8 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_IncludesDomainAndVersion()
     {
-        var cfg = CreateConfig(domain: "catalog");
-        var http = CreateHttpContext();
+        DomainCacheOptions cfg = CreateConfig(domain: "catalog");
+        DefaultHttpContext http = CreateHttpContext();
 
         string key = _sut.Generate(cfg, http);
 
@@ -41,8 +41,8 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_WithResourceId_IncludesIdSegmentAndIsStable()
     {
-        var cfg = CreateConfig(domain: "products");
-        var http = CreateHttpContext();
+        DomainCacheOptions cfg = CreateConfig(domain: "products");
+        DefaultHttpContext http = CreateHttpContext();
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "items", ResourceId = "42" });
 
         string key1 = _sut.Generate(cfg, http);
@@ -56,10 +56,10 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_DifferentEntityKinds_SameResourceId_ProduceDifferentKeys()
     {
-        var cfg = CreateConfig(domain: "store");
-        var product = CreateHttpContext();
+        DomainCacheOptions cfg = CreateConfig(domain: "store");
+        DefaultHttpContext product = CreateHttpContext();
         product.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "products", ResourceId = "1" });
-        var asset = CreateHttpContext();
+        DefaultHttpContext asset = CreateHttpContext();
         asset.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "assets", ResourceId = "1" });
 
         _sut.Generate(cfg, product).Should().NotBe(_sut.Generate(cfg, asset));
@@ -70,8 +70,8 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_ResourceIdWithoutEntityKind_DoesNotUseIdKeyShape()
     {
-        var cfg = CreateConfig(domain: "products");
-        var http = CreateHttpContext();
+        DomainCacheOptions cfg = CreateConfig(domain: "products");
+        DefaultHttpContext http = CreateHttpContext();
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { ResourceId = "42" });
 
         string key = _sut.Generate(cfg, http);
@@ -82,10 +82,10 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_DifferentResourceIds_ProduceDifferentKeys()
     {
-        var cfg = CreateConfig(domain: "products");
-        var http1 = CreateHttpContext();
+        DomainCacheOptions cfg = CreateConfig(domain: "products");
+        DefaultHttpContext http1 = CreateHttpContext();
         http1.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "items", ResourceId = "1" });
-        var http2 = CreateHttpContext();
+        DefaultHttpContext http2 = CreateHttpContext();
         http2.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "items", ResourceId = "2" });
 
         _sut.Generate(cfg, http1).Should().NotBe(_sut.Generate(cfg, http2));
@@ -94,7 +94,7 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_DifferentDomain_ProducesDifferentKey()
     {
-        var http = CreateHttpContext();
+        DefaultHttpContext http = CreateHttpContext();
 
         string key1 = _sut.Generate(CreateConfig(domain: "products"), http);
         string key2 = _sut.Generate(CreateConfig(domain: "orders"), http);
@@ -105,10 +105,10 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_DifferentVersion_ProducesDifferentKey()
     {
-        var http = CreateHttpContext();
-        var cfg1 = CreateConfig();
+        DefaultHttpContext http = CreateHttpContext();
+        DomainCacheOptions cfg1 = CreateConfig();
         _ = CreateConfig();
-        DomainCacheOptions? cfg2 = new DomainCacheOptions
+        var cfg2 = new DomainCacheOptions
         {
             Domain = cfg1.Domain,
             Version = "2",
@@ -130,7 +130,7 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_DifferentPath_ProducesDifferentKey()
     {
-        var cfg = CreateConfig();
+        DomainCacheOptions cfg = CreateConfig();
 
         string key1 = _sut.Generate(cfg, CreateHttpContext(path: "/api/products"));
         string key2 = _sut.Generate(cfg, CreateHttpContext(path: "/api/orders"));
@@ -141,10 +141,10 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_EmptyPath_DoesNotThrow()
     {
-        var cfg = CreateConfig();
-        var http = CreateHttpContext(path: "");
+        DomainCacheOptions cfg = CreateConfig();
+        DefaultHttpContext http = CreateHttpContext(path: "");
 
-        var act = () => _sut.Generate(cfg, http);
+        Func<string> act = () => _sut.Generate(cfg, http);
 
         act.Should().NotThrow();
     }
@@ -156,7 +156,7 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_DifferentQuery_ProducesDifferentKey()
     {
-        var cfg = CreateConfig();
+        DomainCacheOptions cfg = CreateConfig();
 
         string key1 = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "1" }));
         string key2 = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "2" }));
@@ -167,15 +167,15 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_QueryParameterOrder_DoesNotMatter()
     {
-        var cfg = CreateConfig();
+        DomainCacheOptions cfg = CreateConfig();
 
-        var http1 = CreateHttpContext(query: new()
+        DefaultHttpContext http1 = CreateHttpContext(query: new()
         {
             ["b"] = "2",
             ["a"] = "1"
         });
 
-        var http2 = CreateHttpContext(query: new()
+        DefaultHttpContext http2 = CreateHttpContext(query: new()
         {
             ["a"] = "1",
             ["b"] = "2"
@@ -190,10 +190,10 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_EmptyQuery_DoesNotThrow()
     {
-        var cfg = CreateConfig();
-        var http = CreateHttpContext(query: []);
+        DomainCacheOptions cfg = CreateConfig();
+        DefaultHttpContext http = CreateHttpContext(query: []);
 
-        var act = () => _sut.Generate(cfg, http);
+        Func<string> act = () => _sut.Generate(cfg, http);
 
         act.Should().NotThrow();
     }
@@ -216,15 +216,15 @@ public class DefaultDomainKeyGeneratorTests
     [InlineData("_gl")]
     public void Generate_IgnoresTrackingParameter(string trackingParam)
     {
-        var cfg = CreateConfig();
+        DomainCacheOptions cfg = CreateConfig();
 
-        var httpWithTracking = CreateHttpContext(query: new()
+        DefaultHttpContext httpWithTracking = CreateHttpContext(query: new()
         {
             ["id"] = "42",
             [trackingParam] = "something"
         });
 
-        var httpWithoutTracking = CreateHttpContext(query: new()
+        DefaultHttpContext httpWithoutTracking = CreateHttpContext(query: new()
         {
             ["id"] = "42"
         });
@@ -238,10 +238,10 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_IgnoresMultipleTrackingParameters()
     {
-        var cfg = CreateConfig();
+        DomainCacheOptions cfg = CreateConfig();
 
-        var http1 = CreateHttpContext(query: new() { ["id"] = "42" });
-        var http2 = CreateHttpContext(query: new()
+        DefaultHttpContext http1 = CreateHttpContext(query: new() { ["id"] = "42" });
+        DefaultHttpContext http2 = CreateHttpContext(query: new()
         {
             ["id"] = "42",
             ["utm_source"] = "google",
@@ -259,7 +259,7 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_DoesNotTreatGameQueryAsTracking()
     {
-        var cfg = CreateConfig();
+        DomainCacheOptions cfg = CreateConfig();
         string withGame = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "42", ["_game"] = "1" }));
         string without = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "42" }));
 
@@ -273,7 +273,7 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_VaryOnEncoding_DifferentEncoding_ProducesDifferentKey()
     {
-        var cfg = CreateConfig(varyOnEncoding: true);
+        DomainCacheOptions cfg = CreateConfig(varyOnEncoding: true);
 
         string key1 = _sut.Generate(cfg, CreateHttpContext(acceptEncoding: "gzip"));
         string key2 = _sut.Generate(cfg, CreateHttpContext(acceptEncoding: "br"));
@@ -284,7 +284,7 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_VaryOnEncodingDisabled_IgnoresEncoding()
     {
-        var cfg = CreateConfig(varyOnEncoding: false);
+        DomainCacheOptions cfg = CreateConfig(varyOnEncoding: false);
 
         string key1 = _sut.Generate(cfg, CreateHttpContext(acceptEncoding: "gzip"));
         string key2 = _sut.Generate(cfg, CreateHttpContext(acceptEncoding: "br"));
@@ -307,7 +307,7 @@ public class DefaultDomainKeyGeneratorTests
         };
 
         const string original = "text/html, application/json;q=0.9";
-        var http = CreateHttpContext(accept: original);
+        DefaultHttpContext http = CreateHttpContext(accept: original);
 
         _ = _sut.Generate(cfg, http);
 
@@ -337,8 +337,8 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_AfterEntityItemsCleared_UsesUrlKeyShape()
     {
-        var cfg = CreateConfig(domain: "products");
-        var http = CreateHttpContext();
+        DomainCacheOptions cfg = CreateConfig(domain: "products");
+        DefaultHttpContext http = CreateHttpContext();
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "items", ResourceId = "42" });
         string entityKey = _sut.Generate(cfg, http);
 
@@ -352,7 +352,7 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_VaryByAccept_DifferentAccept_ProducesDifferentKey()
     {
-        var cfg = CreateConfig();
+        DomainCacheOptions cfg = CreateConfig();
         cfg = new DomainCacheOptions
         {
             Domain = cfg.Domain,
@@ -395,7 +395,7 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_VaryOnPublicAddress_DifferentHost_ProducesDifferentKey()
     {
-        var cfg = CreateConfig(varyOnPublicAddress: true);
+        DomainCacheOptions cfg = CreateConfig(varyOnPublicAddress: true);
 
         string key1 = _sut.Generate(cfg, CreateHttpContext(host: "shop1.example.com"));
         string key2 = _sut.Generate(cfg, CreateHttpContext(host: "shop2.example.com"));
@@ -406,7 +406,7 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_VaryOnPublicAddress_DifferentScheme_ProducesDifferentKey()
     {
-        var cfg = CreateConfig(varyOnPublicAddress: true);
+        DomainCacheOptions cfg = CreateConfig(varyOnPublicAddress: true);
 
         string key1 = _sut.Generate(cfg, CreateHttpContext(scheme: "http"));
         string key2 = _sut.Generate(cfg, CreateHttpContext(scheme: "https"));
@@ -417,7 +417,7 @@ public class DefaultDomainKeyGeneratorTests
     [Fact]
     public void Generate_VaryOnPublicAddressDisabled_IgnoresHostAndScheme()
     {
-        var cfg = CreateConfig(varyOnPublicAddress: false);
+        DomainCacheOptions cfg = CreateConfig(varyOnPublicAddress: false);
 
         string key1 = _sut.Generate(cfg, CreateHttpContext(host: "shop1.example.com", scheme: "http"));
         string key2 = _sut.Generate(cfg, CreateHttpContext(host: "shop2.example.com", scheme: "https"));

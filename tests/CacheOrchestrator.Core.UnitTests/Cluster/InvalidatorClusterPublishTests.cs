@@ -104,7 +104,7 @@ public class InvalidatorClusterPublishTests
 
         result.Succeeded.Should().BeTrue("local Fusion/Output already applied");
         result.ClusterPublish.Should().NotBeNull();
-        result.ClusterPublish!.AllSucceeded.Should().BeFalse();
+        result.ClusterPublish.AllSucceeded.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Contains("peer down", StringComparison.Ordinal));
     }
 

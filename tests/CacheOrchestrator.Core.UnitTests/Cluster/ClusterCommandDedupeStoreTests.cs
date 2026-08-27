@@ -16,7 +16,7 @@ public class ClusterCommandDedupeStoreTests
         });
 
         ClusterCommandDedupeStore store = new(options);
-        Guid id = Guid.NewGuid();
+        var id = Guid.NewGuid();
 
         store.TryMarkAsNew(id).Should().BeTrue();
         store.TryMarkAsNew(id).Should().BeFalse();
@@ -32,7 +32,7 @@ public class ClusterCommandDedupeStoreTests
         });
 
         ClusterCommandDedupeStore store = new(options);
-        Guid id = Guid.NewGuid();
+        var id = Guid.NewGuid();
 
         store.TryMarkAsNew(id).Should().BeTrue();
         store.TryMarkAsNew(id).Should().BeTrue();

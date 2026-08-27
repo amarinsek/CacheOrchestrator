@@ -1,7 +1,8 @@
-using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.HttpBus;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -79,7 +80,7 @@ public class ClusterLocalApiTests
             Ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        using JsonDocument doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
         doc.RootElement.GetProperty("applied").GetBoolean().Should().BeFalse();
         doc.RootElement.GetProperty("reason").GetString().Should().Be("origin-is-self");
     }
@@ -98,7 +99,7 @@ public class ClusterLocalApiTests
             Ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        using JsonDocument doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
         doc.RootElement.GetProperty("applied").GetBoolean().Should().BeTrue();
     }
 
@@ -113,7 +114,7 @@ public class ClusterLocalApiTests
         HttpResponseMessage response = await client.GetAsync("/cache-admin/local/cluster/info", Ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        using JsonDocument doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
         doc.RootElement.GetProperty("instanceId").GetString().Should().Be("self-1");
         doc.RootElement.GetProperty("busEnabled").GetBoolean().Should().BeTrue();
     }
@@ -121,7 +122,7 @@ public class ClusterLocalApiTests
     [Fact]
     public void MapCacheOrchestratorHttpBus_WhenEndpointsNull_Throws()
     {
-        var act = () => ApplicationBuilderExtensions.MapCacheOrchestratorHttpBus(null!);
+        Func<IEndpointRouteBuilder> act = () => ApplicationBuilderExtensions.MapCacheOrchestratorHttpBus(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
@@ -174,7 +175,7 @@ public class ClusterLocalApiTests
                     services.AddLogging();
                     services.AddRouting();
                     services.AddCacheOrchestratorAspNetCore(config, o => o.AddHttpClusterBus(), enableMvcConvention: false);
-        services.AddCacheOrchestratorFusionCache(config);
+                    services.AddCacheOrchestratorFusionCache(config);
                 });
                 web.Configure(app =>
                 {

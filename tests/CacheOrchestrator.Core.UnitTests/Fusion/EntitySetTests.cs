@@ -14,7 +14,7 @@ public class EntitySetTests
 
         // Act
         var set = EntitySet.Create(products, "products", p => p.Id);
-        var footprint = set.BuildFootprint("products");
+        EntityFootprint footprint = set.BuildFootprint("products");
 
         // Assert
         Assert.Contains(footprint.Members, r => r.EntityKind == "products" && r.ResourceId == "42");
@@ -28,8 +28,8 @@ public class EntitySetTests
         int categoryId = 99;
 
         // Act
-        var updated = set.DependsOn("category", categoryId);
-        var footprint = updated.BuildFootprint("products");
+        EntitySet<Product> updated = set.DependsOn("category", categoryId);
+        EntityFootprint footprint = updated.BuildFootprint("products");
 
         // Assert
         Assert.Contains(footprint.DependsOn, r => r.EntityKind == "category" && r.ResourceId == "99");
@@ -43,8 +43,8 @@ public class EntitySetTests
         var set = EntitySet.Create(products, "products", p => p.Id);
 
         // Act
-        var updated = set.DependsOn(p => "category", p => p.Id * 10);
-        var footprint = updated.BuildFootprint("products");
+        EntitySet<Product> updated = set.DependsOn(p => "category", p => p.Id * 10);
+        EntityFootprint footprint = updated.BuildFootprint("products");
 
         // Assert
         Assert.Contains(footprint.DependsOn, r => r.EntityKind == "category" && r.ResourceId == "420");

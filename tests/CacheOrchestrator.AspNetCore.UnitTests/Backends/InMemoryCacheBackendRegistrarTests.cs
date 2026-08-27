@@ -20,7 +20,7 @@ public class InMemoryCacheBackendRegistrarTests
     public void RegisterOutputCache_ConfiguresInMemorySizeLimits()
     {
         var services = new ServiceCollection();
-        var configuration = new ConfigurationBuilder().Build();
+        IConfigurationRoot configuration = new ConfigurationBuilder().Build();
         var options = new CacheOrchestratorOptions();
         List<Action<OutputCacheOptions>> configurators = [];
         var context = new OutputCacheRegistrationContext(
@@ -40,13 +40,13 @@ public class InMemoryCacheBackendRegistrarTests
     public void RegisterHealthProbes_DoesNotThrow()
     {
         var services = new ServiceCollection();
-        var configuration = new ConfigurationBuilder().Build();
+        IConfigurationRoot configuration = new ConfigurationBuilder().Build();
         var options = new CacheOrchestratorOptions();
         var context = new BackendHealthRegistrationContext(
             services, configuration, "Cache", "oc", "InMemory", options,
             new CacheOrchestratorOptions.DataCacheInstanceOptions());
 
-        var act = () => _sut.RegisterHealthProbes(context);
+        Action act = () => _sut.RegisterHealthProbes(context);
         act.Should().NotThrow();
     }
 }

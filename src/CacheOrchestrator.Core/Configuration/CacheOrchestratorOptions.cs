@@ -39,7 +39,9 @@ public sealed class CacheOrchestratorOptions
 
     /// <summary>
     /// Named data-cache instances. Each entry defines an independent L1+L2 cache with its own
-    /// provider (built-in: <c>InMemory</c>; others via <see cref="DependencyInjection.ICacheOrchestratorBuilder.AddBackend"/>).
+    /// provider (built-in: <c>InMemory</c>; others via the FusionCache / HybridCache packages,
+    /// e.g. <c>AddRedisFusionCacheBackend</c> or web meta <c>AddRedisBackend</c>).
+    /// Not Output Cache <c>AddBackend</c> — that registers <see cref="OutputCache"/> stores only.
     /// At least one entry named <c>"default"</c> must be present.
     /// Bound from <c>Cache:DataCacheInstances</c>.
     /// </summary>
@@ -224,7 +226,9 @@ public sealed class CacheOrchestratorOptions
 
         /// <summary>
         /// Storage provider name. Built-in: <c>InMemory</c>.
-        /// Additional providers are registered via the builder (e.g. Redis package <c>AddRedisBackend</c>).
+        /// Additional providers come from the data-cache engine package (FusionCache / HybridCache),
+        /// e.g. <c>AddFusionCacheBackend</c> / <c>AddRedisFusionCacheBackend</c>
+        /// (web hosts may use meta <c>AddRedisBackend</c>, which also registers Fusion Redis).
         /// </summary>
         public string Provider { get; set; } = "InMemory";
 

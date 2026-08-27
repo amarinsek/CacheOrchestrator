@@ -30,7 +30,7 @@ public class CacheIdentityEndpointResolverTests
     public void ResolveEndpoint_KnownContract_SetsInstance()
     {
         FixedContract contract = new("search-v1");
-        CacheIdentityBinding binding = CacheIdentityBinding.CreateNamed("search-v1");
+        var binding = CacheIdentityBinding.CreateNamed("search-v1");
         CacheIdentityEndpointMetadata metadata = new();
         metadata.AddBinding("POST", binding, "test");
 
@@ -50,7 +50,7 @@ public class CacheIdentityEndpointResolverTests
     public void EnsureResolved_UsesCatalogFromServices()
     {
         FixedContract contract = new("search-v1");
-        CacheIdentityBinding binding = CacheIdentityBinding.CreateNamed("search-v1");
+        var binding = CacheIdentityBinding.CreateNamed("search-v1");
         CacheIdentityEndpointMetadata metadata = new();
         metadata.AddBinding("GET", binding, "test");
 

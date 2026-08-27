@@ -23,12 +23,12 @@ public class RedisOutputCacheBackendRegistrarTests
     {
         var services = new ServiceCollection();
         var options = new CacheOrchestratorOptions { OutputCache = { Provider = "Redis" } };
-        var configuration = new ConfigurationBuilder().Build();
+        IConfigurationRoot configuration = new ConfigurationBuilder().Build();
         List<Action<OutputCacheOptions>> configurators = [];
         var context = new OutputCacheRegistrationContext(
             services, configuration, options, "Cache", "Redis", configurators);
 
-        var act = () => _sut.RegisterOutputCache(context);
+        Action act = () => _sut.RegisterOutputCache(context);
 
         act.Should().Throw<InvalidOperationException>()
            .WithMessage("*Redis configuration is required*OutputCache*");
@@ -39,7 +39,7 @@ public class RedisOutputCacheBackendRegistrarTests
     {
         var services = new ServiceCollection();
         var options = new CacheOrchestratorOptions { OutputCache = { Provider = "Redis" } };
-        var configuration = new ConfigurationBuilder()
+        IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Cache:Redis:Configuration"] = "localhost:6379"
@@ -49,7 +49,7 @@ public class RedisOutputCacheBackendRegistrarTests
         var context = new OutputCacheRegistrationContext(
             services, configuration, options, "Cache", "Redis", configurators);
 
-        var act = () => _sut.RegisterOutputCache(context);
+        Action act = () => _sut.RegisterOutputCache(context);
         act.Should().NotThrow();
     }
 
@@ -59,7 +59,7 @@ public class RedisOutputCacheBackendRegistrarTests
         var services = new ServiceCollection();
         var options = new CacheOrchestratorOptions();
         var instanceOpts = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" };
-        var configuration = new ConfigurationBuilder().Build();
+        IConfigurationRoot configuration = new ConfigurationBuilder().Build();
         var context = new BackendHealthRegistrationContext(
             services, configuration, "Cache", "pii", "Redis", options, instanceOpts);
 
@@ -70,14 +70,14 @@ public class RedisOutputCacheBackendRegistrarTests
     [Fact]
     public void RegisterOutputCache_WhenContextIsNull_Throws()
     {
-        var act = () => _sut.RegisterOutputCache(null!);
+        Action act = () => _sut.RegisterOutputCache(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
     public void RegisterHealthProbes_WhenContextIsNull_Throws()
     {
-        var act = () => _sut.RegisterHealthProbes(null!);
+        Action act = () => _sut.RegisterHealthProbes(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 

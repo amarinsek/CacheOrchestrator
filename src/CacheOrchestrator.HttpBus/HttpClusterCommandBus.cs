@@ -92,7 +92,7 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
         HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
 
         using SemaphoreSlim gate = new(parallelism, parallelism);
-        Task<ClusterPeerPublishOutcome>[] tasks = new Task<ClusterPeerPublishOutcome>[targets.Count];
+        var tasks = new Task<ClusterPeerPublishOutcome>[targets.Count];
         for (int i = 0; i < targets.Count; i++)
         {
             ClusterPeer peer = targets[i];
@@ -116,7 +116,7 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             linked.CancelAfter(timeoutMs);
 
             Uri applyUri = BuildApplyUri(peer.BaseUrl, routePrefix);

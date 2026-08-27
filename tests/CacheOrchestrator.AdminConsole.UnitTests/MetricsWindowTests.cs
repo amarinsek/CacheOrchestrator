@@ -23,7 +23,7 @@ public class MetricsWindowTests
     {
         // 1h → step 30s. now at :07 past a 30s boundary → end floors to :00.
         DateTimeOffset now = new(2026, 3, 18, 12, 00, 37, TimeSpan.Zero);
-        MetricsWindow w = MetricsWindow.Resolve("1h", from: null, to: null, now);
+        var w = MetricsWindow.Resolve("1h", from: null, to: null, now);
 
         Assert.Equal("1h", w.RangeLabel);
         Assert.Equal("30s", w.Step);
@@ -36,9 +36,9 @@ public class MetricsWindowTests
     public void Resolve_relative_stable_across_sub_step_clock_advance()
     {
         DateTimeOffset t0 = new(2026, 3, 18, 12, 00, 37, TimeSpan.Zero);
-        MetricsWindow a = MetricsWindow.Resolve("6h", null, null, t0);
-        MetricsWindow b = MetricsWindow.Resolve("6h", null, null, t0.AddSeconds(5));
-        MetricsWindow c = MetricsWindow.Resolve("6h", null, null, t0.AddSeconds(20));
+        var a = MetricsWindow.Resolve("6h", null, null, t0);
+        var b = MetricsWindow.Resolve("6h", null, null, t0.AddSeconds(5));
+        var c = MetricsWindow.Resolve("6h", null, null, t0.AddSeconds(20));
 
         Assert.Equal(a.Start, b.Start);
         Assert.Equal(a.End, b.End);
@@ -46,7 +46,7 @@ public class MetricsWindowTests
         Assert.Equal(a.End, c.End);
 
         // Crossing the 1m step boundary moves the snapped window once.
-        MetricsWindow d = MetricsWindow.Resolve("6h", null, null, t0.AddSeconds(30));
+        var d = MetricsWindow.Resolve("6h", null, null, t0.AddSeconds(30));
         Assert.True(d.End > a.End);
         Assert.Equal(TimeSpan.FromMinutes(1), d.End - a.End);
         Assert.Equal(TimeSpan.FromHours(6), d.Duration);
@@ -57,7 +57,7 @@ public class MetricsWindowTests
     {
         string from = "2026-01-01T00:00:07Z";
         string to = "2026-01-01T01:00:13Z";
-        MetricsWindow w = MetricsWindow.Resolve(null, from, to, DateTimeOffset.UtcNow);
+        var w = MetricsWindow.Resolve(null, from, to, DateTimeOffset.UtcNow);
 
         Assert.Equal("custom", w.RangeLabel);
         Assert.True(w.IsAbsolute);
@@ -71,7 +71,7 @@ public class MetricsWindowTests
     {
         string from = "2026-01-01T00:00:00Z";
         string to = "2026-01-01T01:00:00Z";
-        MetricsWindow w = MetricsWindow.Resolve(null, from, to, DateTimeOffset.UtcNow);
+        var w = MetricsWindow.Resolve(null, from, to, DateTimeOffset.UtcNow);
 
         Assert.Equal(DateTimeOffset.Parse(from), w.Start);
         Assert.Equal(DateTimeOffset.Parse(to), w.End);

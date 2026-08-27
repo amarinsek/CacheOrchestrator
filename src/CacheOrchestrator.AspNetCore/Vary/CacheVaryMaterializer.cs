@@ -281,7 +281,10 @@ public sealed class CacheVaryMaterializer
         private readonly HashSet<string> _responseVarySet = new(StringComparer.OrdinalIgnoreCase);
         private IReadOnlyList<string> _queryKeys = Array.Empty<string>();
 
-        public Builder(HttpContext http) => _http = http;
+        public Builder(HttpContext http)
+        {
+            _http = http;
+        }
 
         public void AddHeader(string headerName)
         {

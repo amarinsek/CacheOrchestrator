@@ -1,5 +1,5 @@
-using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.HttpBus;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;

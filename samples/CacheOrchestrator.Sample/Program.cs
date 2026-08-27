@@ -1,6 +1,6 @@
-using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Identity;
 using CacheOrchestrator.Redis;
 using CacheOrchestrator.Sample.Endpoints;
@@ -8,7 +8,7 @@ using CacheOrchestrator.Sample.Identity;
 using CacheOrchestrator.Sample.Services;
 using OpenTelemetry.Metrics;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Peers in multi-instance labs share appsettings.json; poll so B reloads when A saves.
 builder.Services.AddHostedService<AppSettingsPeerReloadService>();
@@ -30,7 +30,7 @@ builder.Services.AddOpenTelemetry()
         metrics.AddPrometheusExporter();
     });
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();

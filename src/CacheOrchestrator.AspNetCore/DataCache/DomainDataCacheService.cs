@@ -265,7 +265,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         EntityFootprint early = BuildEarlyFootprint(http, useEntityKey);
         bool materialized = false;
         bool factoryFailed = false;
-        Stopwatch sw = Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
 
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
         activity?.SetTag("domain", opts.Domain);
@@ -532,7 +532,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
 
         bool materialized = false;
         bool factoryFailed = false;
-        Stopwatch sw = Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
 
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
         activity?.SetTag("domain", opts.Domain);
@@ -798,7 +798,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         Func<CancellationToken, Task<T>> factory,
         CancellationToken cancellationToken)
     {
-        Stopwatch sw = Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
         T result;
         try
         {

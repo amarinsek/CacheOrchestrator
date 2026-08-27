@@ -1,9 +1,7 @@
-using System.Net;
-using System.Net.Http.Json;
-using CacheOrchestrator.DependencyInjection;
-using CacheOrchestrator.Invalidation;
-using CacheOrchestrator.EFCore;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.EFCore;
+using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -13,6 +11,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Net.Http.Json;
 
 namespace CacheOrchestrator.IntegrationTests.EFCore;
 
@@ -202,7 +202,7 @@ public class EfSaveChangesInvalidationHttpTests
     {
         string domain = "store-" + Guid.NewGuid().ToString("N")[..8];
         string dbName = "ef-it-guid-" + Guid.NewGuid().ToString("N");
-        Guid id = Guid.Parse("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE");
+        var id = Guid.Parse("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE");
 
         Dictionary<string, string?> configValues = BaseConfig(domain);
         IConfigurationRoot config = new ConfigurationBuilder().AddInMemoryCollection(configValues).Build();

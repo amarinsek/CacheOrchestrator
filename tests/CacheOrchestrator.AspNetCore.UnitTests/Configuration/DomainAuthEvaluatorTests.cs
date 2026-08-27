@@ -66,10 +66,12 @@ public class DomainAuthEvaluatorTests
     [Fact]
     public void ResolveAuthenticatedVaryKey_UsesSortedClaims()
     {
-        var http = new DefaultHttpContext();
-        http.User = new ClaimsPrincipal(new ClaimsIdentity(
-            [new Claim("tenant_id", "acme"), new Claim("role", "admin"), new Claim(ClaimTypes.Name, "carol")],
-            authenticationType: "test"));
+        var http = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim("tenant_id", "acme"), new Claim("role", "admin"), new Claim(ClaimTypes.Name, "carol")],
+                authenticationType: "test"))
+        };
         DomainCacheOptions opts = new()
         {
             AuthBypassMode = AuthBypassMode.Never,
@@ -113,10 +115,12 @@ public class DomainAuthEvaluatorTests
     [Fact]
     public void ResolveAuthenticatedVaryKey_UsesSubWhenNameMissing()
     {
-        var http = new DefaultHttpContext();
-        http.User = new ClaimsPrincipal(new ClaimsIdentity(
-            [new Claim("sub", "user-42")],
-            authenticationType: "test"));
+        var http = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim("sub", "user-42")],
+                authenticationType: "test"))
+        };
         DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
 
         DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("id:user-42");
@@ -125,10 +129,12 @@ public class DomainAuthEvaluatorTests
     [Fact]
     public void ResolveAuthenticatedVaryKey_UsesNameIdentifierWhenNameAndSubMissing()
     {
-        var http = new DefaultHttpContext();
-        http.User = new ClaimsPrincipal(new ClaimsIdentity(
-            [new Claim(ClaimTypes.NameIdentifier, "nid-7")],
-            authenticationType: "test"));
+        var http = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(ClaimTypes.NameIdentifier, "nid-7")],
+                authenticationType: "test"))
+        };
         DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
 
         DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("id:nid-7");

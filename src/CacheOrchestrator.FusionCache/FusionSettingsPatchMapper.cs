@@ -1,6 +1,6 @@
+using CacheOrchestrator.Admin;
 using System.Globalization;
 using System.Text.Json;
-using CacheOrchestrator.Admin;
 
 namespace CacheOrchestrator.FusionCache;
 
@@ -38,19 +38,35 @@ public static class FusionSettingsPatchMapper
             string suffix = id["fusionCache.".Length..];
             switch (suffix)
             {
-                case "hardTtlSeconds": hardTtl = ReadNonNegSecondsAsTimeSpan(el, id); break;
-                case "failSafeSeconds": failSafe = ReadNonNegSecondsAsTimeSpan(el, id); break;
+                case "hardTtlSeconds":
+                    hardTtl = ReadNonNegSecondsAsTimeSpan(el, id);
+                    break;
+                case "failSafeSeconds":
+                    failSafe = ReadNonNegSecondsAsTimeSpan(el, id);
+                    break;
                 case "eagerRefreshRatio":
                     eagerRefreshRatio = ReadDouble(el, id);
                     if (eagerRefreshRatio is < 0 or >= 1)
                         throw new ArgumentException($"Setting '{id}' must be in [0, 1).", id);
                     break;
-                case "jitterSeconds": jitter = ReadNonNegSecondsAsTimeSpan(el, id); break;
-                case "factorySoftTimeoutSeconds": factorySoftTimeout = ReadNonNegSecondsAsTimeSpan(el, id); break;
-                case "factoryHardTimeoutSeconds": factoryHardTimeout = ReadNonNegSecondsAsTimeSpan(el, id); break;
-                case "maxItemBytes": maxItemBytes = ReadNonNegInt(el, id); break;
-                case "allowBackgroundDistributed": allowBackgroundDistributed = ReadBool(el, id); break;
-                case "allowBackgroundBackplane": allowBackgroundBackplane = ReadBool(el, id); break;
+                case "jitterSeconds":
+                    jitter = ReadNonNegSecondsAsTimeSpan(el, id);
+                    break;
+                case "factorySoftTimeoutSeconds":
+                    factorySoftTimeout = ReadNonNegSecondsAsTimeSpan(el, id);
+                    break;
+                case "factoryHardTimeoutSeconds":
+                    factoryHardTimeout = ReadNonNegSecondsAsTimeSpan(el, id);
+                    break;
+                case "maxItemBytes":
+                    maxItemBytes = ReadNonNegInt(el, id);
+                    break;
+                case "allowBackgroundDistributed":
+                    allowBackgroundDistributed = ReadBool(el, id);
+                    break;
+                case "allowBackgroundBackplane":
+                    allowBackgroundBackplane = ReadBool(el, id);
+                    break;
                 default:
                     throw new ArgumentException($"Setting '{id}' is not mapped for Fusion overlay.", nameof(settings));
             }

@@ -9,7 +9,7 @@ public class EntityResourceIdFormatterTests
     [Fact]
     public void GuidPk_MatchesNormalizedRouteValue()
     {
-        Guid id = Guid.Parse("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE");
+        var id = Guid.Parse("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE");
         using GuidDbContext db = Create(id);
 
         string? formatted = EntityResourceIdFormatter.TryFormat(db.Entry(db.Rows.Single()));
@@ -34,7 +34,7 @@ public class EntityResourceIdFormatterTests
     [Fact]
     public void TryFormat_WhenEntryIsNull_Throws()
     {
-        var act = () => EntityResourceIdFormatter.TryFormat(null!);
+        Func<string?> act = () => EntityResourceIdFormatter.TryFormat(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 

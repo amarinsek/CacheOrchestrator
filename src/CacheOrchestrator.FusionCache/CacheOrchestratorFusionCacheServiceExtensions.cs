@@ -62,7 +62,7 @@ public static class CacheOrchestratorFusionCacheServiceExtensions
         services.RemoveAll<IDataCacheProvider>();
         services.AddSingleton<IDataCacheProvider, FusionDataCacheProvider>();
 
-        FusionCacheBackendRegistrarRegistry registry = FusionCacheBackendRegistrarRegistry.GetOrCreate(services);
+        var registry = FusionCacheBackendRegistrarRegistry.GetOrCreate(services);
 
         if (configuration is not null)
             RegisterNamedFusionInstances(services, configuration, section, registry);
