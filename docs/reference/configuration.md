@@ -45,9 +45,9 @@ For “which package do I need?”, start with [packages](../guide/packages.md),
 | `InstanceId` | string | machine name | Stable process id (Admin, cluster bus anti-echo, diagnostics) |
 | `EmitDiagnosticsHeaders` | bool | `true` | When `true`, emit client-visible diagnostic headers (currently `X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
 | `Metrics` | object | see below | Meter label options (OpenTelemetry / Prometheus) |
-| `Distributed` | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** data-cache providers (Fusion Redis, …) |
+| `Distributed` | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** Data Cache providers (Fusion Redis, …) |
 | `OutputCache` | object | Provider `InMemory` | Output Cache provider + optional namespace |
-| `DataCacheInstances` | map | `default` instance `InMemory` | Named data-cache engines (Fusion L1±L2 today; Hybrid uses a single DI HybridCache) |
+| `DataCacheInstances` | map | `default` instance `InMemory` | Named Data Cache engines (Fusion L1±L2 today; Hybrid uses a single DI HybridCache) |
 | `DomainDefaults` | object | — | Fallbacks for every domain |
 | `Domains` | map | — | Per-domain overrides (keys are domain names) |
 | `Admin` | object | disabled | Admin API (see [admin.md](admin.md)) |
@@ -59,7 +59,7 @@ Bound from `Cache:Metrics`. Controls labels on the `CacheOrchestrator` meter (no
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `IncludeEndpointLabel` | bool | `true` | When `true`, OC/DC instruments include a stable `route` tag (`METHOD` + route template, same shape as Admin endpoint keys). Set `false` to emit only `domain` / `result` (lower Prometheus cardinality). Keep the same value on all cluster nodes. |
+| `IncludeEndpointLabel` | bool | `true` | When `true`, Output Cache and Data Cache instruments include a stable `route` tag (`METHOD` + route template, the same shape as Admin endpoint keys). Set `false` to emit only `domain` / `result` and lower Prometheus cardinality. Keep the same value on all cluster nodes. |
 
 Endpoint time series need a scrape of the meter and Admin Console App Metrics store; empty charts mean no samples in range (traffic, flag off for part of the window, or label mismatch)—not a separate “feature bit” from Prometheus history.
 
@@ -68,9 +68,9 @@ Endpoint time series need a scrape of the meter and Admin Console App Metrics st
 Effective namespaces:
 
 - Output: `OutputCache.Namespace` ?? `{Namespace}-oc`
-- Data-cache **`default`** instance: `DataCacheInstances.default.Namespace` ?? `{Namespace}-fc`  
+- Data Cache **`default`** instance: `DataCacheInstances.default.Namespace` ?? `{Namespace}-fc`
   (**no** `-default` suffix — keys look like `app-cache-fc:…`, not `app-cache-fc-default:…`. The `-fc` suffix is historical.)
-- Data-cache **named** instance (e.g. `pii`): `…Namespace` ?? `{Namespace}-fc-{name}`
+- Data Cache **named** instance (e.g. `pii`): `…Namespace` ?? `{Namespace}-fc-{name}`
 
 ## Provider options (`OutputCache` / `DataCacheInstances` entry)
 
@@ -88,7 +88,7 @@ Bound **only** when you call `AddRedisBackend()`. Types: `RedisConnectionOptions
 |---------|------|
 | `Cache:Redis` | Global fallback connection |
 | `Cache:OutputCache:Redis` | Override for Output Cache store |
-| `Cache:DataCacheInstances:{name}:Redis` | Override for one data-cache instance |
+| `Cache:DataCacheInstances:{name}:Redis` | Override for one Data Cache instance |
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -99,7 +99,7 @@ Bound **only** when you call `AddRedisBackend()`. Types: `RedisConnectionOptions
 
 ## Distributed resilience (`Cache:Distributed`)
 
-Core setting. Applied when a data-cache instance `Provider` is **not** `InMemory` (Fusion L2 path).
+Core setting. Applied when a Data Cache instance `Provider` is **not** `InMemory` (Fusion L2 path).
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -111,12 +111,23 @@ Core setting. Applied when a data-cache instance `Provider` is **not** `InMemory
 
 Nullable fields **inherit** from defaults (then hard-coded library defaults). Nested sections merge the same way.
 
+### Resolution precedence
+
+For one domain, the Core and ASP.NET Core options providers resolve values in this order, from highest to lowest priority:
+
+1. Runtime overlay created through the Admin API, for settings that support overlays.
+2. `Cache:Domains:{name}`.
+3. `Cache:DomainDefaults`.
+4. Library defaults.
+
+Core produces an immutable `DomainCacheOptions` snapshot for domain identity and Data Cache policy. ASP.NET Core composes it into `DomainHttpCacheOptions` for Output Cache, Client Cache, authentication, vary, ETag, and HTTP Data Cache key policy. A request reuses its HTTP snapshot; configuration reloads and later overlays affect newly resolved requests, not values already attached to the current request. Provider and connection sections such as `OutputCache`, `DataCacheInstances`, and `Redis` are host composition settings and do not participate in this per-domain merge.
+
 ### Nested sections
 
 | JSON section | Portable? | Meaning |
 |--------------|-----------|---------|
 | `DataCache` | Yes (Core) | Enable, instance name, TTL, vary / no-store — Fusion **or** Hybrid |
-| `OutputCache` | AspNet | HTTP response cache TTL and OC knobs |
+| `OutputCache` | AspNet | HTTP response cache TTL and Output Cache behavior |
 | `ClientCache` | AspNet | Browser / CDN `Cache-Control` (+ schedule) |
 | `FusionCache` | Fusion package only | Hard TTL, fail-safe, factory timeouts, jitter, … |
 
@@ -125,11 +136,11 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults). Ne
 | Property | Default* | Description |
 |----------|----------|-------------|
 | `AuthBypassMode` | `AuthenticatedOrAuthorization` | Prefer this: `Never` / `AuthenticatedIdentityOnly` / `AuthorizationHeaderOnly` / `AuthenticatedOrAuthorization` |
-| `VaryOutputCacheByUser` | true | When auth is not bypassed, vary OC (and data cache when intentional) by user / claims / API-key hash |
+| `VaryOutputCacheByUser` | true | When authentication is not bypassed, vary Output Cache (and Data Cache when intentional) by user, claims, or API-key hash |
 | `TreatAuthorizationAsAuthSignal` | true | `Authorization` counts as auth signal for OR-mode |
 | `AuthVaryIncludeAuthorizationHash` | true | Hash `Authorization` into auth-user when no identity |
 | `VaryByAuthClaims` | null | Claim types for auth-user material |
-| `DataCacheRespectAuthBypass` | **true** | Data cache skips when auth bypass would fire (set `false` for 2.1-like data-cache-under-Authorization) |
+| `DataCacheRespectAuthBypass` | **true** | Data Cache skips when the Output Cache authentication bypass would fire. Set `false` only for caller-independent shared data. |
 | `VaryByAccept` / `VaryByAcceptLanguage` | true / false | Content negotiation / locale vary |
 | `AcceptNormalizationList` / `AcceptLanguageNormalizationList` | null | Prefer-lists when those vary flags are on — [vary.md](vary.md) |
 | `VaryByHeaders` / `VaryByCookies` | null | Header/cookie **name** allowlists — [vary.md](vary.md) |
@@ -149,18 +160,18 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults). Ne
 
 | Property | Default* | Description |
 |----------|----------|-------------|
-| `Enabled` | true | Enable data cache for the domain |
+| `Enabled` | true | Enable Data Cache for the domain |
 | `Instance` | `default` | Key in `DataCacheInstances` |
-| `TtlSeconds` | `3800` | Logical data-cache TTL in seconds (Fusion soft/`Duration`; Hybrid expiration) |
-| `RespectNoStore` | true | Skip data cache when request has `Cache-Control: no-store` |
-| `VaryOnEncoding` | true | Include Accept-Encoding in the data-cache key |
-| `VaryOnPublicAddress` | true | Include scheme + host in the data-cache key |
+| `TtlSeconds` | `3800` | Logical Data Cache TTL in seconds (Fusion soft/`Duration`; Hybrid expiration) |
+| `RespectNoStore` | true | Skip Data Cache when request has `Cache-Control: no-store` |
+| `VaryOnEncoding` | true | Include Accept-Encoding in the Data Cache key |
+| `VaryOnPublicAddress` | true | Include scheme + host in the Data Cache key |
 
 ### `OutputCache` (nested under domain)
 
 | Property | Default* | Description |
 |----------|----------|-------------|
-| `Enabled` | true | Enable HTTP output cache for domain |
+| `Enabled` | true | Enable Output Cache for the domain |
 | `TtlSeconds` | `3700` | Server-side output entry TTL in seconds |
 | `VaryByHost` | **true** | Output Cache `VaryByHost` (host + port) |
 | `CacheableStatusCodes` | `[200]` | Status codes allowed to store |
@@ -178,7 +189,7 @@ Nullable fields **inherit** from defaults (then hard-coded library defaults). Ne
 | `MustRevalidateNearUpdate` | false | Append `must-revalidate` at min floor |
 | `ForcePrivateWhenAuthenticated` | true | Force client Private for signed-in Identity + Public |
 
-See **[client-cache-schedule.md](../guide/client-cache-schedule.md)** for phases, formula, and operational playbook.
+See **[Client Cache Schedule](../guide/client-cache-schedule.md)** for phases, formula, and operational playbook.
 
 ### `FusionCache` (Fusion package only)
 
@@ -251,7 +262,7 @@ Optional. Requires package **`CacheOrchestrator.EFCore.Invalidation`**. Type →
 - `DataCacheInstances` must contain **`default`**
 - Each domain `DataCache.Instance` must name a registered instance (default `"default"`)
 - Provider must be a registered backend (`InMemory`, `Redis` after `AddRedisBackend()`, custom via `AddBackend`)
-- Output Cache provider must support an OC store (`SupportsOutputCacheStore`)
+- Output Cache provider must support an Output Cache store (`SupportsOutputCacheStore`)
 - Redis provider requires a connection string (`Cache:Redis:Configuration` or the scoped `OutputCache:Redis` / `DataCacheInstances:{name}:Redis` override)
 - Negative TTLs fail; `FusionCache.EagerRefreshRatio` must be in `[0, 1)` when present
 - Allowlists have max lengths (headers, cookies, query, claims, Accept lists)
@@ -259,16 +270,22 @@ Optional. Requires package **`CacheOrchestrator.EFCore.Invalidation`**. Type →
 
 ## Runtime model
 
-Resolved settings are **`DomainCacheOptions`** (immutable snapshot). Nested JSON seconds map to:
+Resolved settings use two immutable runtime snapshots:
+
+- Core `DomainCacheOptions` contains `Domain`, `Version`, `VersionHex`, `DataCacheEnabled`, `DataCacheInstanceName`, `DataCacheTtl`, and `DataCacheNamespace`.
+- ASP.NET Core `DomainHttpCacheOptions` exposes the Core snapshot through `CoreOptions` and adds the HTTP-owned settings.
+
+Nested JSON seconds map to:
 
 | JSON | Runtime |
 |------|---------|
-| `OutputCache.TtlSeconds` | `OutputTtl` (`TimeSpan`) |
-| `DataCache.TtlSeconds` | `DataCacheTtl` (`TimeSpan`) |
-| `ClientCache.TtlSeconds` / `TtlMinSeconds` | `ClientTtlSeconds` / `ClientTtlMinSeconds` (`int`) |
-| `DataCache.Instance` | `DataCacheInstanceName` |
-| `DataCache.Enabled` / `OutputCache.Enabled` | `DataCacheEnabled` / `OutputCacheEnabled` |
-| `ClientCache.Cacheability` | `ClientCacheability` |
+| `OutputCache.TtlSeconds` | `DomainHttpCacheOptions.OutputTtl` (`TimeSpan`) |
+| `DataCache.TtlSeconds` | `DomainCacheOptions.DataCacheTtl` (`TimeSpan`) |
+| `ClientCache.TtlSeconds` / `TtlMinSeconds` | `DomainHttpCacheOptions.ClientTtlSeconds` / `ClientTtlMinSeconds` (`int`) |
+| `DataCache.Instance` | `DomainCacheOptions.DataCacheInstanceName` |
+| `DataCache.Enabled` | `DomainCacheOptions.DataCacheEnabled` |
+| `OutputCache.Enabled` | `DomainHttpCacheOptions.OutputCacheEnabled` |
+| `ClientCache.Cacheability` | `DomainHttpCacheOptions.ClientCacheability` |
 
 Fusion-only knobs stay on `DomainFusionCacheSettings` (Fusion package), not on Core `DomainCacheOptions`.
 

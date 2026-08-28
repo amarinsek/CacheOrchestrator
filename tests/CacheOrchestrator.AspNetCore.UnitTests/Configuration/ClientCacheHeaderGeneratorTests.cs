@@ -1,10 +1,10 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 
-namespace CacheOrchestrator.Core.UnitTests.Configuration;
+namespace CacheOrchestrator.AspNetCore.UnitTests.Configuration;
 
 public class ClientCacheHeaderGeneratorTests
 {
-    private static DomainCacheOptions Cfg(
+    private static DomainHttpCacheOptions Cfg(
         ClientCacheability cacheability = ClientCacheability.Public,
         int ttl = 3600,
         int ttlMin = 60,
@@ -13,17 +13,20 @@ public class ClientCacheHeaderGeneratorTests
         bool mustRevalidateNear = false)
         => new()
         {
-            Domain = "test",
-            Version = version ?? "1",
+            CoreOptions = new DomainCacheOptions
+            {
+                Domain = "test",
+                Version = version ?? "1",
+                DataCacheEnabled = true,
+                DataCacheTtl = TimeSpan.FromSeconds(60),
+            },
             ClientCacheability = cacheability,
             ClientTtlSeconds = ttl,
             ClientTtlMinSeconds = ttlMin,
             ScheduledUpdateUtc = schedule,
             ClientMustRevalidateNearUpdate = mustRevalidateNear,
             OutputCacheEnabled = true,
-            DataCacheEnabled = true,
             OutputTtl = TimeSpan.FromSeconds(60),
-            DataCacheTtl = TimeSpan.FromSeconds(60),
             CacheableStatusCodes = [200],
             OutputCacheNamespace = "t",
             EncodingNormalizationList = null

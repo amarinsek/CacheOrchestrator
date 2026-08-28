@@ -89,7 +89,7 @@ public class AdminQueryServiceTests
         return new AdminQueryService(
             stats,
             Substitute.For<IAdminEndpointCatalog>(),
-            Substitute.For<IDomainCacheOptionsProvider>(),
+            Substitute.For<IRequestDomainCacheOptions>(),
             Substitute.For<IDomainRuntimeOverrideStore>(),
             options,
             TimeProvider.System,

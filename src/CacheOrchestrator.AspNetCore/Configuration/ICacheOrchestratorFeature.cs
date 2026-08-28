@@ -19,7 +19,7 @@ public interface ICacheOrchestratorFeature
     /// <summary>
     /// The resolved domain cache options for the current request.
     /// </summary>
-    DomainCacheOptions? DomainOptions { get; set; }
+    DomainHttpCacheOptions? DomainOptions { get; set; }
 
     /// <summary>
     /// Normalized resource id.
@@ -47,7 +47,7 @@ public interface ICacheOrchestratorFeature
 /// </summary>
 internal sealed class CacheOrchestratorFeature : ICacheOrchestratorFeature
 {
-    public DomainCacheOptions? DomainOptions { get; set; }
+    public DomainHttpCacheOptions? DomainOptions { get; set; }
     public string? ResourceId { get; set; }
     public string? EntityKind { get; set; }
     public CacheDisposition? Disposition { get; set; }

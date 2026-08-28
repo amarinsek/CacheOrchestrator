@@ -214,7 +214,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             return;
         }
 
-        DomainCacheOptions opts = http.RequestServices
+        DomainHttpCacheOptions opts = http.RequestServices
             .GetRequiredService<IRequestDomainCacheOptions>()
             .EnsureDomainOptions(http, domain);
 
@@ -405,7 +405,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         return normalized;
     }
 
-    private static void ApplyETag(HttpContext http, DomainCacheOptions opts, string? entityKind, string? resourceId)
+    private static void ApplyETag(HttpContext http, DomainHttpCacheOptions opts, string? entityKind, string? resourceId)
     {
         switch (opts.ETagMode)
         {
@@ -528,13 +528,13 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         return false;
     }
 
-    private static void RegisterResponseHeaders(HttpContext http, DomainCacheOptions opts, OutputCacheResult defaultOutput, ClientCacheClass? forceClient = null) =>
+    private static void RegisterResponseHeaders(HttpContext http, DomainHttpCacheOptions opts, OutputCacheResult defaultOutput, ClientCacheClass? forceClient = null) =>
         http.Response.OnStarting(ApplyHeadersAsync, (http, opts, defaultOutput, forceClient));
 
     private static Task ApplyHeadersAsync(object state)
     {
-        (HttpContext? httpContext, DomainCacheOptions? config, OutputCacheResult defOutput, ClientCacheClass? forcedClient) =
-            ((HttpContext, DomainCacheOptions, OutputCacheResult, ClientCacheClass?))state;
+        (HttpContext? httpContext, DomainHttpCacheOptions? config, OutputCacheResult defOutput, ClientCacheClass? forcedClient) =
+            ((HttpContext, DomainHttpCacheOptions, OutputCacheResult, ClientCacheClass?))state;
 
         HttpResponse response = httpContext.Response;
         int sc = response.StatusCode;

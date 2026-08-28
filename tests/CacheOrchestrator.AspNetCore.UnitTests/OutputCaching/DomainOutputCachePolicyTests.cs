@@ -341,7 +341,7 @@ public class DomainOutputCachePolicyTests
         http.Response.StatusCode = 500;
 
         // Simulate that EnsureConfig already ran
-        DomainCacheOptions cfg = CreateEffectiveConfig();
+        DomainHttpCacheOptions cfg = CreateEffectiveConfig();
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
         context.AllowCacheStorage = true;
 
@@ -358,7 +358,7 @@ public class DomainOutputCachePolicyTests
         http.Response.StatusCode = 200;
         http.Response.Headers.SetCookie = "session=abc";
 
-        DomainCacheOptions cfg = CreateEffectiveConfig();
+        DomainHttpCacheOptions cfg = CreateEffectiveConfig();
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
         context.AllowCacheStorage = true;
 
@@ -374,7 +374,7 @@ public class DomainOutputCachePolicyTests
         (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext();
         http.Response.StatusCode = 200;
 
-        DomainCacheOptions cfg = CreateEffectiveConfig();
+        DomainHttpCacheOptions cfg = CreateEffectiveConfig();
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = cfg });
         context.AllowCacheStorage = true;
 
@@ -524,7 +524,7 @@ public class DomainOutputCachePolicyTests
         http.Request.Method = method;
         http.Request.Path = "/api/products";
 
-        DomainCacheOptions cfg = CreateEffectiveConfig(
+        DomainHttpCacheOptions cfg = CreateEffectiveConfig(
             outputCacheEnabled,
             outputTtlSeconds,
             version,
@@ -565,7 +565,7 @@ public class DomainOutputCachePolicyTests
         return (context, http);
     }
 
-    private static DomainCacheOptions CreateEffectiveConfig(
+    private static DomainHttpCacheOptions CreateEffectiveConfig(
         bool outputCacheEnabled = true,
         int outputTtlSeconds = 60,
         string? version = null,
@@ -576,15 +576,18 @@ public class DomainOutputCachePolicyTests
         int clientTtlSeconds = 60,
         int clientTtlMinSeconds = 60) => new()
         {
-            Domain = domain,
+            CoreOptions = new DomainCacheOptions
+            {
+                Domain = domain,
+                Version = version ?? "1",
+                VersionHex = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes(version ?? "1")).ToString("x16"),
+            },
             OutputCacheEnabled = outputCacheEnabled,
             AuthBypassMode = bypassWhenAuthenticated
                 ? AuthBypassMode.AuthenticatedOrAuthorization
                 : AuthBypassMode.Never,
             VaryOutputCacheByUser = varyOutputCacheByUser,
             OutputTtl = TimeSpan.FromSeconds(outputTtlSeconds),
-            Version = version ?? "1",
-            VersionHex = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes(version ?? "1")).ToString("x16"),
             ETag = new StringValues($"W/\"{XxHash3.HashToUInt64(Encoding.UTF8.GetBytes(version ?? "1")):x16}\""),
             CacheableStatusCodes = [200],
             ClientCacheability = ClientCacheability.Public,

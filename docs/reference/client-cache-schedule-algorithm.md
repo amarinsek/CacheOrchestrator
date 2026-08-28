@@ -23,7 +23,7 @@ If `ScheduledUpdateUtc` is null:
 
 ### 3. Hold
 
-12:00 UTC (The Cutover / Update time passes)
+If `now >= ScheduledUpdateUtc`:
 
 → `max-age = min`, phase `Hold`.
 
@@ -55,7 +55,7 @@ So:
 - Linear in between  
 
 Phase `Approaching`.  
-If `ClientMustRevalidateNearUpdate` and `maxAge <= min` → append `must-revalidate`.
+If runtime option `ClientMustRevalidateNearUpdate` is `true` and `maxAge <= min` → append `must-revalidate`. Its configuration source is `ClientCache.MustRevalidateNearUpdate`.
 
 **Hold also appends `must-revalidate`** when that flag is on (not only the Approaching floor). Tests: after `ScheduledUpdateUtc` with the flag, the header includes `must-revalidate`.
 
@@ -76,5 +76,5 @@ If `ClientMustRevalidateNearUpdate` and `maxAge <= min` → append `must-revalid
 
 - [Client Cache Schedule (guide)](../guide/client-cache-schedule.md)
 - [configuration.md](configuration.md) — `ClientCache` properties
-- [output-cache.md](output-cache.md) — where headers are applied
+- [Output Cache](output-cache.md) — where headers are applied
 - [observability.md](observability.md) — `phase=` on `X-Cache`

@@ -37,14 +37,7 @@ public class FusionEntryOptionsBenchmarks
         Version = "1",
         VersionHex = "01",
         DataCacheTtl = TimeSpan.FromSeconds(300),
-        OutputCacheEnabled = true,
         DataCacheEnabled = true,
-        ClientCacheability = ClientCacheability.Public,
-        ClientTtlSeconds = 60,
-        ClientTtlMinSeconds = 60,
-        OutputTtl = TimeSpan.FromSeconds(60),
-        CacheableStatusCodes = [200],
-        OutputCacheNamespace = "b",
     };
 
     private static DomainFusionCacheSettings CreateFusion() => new()

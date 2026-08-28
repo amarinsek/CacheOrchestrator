@@ -1,6 +1,8 @@
+# Data Cache
+
 > **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md).
 
-The **data cache** stores **application objects** from your factory (DTOs, tiles, aggregates) — not full HTTP responses. CacheOrchestrator scopes it to the same **domain** as Output Cache and client headers. A registered **`IDataCacheProvider`** owns the store (Fusion or Hybrid).
+The **Data Cache** stores **application objects** from your factory (DTOs, tiles, aggregates) — not full HTTP responses. CacheOrchestrator scopes it to the same **domain** as Output Cache and Client Cache. A registered **`IDataCacheProvider`** owns the store (Fusion or Hybrid).
 
 - Portable policy: nested **`DataCache`** (`TtlSeconds`, `Enabled`, `Instance`, …).
 - Web: **`IDomainDataCache`**. Libraries / workers: Core **`ICacheOrchestrator`** + `CacheDomainContext`.
@@ -21,7 +23,7 @@ Package READMEs: [FusionCache](../../src/CacheOrchestrator.FusionCache/README.md
 
 ---
 
-## How the data cache finds the domain
+## How the Data Cache finds the domain
 
 `IDomainDataCache.GetOrSetAsync` looks for domain options in this order:
 
@@ -56,7 +58,7 @@ public class ProductsController : ControllerBase
 }
 ```
 
-### Data cache only (no Output Cache domain)
+### Data Cache only (no Output Cache domain)
 
 When the endpoint has no Output Cache domain, pass the name:
 
@@ -77,22 +79,30 @@ If you omit the domain:
 - metric `cache_orchestrator.dc.requests` is recorded with `domain=_`, `result=unresolved`
 - `X-Cache` may show `dc=unresolved; fa=run` when Output Cache still writes headers
 
-### Entity identity
-
-Entity identity is optional and lives **inside** a domain (domains stay the configuration unit). Endpoint metadata owns domain + primary kind/id; the data-cache HTTP helpers consume that identity on the happy path.
+After endpoint policy resolution or `EnsureDomainOptions`, advanced handler code can inspect the immutable request snapshot:
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, CancellationToken cancellationToken) =>
+DomainHttpCacheOptions? options = http.GetDomainCacheOptions();
+```
+
+`null` means no domain has been resolved for the request. Read this snapshot for diagnostics or downstream decisions; do not treat it as mutable configuration.
+
+### Entity identity
+
+Entity identity is optional and lives **inside** a domain (domains stay the configuration unit). Endpoint metadata owns domain + primary kind/id; the Data Cache HTTP helpers consume that identity on the happy path.
+
+```csharp
+app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache, CancellationToken cancellationToken) =>
 {
     var product = await cache.GetOrSetEntityAsync(
         http,
-        ct => LoadProductAsync(id, ct),
+        token => LoadProductAsync(id, token),
         cancellationToken);
     return product is null ? Results.NotFound() : Results.Ok(product);
 })
 .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
 
-await invalidator.InvalidateEntityAsync("store", "products", productId, cancellationToken);
+await invalidator.InvalidateEntityAsync("store", "products", 42, cancellationToken);
 ```
 
 Tags for that detail entry: `domain:store`, `entity:store:products:42`, `entitykind:store:products`.
@@ -105,12 +115,21 @@ Also: [domain-profiles.md](../guide/domain-profiles.md), [invalidation.md](inval
 
 `GetOrSetEntityAsync(http, entityKind, resourceId, …)` and `GetOrSetEntityAsync(http, domain, entityKind, resourceId, …)` are obsolete. Prefer endpoint identity or `SetEntityIdentity`. They remain as thin wrappers until the next major.
 
+For a Data-Cache-only endpoint, set a natural typed ID through the generic extension:
+
+```csharp
+cache.SetEntityIdentity(http, "products", 42);
+await cache.GetOrSetEntityAsync(http, "store", factory, cancellationToken);
+```
+
+The extension formats `IFormattable` values with invariant culture. Use a string only when the identifier itself is a string, for example `"ABC-42"`.
+
 ## When the factory runs uncached
 
 - No domain on the request or metadata — disposition `Unresolved` (Warning + metric `result=unresolved`).
 - `DataCache.Enabled: false` — `Off`.
 - Request `no-store` and `DataCache.RespectNoStore` — `Bypass`.
-- Auth bypass would fire **and** `DataCacheRespectAuthBypass` is `true` (the default) — `Bypass` (Debug: data cache skipped due to auth bypass). Set `DataCacheRespectAuthBypass: false` for 2.1-like data-cache-under-Authorization.
+- Authentication bypass would fire **and** `DataCacheRespectAuthBypass` is `true` (the default) — `Bypass` (Debug: Data Cache skipped due to auth bypass). Set it to `false` only when the Data Cache value is intentionally shared between authenticated callers.
 
 ## Cache key
 
@@ -138,13 +157,15 @@ Details: [cache-keys.md](cache-keys.md).
 Implement `IDomainKeyGenerator` when you must vary on something the default ignores (tenant claim, extra header). Register it before `AddCacheOrchestrator` (`TryAddSingleton` will keep yours), or `Replace` it afterwards.
 
 ```csharp
-using CacheOrchestrator.Vary;
+using CacheOrchestrator.DataCache;
 
 services.AddSingleton<IDomainKeyGenerator, TenantKeyGenerator>();
 services.AddCacheOrchestrator(configuration);
 ```
 
 ```csharp
+using CacheOrchestrator.Configuration;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Vary;
 
 public sealed class TenantKeyGenerator : IDomainKeyGenerator
@@ -154,7 +175,7 @@ public sealed class TenantKeyGenerator : IDomainKeyGenerator
     public TenantKeyGenerator(CacheVaryMaterializer materializer)
         => _inner = new DefaultDomainKeyGenerator(materializer);
 
-    public string Generate(DomainCacheOptions options, HttpContext httpContext)
+    public string Generate(DomainHttpCacheOptions options, HttpContext httpContext)
     {
         var baseKey = _inner.Generate(options, httpContext);
         var tenantId = httpContext.User.FindFirst("tenant_id")?.Value ?? "anon";
@@ -175,14 +196,14 @@ Keys must be deterministic, must not contain secrets (they land in Redis and in 
 | `Miss` | Factory ran; value stored |
 | `Stale` | Factory failed; fail-safe may serve stale (**Fusion**; Hybrid does not expose the same fail-safe model) |
 | `Bypass` | Skipped (for example `no-store`, or auth bypass when `DataCacheRespectAuthBypass`) |
-| `Off` | Data cache disabled for the domain. The factory still runs and counts as a factory invocation (FA run). |
+| `Off` | Data Cache disabled for the domain. The factory still runs and counts as a factory invocation (FA run). |
 | `Unresolved` | No domain resolved; factory ran uncached (also a factory invocation). |
 
 There is **no** `DataCacheResult.Fail` and **no** `dc=fail` on `X-Cache`. A hard factory throw with no fail-safe value is recorded on the meter as `cache_orchestrator.dc.requests` `result=fail` (and `factory.duration`), then the exception propagates.
 
-When `dc` is present and is not `hit`, `X-Cache` also includes `fa=run`. That is the same factory-invocation set as Admin FA run (`miss` / `stale` / `bypass` / `off` / `unresolved`). OC `hit` omits `dc` and `fa`.
+When `dc` is present and is not `hit`, `X-Cache` also includes `fa=run`. That is the same factory-invocation set as Admin factory run (`miss` / `stale` / `bypass` / `off` / `unresolved`). An Output Cache `hit` omits `dc` and `fa`.
 
-Admin Console exclusive pipeline mix is **OC hit + DC hit (fresh) + FA run**. FA run is factory-callback share of requests (including `off` / `unresolved` / bypass-with-factory / miss / stale). **DC stale %** is an overlay on requests, not a fourth mix segment. Layer `bypass` remains auth / no-store skip, not “caching disabled”.
+Admin Console's exclusive pipeline mix is **Output Cache hit + fresh Data Cache hit + factory run**. Factory run is the share of requests that invoke the callback, including `off`, `unresolved`, bypass with factory, miss, and stale. **Data Cache stale %** is an overlay on requests, not a fourth mix segment. Layer `bypass` remains an authentication or `no-store` skip, not “caching disabled”.
 
 ---
 
@@ -232,4 +253,4 @@ Package README: [CacheOrchestrator.HybridCache](../../src/CacheOrchestrator.Hybr
 - [configuration.md](configuration.md)
 - [invalidation.md](invalidation.md)
 - [architecture.md](../contributor/architecture.md)
-- [output-cache.md](output-cache.md)
+- [Output Cache](output-cache.md)

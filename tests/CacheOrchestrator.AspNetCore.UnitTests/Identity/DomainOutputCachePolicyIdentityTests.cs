@@ -173,15 +173,18 @@ public class DomainOutputCachePolicyIdentityTests
             http.SetEndpoint(endpoint);
         }
 
-        DomainCacheOptions cfg = new()
+        DomainHttpCacheOptions cfg = new()
         {
-            Domain = "products",
+            CoreOptions = new DomainCacheOptions
+            {
+                Domain = "products",
+                Version = "1",
+                VersionHex = XxHash3.HashToUInt64("1"u8.ToArray()).ToString("x16"),
+            },
             OutputCacheEnabled = true,
             AuthBypassMode = AuthBypassMode.AuthenticatedOrAuthorization,
             VaryOutputCacheByUser = true,
             OutputTtl = TimeSpan.FromSeconds(60),
-            Version = "1",
-            VersionHex = XxHash3.HashToUInt64("1"u8.ToArray()).ToString("x16"),
             ETag = new StringValues($"W/\"{XxHash3.HashToUInt64("1"u8.ToArray()):x16}\""),
             CacheableStatusCodes = [200],
             ClientCacheability = ClientCacheability.Public,

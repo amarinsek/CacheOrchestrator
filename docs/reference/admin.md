@@ -56,6 +56,7 @@ Run the Admin Console App as an internal ops service (Docker or Helm, VPN only).
 ### Enable (each app instance)
 
 ```json
+{
 "Cache": {
   "InstanceId": "app-1",
   "Admin": {
@@ -66,6 +67,7 @@ Run the Admin Console App as an internal ops service (Docker or Helm, VPN only).
     "TrackLatency": false,
     "TrackResultSize": false
   }
+}
 }
 ```
 
@@ -145,6 +147,66 @@ Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
 **Removed:** `GET …/stats/v2` (raw snapshot endpoint). Analytics should use the OTEL meter `CacheOrchestrator` (Prometheus) and Console `GET /api/stats/window`.
 
+### Mutation request bodies
+
+Invalidate a domain:
+
+```http
+POST /cache-admin/local/invalidate
+Content-Type: application/json
+X-Cache-Admin-Key: <key>
+
+{
+  "scope": "domain",
+  "domain": "catalog",
+  "distribute": false
+}
+```
+
+The four accepted invalidation shapes are:
+
+```text
+{ "scope": "domain", "domain": "catalog", "distribute": false }
+{ "scope": "entity", "domain": "catalog", "entityKind": "products", "entityId": "42", "distribute": false }
+{ "scope": "entityKind", "domain": "catalog", "entityKind": "products", "distribute": false }
+{ "scope": "tags", "tags": [ "custom:import-2030-08" ], "distribute": false }
+```
+
+`entityId` is a string in this HTTP DTO, so numeric IDs are quoted on the wire. In C# application code, use the generic invalidation overload and pass `42` directly.
+
+Set a specific runtime Version, or omit `version` to generate a unique `rt-{utcTicksHex}` value:
+
+```json
+{ "version": "release-2030-08-15", "distribute": true }
+```
+
+```json
+{ "distribute": true }
+```
+
+Patch settings with a sparse dictionary of catalog IDs:
+
+```http
+PATCH /cache-admin/local/domains/catalog/settings
+Content-Type: application/json
+X-Cache-Admin-Key: <key>
+
+{
+  "settings": {
+    "outputCache.ttlSeconds": 60,
+    "dataCache.ttlSeconds": 300,
+    "clientCache.ttlSeconds": 30,
+    "varyByHeaders": [ "X-Tenant" ],
+    "fusionCache.failSafeSeconds": 900
+  },
+  "distribute": true
+}
+```
+
+Use `GET /domain-settings/catalog` as the canonical list. A setting is writable only when its catalog entry has `runtimeOverlay: true`; IDs are matched case-insensitively, values are validated by their declared kind, and omitted settings keep their current values. Fusion IDs appear only when the FusionCache package has registered its catalog section and patch contributor.
+
+A successful Version or settings mutation returns the normalized `domain` and complete effective domain snapshot. With `distribute: true`, a peer failure returns `409` with `localApplied: true`, command metadata, and `peerFailures`; the local mutation is not rolled back.
+
 ### Local Admin `/stats` (process-lifetime, obsolete for analytics)
 
 Still available for curl/scripts: process-lifetime counters projected into a fat DTO (shares + rates). When `Cache:Admin:TrackLatency` / `TrackResultSize` are on, factory duration and result-size sums are included.
@@ -176,21 +238,21 @@ The miss path that runs your `GetOrSet` lambda / DB is the **factory**. Admin UI
 
 | Admin label | API / JSON field | Formula |
 |-------------|------------------|---------|
-| **OC hit share** | `oc.hitShare` / pipeline `outputCacheHitShare` | `outputCacheHits / requests` |
-| **DC hit share** | `dataCache.hitShare` / pipeline `dataCacheHitShare` | `dataCacheHits / requests` (fresh hits only) |
+| **Output Cache hit share** | `oc.hitShare` / pipeline `outputCacheHitShare` | `outputCacheHits / requests` |
+| **Data Cache hit share** | `dataCache.hitShare` / pipeline `dataCacheHitShare` | `dataCacheHits / requests` (fresh hits only) |
 | **FA run / Factory share** | `fc.factoryShare` | `factoryRuns / requests` |
-| **DC stale %** (overlay) | `dataCache.staleShare` / pipeline `staleShare` | `stale / requests` (also included in FA run) |
+| **Data Cache stale %** (overlay) | `dataCache.staleShare` / pipeline `staleShare` | `stale / requests` (also included in factory run) |
 
-These three mix shares (OC hit, DC hit, FA run) use the same request denominator and are the exclusive pipeline bar. **DC stale %** is extra information, not a fourth bar segment. Layer **bypass** is auth / no-store skip (not “caching disabled”; disabled OC is `off`). **Layer rates** (e.g. DC miss rate = misses among traffic that reached data cache) stay on **detail** views. Prefer factory share for “how often did origin run?” — see [admin-hints.md](../contributor/admin-hints.md).
+These three shares (Output Cache hit, Data Cache hit, factory run) use the same request denominator and form the exclusive pipeline bar. **Data Cache stale %** is extra information, not a fourth segment. Layer **bypass** is an authentication or `no-store` skip; disabled Output Cache is `off`. **Layer rates**, such as Data Cache miss rate among requests that reached Data Cache, remain on detail views. Prefer factory share when asking “how often did the origin run?”; see [admin hints](../contributor/admin-hints.md).
 
 **Low sample flags**
 
 | Flag | Based on | Apply to |
 |------|----------|----------|
-| `lowRequestSample` | total **requests** &lt; 20 | request **shares** (OC/DC hit share, factory share, …) |
-| `lowSample` | **layer** hits+misses &lt; 20 | **layer rates** (OC/DC hit/miss rate) |
+| `lowRequestSample` | total **requests** &lt; 20 | request **shares** (Output Cache / Data Cache hit share, factory share, …) |
+| `lowSample` | **layer** hits+misses &lt; 20 | **layer rates** (Output Cache / Data Cache hit and miss rate) |
 
-So if OC absorbs almost all traffic, DC hit **share** is still trustworthy once requests ≥ 20, while DC hit **rate** may show low-sample (few DC layer events).
+If Output Cache absorbs almost all traffic, Data Cache hit **share** is still trustworthy once requests ≥ 20, while Data Cache hit **rate** may show a low sample because few requests reached that layer.
 
 ### Health semantics (Admin Console App mapping)
 
@@ -254,12 +316,14 @@ Admin Console App can query an external Prometheus-compatible HTTP API (Promethe
 Minimal config (everything else has defaults). The Admin Console App in this repo defaults to local Prometheus:
 
 ```json
+{
 "AdminConsole": {
   "Metrics": {
     "Enabled": true,
     "Provider": "Prometheus",
     "BaseUrl": "http://localhost:9090"
   }
+}
 }
 ```
 
@@ -288,7 +352,7 @@ When **not configured**, statistics and charts are unavailable (UI shows Metrics
 
 Overview, Domains, Endpoints, detail **traffic**, header KPIs, and **Hints** use `/api/stats/window` only. **Green underline** = current config/identity (Version, TTL, …), not the window. Local Admin process counters are **not** used for Console stats.
 
-Window aggregates use Prometheus **`increase(metric[range])`** over the selected Range (same idea as chart `rate`/`increase`), so domains/endpoints that had traffic mid-window still count even if OTEL later stops exporting those labels. Instant `now − offset` is **not** used for that reason. Rows with **zero requests** (and no invalidations) in the window are **omitted** from domain/endpoint tables — charts may still draw historical curves for series present in TSDB. Brand-new series with only one scrape may under-count until the next scrape (fallback: current value when the series did not exist at window start). Grouping: OC/DC/invalidate by `domain`/`result`; endpoints by `route`. Factory duration uses histogram `_sum`/`_count`. Data-cache meter `result=fail` (hard factory throw) maps to factory failures. Per-instance: scrape `instance_id` (lab: `playground-1`); missing → **`undefined`**.
+Window aggregates use Prometheus **`increase(metric[range])`** over the selected Range (the same principle as chart `rate` / `increase`), so domains and endpoints that had traffic mid-window still count even if OTEL later stops exporting those labels. Instant `now − offset` is not used for that reason. Rows with **zero requests** and no invalidations in the window are omitted from domain and endpoint tables; charts may still draw historical curves for series present in TSDB. A new series with only one scrape may under-count until the next scrape (fallback: current value when the series did not exist at the start of the window). Output Cache, Data Cache, and invalidation series group by `domain` / `result`; endpoints group by `route`. Factory duration uses histogram `_sum` / `_count`. Data Cache meter `result=fail` maps a hard factory exception to a factory failure. Per-instance views use scrape label `instance_id` (lab: `playground-1`); missing labels become **`undefined`**.
 
 `HintEngine` runs on window domain/endpoint rows. Config-only rules still receive Admin domain config when fan-out succeeds. Rules needing factory-failure rates need `result=fail` or `stale` samples in the window.
 
@@ -408,7 +472,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 | All instances **Down** | Wrong URL/port; Admin API not mapped; firewall; **401** wrong/missing ApiKey |
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
 | Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
-| High FC miss rate, everything “fine” | Prefer **factory share** (also known as origin) / OC hit share — see shares vs rates |
+| High Fusion miss rate while everything appears healthy | Prefer **factory share** (also known as origin) and Output Cache hit share; see shares vs rates |
 | Scalar OpenAPI missing | OpenAPI + Scalar are mapped in **all** environments on the Admin Console App (`/scalar`; requires net10 runtime for the Admin host) |
 | CORS issues calling Admin API from a browser | Prefer Admin Console App fan-out; Admin API is for server-side callers |
 

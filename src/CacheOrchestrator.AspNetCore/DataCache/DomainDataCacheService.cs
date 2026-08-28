@@ -174,7 +174,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         Func<CancellationToken, Task<FootprintCacheBox<T?>>> factory,
         CancellationToken cancellationToken)
     {
-        DomainCacheOptions? opts = ResolveDomainOptions(http, domain);
+        DomainHttpCacheOptions? opts = ResolveDomainOptions(http, domain);
         if (opts is null)
         {
             if (_logger.IsEnabled(LogLevel.Warning))
@@ -396,7 +396,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         ArgumentNullException.ThrowIfNull(http);
         ArgumentNullException.ThrowIfNull(factory);
 
-        DomainCacheOptions? opts = ResolveDomainOptions(http, domain);
+        DomainHttpCacheOptions? opts = ResolveDomainOptions(http, domain);
 
         if (opts is null)
         {
@@ -431,7 +431,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
 
     private async Task<T> GetOrSetWithOptionsAsync<T>(
         HttpContext http,
-        DomainCacheOptions opts,
+        DomainHttpCacheOptions opts,
         Func<CancellationToken, Task<T>> factory,
         CancellationToken cancellationToken)
     {
@@ -691,7 +691,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
     /// </summary>
     private async ValueTask<bool> TryBypassForIdentityAsync(
         HttpContext http,
-        DomainCacheOptions opts,
+        DomainHttpCacheOptions opts,
         CancellationToken cancellationToken)
     {
         if (http.Features.Get<ICacheOrchestratorFeature>() is CacheOrchestratorFeature existing
@@ -736,9 +736,9 @@ internal sealed class DomainDataCacheService : IDomainDataCache
     /// 2) Options already on the request (Output Cache policy usually set them).
     /// 3) Endpoint metadata (DomainOutputCachePolicy / CacheDomainAttribute) → EnsureDomainOptions.
     /// </summary>
-    private DomainCacheOptions? ResolveDomainOptions(HttpContext http, string? domain)
+    private DomainHttpCacheOptions? ResolveDomainOptions(HttpContext http, string? domain)
     {
-        DomainCacheOptions? opts = _domainConfig.GetDomainOptions(http);
+        DomainHttpCacheOptions? opts = _domainConfig.GetDomainOptions(http);
 
         if (!string.IsNullOrWhiteSpace(domain))
         {

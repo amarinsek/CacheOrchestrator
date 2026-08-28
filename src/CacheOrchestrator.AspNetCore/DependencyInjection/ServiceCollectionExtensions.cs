@@ -4,7 +4,6 @@ using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Identity;
-using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.Orchestration;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.OutputCaching;
@@ -70,7 +69,12 @@ public static class ServiceCollectionExtensions
 
         CacheOrchestratorOptions opts = BindAndValidateOptions(services, configuration, configSection, builder);
 
-        RegisterCoreServices(services);
+        CacheOrchestratorCoreServiceCollectionExtensions.AddCoreServices(
+            services,
+            configuration,
+            configSection,
+            registerCoreValidator: false);
+        RegisterAspNetCoreServices(services);
         RegisterAdminServices(services, opts.Admin);
 
         if (enableMvcConvention)
@@ -124,25 +128,12 @@ public static class ServiceCollectionExtensions
         return opts;
     }
 
-    private static void RegisterCoreServices(IServiceCollection services)
+    private static void RegisterAspNetCoreServices(IServiceCollection services)
     {
-        services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
-        services.TryAddSingleton<ClusterCommandFactory>();
-        services.TryAddSingleton<ClusterCommandDedupeStore>();
-        // Bus package may register real implementations in the builder callback before this runs;
-        // TryAdd keeps Http/Static bus when already present.
-        services.TryAddSingleton<IClusterCommandBus>(_ => NullClusterCommandBus.Instance);
-        services.TryAddSingleton<IClusterMembership>(_ => NullClusterMembership.Instance);
-        services.TryAddSingleton<IClusterCommandHandler, DefaultClusterCommandHandler>();
-        // Fusion/Hybrid replace this via TryAdd / RemoveAll. Keeps Output Cache–only hosts constructible.
-        services.TryAddSingleton<IDataCacheProvider>(_ => NullDataCacheProvider.Instance);
-        services.AddSingleton<IDomainCacheOptionsProvider, DomainCacheOptionsProvider>();
-        services.AddSingleton<IRequestDomainCacheOptions, RequestDomainCacheOptionsProvider>();
-        services.AddSingleton<IDomainDataCache, DomainDataCacheService>();
-        services.AddSingleton<ICacheOrchestrator, CacheOrchestratorService>();
-        services.TryAddSingleton<IHttpCacheInvalidationSink, OutputCacheInvalidationSink>();
-        services.AddSingleton<ICacheOrchestratorInvalidator, CacheOrchestratorInvalidator>();
+        services.TryAddSingleton<IRequestDomainCacheOptions, RequestDomainCacheOptionsProvider>();
+        services.TryAddSingleton<IDomainDataCache, DomainDataCacheService>();
+        services.RemoveAll<IHttpCacheInvalidationSink>();
+        services.AddSingleton<IHttpCacheInvalidationSink, OutputCacheInvalidationSink>();
         services.TryAddSingleton<Vary.CacheVaryMaterializer>(sp =>
             new Vary.CacheVaryMaterializer(sp.GetServices<Vary.ICacheVaryContributor>()));
         services.TryAddSingleton<IDomainKeyGenerator>(sp =>
@@ -158,6 +149,8 @@ public static class ServiceCollectionExtensions
     {
         if (admin.Enabled)
         {
+            services.RemoveAll<IDomainRuntimeOverrideStore>();
+            services.RemoveAll<IAdminStatsCollector>();
             services.AddSingleton<IDomainRuntimeOverrideStore, DomainRuntimeOverrideStore>();
             services.AddSingleton<IAdminStatsCollector>(sp =>
             {

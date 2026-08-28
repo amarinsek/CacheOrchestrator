@@ -12,7 +12,7 @@ internal sealed class AdminQueryService
 {
     private readonly IAdminStatsCollector _stats;
     private readonly IAdminEndpointCatalog _endpoints;
-    private readonly IDomainCacheOptionsProvider _domainOptions;
+    private readonly IRequestDomainCacheOptions _domainOptions;
     private readonly IDomainRuntimeOverrideStore _overrides;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly TimeProvider _time;
@@ -21,7 +21,7 @@ internal sealed class AdminQueryService
     public AdminQueryService(
         IAdminStatsCollector stats,
         IAdminEndpointCatalog endpoints,
-        IDomainCacheOptionsProvider domainOptions,
+        IRequestDomainCacheOptions domainOptions,
         IDomainRuntimeOverrideStore overrides,
         IOptionsMonitor<CacheOrchestratorOptions> options,
         TimeProvider? timeProvider = null,
@@ -156,7 +156,7 @@ internal sealed class AdminQueryService
         List<AdminDomainCountersDto> domains = [];
         foreach (string name in domainNames.OrderBy(n => n, StringComparer.Ordinal))
         {
-            DomainCacheOptions opts = _domainOptions.GetOrCreateDomainOptions(name);
+            DomainHttpCacheOptions opts = _domainOptions.GetOrCreateDomainOptions(name);
             DomainRuntimeOverride? ov = _overrides.Get(name);
             rawDomains.TryGetValue(name, out AdminDomainCountersDto? counters);
 
@@ -241,7 +241,7 @@ internal sealed class AdminQueryService
 
     public AdminDomainConfigDto GetDomainConfig(string normalizedDomain)
     {
-        DomainCacheOptions opts = _domainOptions.GetOrCreateDomainOptions(normalizedDomain);
+        DomainHttpCacheOptions opts = _domainOptions.GetOrCreateDomainOptions(normalizedDomain);
         DomainRuntimeOverride? ov = _overrides.Get(normalizedDomain);
 
         return new AdminDomainConfigDto
@@ -274,7 +274,7 @@ internal sealed class AdminQueryService
     private AdminDomainCountersDto BuildDomainRow(
         string name,
         string instanceId,
-        DomainCacheOptions opts,
+        DomainHttpCacheOptions opts,
         DomainRuntimeOverride? ov,
         AdminDomainCountersDto? counters,
         List<AdminEndpointCountersDto> epList)
@@ -373,7 +373,7 @@ internal sealed class AdminQueryService
         };
     }
 
-    private string? ResolveSchedulePhase(DomainCacheOptions opts)
+    private string? ResolveSchedulePhase(DomainHttpCacheOptions opts)
     {
         if (opts.ScheduledUpdateUtc is null)
             return null;

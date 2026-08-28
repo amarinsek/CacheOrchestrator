@@ -35,9 +35,9 @@ All classes use a shared short job (`[ShortJob]`: net10.0, warmup 1 / iteration 
 | `NormalizeDomainBenchmarks` | `DomainName.Normalize` and **`NormalizeResourceId`** / **`NormalizeEntityKind`** |
 | `CacheETagFactoryBenchmarks` | Weak ETag from version and version+resource |
 | `FusionEntryOptionsBenchmarks` | `GetFusionEntryOptions` build/reuse per domain snapshot |
-| `DomainCacheOptionsProviderBenchmarks` | Domain options L1 (HttpContext) / L2 (process) hit paths |
+| `DomainCacheOptionsProviderBenchmarks` | Core domain snapshot process-cache hit paths |
 | `DomainTemplateCompilerBenchmarks` | Template `GetOrAdd` + per-request resolve |
-| `DomainOutputCachePolicyBenchmarks` | `CacheRequestAsync` + **`CollectQueryKeysForOutputCache`** (real OC query-key path) |
+| `DomainOutputCachePolicyBenchmarks` | `CacheRequestAsync` + **`CollectQueryKeysForOutputCache`** (real Output Cache query-key path) |
 
 ## Performance engineering notes (library)
 
@@ -45,7 +45,7 @@ These are intentional hot-path choices in the library (not full BDN numbers):
 
 | Area | Approach |
 |------|----------|
-| Fusion entry options | `DomainCacheOptions.GetFusionEntryOptions()` builds once per domain snapshot and reuses the same `FusionCacheEntryOptions` instance |
+| Fusion entry options | `FusionEntryOptionsFactory` combines the Core snapshot with package-owned `DomainFusionCacheSettings` |
 | Tracking query params | `HttpHelper.IsTrackingParameter` uses a fixed prefix array + manual loop (no LINQ/`HashSet` enumerator) |
 | `Cache-Control: no-store` | `HttpHelper.ContainsCacheDirective` scans `StringValues` without `ToString()` |
 | Domain templates | Parse plans cached per template; resolvers without custom providers are shared; **custom providers are never stored under the template-only key** (avoids provider poisoning) |

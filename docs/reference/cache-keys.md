@@ -2,9 +2,9 @@
 
 > **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — concepts](../guide/concepts.md). Catalog: [documentation index](../README.md). Canonical detail for Namespace and key composition.
 
-How the **data cache** and Output Cache decide that two requests are the **same** resource. That is lookup identity. Eviction — tags and Version — is [invalidation.md](invalidation.md).
+How the **Data Cache** and Output Cache decide that two requests are the **same** resource. That is lookup identity. Eviction — tags and Version — is [invalidation.md](invalidation.md).
 
-- **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` and `my-app-fc` (historical `-fc` suffix for data-cache instances).
+- **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` and `my-app-fc` (historical `-fc` suffix for Data Cache instances).
 - **Domain** — the policy group (`products`, `product-detail`).
 - **Request material** — what varies inside a domain: path, route, query, host, encoding, resource id, and optional **endpoint cache identity** (`co-id:*`).
 
@@ -13,7 +13,7 @@ How the **data cache** and Output Cache decide that two requests are the **same*
 ```
 Lookup  → key identity (this document)
 Purge   → tags + optional Version bump ([invalidation.md](invalidation.md))
-Policy  → DomainCacheOptions resolved before store ([configuration.md](configuration.md))
+Policy  → Core + HTTP domain snapshots resolved before store ([configuration.md](configuration.md))
 ```
 
 ## Namespace (top-level classifier)
@@ -33,8 +33,8 @@ Default: `app-cache`. Effective store prefixes:
 | Target | Effective name | Override |
 |--------|----------------|----------|
 | Output Cache | `{Namespace}-oc` | `OutputCache.Namespace` |
-| Data-cache **default** instance | `{Namespace}-fc` | `DataCacheInstances.default.Namespace` |
-| Data-cache **named** instance `pii` | `{Namespace}-fc-pii` | `DataCacheInstances.pii.Namespace` |
+| Data Cache **default** instance | `{Namespace}-fc` | `DataCacheInstances.default.Namespace` |
+| Data Cache **named** instance `pii` | `{Namespace}-fc-pii` | `DataCacheInstances.pii.Namespace` |
 
 **Purpose:** isolate multiple applications or environments that share the same Redis (or other L2) so keys and backplane channels do not collide. Namespace is **not** a domain and is **not** per-endpoint.
 
@@ -42,18 +42,18 @@ Default: `app-cache`. Effective store prefixes:
 
 | Surface | Used? | How |
 |---------|-------|-----|
-| **Output Cache key** | Yes | `CacheKeyPrefix` = effective OC namespace |
-| **Output Cache Redis store** | Yes | `InstanceName` = effective OC namespace |
-| **Data-cache logical key** (`DefaultDomainKeyGenerator`) | **No** | Key is `{domain}:{versionHex}:{hash}` only |
-| **Fusion `CacheKeyPrefix`** | Yes | Effective data-cache namespace + `:` (e.g. `my-app-fc:`) on every named Fusion instance |
+| **Output Cache key** | Yes | `CacheKeyPrefix` = effective Output Cache namespace |
+| **Output Cache Redis store** | Yes | `InstanceName` = effective Output Cache namespace |
+| **Data Cache logical key** (`DefaultDomainKeyGenerator`) | **No** | Key is `{domain}:{versionHex}:{hash}` only |
+| **Fusion `CacheKeyPrefix`** | Yes | Effective Data Cache namespace + `:` (e.g. `my-app-fc:`) on every named Fusion instance |
 | **Fusion Redis L2** | Yes (via Fusion) | Redis `InstanceName` is **not** set; Fusion prefix is the single isolation layer (do not also set `InstanceName` to the same namespace) |
 | **Fusion backplane** | Yes | Channel prefix `{dcNamespace}:backplane` |
 
-Logical data-cache keys stay `{domain}:{versionHex}:{hash}` — Namespace is applied only via Fusion `CacheKeyPrefix` / backplane, not inside the CO key string.
+Logical Data Cache keys stay `{domain}:{versionHex}:{hash}` — Namespace is applied only via Fusion `CacheKeyPrefix` / backplane, not inside the CO key string.
 
 ---
 
-## Data-cache keys
+## Data Cache keys
 
 ### Who builds them
 
@@ -61,7 +61,7 @@ Logical data-cache keys stay `{domain}:{versionHex}:{hash}` — Namespace is app
 
 Default implementation: **`DefaultDomainKeyGenerator`** (XxHash3 over request material, then a short string key).
 
-Replace with a custom `IDomainKeyGenerator` when you must vary on dimensions the default ignores (tenant claim, custom header). See [data-cache.md](data-cache.md#custom-key-generator).
+Replace with a custom `IDomainKeyGenerator` when you must vary on dimensions the default ignores (tenant claim, custom header). See [Data Cache](data-cache.md#custom-key-generator).
 
 ### Logical form
 
@@ -77,7 +77,7 @@ products:a1b2c3d4e5f60708:7f3e9c1a2b4d6e08
 store:a1b2c3d4e5f60708:id:products:42:9c8b7a6d5e4f3210
 ```
 
-- **`domain`** — normalized domain name from `DomainCacheOptions` (explicit partition).
+- **`domain`** — normalized domain name from the Core `DomainCacheOptions` (explicit partition).
 - **`versionHex`** — stable hex of the domain `Version` stamp. Bumping `Version` changes every new key for that domain; old entries age out by TTL.
 - **`hash`** — 16 hex chars of XxHash3 over the material below.
 - **`entityKind` + `resourceId`** — present only for `GetOrSetEntityAsync` (see below).
@@ -134,6 +134,33 @@ Every stored entry is also tagged `domain:{name}` (and `entity:{domain}:{entityK
 
 ---
 
+## Core API keys
+
+The HTTP-free `ICacheOrchestrator` does not have a request from which to derive route, query, header, or user material. Its caller supplies a stable logical key:
+
+```csharp
+await cache.GetOrCreateAsync(
+    new CacheEntryRequest
+    {
+        Domain = "catalog",
+        Key = $"product:{productId}"
+    },
+    factory,
+    cancellationToken);
+```
+
+The default physical key is:
+
+```text
+{domain}:{versionHex}:{logicalKey}
+```
+
+For product `42`, that might be `catalog:a1b2c3d4e5f60708:product:42`. FusionCache still adds its configured instance namespace outside this key. `CacheEntryRequest.KeyIsPhysical = true` skips the domain/Version prefix and is intended for adapters that already built a complete provider key, not normal application code.
+
+Core and HTTP keys deliberately have different lookup shapes. They coordinate invalidation through the same domain and entity tags. Full API: [Core API](core-api.md).
+
+---
+
 ## Output Cache keys
 
 ### Who builds them
@@ -149,9 +176,9 @@ The library does **not** emit a single custom string of the form `{domain}:{vers
 
 | Piece | Source in policy |
 |-------|------------------|
-| Prefix | `CacheKeyPrefix` = `OutputCacheNamespace` (from root / OC `Namespace`) |
+| Prefix | `CacheKeyPrefix` = `OutputCacheNamespace` (from the root or Output Cache `Namespace`) |
 | Method + path | Framework Output Cache |
-| Host | `VaryByHost` from domain `OutputCacheVaryByHost` (default `true`) |
+| Host | `OutputCache.VaryByHost` (default `true`) |
 | `Accept` / language / headers / cookies / query allowlists | Domain vary settings | Shared materializer — [vary.md](vary.md) |
 | Query | `CollectQueryKeysForOutputCache` — `VaryByQueryKeys` / `IgnoreQueryKeys` plus tracking prefixes stripped |
 | Version | `VaryByValues["data-version"]` = `VersionHex` |
@@ -163,17 +190,17 @@ The library does **not** emit a single custom string of the form `{domain}:{vers
 
 | Tag | When |
 |-----|------|
-| `domain:{name}` | Every cached OC entry for that domain |
+| `domain:{name}` | Every cached Output Cache entry for that domain |
 | `entity:{domain}:{entityKind}:{id}` | When **both** `resourceRouteKey` and `entityKind` are set on the policy/attribute **and** the route value resolves |
 | `entitykind:{domain}:{entityKind}` | Same writes as the entity tag |
 
-Output Cache stamps early tags in `CacheRequestAsync` (domain; primary entity when route id resolves; `entitykind` when kind is set without an id). The data-cache path stages an `EntityFootprint` on the request; `ServeResponseAsync` merges members / dependsOn / aliases into OC tags before storage.
+Output Cache stamps early tags in `CacheRequestAsync` (domain; primary entity when the route id resolves; `entitykind` when a kind is set without an id). The Data Cache path stages an `EntityFootprint` on the request; `ServeResponseAsync` merges members, dependencies, and aliases into Output Cache tags before storage.
 
 ---
 
 ## Side-by-side
 
-| | Data cache | Output Cache |
+| | Data Cache | Output Cache |
 |--|------------|--------------|
 | **Logical shape** | `{domain}:{versionHex}:{hash}` | Framework key from prefix + vary |
 | **Namespace** | Logical key: no; Fusion `CacheKeyPrefix` + backplane: yes (`-fc`) | Yes (`CacheKeyPrefix`) |
@@ -182,7 +209,7 @@ Output Cache stamps early tags in `CacheRequestAsync` (domain; primary entity wh
 | **Route / path** | In hash (unless entity id mode) | Path in framework key |
 | **Query** | In hash (no tracking) | `QueryKeys` (no tracking) |
 | **Entity id** | Optional key mode + entity tag | Entity tag via `resourceRouteKey` |
-| **Builder** | `DefaultDomainKeyGenerator` | `DomainOutputCachePolicy` + ASP.NET OC |
+| **Builder** | `DefaultDomainKeyGenerator` | `DomainOutputCachePolicy` + ASP.NET Output Cache |
 
 ### Same request, two layers
 
@@ -194,16 +221,16 @@ Version: v1
 
 | Layer | Identity (conceptually) |
 |-------|-------------------------|
-| DC (URL-shaped) | `product-detail:{versionHex}:{hash(route id=42, query page=1)}` — `utm_source` ignored |
-| DC (entity overload, kind `products`, id `42`) | `product-detail:{versionHex}:id:products:42:{hash}` |
-| OC | prefix `…-oc` + path `/api/products/42` + query `page` + host + `data-version` — `utm_source` ignored |
-| Tags | `domain:product-detail`; with OC `resourceRouteKey` + `entityKind`: also `entity:product-detail:products:42` and `entitykind:product-detail:products` |
+| Data Cache (URL-shaped) | `product-detail:{versionHex}:{hash(route id=42, query page=1)}` — `utm_source` ignored |
+| Data Cache (entity-shaped, kind `products`, id `42`) | `product-detail:{versionHex}:id:products:42:{hash}` |
+| Output Cache | prefix `…-oc` + path `/api/products/42` + query `page` + host + `data-version` — `utm_source` ignored |
+| Tags | `domain:product-detail`; with Output Cache `resourceRouteKey` + `entityKind`: also `entity:product-detail:products:42` and `entitykind:product-detail:products` |
 
 ---
 
 ## Tracking query parameters
 
-Both DC and OC **exclude** known marketing/tracking parameters from key material so cache hit rates stay high when only the tracker changes.
+Both Data Cache and Output Cache **exclude** known marketing and tracking parameters from key material, so cache hit rates stay high when only a tracker changes.
 
 Implementation: shared helper used by `DefaultDomainKeyGenerator` and `DomainOutputCachePolicy` (e.g. `utm_*`, `gclid`, `fbclid`). Business query parameters (`id`, `page`, `sort`, …) remain part of the key.
 
@@ -212,16 +239,16 @@ Implementation: shared helper used by `DefaultDomainKeyGenerator` and `DomainOut
 ## Design rationale (summary)
 
 1. **Namespace** isolates **applications** on shared infrastructure; it is not a substitute for domain.  
-2. **Domain** is the unit of policy and purge. The data cache embeds it in the key because the data API is domain-first. Output Cache typically binds one fixed domain per route, so path + tags suffice; dynamic domains need an extra vary dimension.  
+2. **Domain** is the unit of policy and purge. The Data Cache embeds it in the key because the data API is domain-first. Output Cache typically binds one fixed domain per route, so path + tags suffice; dynamic domains need an extra vary dimension.
 3. **Version** partitions **generations** inside a domain without mass-deleting keys (prefer bump + TTL expiry for bulk cutovers).  
 4. **Request material** (path, query, host, encoding, optional identity) partitions **resources** inside a generation.  
 5. **Tags** answer “what to delete,” not “what to return on GET.”  
-6. **Entity id mode** gives stable data-cache identity and entity-level invalidation for CRUD without encoding the full URL into the key.  
-7. **Endpoint cache identity** is per-method binding on the route (not domain vary config). It folds stable contract / body-hash material into OC `VaryByValues` and the data-cache hash when present — [cache-identity.md](cache-identity.md).
+6. **Entity id mode** gives stable Data Cache identity and entity-level invalidation for CRUD without encoding the full URL into the key.
+7. **Endpoint cache identity** is a per-method binding on the route, not domain vary configuration. It folds stable contract or body-hash material into Output Cache `VaryByValues` and the Data Cache hash when present; see [endpoint cache identity](cache-identity.md).
 
 ---
 
-## Custom data-cache keys
+## Custom Data Cache keys
 
 Implement `IDomainKeyGenerator` when default material is insufficient (multi-tenant claim, non-URL locale, etc.):
 
@@ -229,15 +256,15 @@ Implement `IDomainKeyGenerator` when default material is insufficient (multi-ten
 - No secrets in the key (may land in Redis and logs)  
 - Prefer wrapping `DefaultDomainKeyGenerator` and appending a short suffix  
 
-See [data-cache.md](data-cache.md#custom-key-generator).
+See [Data Cache](data-cache.md#custom-key-generator).
 
 ---
 
 ## Related
 
 - [Guide — concepts](../guide/concepts.md)  
-- [data-cache.md](data-cache.md) — `GetOrSetAsync`, domain resolution, custom generator  
-- [output-cache.md](output-cache.md) — policy, auth vary, `resourceRouteKey`  
+- [Data Cache](data-cache.md) — `GetOrSetAsync`, domain resolution, custom generator
+- [Output Cache](output-cache.md) — policy, auth vary, `resourceRouteKey`
 - [invalidation.md](invalidation.md) — Version, domain/entity tags  
 - [configuration.md](configuration.md) — `Namespace`, domain `Version`, vary flags  
 - [architecture.md](../contributor/architecture.md) — request flow  

@@ -1,6 +1,6 @@
 using CacheOrchestrator.Configuration;
 
-namespace CacheOrchestrator.Core.UnitTests.Configuration;
+namespace CacheOrchestrator.AspNetCore.UnitTests.Configuration;
 
 public class XCacheHeaderFormatterTests
 {

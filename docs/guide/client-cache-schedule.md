@@ -1,133 +1,167 @@
 # Client Cache Schedule
 
-> **Guide.** Product overview: [root README](../../README.md). Orientation: [concepts](concepts.md). Catalog: [documentation index](../README.md). Exact algorithm: [reference](../reference/client-cache-schedule-algorithm.md).
+> **Guide path:** [Topologies](topologies.md) → **Client Cache Schedule** → [Operations](operations.md) · [Guide index](README.md)
 
-Large datasets that update on a published schedule (annual satellite imagery, monthly catalog extracts) create a client-caching dilemma.
+Long-lived public datasets create a client-caching dilemma. A 30-day browser or CDN TTL saves substantial bandwidth, but a client that receives that TTL one day before a planned release can keep the old generation for weeks.
 
-You want a **long** browser/CDN `max-age` for most of the year. But if a client caches for thirty days the day before cutover, it keeps serving the old generation long after origin has moved on.
+**Client Cache Schedule** lets a snapshot domain keep a long client `max-age` while the cutover is far away, then gradually shorten it as the scheduled time approaches.
 
-**Client Cache Schedule** solves that. Given `ScheduledUpdateUtc`, it keeps a long `max-age` while far from cutover, then **ramps down** toward a short floor as the date approaches, then **holds** at the floor until you set the next schedule. Clients are primed to refresh when the new generation lands — without living on a tiny TTL all year.
+It changes only the client-facing `Cache-Control` header. It does not change Output Cache TTL, Data Cache TTL, server entries, or the domain `Version`.
 
-This changes only the **client** `Cache-Control` header. Output Cache and the data cache keep their own TTLs.
+## Follow one response toward cutover
 
-The [playground sample](../../samples/CacheOrchestrator.Sample) shows the phases live.
+Suppose a public tile domain normally gives clients a 30-day TTL, with a 15-minute floor near a September release.
 
----
+```text
+Far from release                           Scheduled update
+      Calm               Approaching             Hold
+ max-age=30 days    max-age moves downward    max-age=15 min
+───────────────┬───────────────────────────┬──────────────────► time
+               │                           │
+      30 days before                 cutover time
+```
 
-## How it works
+<img src="../assets/scheduled-update.svg" height="350" alt="Client max-age ramps down as the scheduled update approaches" />
 
-On each eligible response, CacheOrchestrator looks at the time remaining until `ScheduledUpdateUtc` and chooses `max-age` so no client is told to keep a copy past the planned cutover.
+Each response is assigned one phase:
 
-<img src="../assets/scheduled-update.svg" height="350" />
+| Phase | When | Client header behaviour |
+|-------|------|-------------------------|
+| **Calm** | Time until cutover is at least `TtlSeconds` | Use the full `TtlSeconds` |
+| **Approaching** | Inside that window but before cutover | Shorten `max-age` linearly toward `TtlMinSeconds` |
+| **Hold** | Scheduled time has arrived or passed | Stay at `TtlMinSeconds` until the schedule changes |
+| **NotApplicable** | No schedule, Client Cache blocked, or `NoStore` | Use the normal constant header or `no-store` |
 
-1. **Calm** — far from cutover: full `ClientCache.TtlSeconds`.
-2. **Approaching** — inside the ramp window: `max-age` shortens linearly toward `ClientCache.TtlMinSeconds`.
-3. **Hold** — at or after cutover: stay at the floor so operators can deploy and verify while clients recover quickly.
-4. **Reset** — bump `Version`, set the **next** `ScheduledUpdateUtc` (or clear it): long calm resumes.
+During most of the Approaching phase, `max-age` roughly follows the time remaining. Once the cutover is closer than the configured floor, clients still receive the floor value. The floor deliberately trades an exact cutover boundary for a minimum practical cache lifetime.
 
----
+The exact clamps and rounding rules are documented in the [Client Cache Schedule algorithm](../reference/client-cache-schedule-algorithm.md).
 
-## Settings
+## Configure the client policy
 
-Under `Cache:DomainDefaults` / `Cache:Domains:{name}`, nested **`ClientCache`**:
-
-| Setting | Role |
-|---------|------|
-| `Cacheability` | `Public`, `Private`, or `NoStore` (`NoStore` disables the schedule) |
-| `TtlSeconds` | Target `max-age` when calm (and when there is no schedule) |
-| `TtlMinSeconds` | Floor near cutover and during Hold |
-| `ScheduledUpdateUtc` | Planned cutover (UTC). Omit for a constant client TTL |
-| `MustRevalidateNearUpdate` | At the floor, append `must-revalidate` |
-
-Server layers are independent: `OutputCache.TtlSeconds`, `DataCache.TtlSeconds`, and optional Fusion `HardTtlSeconds` / `FailSafeSeconds`.
-
-### Example
+The schedule belongs under the domain's `ClientCache` section:
 
 ```json
-"maps-satellite": {
-  "Version": "v1",
-  "DataCache": { "TtlSeconds": 3600 },
-  "OutputCache": { "TtlSeconds": 300 },
-  "ClientCache": {
-    "Cacheability": "Public",
-    "TtlSeconds": 2592000,
-    "TtlMinSeconds": 900,
-    "ScheduledUpdateUtc": "2026-12-01T00:00:00Z",
-    "MustRevalidateNearUpdate": true
+{
+  "Cache": {
+    "Domains": {
+      "maps-satellite": {
+        "Version": "2030-11",
+        "DataCache": {
+          "TtlSeconds": 3600
+        },
+        "OutputCache": {
+          "TtlSeconds": 300
+        },
+        "ClientCache": {
+          "Cacheability": "Public",
+          "TtlSeconds": 2592000,
+          "TtlMinSeconds": 900,
+          "ScheduledUpdateUtc": "2030-12-01T00:00:00Z",
+          "MustRevalidateNearUpdate": true
+        }
+      }
+    }
   }
 }
 ```
 
-Interpretation:
+The settings mean:
 
-- Most of the year: clients may keep tiles for **30 days**.
-- Inside the last 30 days: `max-age` **ramps down** toward **15 minutes**.
-- After cutover (until you set a new schedule/version): stay at **15 minutes**.
+- clients may cache for 30 days during Calm;
+- the ramp begins 30 days before the scheduled time;
+- the client TTL never falls below 15 minutes;
+- `must-revalidate` is added at the floor and during Hold;
+- Output Cache continues using a 5-minute TTL, while Data Cache continues using a 1-hour TTL.
 
----
+| Setting | Purpose |
+|---------|---------|
+| `Cacheability` | `Public`, `Private`, or `NoStore`; `NoStore` makes the schedule inapplicable |
+| `TtlSeconds` | Full client `max-age` and the length of the approach window |
+| `TtlMinSeconds` | Minimum client `max-age` near and after cutover |
+| `ScheduledUpdateUtc` | Planned cutover in UTC; omit it for a constant client TTL |
+| `MustRevalidateNearUpdate` | Add `must-revalidate` at the floor and during Hold |
 
-## Phases
+Configuration durations are integer seconds. If the minimum exceeds the maximum, it is clamped to the maximum. Equal values produce no visible ramp.
 
-| Phase | `X-Cache` / metrics | When | Client `max-age` |
-|-------|---------------------|------|------------------|
-| **Calm** | `calm` | Far enough from cutover | `TtlSeconds` |
-| **Approaching** | `approaching` | Inside the ramp window | Linear between max and min |
-| **Hold** | `hold` | `now >= ScheduledUpdateUtc` | `TtlMinSeconds` |
-| **NotApplicable** | `n/a` | NoStore, blocked, or no schedule | Constant max or `no-store` |
+## Understand what the schedule does not do
 
-Exact ramp math: [algorithm](../reference/client-cache-schedule-algorithm.md).
+Client Cache Schedule does not:
 
----
+- publish the new dataset;
+- prewarm Output Cache or Data Cache entries;
+- change the domain `Version`;
+- invalidate server entries;
+- purge a browser or CDN cache;
+- coordinate deployment across application instances.
 
-## Observability
+It prepares clients to ask again more frequently near a known date. Your release process still owns the data cutover and generation change.
 
-- **`X-Cache`** — `phase=calm|approaching|hold|n/a`
-- **Metrics** — `cache_orchestrator.client.schedule` with tags `domain`, `phase`
+This distinction matters because a scheduled header and a version bump solve opposite sides of the boundary:
 
-Meter name: `CacheOrchestrator`. See [observability](../reference/observability.md).
+```text
+Before cutover: schedule shortens how long clients keep the old generation
+At cutover:     Version moves new server requests to the new generation
+After cutover:  next schedule restores the long Calm period
+```
 
----
+## Run a planned cutover
 
-## Operational playbook
+### Before the release
 
-### Planned cutover
+1. Set `ScheduledUpdateUtc` at least one full `TtlSeconds` window ahead when possible.
+2. Keep `TtlSeconds` large enough to deliver the bandwidth benefit during Calm.
+3. Pick the largest `TtlMinSeconds` that still meets the recovery target near release.
+4. Monitor `phase=approaching` and the resulting origin traffic before go-live.
 
-1. Set `ScheduledUpdateUtc` days/weeks ahead.
-2. Keep `TtlSeconds` large; pick a sensible `TtlMinSeconds` (e.g. 5–15 minutes for heavy assets).
-3. Optionally enable `MustRevalidateNearUpdate`.
-4. At go-live: deploy content, bump **`Version`**, set the **next** `ScheduledUpdateUtc`.
-5. Watch traffic; long client cache resumes.
+Changing the schedule too late cannot affect clients that are already holding a response under an earlier long TTL.
 
-### No planned date
+### At the release
 
-Omit `ScheduledUpdateUtc`. Clients always get `TtlSeconds` (or NoStore). Server freshness still uses Version / tag purge.
+1. Make the new snapshot available to every application instance.
+2. Change the domain `Version` so new requests use the new generation.
+3. Set the next `ScheduledUpdateUtc`, or clear it if the next date is unknown.
+4. Verify responses, cache diagnostics, and origin load.
 
-### Server vs client TTLs
+Keep the old schedule temporarily if you want the domain to remain in Hold during deployment verification. Set the next future schedule when it is safe to resume the long client TTL.
 
-| Layer | Controlled by |
-|-------|----------------|
-| Browser / CDN | Client Cache Schedule (`ClientCache`) |
-| ASP.NET Output Cache | `OutputCache.TtlSeconds` (often shorter than client calm) |
-| Data cache | `DataCache.TtlSeconds` (+ Fusion knobs when using Fusion) |
+### After the release
 
-A common pattern: **server TTL shorter**, **client TTL long but scheduled** — origin stays protected while public clients still get long calm periods.
+The next future schedule returns responses to Calm. A cleared schedule returns the normal constant `TtlSeconds` with phase `n/a`.
 
----
+Old server entries remain in the old versioned key space until their store TTL removes them. Old client responses age according to the headers they received before the cutover.
 
-## Edge cases
+## Choose values from the release objective
 
-| Case | Behaviour |
-|------|-----------|
-| `TtlMinSeconds > TtlSeconds` | Min is clamped down to max |
-| `max == min` | No visible ramp |
-| Clock skew | Use UTC; rely on host `TimeProvider` |
+| Question | Setting it influences |
+|----------|-----------------------|
+| How long may public clients keep data during normal operation? | `TtlSeconds` |
+| How quickly should clients retry around a delayed or failed release? | `TtlMinSeconds` |
+| When does the approach window begin? | Also `TtlSeconds` |
+| Must stale responses be revalidated at the floor? | `MustRevalidateNearUpdate` |
+| Is the content truly shared across users? | `Cacheability` and auth/vary policy |
 
----
+A common starting shape for large public assets is a long client TTL, a shorter server Output Cache TTL, and an independent Data Cache TTL. There is no requirement that the three values match.
 
-## Related
+Avoid scheduling highly dynamic CRUD data simply to compensate for missing invalidation. Use entity invalidation and an appropriate short client policy for that profile.
 
-- [Exact algorithm](../reference/client-cache-schedule-algorithm.md)
-- [Concepts](concepts.md)
-- [Domain profiles](domain-profiles.md) — snapshot cutovers
-- [Configuration](../reference/configuration.md)
-- [Observability](../reference/observability.md)
+## Observe the phase
+
+On domain responses, `X-Cache` includes:
+
+```http
+X-Cache: domain=maps-satellite; ...; phase=approaching; ...
+```
+
+The `cache_orchestrator.client.schedule` metric carries `domain` and `phase` tags. Use it to confirm the transition and anticipate the increase in requests as client TTLs shorten.
+
+The phase reports which branch generated the current header. It does not prove that every client received that header or that a CDN obeyed it.
+
+See [Observability](../reference/observability.md) for the full header and metric reference.
+
+## Handle unscheduled updates separately
+
+If no reliable date exists, omit `ScheduledUpdateUtc`. Clients receive the constant `TtlSeconds`, and server freshness continues to use TTL, tag invalidation, or `Version` according to the domain profile.
+
+For an emergency snapshot release, change `Version` to protect new server requests and purge any CDN through its own control plane if required. Clients already holding a response can remain stale until their current `max-age` ends; a schedule added at emergency time cannot retroactively shorten it.
+
+Next: learn how to inspect and safely change a running deployment in [Operations](operations.md).

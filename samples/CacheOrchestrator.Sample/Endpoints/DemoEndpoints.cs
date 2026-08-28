@@ -173,12 +173,12 @@ public static class DemoEndpoints
             where TBuilder : IEndpointConventionBuilder
             => builder.WithMetadata(new Microsoft.AspNetCore.OutputCaching.OutputCacheAttribute { NoStore = true });
 
-        NoOutputCache(app.MapGet("/api/demo/endpoints", (IConfiguration config, CacheOrchestrator.Configuration.IDomainCacheOptionsProvider provider) =>
+        NoOutputCache(app.MapGet("/api/demo/endpoints", (IConfiguration config, CacheOrchestrator.Configuration.IRequestDomainCacheOptions provider) =>
         {
             List<DemoEndpointConfig> entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
             string BackendFor(string domain)
             {
-                DomainCacheOptions opts = provider.GetOrCreateDomainOptions(domain);
+                DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions(domain);
                 var fcName = opts.DataCacheInstanceName ?? "default";
                 var fcProvider = config[$"Cache:DataCacheInstances:{fcName}:Provider"] ?? "InMemory";
                 var ocProvider = config["Cache:OutputCache:Provider"] ?? "InMemory";

@@ -58,8 +58,8 @@ public class DomainCacheConfigProviderTests
         });
         var http = new DefaultHttpContext();
 
-        DomainCacheOptions cfg1 = provider.EnsureDomainOptions(http, "products");
-        DomainCacheOptions cfg2 = provider.EnsureDomainOptions(http, "products");
+        DomainHttpCacheOptions cfg1 = provider.EnsureDomainOptions(http, "products");
+        DomainHttpCacheOptions cfg2 = provider.EnsureDomainOptions(http, "products");
 
         cfg1.Should().BeSameAs(cfg2);
     }
@@ -77,8 +77,8 @@ public class DomainCacheConfigProviderTests
         });
         var http = new DefaultHttpContext();
 
-        DomainCacheOptions products = provider.EnsureDomainOptions(http, "products");
-        DomainCacheOptions catalog = provider.EnsureDomainOptions(http, "catalog");
+        DomainHttpCacheOptions products = provider.EnsureDomainOptions(http, "products");
+        DomainHttpCacheOptions catalog = provider.EnsureDomainOptions(http, "catalog");
 
         products.Domain.Should().Be("products");
         catalog.Should().NotBeSameAs(products);
@@ -97,7 +97,7 @@ public class DomainCacheConfigProviderTests
             Domains = { ["products"] = new() { OutputCache = new() { TtlSeconds = 120 } } }
         });
 
-        DomainCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
+        DomainHttpCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
 
         cfg.Domain.Should().Be("products");
         cfg.OutputTtl.Should().Be(TimeSpan.FromSeconds(120));
@@ -115,7 +115,7 @@ public class DomainCacheConfigProviderTests
             }
         });
 
-        DomainCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "unknown-domain");
+        DomainHttpCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "unknown-domain");
 
         cfg.Domain.Should().Be("unknown-domain");
         cfg.OutputTtl.Should().Be(TimeSpan.FromSeconds(90));
@@ -126,7 +126,7 @@ public class DomainCacheConfigProviderTests
     public void EnsureConfig_NormalizesDomainName()
     {
         IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions());
-        DomainCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "  Product-Catalog  ");
+        DomainHttpCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "  Product-Catalog  ");
 
         cfg.Domain.Should().Be("product-catalog");
     }
@@ -135,7 +135,7 @@ public class DomainCacheConfigProviderTests
     public void EnsureConfig_UsesStableDefaultVersion_WhenNotConfigured()
     {
         IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions());
-        DomainCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
+        DomainHttpCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
 
         cfg.Version.Should().Be("1");
     }
@@ -150,7 +150,7 @@ public class DomainCacheConfigProviderTests
             Domains = { ["products"] = new() { Version = version } }
         });
 
-        DomainCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
+        DomainHttpCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
 
         cfg.Version.Should().Be(version);
     }
@@ -163,8 +163,8 @@ public class DomainCacheConfigProviderTests
             Domains = { ["products"] = new() { OutputCache = new() { TtlSeconds = 150 } } }
         });
 
-        DomainCacheOptions cfg1 = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
-        DomainCacheOptions cfg2 = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
+        DomainHttpCacheOptions cfg1 = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
+        DomainHttpCacheOptions cfg2 = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
 
         cfg1.Should().BeSameAs(cfg2);
     }
@@ -173,7 +173,7 @@ public class DomainCacheConfigProviderTests
     public void GetConfig_ReturnsNull_WhenNotYetEnsured()
     {
         IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions());
-        DomainCacheOptions? cfg = provider.GetDomainOptions(new DefaultHttpContext());
+        DomainHttpCacheOptions? cfg = provider.GetDomainOptions(new DefaultHttpContext());
 
         cfg.Should().BeNull();
     }
@@ -185,7 +185,7 @@ public class DomainCacheConfigProviderTests
         var http = new DefaultHttpContext();
 
         provider.EnsureDomainOptions(http, "products");
-        DomainCacheOptions? cfg = provider.GetDomainOptions(http);
+        DomainHttpCacheOptions? cfg = provider.GetDomainOptions(http);
 
         cfg.Should().NotBeNull();
         cfg.Domain.Should().Be("products");
@@ -195,7 +195,7 @@ public class DomainCacheConfigProviderTests
     public void EnsureConfig_AppliesAllImportantDefaults()
     {
         IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions());
-        DomainCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
+        DomainHttpCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "products");
 
         cfg.OutputCacheEnabled.Should().BeTrue();
         cfg.DataCacheEnabled.Should().BeTrue();
@@ -214,7 +214,7 @@ public class DomainCacheConfigProviderTests
     [Fact]
     public void HandBuiltDomainCacheOptions_ShareProviderBoolDefaults()
     {
-        DomainCacheOptions opts = new();
+        DomainHttpCacheOptions opts = new();
 
         opts.OutputCacheEnabled.Should().BeTrue();
         opts.DataCacheEnabled.Should().BeTrue();
@@ -277,7 +277,7 @@ public class DomainCacheConfigProviderTests
 
         IRequestDomainCacheOptions provider = CreateProvider(initial, out TestOptionsMonitor monitor);
 
-        DomainCacheOptions before = provider.GetOrCreateDomainOptions("catalog");
+        DomainHttpCacheOptions before = provider.GetOrCreateDomainOptions("catalog");
         before.Version.Should().Be("v1");
         before.OutputTtl.Should().Be(TimeSpan.FromSeconds(60));
         string versionHexBefore = before.VersionHex;
@@ -301,7 +301,7 @@ public class DomainCacheConfigProviderTests
         // Simulates IOptionsMonitor reload (appsettings change / sample playground save).
         monitor.TriggerChange(reloaded);
 
-        DomainCacheOptions after = provider.GetOrCreateDomainOptions("catalog");
+        DomainHttpCacheOptions after = provider.GetOrCreateDomainOptions("catalog");
 
         after.Should().NotBeSameAs(before, "global snapshot cache must be cleared on options change");
         after.Version.Should().Be("v2");
@@ -323,7 +323,7 @@ public class DomainCacheConfigProviderTests
 
         IRequestDomainCacheOptions provider = CreateProvider(initial, out TestOptionsMonitor monitor);
 
-        DomainCacheOptions firstRequest = provider.EnsureDomainOptions(new DefaultHttpContext(), "orders");
+        DomainHttpCacheOptions firstRequest = provider.EnsureDomainOptions(new DefaultHttpContext(), "orders");
         firstRequest.Version.Should().Be("gen-a");
 
         monitor.TriggerChange(new CacheOrchestratorOptions
@@ -331,7 +331,7 @@ public class DomainCacheConfigProviderTests
             Domains = { ["orders"] = new() { Version = "gen-b" } }
         });
 
-        DomainCacheOptions secondRequest = provider.EnsureDomainOptions(new DefaultHttpContext(), "orders");
+        DomainHttpCacheOptions secondRequest = provider.EnsureDomainOptions(new DefaultHttpContext(), "orders");
 
         secondRequest.Should().NotBeSameAs(firstRequest);
         secondRequest.Version.Should().Be("gen-b");
@@ -350,7 +350,7 @@ public class DomainCacheConfigProviderTests
         IRequestDomainCacheOptions provider = CreateProvider(initial, out TestOptionsMonitor monitor);
 
         DefaultHttpContext http = new();
-        DomainCacheOptions pinned = provider.EnsureDomainOptions(http, "live");
+        DomainHttpCacheOptions pinned = provider.EnsureDomainOptions(http, "live");
         pinned.Version.Should().Be("1");
 
         monitor.TriggerChange(new CacheOrchestratorOptions
@@ -359,12 +359,12 @@ public class DomainCacheConfigProviderTests
         });
 
         // Same request still sees L1
-        DomainCacheOptions stillPinned = provider.EnsureDomainOptions(http, "live");
+        DomainHttpCacheOptions stillPinned = provider.EnsureDomainOptions(http, "live");
         stillPinned.Should().BeSameAs(pinned);
         stillPinned.Version.Should().Be("1");
 
         // Fresh request sees reloaded config
-        DomainCacheOptions fresh = provider.EnsureDomainOptions(new DefaultHttpContext(), "live");
+        DomainHttpCacheOptions fresh = provider.EnsureDomainOptions(new DefaultHttpContext(), "live");
         fresh.Version.Should().Be("2");
         fresh.Should().NotBeSameAs(pinned);
     }
@@ -383,8 +383,8 @@ public class DomainCacheConfigProviderTests
 
         IRequestDomainCacheOptions provider = CreateProvider(initial, out TestOptionsMonitor monitor);
 
-        DomainCacheOptions a1 = provider.GetOrCreateDomainOptions("a");
-        DomainCacheOptions b1 = provider.GetOrCreateDomainOptions("b");
+        DomainHttpCacheOptions a1 = provider.GetOrCreateDomainOptions("a");
+        DomainHttpCacheOptions b1 = provider.GetOrCreateDomainOptions("b");
 
         monitor.TriggerChange(new CacheOrchestratorOptions
         {
@@ -395,8 +395,8 @@ public class DomainCacheConfigProviderTests
             }
         });
 
-        DomainCacheOptions a2 = provider.GetOrCreateDomainOptions("a");
-        DomainCacheOptions b2 = provider.GetOrCreateDomainOptions("b");
+        DomainHttpCacheOptions a2 = provider.GetOrCreateDomainOptions("a");
+        DomainHttpCacheOptions b2 = provider.GetOrCreateDomainOptions("b");
 
         a2.Should().NotBeSameAs(a1);
         b2.Should().NotBeSameAs(b1);
@@ -412,14 +412,14 @@ public class DomainCacheConfigProviderTests
     {
         var monitor = new TestOptionsMonitor(options);
         DomainCacheOptionsProvider inner = new(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
-        return new RequestDomainCacheOptionsProvider(inner, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
+        return new RequestDomainCacheOptionsProvider(inner, monitor, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
     }
 
     private static IRequestDomainCacheOptions CreateProvider(CacheOrchestratorOptions options, out TestOptionsMonitor monitor)
     {
         monitor = new TestOptionsMonitor(options);
         DomainCacheOptionsProvider inner = new(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
-        return new RequestDomainCacheOptionsProvider(inner, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
+        return new RequestDomainCacheOptionsProvider(inner, monitor, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
     }
 
     private sealed class TestOptionsMonitor : IOptionsMonitor<CacheOrchestratorOptions>

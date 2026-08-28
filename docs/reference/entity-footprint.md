@@ -1,10 +1,10 @@
 # Entity footprint
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [domain profiles](../guide/domain-profiles.md). Catalog: [documentation index](../README.md). Data-cache API: [data cache](data-cache.md).
+> **Reference.** Product overview: [root README](../../README.md). Orientation: [domain profiles](../guide/domain-profiles.md). Catalog: [documentation index](../README.md). Data Cache API: [Data Cache](data-cache.md).
 
-How to tag cached objects so invalidation can retire the right rows — lists, references, aggregates, nested collections, batches, and aliases — without bumping the whole domain \Version\.
+An entity footprint describes which business entities contributed to a cached value. It lets invalidation retire the affected details, lists, references, aggregates, nested collections, batches, and aliases without bumping the whole domain `Version`.
 
-Declare primary identity on the endpoint (esourceRouteKey\ + \entityKind\, or \entityKind\ for collections). Extend tags in the factory with \EntityCache\ / \EntitySet\. Happy-path reads use \GetOrSetEntityAsync\ / \GetOrSetEntitySetAsync\.
+Declare primary identity on the endpoint (`resourceRouteKey` + `entityKind`, or `entityKind` alone for collections). Extend the footprint in the factory with `EntityCache` or `EntitySet`. The normal read APIs are `GetOrSetEntityAsync` and `GetOrSetEntitySetAsync`.
 
 ## Model (short)
 
@@ -14,7 +14,7 @@ Declare primary identity on the endpoint (esourceRouteKey\ + \entityKind\, or \e
 | `GetOrSetEntityAsync` | Entity-shaped key; primary from the request |
 | `GetOrSetEntitySetAsync` | URL-shaped key; member tags from `EntitySet` |
 | `EntityCache` / `EntitySet` | Factory wrappers: `Members`, `DependsOn`, `Alias`, `Miss` |
-| Tags | `domain:…`, `entity:…`, `entitykind:…` — same for OC (early + late) and Fusion |
+| Tags | `domain:…`, `entity:…`, `entitykind:…` — shared by Output Cache (early and late) and Fusion |
 
 Invalidation stays `InvalidateEntityAsync` / `InvalidateEntityKindAsync` / `InvalidateEntitiesAsync`.
 
@@ -29,11 +29,11 @@ Invalidation stays `InvalidateEntityAsync` / `InvalidateEntityKindAsync` / `Inva
 **Footprint:** primary `products:42`.
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, CancellationToken cancellationToken) =>
+app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache, CancellationToken cancellationToken) =>
 {
     var product = await cache.GetOrSetEntityAsync(
         http,
-        ct => LoadProductAsync(id, ct),
+        token => LoadProductAsync(id, token),
         cancellationToken);
     return product is null ? Results.NotFound() : Results.Ok(product);
 })
@@ -320,7 +320,7 @@ public async Task<ActionResult<IReadOnlyList<Product>>> Batch([FromQuery] string
 }
 ```
 
-Member tags come from the factory result. Unknown ids simply omit a member tag. (There is no automatic early tagging from the query string; late OC tags still apply after the Fusion factory runs.)
+Member tags come from the factory result. Unknown ids simply omit a member tag. There is no automatic early tagging from the query string; late Output Cache tags still apply after the Fusion factory runs.
 
 **Invalidation**
 
@@ -465,7 +465,7 @@ await inv.InvalidateEntityAsync("store", "promotions", promoId, cancellationToke
 
 ## Fusion-only (no Output Cache entity metadata)
 
-**Situation.** A worker, gRPC handler, or Minimal endpoint without `.CacheOutputWithDomain(..., resourceRouteKey, entityKind)` still wants data-cache entries shaped and tagged like product `42`, so `InvalidateEntityAsync` works the same way.
+**Situation.** A worker, gRPC handler, or Minimal endpoint without `.CacheOutputWithDomain(..., resourceRouteKey, entityKind)` still wants Data Cache entries shaped and tagged like product `42`, so `InvalidateEntityAsync` works the same way.
 
 **Footprint:** same as detail — you stamp identity yourself, then call `GetOrSetEntityAsync`.
 
@@ -507,7 +507,7 @@ await inv.InvalidateDomainAsync("catalog", cancellationToken);
 
 ## Related
 
-- [data-cache.md](data-cache.md) — API overview and obsolete overload migration
+- [Data Cache](data-cache.md) — API overview and obsolete overload migration
 - [invalidation.md](invalidation.md) — tag purge wiring
 - [cache-keys.md](cache-keys.md) — entity vs URL key shapes
 - [ef-core-invalidation.md](ef-core-invalidation.md) — SaveChanges → same tags

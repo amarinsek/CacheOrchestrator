@@ -1,16 +1,22 @@
 # CacheOrchestrator.Redis.Shared
 
-Support library for CacheOrchestrator Redis backends: connection options and configuration resolution.
+[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
-**Do not install this package directly.** Applications should reference:
+This package contains shared Redis connection options and configuration resolution used by the CacheOrchestrator Redis backends.
 
-- [CacheOrchestrator.Redis](https://github.com/amarinsek/CacheOrchestrator/tree/main/src/CacheOrchestrator.Redis) (meta — Output Cache + Fusion L2)
-- `CacheOrchestrator.AspNetCore.Redis` (Output Cache store only)
-- `CacheOrchestrator.FusionCache.Redis` (Fusion L2 / backplane only)
+## Usage
 
-`Redis.Shared` is pulled in transitively when you install those packages.
+**Do not install this package directly.** It is pulled in transitively by the public Redis packages and does not expose an application-level registration API.
 
-## Related
+Choose the Redis package that matches your host in the [package composition guide](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md).
 
-- [Packages guide](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md)
+## Documentation
+
+- [Backends](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/backends.md)
+- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md)
 - [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
+- [Repository](https://github.com/amarinsek/CacheOrchestrator)
+
+## License
+
+MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)

@@ -1,239 +1,243 @@
-# Domain profiles: snapshot and dynamic
+# Domain profiles
 
-> **Guide.** Product overview: [root README](../../README.md). Orientation: [concepts](concepts.md). Catalog: [documentation index](../README.md).
+> **Guide path:** [Concepts](concepts.md) → **Domain profiles** → [Packages](packages.md) · [Guide index](README.md)
 
-Two common ways to keep cached data fresh — and the configuration that matches each.
+The most important domain decision is how the underlying data changes.
 
-1. **Snapshot** (map tiles, a monthly extract) — content is frozen until a planned cutover.
-2. **Dynamic / CRUD** (a product detail) — individual records change under the same `Version`.
+- A **snapshot domain** changes as one coordinated generation: map tiles, annual imagery, a monthly export, or a published price list.
+- A **dynamic domain** changes one entity at a time: products, accounts, orders, or other CRUD data.
 
-You can mix both in one app (different domains). Mental model first: [concepts](concepts.md).
+The same application can use both profiles. Give them separate domains because their freshness rules are fundamentally different.
 
-## Model
+## Choose the freshness boundary first
 
-| Term | Meaning |
-|------|---------|
-| **Domain** | Named package of rules (`maps-osm`, `product-detail`) |
-| **Version** | Generation stamp for the whole domain (`2026-08`, `v1`) — not the version of one product |
-| **TTL** | How long one entry may live before the factory runs again |
-| **Tag invalidation** | Explicit delete: domain, kind, or one id (`entity:store:products:42`) |
-| **ETag** | Hint for browsers/CDNs — [ETag modes](#etag-modes) |
+Ask one question:
 
-### Three ways a request becomes a miss
+> Can the response for one resource change while the rest of the domain remains on the same release?
 
-```text
-Same Version, same URL
-        │
-        ├─► TTL expired?           → MISS → factory/DB
-        ├─► Tag purged?            → MISS → factory/DB
-        └─► Version bumped?        → new key → MISS → factory/DB
-```
+If the answer is **no**, use a snapshot profile and make `Version` the cutover boundary. If the answer is **yes**, use a dynamic profile and invalidate the changed entity while keeping `Version` stable.
 
-If a product changes under the same Version and you neither wait for TTL nor invalidate, the cache keeps serving the old body. That is caching working as designed.
+| Decision | Snapshot | Dynamic / CRUD |
+|----------|----------|----------------|
+| Content changes | Whole dataset at a cutover | Individual resources at any time |
+| Primary freshness control | Change domain `Version` | `InvalidateEntityAsync` |
+| TTL role | Cleanup and fallback | Safety bound when invalidation is missed |
+| Client TTL | Usually long; schedule it before cutover | Usually short, private, or `no-store` |
+| Data Cache API | `GetOrSetAsync` is often enough | `GetOrSetEntityAsync` |
+| Endpoint entity identity | Usually unnecessary | `entityKind` + `resourceRouteKey` |
+| Typical ETag mode | `Version` | `None` or an application-owned ETag |
 
----
+## Snapshot profile
 
-## Snapshot profile (OSM tiles, batch datasets)
+Use a snapshot domain when every resource belongs to one immutable generation. Within `Version: "2030-08"`, a tile or export must never silently change. Publishing new content means publishing a new domain version.
 
-**Rules**
+This profile rewards long cache lifetimes because old content is not expected to mutate in place.
 
-- Within one `Version`, content **must not** change.  
-- Cutover = bump `Version` (+ often [Client Cache Schedule](client-cache-schedule.md)).  
-- Long server and client TTLs are desirable.  
-- ETag = domain generation (`ETagMode: Version`) is intentional: every tile shares the same generation validator.
-
-### Example configuration
+### Configure the generation
 
 ```json
-"Domains": {
-  "osm-tiles": {
-    "Version": "2026-08",
-    "DataCache": {
-      "TtlSeconds": 2592000
-    },
-    "OutputCache": {
-      "TtlSeconds": 604800,
-      "ETagMode": "Version"
-    },
-    "ClientCache": {
-      "Cacheability": "Public",
-      "TtlSeconds": 2592000,
-      "TtlMinSeconds": 900,
-      "ScheduledUpdateUtc": "2026-09-01T00:00:00Z",
-      "MustRevalidateNearUpdate": true
-    },
-    "FusionCache": {
-      "HardTtlSeconds": 5184000,
-      "FailSafeSeconds": 7776000
+{
+  "Cache": {
+    "Domains": {
+      "osm-tiles": {
+        "Version": "2030-08",
+        "DataCache": {
+          "TtlSeconds": 2592000
+        },
+        "OutputCache": {
+          "TtlSeconds": 604800,
+          "ETagMode": "Version"
+        },
+        "ClientCache": {
+          "Cacheability": "Public",
+          "TtlSeconds": 2592000,
+          "TtlMinSeconds": 900,
+          "ScheduledUpdateUtc": "2030-09-01T00:00:00Z",
+          "MustRevalidateNearUpdate": true
+        }
+      }
     }
   }
 }
 ```
 
-### Endpoint
+This domain keeps Data Cache objects for 30 days, server HTTP responses for 7 days, and client responses for up to 30 days. The [Client Cache Schedule](client-cache-schedule.md) shortens the client `max-age` as the September cutover approaches; it does not change the server TTLs.
+
+Engine-specific FusionCache settings such as hard TTL, fail-safe, jitter, and factory timeouts can be added under `FusionCache`. They are tuning controls, not part of the snapshot identity.
+
+### Apply the domain
 
 ```csharp
-app.MapGet("/tiles/{z}/{x}/{y}", async (HttpContext http, IDomainDataCache cache, int z, int x, int y) =>
+app.MapGet("/tiles/{z}/{x}/{y}", async (
+    HttpContext http,
+    int z,
+    int x,
+    int y,
+    IDomainDataCache cache,
+    CancellationToken cancellationToken) =>
 {
-    var tile = await cache.GetOrSetAsync(http, async ct => await LoadTileAsync(z, x, y, ct));
+    byte[] tile = await cache.GetOrSetAsync(
+        http,
+        token => LoadTileAsync(z, x, y, token),
+        cancellationToken);
+
     return Results.Bytes(tile, "image/png");
 })
 .CacheOutputWithDomain("osm-tiles");
 ```
 
-At cutover: set `Version` to `2026-09`, deploy data, set next `ScheduledUpdateUtc`.  
-No per-tile invalidation is required.
+The URL already distinguishes tiles, so this endpoint does not need entity identity. Both Output Cache and `GetOrSetAsync` use the request identity and domain version.
 
----
+### Perform the cutover
 
-## Dynamic / CRUD profile (product detail)
+For a planned September release:
 
-**Rules**
+1. Set `ScheduledUpdateUtc` early enough for client TTLs to ramp down.
+2. Prepare the new dataset without changing the current generation in place.
+3. At go-live, make the new data available and change `Version` to `"2030-09"`.
+4. Set the next scheduled update, or clear `ScheduledUpdateUtc` if no date is known.
+5. Watch `X-Cache`, metrics, and origin load while the new generation warms.
 
-- `Version` stays stable (`"1"`) most of the time.  
-- Individual rows change → **short TTLs** and/or **entity invalidation**.  
-- Use `.CacheOutputWithDomain(domain, resourceRouteKey, entityKind)` (or `[CacheDomain]`) and `GetOrSetEntityAsync(http, factory)` so entries are tagged `entity:{domain}:{entityKind}:{id}`.  
-- On admin save: `InvalidateEntityAsync(domain, entityKind, id)` — **same Version**, new body on next request.  
-- Prefer shorter client cache (or `Private` / low max-age).  
-- `ETagMode: Resource` gives a distinct ETag per product URL/id (still generation-bound; for very short client TTL, `None` is fine).
+Requests now use new cache keys. Old server entries are no longer selected and expire naturally; a domain purge is optional cleanup, not the freshness mechanism.
 
-### Example configuration
+## Dynamic / CRUD profile
+
+Use a dynamic domain when one resource can change without releasing the whole dataset. Product `42` may change while products `7` and `99` remain valid.
+
+Keep the domain `Version` stable for ordinary writes. Give each detail endpoint an entity identity and invalidate that identity after the write succeeds.
+
+### Configure bounded lifetimes
 
 ```json
-"Domains": {
-  "store": {
-    "Version": "1",
-    "DataCache": {
-      "TtlSeconds": 60
-    },
-    "OutputCache": {
-      "TtlSeconds": 30,
-      "ETagMode": "Resource"
-    },
-    "ClientCache": {
-      "Cacheability": "Public",
-      "TtlSeconds": 15,
-      "TtlMinSeconds": 15
-    },
-    "FusionCache": {
-      "HardTtlSeconds": 300,
-      "FailSafeSeconds": 600
+{
+  "Cache": {
+    "Domains": {
+      "catalog": {
+        "Version": "1",
+        "DataCache": {
+          "TtlSeconds": 300
+        },
+        "OutputCache": {
+          "TtlSeconds": 120,
+          "ETagMode": "None"
+        },
+        "ClientCache": {
+          "Cacheability": "Public",
+          "TtlSeconds": 30
+        }
+      }
     }
   }
 }
 ```
 
-### Endpoint + invalidation
+The server entries may live longer because the write path removes them immediately. Their TTLs remain a safety bound if an invalidation is missed.
+
+The 30-second public client TTL is a product decision, not a server invalidation guarantee. A browser or CDN may serve the old response for those 30 seconds after a write. Use a shorter TTL, `Private`, or `NoStore` when clients must observe changes sooner.
+
+### Declare identity on the read
 
 ```csharp
-// GET — cache per product id
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+app.MapGet("/api/products/{id:int}", async (
+    HttpContext http,
+    int id,
+    IDomainDataCache cache,
+    CancellationToken cancellationToken) =>
 {
-    var product = await cache.GetOrSetEntityAsync(http, async ct =>
-        await db.Products.FindAsync([id], ct));
+    Product? product = await cache.GetOrSetEntityAsync(
+        http,
+        token => LoadProductAsync(id, token),
+        cancellationToken);
+
     return product is null ? Results.NotFound() : Results.Json(product);
 })
-.CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
+.CacheOutputWithDomain(
+    "catalog",
+    entityKind: "products",
+    resourceRouteKey: "id");
+```
 
-// PUT — write then purge only this product (Version stays "1")
-app.MapPut("/api/products/{id}", async (string id, ProductDto dto, ICacheOrchestratorInvalidator inv) =>
+The endpoint declares the identity once:
+
+- domain: `catalog`;
+- entity kind: `products`;
+- resource id: the value of route key `id`.
+
+`GetOrSetEntityAsync` consumes that identity for its Data Cache key and tags. Output Cache attaches the same entity tag to the HTTP response.
+
+### Invalidate after the write succeeds
+
+```csharp
+app.MapPut("/api/products/{id:int}", async (
+    int id,
+    ProductUpdate request,
+    ICacheOrchestratorInvalidator invalidator,
+    CancellationToken cancellationToken) =>
 {
-    await db.SaveAsync(id, dto);
-    await inv.InvalidateEntityAsync("store", "products", id);
+    await SaveProductAsync(id, request, cancellationToken);
+
+    await invalidator.InvalidateEntityAsync(
+        "catalog",
+        "products",
+        id,
+        cancellationToken);
+
     return Results.NoContent();
 });
 ```
 
-Flow:
+Save first, invalidate second. If invalidation happened before the transaction committed, another request could refill the cache with the old value.
+
+The resulting flow is:
 
 ```text
-t0  GET /products/42  → MISS → DB (price 10) → store OC+DC, tags domain + entity:store:products:42
-t1  Admin sets price 12, calls InvalidateEntityAsync("store", "products", 42)
-t2  GET /products/42  → MISS → DB (price 12)
-    GET /products/99  → still HIT (other entity)
+GET /api/products/42  → miss → database says 10.00 → store Output Cache + Data Cache entries
+PUT /api/products/42  → database says 12.50 → invalidate product 42
+GET /api/products/42  → miss → database says 12.50 → store new entries
+GET /api/products/7   → still a hit
 ```
 
----
+If writes already go through Entity Framework Core, the optional EF integration can invalidate changed entities after a successful `SaveChanges` call. See [EF Core invalidation](../reference/ef-core-invalidation.md).
 
-## ETag modes
+## Collections and related data
 
-CacheOrchestrator ETags are **generation-bound** (derived from the domain `Version`), not computed from the response body. This guarantees zero-allocation ETags that survive cache purges and TTL expiries, but it means the ETag does not change when individual rows mutate under a stable version.
+A product change may also affect a cached product list, category page, or promotion. Invalidating only the detail entry is not enough unless those cached results carry a matching footprint.
 
-| Mode | What it is | Use when |
-|------|------------|----------|
-| `Version`<br>*(default)* | **Shared Generation Stamp**<br>A single weak ETag (hash of domain `Version`, e.g. `W/"a1b2"`) shared by **all** URLs in the domain. | **Snapshot domains** where content only changes when you bump the domain version (e.g., map tiles, monthly exports). |
-| `Resource` | **Namespaced Generation Stamp**<br>A distinct ETag per URL (hash of `Version` + resource ID, e.g. `W/"a1b2-x9y8"`). Still tied to the domain version, but unique per endpoint. | **Mass-updated catalogs** where you bump the `Version` to invalidate everything, but your CDN requires unique ETags per URL. |
-| `None` | **Disabled**<br>Removes `ETag` headers generated by the policy. | **CRUD / Dynamic APIs** where you invalidate individual entities. Disabling the static ETag ensures browsers perform a normal `GET` after their TTL expires, avoiding `304 Not Modified` responses for updated content. Alternatively, set a true timestamp-based ETag manually inside your endpoint. |
+Use `GetOrSetEntitySetAsync` and `EntitySet` for collections, or extend an entity result with members and dependencies. CacheOrchestrator can then tag a cached result with the entities that influence it.
 
-ETag does **not** drive server Output Cache lookup. OC keys are per URL + vary + `data-version`.  
-ETag is for **browser/CDN** conditional requests after client `max-age` expires.
+Keep the primary identity simple and stable. Add relationships only when a change to that related entity really makes the cached result stale. The complete patterns are in [Entity footprint](../reference/entity-footprint.md).
 
-### Custom ETags for CRUD
+## Choose an ETag policy deliberately
 
-When using `ETagMode: None`, you can manually set a precise, zero-allocation ETag inside your endpoint using the entity's `UpdatedAt` timestamp. 
+CacheOrchestrator-generated ETags are based on the domain generation, not a hash of the response body.
 
-> [!TIP]
-> Always include the domain `Version` in your custom ETag. If you update your JSON schema and bump the domain version, the ETags must change even if the database timestamps haven't.
+| `ETagMode` | Behaviour | Use it for |
+|------------|-----------|------------|
+| `Version` | One generation ETag shared by the domain | Immutable snapshot domains |
+| `Resource` | A distinct ETag per resource identity, still derived from domain `Version` | Snapshot resources when intermediaries require distinct validators |
+| `None` | CacheOrchestrator emits no ETag | Dynamic resources invalidated under a stable version |
 
-```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
-{
-    var product = await cache.GetOrSetEntityAsync(http, async ct =>
-        await db.Products.FindAsync([id], ct));
+`Resource` makes validators distinct, but it does not make them change when one row is invalidated under the same domain version. For dynamic data, use `None` or implement a true application-owned ETag from a row version or update timestamp, including conditional request handling.
 
-    if (product is not null)
-    {
-        // 1. Get the resolved domain options from the request
-        if (http.GetDomainCacheOptions() is { } opts)
-        {
-            // 2. Combine the domain Version with the DB timestamp
-            http.Response.Headers.ETag = CacheETagFactory.FromVersionAndResource(
-                opts.VersionHex, 
-                product.UpdatedAtUtc.Ticks.ToString());
-        }
+ETags affect browser and CDN revalidation. They do not select ASP.NET Core Output Cache entries.
 
-        return Results.Json(product);
-    }
-    
-    return Results.NotFound();
-})
-.CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
-```
+## Account for authenticated traffic
 
----
+The safe default bypasses Output Cache and blocks the Client Cache when the request has an authenticated identity or an `Authorization` header. By default, the Data Cache follows that bypass too.
 
-## Choosing a profile
+If a domain intentionally caches authenticated traffic, decide whether content is shared, tenant-specific, or user-specific before changing `AuthBypassMode` and vary settings. A wrong vary policy can serve one user's representation to another.
 
-| Question | Snapshot | Dynamic |
-|----------|----------|---------|
-| Can one URL’s body change without a release? | No | Yes |
-| Primary freshness tool | Bump `Version` | TTL + `InvalidateEntityAsync` |
-| Client `max-age` | Long + schedule | Short |
-| `GetOrSetAsync` resource id | Optional | Recommended |
-| `resourceRouteKey` on OC | Optional | Recommended for entity OC purge |
+Use the matrix in [Vary and authenticated traffic](../reference/vary.md) before enabling it.
 
-You can mix both profiles in one app (different domains).
+## When neither profile fits exactly
 
----
+Treat snapshot and dynamic as starting points, not rigid product modes:
 
-## Authenticated traffic (auth bypass)
+- A mostly static catalog can use entity invalidation for daily edits and a `Version` bump for a major schema release.
+- A snapshot domain can omit Data Cache when generating the HTTP response is already cheap.
+- A dynamic internal API can use `NoStore` for clients while keeping server-side Output Cache and Data Cache.
+- A collection can be dynamic at entity-kind level when tracking every member would create too many tags.
 
-Default: authenticated users **or** an `Authorization` header → Output Cache **off**, client cache **blocked**.
+Write down the freshness event for each domain: **time passes**, **a known entity changes**, or **a new generation ships**. Then choose TTL, invalidation, and versioning to match that event.
 
-| Goal | Typical settings |
-|------|------------------|
-| Keep the safe default | leave `AuthBypassMode` unset |
-| Public tiles behind an API key | `AuthBypassMode: Never`, careful `ClientCache.Cacheability` |
-| Private per-user pages | `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, `Private` client cache |
-
-Full matrix: [vary](../reference/vary.md). FAQ: [authenticated traffic](faq.md#authenticated-requests-and-api-keys).
-
----
-
-## Related
-
-- [Concepts](concepts.md)
-- [Client Cache Schedule](client-cache-schedule.md)
-- [Invalidation](../reference/invalidation.md)
-- [Data cache](../reference/data-cache.md)
-- [Configuration](../reference/configuration.md)
+Next: choose the [packages](packages.md) that provide the layers and engines your profiles require.

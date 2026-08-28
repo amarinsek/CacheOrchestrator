@@ -12,7 +12,7 @@ namespace CacheOrchestrator.Benchmarks.Benchmarks;
 public class DomainKeyGeneratorBenchmarks
 {
     private DefaultDomainKeyGenerator _generator = null!;
-    private DomainCacheOptions _options = null!;
+    private DomainHttpCacheOptions _options = null!;
     private DefaultHttpContext _noQuery = null!;
     private DefaultHttpContext _withQuery = null!;
     private DefaultHttpContext _withTracking = null!;
@@ -26,20 +26,23 @@ public class DomainKeyGeneratorBenchmarks
     {
         _generator = new DefaultDomainKeyGenerator();
 
-        _options = new DomainCacheOptions
+        _options = new DomainHttpCacheOptions
         {
-            Domain = "catalog",
-            Version = "1",
-            VersionHex = "01",
+            CoreOptions = new DomainCacheOptions
+            {
+                Domain = "catalog",
+                Version = "1",
+                VersionHex = "01",
+                DataCacheEnabled = true,
+                DataCacheTtl = TimeSpan.FromSeconds(60),
+                DataCacheNamespace = "sample:fc",
+            },
             OutputCacheEnabled = true,
-            DataCacheEnabled = true,
             ClientCacheability = ClientCacheability.Public,
             ClientTtlSeconds = 3600,
             ClientTtlMinSeconds = 60,
             OutputTtl = TimeSpan.FromSeconds(60),
-            DataCacheTtl = TimeSpan.FromSeconds(60),
             OutputCacheNamespace = "sample:oc",
-            DataCacheNamespace = "sample:fc",
             CacheableStatusCodes = [200],
             EncodingNormalizationList = ["br", "gzip"],
             DataCacheVaryOnEncoding = true,

@@ -35,9 +35,10 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 
 ```
 Domain (config name)
-  → DomainCacheOptions (resolved snapshot)
-      → DomainOutputCachePolicy (HTTP)
-      → ICacheOrchestrator / IDomainDataCache get-or-set (data)
+  → DomainCacheOptions (Core: identity + Data Cache)
+      → ICacheOrchestrator get-or-set (HTTP-free data)
+      → DomainHttpCacheOptions (AspNetCore: CoreOptions + HTTP policy)
+          → DomainOutputCachePolicy / IDomainDataCache
       → EntityFootprint tags (domain + entity / entitykind; optional members / dependsOn / aliases)
 ```
 
@@ -69,7 +70,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 
 | API | Namespace |
 |-----|-----------|
-| `AddCacheOrchestrator` (meta = AspNet + Fusion) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
+| `AddCacheOrchestratorCore` / `AddCacheOrchestrator` (meta = AspNet + Fusion) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
 | `ICacheOrchestratorBuilder` / `ICacheBackendRegistrar` (OC) | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
 | `AddCacheOrchestratorFusionCache` / `IFusionCacheBackendRegistrar` | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.FusionCache.Backends` |
 | `AddCacheOrchestratorHybridCache` | `CacheOrchestrator.DependencyInjection` (HybridCache package) |
@@ -83,7 +84,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `EntityCache` / `EntitySet` / `EntityFootprint` | `CacheOrchestrator.Entity` (Core) |
 | `ICacheVaryContributor` / `CacheVaryMaterializer` / `ICacheVaryBuilder` | `CacheOrchestrator.Vary` |
 | `AuthBypassMode` / `DomainAuthEvaluator` | `CacheOrchestrator.Configuration` |
-| `IDomainCacheOptionsProvider` / `DomainCacheOptions` / `DomainName` | `CacheOrchestrator.Configuration` |
+| `IDomainCacheOptionsProvider` / `DomainCacheOptions` / `DomainName` (Core); `IRequestDomainCacheOptions` / `DomainHttpCacheOptions` (AspNetCore) | `CacheOrchestrator.Configuration` |
 | `ICacheOrchestratorInvalidator` / `ICacheInvalidationObserver` / `CacheInvalidationResult` | `CacheOrchestrator.Invalidation` |
 | `CacheTags` | `CacheOrchestrator.Configuration` |
 | Health: `AddCacheOrchestrator` on `IHealthChecksBuilder` | `CacheOrchestrator.Diagnostics` |
@@ -99,13 +100,13 @@ There is **no** `CacheOrchestrator.Abstractions` folder — interfaces sit besid
 
 ## Config vs runtime naming
 
-Nested JSON under `DataCache` / `OutputCache` / `ClientCache` / optional `FusionCache` uses **int seconds** (`TtlSeconds`, …). Runtime Core snapshot often uses `TimeSpan` (except client max-age ints):
+Nested JSON under `DataCache` / `OutputCache` / `ClientCache` / optional `FusionCache` uses **int seconds** (`TtlSeconds`, …). Runtime settings are split between Core `DomainCacheOptions` and ASP.NET Core `DomainHttpCacheOptions`:
 
-| JSON | Runtime `DomainCacheOptions` |
-|------|------------------------------|
-| `OutputCache:TtlSeconds` | `OutputTtl` (`TimeSpan`) |
-| `DataCache:TtlSeconds` | `DataCacheTtl` (`TimeSpan`) |
-| `ClientCache:TtlSeconds` / `TtlMinSeconds` | `ClientTtlSeconds` / `ClientTtlMinSeconds` (`int`) |
+| JSON | Runtime |
+|------|---------|
+| `OutputCache:TtlSeconds` | `DomainHttpCacheOptions.OutputTtl` (`TimeSpan`) |
+| `DataCache:TtlSeconds` | `DomainCacheOptions.DataCacheTtl` (`TimeSpan`) |
+| `ClientCache:TtlSeconds` / `TtlMinSeconds` | `DomainHttpCacheOptions.ClientTtlSeconds` / `ClientTtlMinSeconds` (`int`) |
 
 Fusion-only knobs (`HardTtlSeconds`, `FailSafeSeconds`, factory timeouts, …) bind in the **FusionCache** package (`DomainFusionCacheSettings`), not on Core `DomainCacheOptions`. Root engines: `DataCacheInstances` (not `FusionCacheInstances`).
 

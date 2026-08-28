@@ -12,7 +12,7 @@ Package README: [src/CacheOrchestrator.HttpBus/README.md](../../src/CacheOrchest
 
 | Situation | Prefer |
 |-----------|--------|
-| Multi-instance **InMemory** OC/DC, need immediate purge everywhere | **HttpBus** |
+| Multi-instance **InMemory** Output Cache and Data Cache, with immediate purge required everywhere | **HttpBus** |
 | Runtime **Version / TTL** overlays on all InMemory nodes | **HttpBus** + Admin `distribute` (or Admin Console App auto mode) |
 | Shared Redis L2 + backplane | **Redis package** — HttpBus optional / redundant for tag invalidate |
 | Sticky sessions + TTL-only expiry | Local invalidation may be enough |
@@ -151,10 +151,12 @@ List every instance **of this app**. `Id` should match each process’s `Cache:I
 ### ServiceDiscovery (K8s / Aspire / config endpoints)
 
 ```json
+{
 "Membership": "ServiceDiscovery",
 "ServiceDiscovery": {
   "ServiceName": "app1",
   "DefaultScheme": "http"
+}
 }
 ```
 
@@ -186,6 +188,20 @@ Wire type is polymorphic JSON (`commandType` discriminator):
 | `settingsPatch` | `SettingsPatchCommand` | Sparse runtime overlay (same shape as Admin `PATCH …/domains/{d}/settings`) |
 
 Never carries response bodies or cache entries.
+
+Every command also carries the common envelope below:
+
+| Field | Contract |
+|-------|----------|
+| `commandId` | Globally unique id used for receive-side deduplication |
+| `originInstanceId` | Stable origin process id; receivers use it for anti-echo |
+| `namespace` | Cache isolation boundary; a mismatch is rejected |
+| `timestampUtc` | UTC creation time |
+| `correlationId` | Optional cross-process trace correlation |
+
+`InvalidateCommand` adds `kind`, human-readable `scope`, final `tags`, and optional domain/entity fields. `VersionBumpCommand` adds `domain` and `version`. `SettingsPatchCommand` adds `domain` and the same sparse setting dictionary accepted by the Admin PATCH endpoint.
+
+For a custom transport or discovery integration, implement the Core contracts rather than emulating the HTTP routes: `IClusterMembership` discovers `ClusterPeer` records, `IClusterCommandBus` publishes and returns per-peer outcomes, and the receive path calls `IClusterCommandHandler.ApplyLocalAsync`. Preserve the envelope, report individual peer failures in `ClusterPublishResult`, and never re-publish a received command. See [Extensibility](extensibility.md#cluster-contracts).
 
 ### Who publishes
 
@@ -241,7 +257,7 @@ The Admin Console App probes `GET …/cluster/info` on configured instances (`GE
 Never combine full Admin Console App fan-out **and** `distribute: true` for the same action — the App chooses one path.  
 Operations UI shows mode banner + last-run summary.
 
-Details: [admin.md](admin.md#cluster-distribute-with-cacheorchestratorbus).
+Details: [Admin — cluster distribution](admin.md#cluster-distribute-with-cacheorchestratorhttpbus).
 
 ---
 
@@ -255,7 +271,7 @@ Details: [admin.md](admin.md#cluster-distribute-with-cacheorchestratorbus).
 | Runtime Version/TTL overlay cluster-wide | Not covered | Yes |
 | Hot-path read latency | L2 cost | No read path cost |
 
-Using **both** for tag invalidation is safe (idempotent double purge) but often unnecessary for Fusion when Redis backplane is already on. Bus remains useful for OC InMemory + Version / TTL / **settings** overlays. The Redis backplane does **not** distribute runtime overlays.
+Using **both** for tag invalidation is safe (the duplicate purge is idempotent) but often unnecessary for Fusion when the Redis backplane is already enabled. The bus remains useful with InMemory Output Cache for Version, TTL, and **settings** overlays. The Redis backplane does **not** distribute runtime overlays.
 
 ---
 
@@ -307,4 +323,5 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 - [admin.md](admin.md) — Admin API + Admin Console App  
 - [configuration.md](configuration.md) — options tables  
 - [backends.md](backends.md) — Redis package  
+- [Extensibility](extensibility.md) — custom membership, command bus, and host identity contracts
 - [architecture.md](../contributor/architecture.md) — layout  

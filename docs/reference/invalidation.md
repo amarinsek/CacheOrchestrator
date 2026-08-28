@@ -2,40 +2,46 @@
 
 > **Reference.** Product overview: [root README](../../README.md). Orientation: [domain profiles](../guide/domain-profiles.md). Catalog: [documentation index](../README.md).
 
-When data changes, retire it in **every** layer that still holds it — data cache tags, Output Cache tags, and (via Version or Client Cache Schedule) the client generation story.
+When data changes, retire it in **every** layer that still holds it — Data Cache tags, Output Cache tags, and (via Version or Client Cache Schedule) the client generation story.
 
-Prefer **`ICacheOrchestratorInvalidator`** over talking to Fusion or Output Cache stores directly. Multi-instance behaviour depends on topology ([deployment](deployment.md), [cluster bus](cluster-bus.md)).
+Prefer **`ICacheOrchestratorInvalidator`** over talking to Data Cache or Output Cache stores directly. Multi-instance behaviour depends on topology ([deployment](deployment.md), [cluster bus](cluster-bus.md)).
 
 ## Version (preferred for bulk cutovers)
 
 In config:
 
 ```json
-"products": {
-  "Version": "v1"
+{
+  "Cache": {
+    "Domains": {
+      "products": {
+        "Version": "v1"
+      }
+    }
+  }
 }
 ```
 
 When you deploy a content update, bump `Version` (and reload configuration).  
 
 - Output Cache vary value `data-version` changes  
-- Fusion keys include the version hex  
+- Data Cache keys include the version hex
 - Old entries expire by TTL (no mass delete)
 
 If `Version` is omitted, the library uses `"1"` and logs a warning (keys stable across restarts).
 
 ## Programmatic API (`ICacheOrchestratorInvalidator`)
 
-All methods return **`CacheInvalidationResult`** (best-effort: they do **not** throw when Fusion or Output Cache fails).
+All methods return **`CacheInvalidationResult`**. Store invalidation is best-effort: a Data Cache or Output Cache failure is reported in the result instead of being thrown.
 
 ```csharp
 using CacheOrchestrator.Invalidation;
 
-// Entire domain (OC + FC on the instance that owns the domain)
+// Entire domain (Output Cache + Data Cache on the owning instance)
 CacheInvalidationResult r1 = await invalidator.InvalidateDomainAsync("products", cancellationToken);
 if (!r1.Succeeded)
 {
-    // r1.FusionSucceeded / r1.OutputSucceeded / r1.Errors
+    // r1.DataCacheSucceeded / r1.OutputSucceeded / r1.Errors
 }
 
 // Several domains
@@ -49,17 +55,19 @@ CacheInvalidationResult r3 = await invalidator.InvalidateEntityAsync(
 
 // Several ids of one kind (one local apply + one Bus publish)
 CacheInvalidationResult r4 = await invalidator.InvalidateEntitiesAsync(
-    "store", "products", new[] { 42, 43 }, cancellationToken);
+    "store", "products", [42, 43], cancellationToken);
 
 // Every entry tagged entitykind:store:products
 CacheInvalidationResult r5 = await invalidator.InvalidateEntityKindAsync(
     "store", "products", cancellationToken);
 
-// Custom or multiple tags (all FusionCache instances + Output Cache)
+// Custom or multiple tags (all Data Cache instances + Output Cache)
 CacheInvalidationResult r6 = await invalidator.InvalidateTagsAsync(
     ["domain:store", "entity:store:products:42", "custom:batch-7"],
     cancellationToken);
 ```
+
+Use the generic entity overloads with the ID's natural type, as above. `int`, `long`, `Guid`, and other `IFormattable` values are converted with invariant culture, so callers do not need manual `.ToString()` calls. The string overload remains appropriate for identifiers that are genuinely strings, such as `"ABC-42"`.
 
 ### `CacheInvalidationResult`
 
@@ -67,7 +75,7 @@ CacheInvalidationResult r6 = await invalidator.InvalidateTagsAsync(
 |----------|---------|
 | `Scope` | Label (domain, `domain/id`, joined tags, or `(skipped)`) |
 | `Tags` | Tags targeted for eviction |
-| `FusionSucceeded` | All Fusion removals for this call succeeded |
+| `DataCacheSucceeded` | All Data Cache removals for this call succeeded |
 | `OutputSucceeded` | All Output Cache evictions succeeded |
 | `IsSkipped` | No-op (empty domain/tags); nothing was evicted |
 | `Succeeded` | Both layers succeeded **and** the call was not skipped. Cluster publish failures do not flip this. |
@@ -82,20 +90,20 @@ Empty input (null domain, no tags) → `CacheInvalidationResult.Skipped(...)` wi
 
 | Tag | When applied |
 |-----|----------------|
-| `domain:{name}` | Every Output Cache policy entry; every Fusion `GetOrSet` |
-| `entity:{domain}:{entityKind}:{resourceId}` | Fusion when using `GetOrSetEntityAsync`; Output Cache when `resourceRouteKey` **and** `entityKind` are set on the policy |
+| `domain:{name}` | Every Output Cache policy entry and every Data Cache get-or-set entry |
+| `entity:{domain}:{entityKind}:{resourceId}` | Data Cache when using `GetOrSetEntityAsync`; Output Cache when `resourceRouteKey` **and** `entityKind` are set on the policy |
 | `entitykind:{domain}:{entityKind}` | Same writes; purge all entries of that kind with `InvalidateEntityKindAsync` |
 | Custom | Your tags — purge with `InvalidateTagsAsync` |
 
 ### Wiring entity tags
 
-Identity is declared once on the endpoint. Fusion and Output Cache share it; factories may add members / dependsOn / aliases via `EntityCache` / `EntitySet`.
+Identity is declared once on the endpoint. Data Cache and Output Cache share it; factories may add members, dependencies, and aliases through `EntityCache` or `EntitySet`.
 
 ```csharp
 // Minimal API — detail
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, CancellationToken ct) =>
+app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache, CancellationToken cancellationToken) =>
 {
-    var product = await cache.GetOrSetEntityAsync(http, token => factory(token), ct);
+    var product = await cache.GetOrSetEntityAsync(http, factory, cancellationToken);
     return product is null ? Results.NotFound() : Results.Ok(product);
 })
 .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
@@ -143,12 +151,12 @@ Observers are **audit/webhooks on this process only**. Cross-instance purge is t
 ### Implementation notes
 
 1. Normalize domain / resource id  
-2. Resolve Fusion instance from domain options (domain/entity APIs)  
-3. `IFusionCache.RemoveByTagAsync`  
+2. Resolve the Data Cache instance from domain options for domain and entity APIs
+3. `IDataCacheProvider.RemoveByTagAsync`
 4. `IOutputCacheStore.EvictByTagAsync`  
 5. Best-effort failures → warnings + `CacheInvalidationResult.Errors`  
 6. Metrics `cache_orchestrator.invalidate` only when **both** layers succeed for that scope  
-7. `InvalidateTagsAsync` fans out to **all** registered FusionCache instances  
+7. `InvalidateTagsAsync` fans out to **all** configured Data Cache instances
 
 ## When to use which
 
@@ -200,11 +208,11 @@ List/index endpoints tagged only `domain:{name}` are not refreshed by row invali
 
 `ICacheOrchestratorInvalidator` always applies **locally** on the calling process. When **`CacheOrchestrator.HttpBus`** is registered and enabled, it then **publishes** an `InvalidateCommand` to peers (peers ApplyLocal only — no echo).
 
-| Layer | Without Redis | With Redis (OC store and/or Fusion L2 + backplane) |
+| Layer | Without Redis | With Redis (Output Cache store and/or Fusion L2 + backplane) |
 |-------|---------------|-----------------------------------------------------|
-| Data-cache L1 (Fusion memory) | Cleared only here (unless HttpBus peers apply too) | Cleared here; **other nodes** clear L1 via **backplane** |
+| Data Cache L1 (Fusion memory) | Cleared only here (unless HttpBus peers apply too) | Cleared here; **other nodes** clear L1 via **backplane** |
 | Fusion L2 | N/A or local only | Shared store purged |
-| Output Cache | In-process only (unless HttpBus peers apply too) | Shared if OC provider is Redis |
+| Output Cache | In-process only (unless HttpBus peers also apply the command) | Shared when the Output Cache provider is Redis |
 
 Without a distributed store, a backplane, or HttpBus, invalidation applies on the calling process only.
 
@@ -215,7 +223,7 @@ Cluster **configuration** management (shared `appsettings.cache.json`, ConfigMap
 | Approach | Immediate purge on all nodes? | When to use |
 |----------|-------------------------------|-------------|
 | **1. Bump `Version` (shared config)** | No — new key space; old entries expire by TTL | Snapshot / catalog cutover; simplest multi-node story |
-| **2. Redis Fusion L2 + backplane** (+ optional Redis OC) | Yes for Fusion L1 (backplane) + shared L2 | **Recommended production multi-instance** |
+| **2. Redis Fusion L2 + backplane** (+ optional Redis Output Cache) | Yes for Fusion L1 through the backplane, plus shared L2 | **Recommended production multi-instance** |
 | **3. CacheOrchestrator.HttpBus** (HTTP + Static / ServiceDiscovery) | Yes if every peer has receive endpoints | Multi-instance **InMemory**; also Version/TTL overlays via Admin `distribute`. Full guide: [cluster-bus.md](cluster-bus.md) |
 | **4. Rolling restart of all instances** | Yes (cold process) | Emergency only |
 | **5. Custom observer + external bus** | Yes if you implement it | Rare; prefer HttpBus package |
@@ -224,7 +232,7 @@ Cluster **configuration** management (shared `appsettings.cache.json`, ConfigMap
 Recommended multi-instance (immediate invalidation):
 
   Invalidate* on any node
-       → local OC/DC
+       → local Output Cache / Data Cache
        → Redis L2 + pub/sub backplane
        → other nodes drop L1
 
@@ -297,8 +305,8 @@ Prefer Redis L2 and the backplane when instances share Fusion data. Use HttpBus 
 - [domain-profiles.md](../guide/domain-profiles.md) — Snapshot vs Dynamic + config recipes  
 - [deployment.md](deployment.md) — multi-instance topologies + shared configuration  
 - [configuration.md](configuration.md)  
-- [output-cache.md](output-cache.md)  
-- [data-cache.md](data-cache.md)  
+- [Output Cache](output-cache.md)
+- [Data Cache](data-cache.md)
 - [backends.md](backends.md) — Redis package  
 - [cluster-bus.md](cluster-bus.md) — optional multi-instance command bus  
 

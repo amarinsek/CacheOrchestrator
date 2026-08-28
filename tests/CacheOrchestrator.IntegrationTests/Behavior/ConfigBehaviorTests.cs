@@ -138,7 +138,7 @@ public class ConfigBehaviorTests
         DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(5);
         while (DateTimeOffset.UtcNow < deadline)
         {
-            DomainCacheOptions snap = domains.GetOrCreateDomainOptions(domain);
+            DomainHttpCacheOptions snap = domains.GetOrCreateDomainOptions(domain);
             if (string.Equals(snap.Version, expectedVersion, StringComparison.Ordinal))
                 return;
 
@@ -146,7 +146,7 @@ public class ConfigBehaviorTests
             _ = monitor.CurrentValue;
         }
 
-        DomainCacheOptions final = domains.GetOrCreateDomainOptions(domain);
+        DomainHttpCacheOptions final = domains.GetOrCreateDomainOptions(domain);
         final.Version.Should().Be(expectedVersion,
             "IOptionsMonitor / DomainCacheOptionsProvider must pick up reloaded Version before asserting OC behaviour");
     }
@@ -405,7 +405,7 @@ public class ConfigBehaviorTests
         IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         DefaultHttpContext http = new();
 
-        DomainCacheOptions cfg = domains.EnsureDomainOptions(http, "unknown-domain-xyz");
+        DomainHttpCacheOptions cfg = domains.EnsureDomainOptions(http, "unknown-domain-xyz");
 
         cfg.Should().NotBeNull();
         cfg.Domain.Should().Be("unknown-domain-xyz");

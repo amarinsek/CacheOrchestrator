@@ -1,4 +1,5 @@
 using CacheOrchestrator.Entity;
+using System.Globalization;
 
 namespace CacheOrchestrator.Orchestration;
 
@@ -57,6 +58,27 @@ public static class CacheOrchestratorDomainContextExtensions
     }
 
     /// <summary>
+    /// Gets or creates one entity using a naturally typed resource id.
+    /// <see cref="IFormattable"/> values are formatted with invariant culture.
+    /// </summary>
+    public static ValueTask<T?> GetOrCreateEntityAsync<T, TId>(
+        this ICacheOrchestrator cache,
+        CacheDomainContext domain,
+        string logicalKey,
+        TId resourceId,
+        Func<CancellationToken, ValueTask<T?>> factory,
+        string defaultEntityKind = "entity",
+        CancellationToken cancellationToken = default)
+        where TId : notnull =>
+        cache.GetOrCreateEntityAsync(
+            domain,
+            logicalKey,
+            FormatId(resourceId),
+            factory,
+            defaultEntityKind,
+            cancellationToken);
+
+    /// <summary>
     /// Gets or creates one entity with an <see cref="EntityCache{T}"/> factory.
     /// </summary>
     public static ValueTask<T?> GetOrCreateEntityAsync<T>(
@@ -82,4 +104,32 @@ public static class CacheOrchestratorDomainContextExtensions
             factory,
             cancellationToken);
     }
+
+    /// <summary>
+    /// Gets or creates one entity with an <see cref="EntityCache{T}"/> factory and a naturally typed resource id.
+    /// <see cref="IFormattable"/> values are formatted with invariant culture.
+    /// </summary>
+    public static ValueTask<T?> GetOrCreateEntityAsync<T, TId>(
+        this ICacheOrchestrator cache,
+        CacheDomainContext domain,
+        string logicalKey,
+        TId resourceId,
+        Func<CancellationToken, ValueTask<EntityCache<T>>> factory,
+        string defaultEntityKind = "entity",
+        CancellationToken cancellationToken = default)
+        where TId : notnull =>
+        cache.GetOrCreateEntityAsync(
+            domain,
+            logicalKey,
+            FormatId(resourceId),
+            factory,
+            defaultEntityKind,
+            cancellationToken);
+
+    private static string FormatId<TId>(TId id) where TId : notnull =>
+        id switch
+        {
+            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+            _ => id.ToString() ?? string.Empty
+        };
 }

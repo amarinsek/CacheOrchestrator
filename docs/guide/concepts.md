@@ -1,89 +1,196 @@
 # Concepts
 
-> **Guide.** Product overview: [root README](../../README.md). Catalog: [documentation index](../README.md).
+> **Guide path:** [Getting started](getting-started.md) → **Concepts** → [Domain profiles](domain-profiles.md) · [Guide index](README.md)
 
-How CacheOrchestrator thinks about caching. Schema and APIs live on the [reference](../README.md#reference) pages.
+The getting-started tutorial used one domain to coordinate Client Cache, Output Cache, and Data Cache. This page explains the model behind that example so you can design domains for your own application.
 
----
+CacheOrchestrator does not replace ASP.NET Core Output Caching, FusionCache, HybridCache, Redis, browsers, or CDNs. It gives those layers one policy model and one invalidation vocabulary.
 
-## A domain is a policy group
+## A domain keeps policy out of the endpoint
 
-A **domain** is a name in configuration (`catalog`, `osm-tiles`, `product-detail`). It holds TTLs, Version, client headers, vary rules, and which **data-cache instance** to use.
+A **domain** is a named group of cache rules such as `promotions`, `catalog`, or `map-tiles`. It defines:
 
-You attach it to HTTP with `.CacheOutputWithDomain` or `[CacheDomain]`. Data-cache calls — `IDomainDataCache` on the web, or `ICacheOrchestrator` in libraries — resolve the **same** options.
+- which cache layers are enabled;
+- how long entries remain fresh;
+- which Data Cache instance stores objects;
+- which Client Cache headers are emitted;
+- how requests vary;
+- the current domain `Version`.
 
-Different data wants different rules. The handler stays the same shape; the domain is what differs. That is the point of the library.
+You apply the domain to an HTTP endpoint with `.CacheOutputWithDomain(...)` or `[CacheDomain]`. The endpoint names the domain, while configuration owns its policy:
 
-**Entity identity** (`entityKind` + resource id, plus optional footprint members) is optional and lives *inside* a domain. It shapes per-row keys and `entity:` / `entitykind:` tags so CRUD can purge one row without bumping the whole domain `Version`. It is not a second settings root next to `Cache:Domains`.
+```csharp
+app.MapGet("/api/promotions", LoadPromotionsAsync)
+   .CacheOutputWithDomain("promotions");
+```
 
-When to use snapshot vs CRUD profiles: [domain profiles](domain-profiles.md). Entity cookbook: [entity footprint](../reference/entity-footprint.md).
+That separation is the central idea. Endpoint code describes what the endpoint returns; the domain describes how that result is cached. Moving from in-memory stores to Redis, changing TTLs, or turning off one layer does not require a new endpoint implementation.
 
----
+A domain is not a cache store. Several domains can share one provider, and one application can map different domains to different Data Cache instances.
 
-## Three layers, one snapshot
+## A request can stop at three layers
 
-| Layer | Stores | You enable it by |
-|-------|--------|------------------|
-| **Client Cache-Control** | Browser / CDN | Nested `ClientCache` (cacheability, TTLs, optional schedule) |
-| **Output Cache** | Full HTTP response (**GET/HEAD** + Url by default; other methods via endpoint [cache identity](../reference/cache-identity.md)) | Domain on the endpoint + nested `OutputCache` |
-| **Data cache** | The object your factory produced | `IDomainDataCache` / `ICacheOrchestrator` + nested `DataCache` |
+A cacheable request moves from the client toward the data source:
 
-All three resolve the same `DomainCacheOptions`. If lifetimes and invalidation disagree, one layer undoes the other — the problem this library exists to prevent.
+```text
+Client / CDN
+    │  cached response still fresh? ──► return it; the server sees no request
+    ▼
+ASP.NET Output Cache
+    │  cached HTTP response found?  ──► return it; the endpoint does not run
+    ▼
+Endpoint + Data Cache
+    │  cached object found?         ──► build the HTTP response from that object
+    ▼
+Factory: database or remote service
+```
 
-Web apps usually call AspNetCore’s **`IDomainDataCache`**. Libraries and workers take Core’s **`ICacheOrchestrator`** and pass a `CacheDomainContext`. The data engine behind both is an **`IDataCacheProvider`** (Fusion by default with the meta package; Hybrid optional).
+Each layer stores something different:
 
-Which packages to install: [packages](packages.md). Copy-paste stacks: [composition](../how-to/composition.md).
+| Layer | Stores | Controlled by |
+|-------|--------|---------------|
+| **Client Cache** | The HTTP response in a browser or CDN | `ClientCache` headers and TTL |
+| **Output Cache** | The complete HTTP response in ASP.NET Core | `OutputCache` policy and TTL |
+| **Data Cache** | The object returned by your factory | `DataCache` policy and the selected provider |
 
----
+An Output Cache hit is the shortest server path: the endpoint and Data Cache are not consulted. A Data Cache hit matters after Output Cache misses or is disabled: the endpoint runs, but the database or remote service does not.
 
-## Version, TTL, and tags
+Client Cache is different from the server-side layers. Once a browser or CDN has stored a public response, server-side invalidation cannot recall that copy. The client observes the change when its `max-age` ends or when its own cache is purged. This is why dynamic APIs usually use a shorter client TTL than immutable or scheduled datasets.
 
-Three ways a request becomes a miss (fresh data from the factory):
+## One request uses one resolved snapshot
 
-| Mechanism | What it does | Typical use |
-|-----------|----------------|-------------|
-| **TTL** | Entry expires; factory runs again | Short-lived or slowly changing rows |
-| **Tag purge** | Explicit delete of a domain, a kind, or one id | CRUD: `InvalidateEntityAsync` |
-| **Version** | Generation stamp in keys; old entries never match | Snapshot cutover (map tiles, monthly extract) |
+At the start of a domain request, CacheOrchestrator resolves two aligned snapshots. Core's `DomainCacheOptions` contains domain identity, Version, and Data Cache policy. ASP.NET Core wraps it in `DomainHttpCacheOptions`, which adds Output Cache, Client Cache, authentication, vary, ETag, and HTTP key policy. The request pins the HTTP snapshot, so every layer sees one consistent view while Core remains independent of HTTP.
 
-`Version` is a stamp for the **whole domain**, not the version of one product. If a row changes under the same Version and you neither wait for TTL nor invalidate, caches keep serving the old body. That is caching working as designed.
+For the common HTTP path, the endpoint metadata is enough:
 
-Details: [invalidation](../reference/invalidation.md) · [cache keys](../reference/cache-keys.md) · [domain profiles](domain-profiles.md).
+```csharp
+app.MapGet("/api/products/{id:int}", async (
+    HttpContext http,
+    int id,
+    IDomainDataCache cache,
+    CancellationToken cancellationToken) =>
+{
+    Product? product = await cache.GetOrSetEntityAsync(
+        http,
+        token => LoadProductAsync(id, token),
+        cancellationToken);
 
----
+    return product is null ? Results.NotFound() : Results.Json(product);
+})
+.CacheOutputWithDomain(
+    "catalog",
+    entityKind: "products",
+    resourceRouteKey: "id");
+```
 
-## How the data cache finds the domain
+`IDomainDataCache` reads the `catalog` snapshot already attached to the request. You do not repeat the domain name inside `GetOrSetEntityAsync`.
 
-Happy path: put the domain on the endpoint; `GetOrSetAsync(http, factory)` reuses that snapshot.
+For an endpoint that uses only Data Cache and has no domain metadata, pass the domain explicitly:
 
-Data-cache-only routes pass the domain name (or call `EnsureDomainOptions`). Without a domain the factory runs **uncached** (Warning log, `dc=unresolved`).
+```csharp
+await cache.GetOrSetAsync(
+    http,
+    "catalog",
+    LoadProductsAsync,
+    cancellationToken);
+```
 
-Full resolution order: [data cache](../reference/data-cache.md#how-the-data-cache-finds-the-domain). FAQ: [Fusion runs uncached](faq.md#fusion-runs-uncached--why).
+Without endpoint metadata, an existing request snapshot, or an explicit domain, `IDomainDataCache` runs the factory uncached and records an unresolved diagnostic. Class libraries and workers use the HTTP-free `ICacheOrchestrator` API with a host-supplied `CacheDomainContext`.
 
----
+The complete resolution rules live in [Data Cache](../reference/data-cache.md).
 
-## Client Cache Schedule
+## Freshness has three controls
 
-For datasets that update on a known date (monthly map exports, annual imagery), `ScheduledUpdateUtc` ramps down the **browser/CDN** `max-age` as cutover approaches (Calm → Approaching → Hold). Clients refresh on time without living on a tiny TTL all year.
+TTL, invalidation, and `Version` solve different freshness problems:
 
-It does **not** change Output Cache or data-cache TTLs. Phase appears on `X-Cache` as `phase=calm|approaching|hold|n/a`.
+| Control | Effect | Best fit |
+|---------|--------|----------|
+| **TTL** | An entry expires and the next request recreates it | A safety bound or naturally short-lived data |
+| **Tag invalidation** | Matching entries are removed now | A known CRUD change, such as product `42` |
+| **Version** | Requests move to a new generation of cache keys | A coordinated snapshot or schema cutover |
 
-Guide: [Client Cache Schedule](client-cache-schedule.md).
+### TTL is the fallback clock
 
----
+Every layer has its own TTL because it stores a different artifact. A five-minute Data Cache TTL does not force a two-minute Output Cache entry to live for five minutes, and neither value controls a response already stored by a client.
 
-## Auth and vary (defaults)
+### Invalidation removes known server entries
 
-Default: authenticated users **or** an `Authorization` header → Output Cache **bypassed**, client cache **blocked** (`AuthBypassMode: AuthenticatedOrAuthorization`).
+When product `42` changes, targeted invalidation removes entries tagged for that logical entity from Output Cache and the Data Cache:
 
-Domain Output Cache is **opt-in**. Routes without a domain use the base policy `NoCache`.
+```csharp
+await invalidator.InvalidateEntityAsync(
+    "catalog",
+    "products",
+    42,
+    cancellationToken);
+```
 
-Full matrix: [vary](../reference/vary.md). FAQ: [authenticated traffic](faq.md#authenticated-requests-and-api-keys).
+Other products remain cached. Domain- and entity-kind-level invalidation are available when the change is broader.
 
----
+### Version starts a new generation
 
-## Namespace
+`Version` is a stamp for the whole domain, not the revision number of one entity. Changing `"2030-08"` to `"2030-09"` changes the cache identity for every request in that domain. Old entries are no longer found and expire according to their store policy.
 
-Root `Namespace` (default `app-cache`) prefixes store keys so apps that share Redis do not collide. Output uses `{Namespace}-oc`; the data-cache **`default`** instance uses `{Namespace}-fc` (historical suffix). It is not a domain and not per-endpoint.
+Use a version change for snapshot cutovers, large coordinated releases, or representation changes. Do not bump the whole domain for an ordinary single-row update when entity invalidation is available.
 
-Details: [cache keys](../reference/cache-keys.md).
+The next page turns these choices into two practical designs: [snapshot and dynamic domain profiles](domain-profiles.md).
+
+## Entity identity enables targeted invalidation
+
+A domain can contain many logical entity kinds. The pair `entityKind` + resource id identifies one entity inside that domain:
+
+```text
+domain: catalog
+entity kind: products
+resource id: 42
+```
+
+For a detail endpoint, declare that identity once:
+
+```csharp
+.CacheOutputWithDomain(
+    "catalog",
+    entityKind: "products",
+    resourceRouteKey: "id")
+```
+
+`resourceRouteKey` tells CacheOrchestrator which route value contains the id. `GetOrSetEntityAsync` consumes the same identity for the Data Cache key and tags. `InvalidateEntityAsync` then addresses the same domain, kind, and id.
+
+Entity identity is optional. Snapshot endpoints and simple URL-shaped data can use `GetOrSetAsync`. Collections and related objects can extend the footprint with members, dependencies, and aliases; see [Entity footprint](../reference/entity-footprint.md).
+
+## Request identity prevents accidental sharing
+
+Caching is safe only when requests that can produce different responses have different cache identities.
+
+Without explicit identity metadata, Output Cache supports `GET` and `HEAD` using URL identity. CacheOrchestrator also materializes configured vary dimensions for Output Cache and Data Cache, including query parameters, accepted media types, host, and user information when enabled.
+
+Non-GET methods require an explicit binding such as `.WithCacheIdentity(...)` or `.WithContentHashCacheIdentity(...)`. Merely applying a domain does not make a `POST` response cacheable.
+
+Authenticated traffic uses a conservative default: an authenticated user or `Authorization` header bypasses Output Cache, blocks the Client Cache, and—by default—also bypasses the Data Cache. Opting into shared or per-user caching requires deliberate auth and vary settings.
+
+Details: [Vary](../reference/vary.md) · [Endpoint cache identity](../reference/cache-identity.md).
+
+## Stores and namespaces belong below the domain
+
+Root configuration selects the physical providers. Domains select policy and, for Data Cache, a named instance.
+
+The root `Namespace` prefixes store keys so applications sharing Redis do not collide. It is application infrastructure, not a domain name and not an endpoint setting.
+
+This separation lets the same domain model run in several layouts:
+
+- one process with in-memory Output Cache and Data Cache;
+- local Output Cache with FusionCache backed by Redis;
+- shared Redis Output Cache and Data Cache across several instances;
+- in-memory nodes coordinated by the optional HTTP cluster bus.
+
+Choose packages after you know which policies and topology you need. The guide continues with [Domain profiles](domain-profiles.md), then [Packages](packages.md) and [Topologies](topologies.md).
+
+## Keep this mental model
+
+- A **domain** is a named policy group, not a store.
+- Client Cache, Output Cache, and Data Cache store different things but use one resolved domain snapshot.
+- **TTL** waits, **invalidation** removes known entries, and **Version** starts a new generation.
+- Entity identity connects a route, its cached object, and targeted invalidation.
+- Providers and Redis topology can change without changing the domain applied by the endpoint.
+
+Next: choose between a [snapshot or dynamic domain profile](domain-profiles.md).

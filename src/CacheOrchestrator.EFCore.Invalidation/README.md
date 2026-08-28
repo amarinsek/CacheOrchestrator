@@ -1,6 +1,6 @@
 # CacheOrchestrator.EFCore.Invalidation
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
+[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
 This package hooks EF Core **`SaveChanges`**: map a CLR type to `(domain, entityKind)`; after a successful save, matching entity tags are purged through `ICacheOrchestratorInvalidator`.
 
@@ -10,7 +10,7 @@ This package hooks EF Core **`SaveChanges`**: map a CLR type to `(domain, entity
 dotnet add package CacheOrchestrator.EFCore.Invalidation --prerelease
 ```
 
-## Config
+## Configuration
 
 Domain policy (same as the rest of CacheOrchestrator). Optional interceptor options:
 
@@ -33,7 +33,7 @@ Domain policy (same as the rest of CacheOrchestrator). Optional interceptor opti
 }
 ```
 
-## Example
+## Usage
 
 ```bash
 dotnet add package CacheOrchestrator --prerelease
@@ -51,44 +51,10 @@ builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
 });
 
 // In OnModelCreating (or Map<T> / [CacheEntity]):
-// modelBuilder.Entity<Product>().CacheInvalidate("catalog", "products");
-
-var app = builder.Build();
-app.UseCacheOrchestrator();
-
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, AppDbContext db) =>
-{
-    var data = await cache.GetOrSetEntityAsync(http, async ct =>
-    {
-        Product? p = await db.Products.AsNoTracking().FirstOrDefaultAsync(x => x.Id.ToString() == id, ct);
-        return p is null ? null : new ProductDto(p.Id, p.Price);
-    });
-    return data is null ? Results.NotFound() : Results.Json(data);
-})
-.CacheOutputWithDomain("catalog", resourceRouteKey: "id", entityKind: "products");
-
-app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, AppDbContext db, CancellationToken ct) =>
-{
-    Product product = await db.Products.SingleAsync(x => x.Id.ToString() == id, ct);
-    product.Price = body.Price;
-    await db.SaveChangesAsync(ct); // interceptor invalidates — no manual Invalidate*
-    return Results.NoContent();
-});
+modelBuilder.Entity<Product>().CacheInvalidate("catalog", "products");
 ```
 
-Tracked `SaveChanges` invalidates automatically; `ExecuteUpdate` / `ExecuteDelete` require manual `Invalidate*`. More layouts: [composition §8–§9](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md).
-
-## Related packages
-
-| Package | Role |
-|---------|------|
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package (AspNetCore + Fusion) for typical web apps |
-| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Http-free domains and `ICacheOrchestrator` (libraries / workers) |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, Admin API, `IDomainDataCache` |
-| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | FusionCache data-cache provider |
-| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache data-cache provider |
-| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Redis Output Cache store / Fusion L2 / backplane |
-| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.2) | Multi-instance invalidate / Version / settings bus |
+Tracked `SaveChanges` invalidates matching entity tags after a successful save. `ExecuteUpdate` and `ExecuteDelete` bypass the change tracker and require explicit invalidation.
 
 ## Documentation
 

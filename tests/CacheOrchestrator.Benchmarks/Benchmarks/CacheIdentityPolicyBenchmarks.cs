@@ -79,15 +79,18 @@ public class CacheIdentityPolicyBenchmarks
             http.SetEndpoint(endpoint);
         }
 
-        DomainCacheOptions cfg = new()
+        DomainHttpCacheOptions cfg = new()
         {
-            Domain = "catalog",
+            CoreOptions = new DomainCacheOptions
+            {
+                Domain = "catalog",
+                Version = "1",
+                VersionHex = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes("1")).ToString("x16"),
+            },
             OutputCacheEnabled = true,
             AuthBypassMode = AuthBypassMode.AuthenticatedOrAuthorization,
             VaryOutputCacheByUser = true,
             OutputTtl = TimeSpan.FromSeconds(60),
-            Version = "1",
-            VersionHex = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes("1")).ToString("x16"),
             ETag = new StringValues($"W/\"{XxHash3.HashToUInt64(Encoding.UTF8.GetBytes("1")):x16}\""),
             CacheableStatusCodes = [200],
             ClientCacheability = ClientCacheability.Public,
@@ -107,17 +110,17 @@ public class CacheIdentityPolicyBenchmarks
         return new OutputCacheContext { HttpContext = http };
     }
 
-    private sealed class FixedDomainOptionsProvider(DomainCacheOptions opts) : IRequestDomainCacheOptions
+    private sealed class FixedDomainOptionsProvider(DomainHttpCacheOptions opts) : IRequestDomainCacheOptions
     {
-        public DomainCacheOptions EnsureDomainOptions(HttpContext http, string domain)
+        public DomainHttpCacheOptions EnsureDomainOptions(HttpContext http, string domain)
         {
             http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { DomainOptions = opts });
             return opts;
         }
 
-        public DomainCacheOptions? GetDomainOptions(HttpContext http)
+        public DomainHttpCacheOptions? GetDomainOptions(HttpContext http)
             => http.Features.Get<ICacheOrchestratorFeature>()?.DomainOptions;
 
-        public DomainCacheOptions GetOrCreateDomainOptions(string domain) => opts;
+        public DomainHttpCacheOptions GetOrCreateDomainOptions(string domain) => opts;
     }
 }

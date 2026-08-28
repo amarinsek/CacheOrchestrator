@@ -12,7 +12,7 @@ public static class DomainAuthEvaluator
     /// Returns whether the request carries an auth signal under the domain's policy
     /// (authenticated identity and/or <c>Authorization</c> header).
     /// </summary>
-    public static bool HasAuthSignal(HttpContext http, DomainCacheOptions options)
+    public static bool HasAuthSignal(HttpContext http, DomainHttpCacheOptions options)
     {
         ArgumentNullException.ThrowIfNull(http);
         ArgumentNullException.ThrowIfNull(options);
@@ -25,9 +25,9 @@ public static class DomainAuthEvaluator
     }
 
     /// <summary>
-    /// Effective bypass mode — returns <see cref="DomainCacheOptions.AuthBypassMode"/>.
+    /// Effective bypass mode — returns <see cref="DomainHttpCacheOptions.AuthBypassMode"/>.
     /// </summary>
-    public static AuthBypassMode GetEffectiveAuthBypassMode(DomainCacheOptions options)
+    public static AuthBypassMode GetEffectiveAuthBypassMode(DomainHttpCacheOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         return options.AuthBypassMode;
@@ -35,9 +35,9 @@ public static class DomainAuthEvaluator
 
     /// <summary>
     /// Returns whether Output Cache (and optionally FusionCache) should bypass caching
-    /// for this request under <see cref="DomainCacheOptions.AuthBypassMode"/>.
+    /// for this request under <see cref="DomainHttpCacheOptions.AuthBypassMode"/>.
     /// </summary>
-    public static bool ShouldBypassForAuth(HttpContext http, DomainCacheOptions options)
+    public static bool ShouldBypassForAuth(HttpContext http, DomainHttpCacheOptions options)
     {
         ArgumentNullException.ThrowIfNull(http);
         ArgumentNullException.ThrowIfNull(options);
@@ -57,7 +57,7 @@ public static class DomainAuthEvaluator
     /// <summary>
     /// Builds the stable auth-user vary key (never includes raw Authorization / cookies).
     /// </summary>
-    public static string ResolveAuthenticatedVaryKey(HttpContext http, DomainCacheOptions options)
+    public static string ResolveAuthenticatedVaryKey(HttpContext http, DomainHttpCacheOptions options)
     {
         ArgumentNullException.ThrowIfNull(http);
         ArgumentNullException.ThrowIfNull(options);

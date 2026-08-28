@@ -1,6 +1,8 @@
 # CacheOrchestrator.Analyzers
 
-Roslyn analyzers for CacheOrchestrator attribute usage. **Not published as a separate NuGet package** — the DLL is embedded into `CacheOrchestrator.AspNetCore` under `analyzers/dotnet/cs`.
+[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
+
+This project contains the Roslyn analyzers for CacheOrchestrator attribute usage. It is **not published as a separate NuGet package**: the analyzer assembly is embedded in `CacheOrchestrator.AspNetCore` and reaches applications transitively through that package or the `CacheOrchestrator` meta package.
 
 ## Rules
 
@@ -8,7 +10,18 @@ Roslyn analyzers for CacheOrchestrator attribute usage. **Not published as a sep
 |----|----------|-------------|
 | `COIDENTITY001` | Error | Duplicate HTTP method across `[CacheIdentity]` / `[ContentHashCacheIdentity]` on the same action (including class-level attributes). |
 
-## Consumption
+## Usage
 
-- **This repo:** `CacheOrchestrator.AspNetCore` (and its unit tests) reference the project as an analyzer (`OutputItemType=Analyzer`).
-- **NuGet consumers:** installing `CacheOrchestrator.AspNetCore` (or the meta `CacheOrchestrator` package) gets the analyzer transitively from the AspNetCore nupkg. Pack AspNetCore after a Release build of Analyzers (`netstandard2.0`) so the embed `Exists(...)` path finds the DLL.
+No separate registration is required. Install `CacheOrchestrator.AspNetCore` or `CacheOrchestrator`; supported diagnostics then run during compilation.
+
+Within this repository, `CacheOrchestrator.AspNetCore` references the project with `OutputItemType=Analyzer`. Build the analyzer in Release before packing AspNetCore so its `netstandard2.0` assembly can be embedded under `analyzers/dotnet/cs`.
+
+## Documentation
+
+- [Endpoint cache identity](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/cache-identity.md)
+- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
+- [Repository](https://github.com/amarinsek/CacheOrchestrator)
+
+## License
+
+MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)

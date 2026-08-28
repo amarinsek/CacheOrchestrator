@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -13,7 +13,7 @@ public class MultiInstanceOptionsTests
         monitor.CurrentValue.Returns(opts);
         monitor.OnChange(Arg.Any<Action<CacheOrchestratorOptions, string?>>()).Returns((IDisposable?)null);
         DomainCacheOptionsProvider inner = new(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
-        return new RequestDomainCacheOptionsProvider(inner, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
+        return new RequestDomainCacheOptionsProvider(inner, monitor, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
     }
 
     private static CacheOrchestratorOptions TwoInstanceOptions() => new()
@@ -43,7 +43,7 @@ public class MultiInstanceOptionsTests
     {
         IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
-        DomainCacheOptions opts = provider.GetOrCreateDomainOptions("users");
+        DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions("users");
 
         opts.DataCacheInstanceName.Should().Be("pii");
     }
@@ -53,7 +53,7 @@ public class MultiInstanceOptionsTests
     {
         IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
-        DomainCacheOptions opts = provider.GetOrCreateDomainOptions("products");
+        DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions("products");
 
         opts.DataCacheInstanceName.Should().Be("default");
     }
@@ -63,7 +63,7 @@ public class MultiInstanceOptionsTests
     {
         IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
-        DomainCacheOptions opts = provider.GetOrCreateDomainOptions("news");
+        DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions("news");
 
         opts.DataCacheInstanceName.Should().Be("default");
     }
@@ -78,7 +78,7 @@ public class MultiInstanceOptionsTests
         };
         IRequestDomainCacheOptions provider = BuildProvider(options);
 
-        DomainCacheOptions opts = provider.GetOrCreateDomainOptions("reports");
+        DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions("reports");
 
         opts.DataCacheInstanceName.Should().Be("default");
     }
@@ -92,7 +92,7 @@ public class MultiInstanceOptionsTests
         IRequestDomainCacheOptions provider = BuildProvider(options);
 
         // "news" has no entry â†’ inherits DomainDefaults â†’ "pii"
-        DomainCacheOptions opts = provider.GetOrCreateDomainOptions("news");
+        DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions("news");
 
         opts.DataCacheInstanceName.Should().Be("pii");
     }
@@ -105,7 +105,7 @@ public class MultiInstanceOptionsTests
         // "products" explicitly overrides to "default"
         IRequestDomainCacheOptions provider = BuildProvider(options);
 
-        DomainCacheOptions opts = provider.GetOrCreateDomainOptions("products");
+        DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions("products");
 
         opts.DataCacheInstanceName.Should().Be("default");
     }
@@ -119,7 +119,7 @@ public class MultiInstanceOptionsTests
     {
         IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
-        DomainCacheOptions opts = provider.GetOrCreateDomainOptions("users");
+        DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions("users");
 
         opts.DataCacheNamespace.Should().Be("my-app-pii");
     }
@@ -129,7 +129,7 @@ public class MultiInstanceOptionsTests
     {
         IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
-        DomainCacheOptions opts = provider.GetOrCreateDomainOptions("products");
+        DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions("products");
 
         // default has no explicit Namespace â†’ falls back to "{Namespace}-fc" (no -default suffix)
         opts.DataCacheNamespace.Should().Be("my-app-fc");
@@ -145,7 +145,7 @@ public class MultiInstanceOptionsTests
         IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
         var http = new DefaultHttpContext();
 
-        DomainCacheOptions opts = provider.EnsureDomainOptions(http, "users");
+        DomainHttpCacheOptions opts = provider.EnsureDomainOptions(http, "users");
 
         opts.DataCacheInstanceName.Should().Be("pii");
     }
@@ -159,8 +159,8 @@ public class MultiInstanceOptionsTests
     {
         IRequestDomainCacheOptions provider = BuildProvider(TwoInstanceOptions());
 
-        DomainCacheOptions first = provider.GetOrCreateDomainOptions("products");
-        DomainCacheOptions second = provider.GetOrCreateDomainOptions("products");
+        DomainHttpCacheOptions first = provider.GetOrCreateDomainOptions("products");
+        DomainHttpCacheOptions second = provider.GetOrCreateDomainOptions("products");
 
         first.Should().BeSameAs(second);
     }

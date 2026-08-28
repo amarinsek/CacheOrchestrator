@@ -1,7 +1,7 @@
 ﻿using CacheOrchestrator.Configuration;
 using Microsoft.Extensions.Primitives;
 
-namespace CacheOrchestrator.Core.UnitTests.Configuration;
+namespace CacheOrchestrator.AspNetCore.UnitTests.Configuration;
 
 public class CacheETagFactoryTests
 {

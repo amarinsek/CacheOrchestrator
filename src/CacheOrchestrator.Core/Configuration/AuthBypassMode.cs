@@ -16,7 +16,7 @@ public enum AuthBypassMode
 
     /// <summary>
     /// Bypass when the user is authenticated <em>or</em> an <c>Authorization</c> header is present
-    /// (subject to <see cref="DomainCacheOptions.TreatAuthorizationAsAuthSignal"/>).
+    /// (subject to the HTTP policy's <c>TreatAuthorizationAsAuthSignal</c> setting).
     /// This matches the historical <c>BypassWhenAuthenticated = true</c> behaviour.
     /// </summary>
     AuthenticatedOrAuthorization = 3,

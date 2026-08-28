@@ -50,7 +50,7 @@ public sealed class CacheVaryMaterializer
     /// Builds vary material for the given surface. Built-in domain settings run first;
     /// registered contributors run afterward in <see cref="ICacheVaryContributor.Order"/>.
     /// </summary>
-    public CacheVaryMaterial Build(HttpContext http, DomainCacheOptions options, CacheVarySurface surface)
+    public CacheVaryMaterial Build(HttpContext http, DomainHttpCacheOptions options, CacheVarySurface surface)
     {
         ArgumentNullException.ThrowIfNull(http);
         ArgumentNullException.ThrowIfNull(options);
@@ -83,7 +83,7 @@ public sealed class CacheVaryMaterializer
 
     private static void ApplyBuiltIn(
         HttpContext http,
-        DomainCacheOptions options,
+        DomainHttpCacheOptions options,
         CacheVarySurface surface,
         Builder builder)
     {
@@ -153,10 +153,10 @@ public sealed class CacheVaryMaterializer
     /// <summary>
     /// Output Cache always applies auth-user when varying by user.
     /// Fusion only does so when auth caching is intentional (<see cref="AuthBypassMode.Never"/>)
-    /// or when <see cref="DomainCacheOptions.VaryByAuthClaims"/> is configured — preserving
+    /// or when <see cref="DomainHttpCacheOptions.VaryByAuthClaims"/> is configured — preserving
     /// historical Fusion keys under the default auth-bypass modes.
     /// </summary>
-    private static bool ShouldIncludeAuthUserVary(DomainCacheOptions options, CacheVarySurface surface)
+    private static bool ShouldIncludeAuthUserVary(DomainHttpCacheOptions options, CacheVarySurface surface)
     {
         if (surface == CacheVarySurface.OutputCache)
             return true;
@@ -174,10 +174,10 @@ public sealed class CacheVaryMaterializer
     /// otherwise the selected key list.
     /// </summary>
     /// <remarks>
-    /// When <see cref="DomainCacheOptions.VaryByQueryKeys"/> is <see langword="null"/>, all non-tracking
-    /// keys (minus <see cref="DomainCacheOptions.IgnoreQueryKeys"/>) are returned — historical behaviour.
+    /// When <see cref="DomainHttpCacheOptions.VaryByQueryKeys"/> is <see langword="null"/>, all non-tracking
+    /// keys (minus <see cref="DomainHttpCacheOptions.IgnoreQueryKeys"/>) are returned — historical behaviour.
     /// </remarks>
-    public static IReadOnlyList<string> ResolveQueryKeys(IQueryCollection query, DomainCacheOptions options)
+    public static IReadOnlyList<string> ResolveQueryKeys(IQueryCollection query, DomainHttpCacheOptions options)
     {
         ArgumentNullException.ThrowIfNull(query);
         ArgumentNullException.ThrowIfNull(options);
@@ -224,7 +224,7 @@ public sealed class CacheVaryMaterializer
     /// <summary>
     /// Collects query keys as <see cref="StringValues"/> for Output Cache.
     /// </summary>
-    public static StringValues CollectQueryKeysForOutputCache(IQueryCollection query, DomainCacheOptions options)
+    public static StringValues CollectQueryKeysForOutputCache(IQueryCollection query, DomainHttpCacheOptions options)
     {
         IReadOnlyList<string> keys = ResolveQueryKeys(query, options);
         if (keys.Count == 0)

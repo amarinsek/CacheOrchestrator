@@ -53,7 +53,7 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
     }
 
     /// <inheritdoc />
-    public string Generate(DomainCacheOptions opts, HttpContext http)
+    public string Generate(DomainHttpCacheOptions opts, HttpContext http)
     {
         ArgumentNullException.ThrowIfNull(opts);
         ArgumentNullException.ThrowIfNull(http);
@@ -208,7 +208,7 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
     private static void AppendVaryMaterial(
         XxHash3 hasher,
         HttpContext http,
-        DomainCacheOptions opts,
+        DomainHttpCacheOptions opts,
         CacheVaryMaterial vary,
         bool includeQuery,
         ref Span<byte> byteBuffer,

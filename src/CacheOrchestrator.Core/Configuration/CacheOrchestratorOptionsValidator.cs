@@ -13,17 +13,20 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
     private readonly HashSet<string> _validProviders;
     private readonly IReadOnlyDictionary<string, bool> _supportsOutputCache;
     private readonly ILogger? _logger;
+    private readonly bool _validateOutputCacheProvider;
 
     public CacheOrchestratorOptionsValidator(
         IEnumerable<string> validProviders,
         IReadOnlyDictionary<string, bool>? supportsOutputCache = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        bool validateOutputCacheProvider = true)
     {
         ArgumentNullException.ThrowIfNull(validProviders);
         _validProviders = new HashSet<string>(validProviders, StringComparer.OrdinalIgnoreCase);
         _supportsOutputCache = supportsOutputCache
             ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
+        _validateOutputCacheProvider = validateOutputCacheProvider;
     }
 
     /// <inheritdoc />
@@ -33,13 +36,14 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 
         List<string> failures = [];
 
-        if (!_validProviders.Contains(options.OutputCache.Provider))
+        if (_validateOutputCacheProvider && !_validProviders.Contains(options.OutputCache.Provider))
         {
             failures.Add(
                 $"OutputCache.Provider must be one of: {string.Join(", ", _validProviders)}. " +
                 $"Current value: '{options.OutputCache.Provider}'.");
         }
-        else if (_supportsOutputCache.TryGetValue(options.OutputCache.Provider, out bool supportsOc)
+        else if (_validateOutputCacheProvider
+                 && _supportsOutputCache.TryGetValue(options.OutputCache.Provider, out bool supportsOc)
                  && !supportsOc)
         {
             failures.Add(

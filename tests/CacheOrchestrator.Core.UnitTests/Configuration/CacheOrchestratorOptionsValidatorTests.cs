@@ -125,6 +125,20 @@ public class CacheOrchestratorOptionsValidatorTests
         result.Failures.Should().Contain(f => f.Contains("OutputCache.Provider", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void Validate_CoreOnlyHost_DoesNotRequireOutputCacheProvider()
+    {
+        CacheOrchestratorOptions options = CreateValidOptions();
+        options.OutputCache.Provider = "NotInstalledInWorker";
+        CacheOrchestratorOptionsValidator validator = new(
+            validProviders: [],
+            validateOutputCacheProvider: false);
+
+        ValidateOptionsResult result = validator.Validate(null, options);
+
+        result.Succeeded.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

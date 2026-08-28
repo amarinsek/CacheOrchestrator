@@ -33,7 +33,7 @@ namespace CacheOrchestrator.DataCache;
 /// {
 ///     private readonly DefaultDomainKeyGenerator _inner = new();
 ///
-///     public string Generate(DomainCacheOptions options, HttpContext httpContext)
+///     public string Generate(DomainHttpCacheOptions options, HttpContext httpContext)
 ///     {
 ///         var baseKey = _inner.Generate(options, httpContext);
 ///         var tenantId = httpContext.User.FindFirst("tenant_id")?.Value ?? "anon";
@@ -54,5 +54,5 @@ public interface IDomainKeyGenerator
     /// <param name="options">Resolved domain options.</param>
     /// <param name="httpContext">Current HTTP context.</param>
     /// <returns>A deterministic cache key string.</returns>
-    string Generate(DomainCacheOptions options, HttpContext httpContext);
+    string Generate(DomainHttpCacheOptions options, HttpContext httpContext);
 }

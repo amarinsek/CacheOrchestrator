@@ -13,7 +13,7 @@ public sealed class CacheIdentityContext
     public required HttpContext HttpContext { get; init; }
 
     /// <summary>Resolved domain options for the request.</summary>
-    public required DomainCacheOptions Options { get; init; }
+    public required DomainHttpCacheOptions Options { get; init; }
 
     /// <summary>Whether material is being built for Output Cache or data-cache keys.</summary>
     public required CacheVarySurface Surface { get; init; }
