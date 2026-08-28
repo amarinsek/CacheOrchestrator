@@ -66,16 +66,25 @@ public class DomainDataCacheHitBenchmarks
     public void Cleanup() => _services.Dispose();
 
     [Benchmark(Baseline = true)]
-    public Task<string> Domain_L1Hit() =>
-        _cache.GetOrSetAsync(_domainRequest, "catalog", DomainFactory);
+    public Task<string> Domain_L1Hit()
+    {
+        ResetRequestState(_domainRequest);
+        return _cache.GetOrSetAsync(_domainRequest, "catalog", DomainFactory);
+    }
 
     [Benchmark]
-    public Task<string?> EntityFootprint_L1Hit() =>
-        _cache.GetOrSetEntityAsync(_footprintRequest, FootprintFactory);
+    public Task<string?> EntityFootprint_L1Hit()
+    {
+        ResetRequestState(_footprintRequest);
+        return _cache.GetOrSetEntityAsync(_footprintRequest, FootprintFactory);
+    }
 
     [Benchmark]
-    public Task<string?> EntityFootprint_StaleFallback() =>
-        _cache.GetOrSetEntityAsync(_staleFootprintRequest, FailingFootprintFactory);
+    public Task<string?> EntityFootprint_StaleFallback()
+    {
+        ResetRequestState(_staleFootprintRequest);
+        return _cache.GetOrSetEntityAsync(_staleFootprintRequest, FailingFootprintFactory);
+    }
 
     private DefaultHttpContext CreateRequest(string path)
     {
@@ -83,6 +92,15 @@ public class DomainDataCacheHitBenchmarks
         http.Request.Method = HttpMethods.Get;
         http.Request.Path = path;
         return http;
+    }
+
+    private static void ResetRequestState(HttpContext http)
+    {
+        if (http.Features.Get<ICacheOrchestratorFeature>() is { } feature)
+        {
+            feature.Disposition = null;
+            feature.PendingEntityFootprint = null;
+        }
     }
 
     private static Task<string> DomainFactory(CancellationToken cancellationToken) =>

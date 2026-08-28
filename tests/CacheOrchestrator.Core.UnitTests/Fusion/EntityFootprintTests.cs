@@ -40,6 +40,22 @@ public class EntityFootprintTests
     }
 
     [Fact]
+    public void WithPrimary_WhenIdentityIsUnchanged_ReusesFootprint()
+    {
+        var footprint = new EntityFootprint(new EntityRef("products", "1"));
+
+        footprint.WithPrimary(new EntityRef("products", "1")).Should().BeSameAs(footprint);
+    }
+
+    [Fact]
+    public void Merge_WhenInstanceIsUnchanged_ReusesFootprint()
+    {
+        var footprint = new EntityFootprint(new EntityRef("products", "1"));
+
+        footprint.Merge(footprint).Should().BeSameAs(footprint);
+    }
+
+    [Fact]
     public void EntityCache_DependsOn_ExtendsFootprint()
     {
         EntityCache<string> cache = EntityCache.Create("x")

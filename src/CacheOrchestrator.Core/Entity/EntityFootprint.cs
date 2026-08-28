@@ -88,6 +88,9 @@ public sealed class EntityFootprint
         EntityRef? normalized = NormalizePrimary(primary)
             ?? throw new ArgumentException("Primary entity kind and id must be usable after normalization.", nameof(primary));
 
+        if (Primary == normalized)
+            return this;
+
         return new EntityFootprint(normalized, Members, DependsOn, Aliases);
     }
 
@@ -143,7 +146,7 @@ public sealed class EntityFootprint
     /// </summary>
     public EntityFootprint Merge(EntityFootprint? other)
     {
-        if (other is null || ReferenceEquals(other, Empty))
+        if (other is null || ReferenceEquals(other, Empty) || ReferenceEquals(other, this))
             return this;
 
         return new EntityFootprint(

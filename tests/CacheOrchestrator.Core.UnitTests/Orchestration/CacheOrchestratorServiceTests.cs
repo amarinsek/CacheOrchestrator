@@ -174,6 +174,18 @@ public class CacheOrchestratorServiceTests
     }
 
     [Fact]
+    public void BuildTags_DomainOnly_ReusesPreparedSnapshotTags()
+    {
+        DomainCacheOptions opts = CreateOptions(domain: "catalog");
+
+        IReadOnlyList<string> first = CacheOrchestratorService.BuildTags(opts, null, null);
+        IReadOnlyList<string> second = CacheOrchestratorService.BuildTags(opts, EntityFootprint.Empty, []);
+
+        first.Should().BeSameAs(second);
+        first.Should().Equal("domain:catalog");
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_WhenKeyIsPhysical_DoesNotReprefix()
     {
         DomainCacheOptions opts = CreateOptions(enabled: true, domain: "products", versionHex: "abc123");
@@ -292,6 +304,7 @@ public class CacheOrchestratorServiceTests
             TestContext.Current.CancellationToken);
 
         box.Value.Should().Be("hit");
+        box.Should().BeSameAs(cached);
         await _dataCache.DidNotReceive()
             .SetAsync(
                 Arg.Any<DataCacheProviderRequest>(),

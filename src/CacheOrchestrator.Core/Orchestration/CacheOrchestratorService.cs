@@ -124,7 +124,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
             // Refresh tags after miss when the factory expanded the footprint beyond early tags.
             if (result.Outcome == DataCacheProviderOutcome.Materialized)
             {
-                IReadOnlyList<string> finalTags = BuildTags(opts.Domain, box.Footprint, request.AdditionalTags);
+                IReadOnlyList<string> finalTags = BuildTags(opts, box.Footprint, request.AdditionalTags);
                 DataCacheProviderRequest finalRequest = new()
                 {
                     Key = earlyRequest.Key,
@@ -284,18 +284,45 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
     internal static string BuildPhysicalKey(DomainCacheOptions opts, string logicalKey)
         => string.Concat(opts.Domain, ":", opts.VersionHex, ":", logicalKey);
 
-    internal static string[] BuildTags(
-        string normalizedDomain,
+    internal static IReadOnlyList<string> BuildTags(
+        DomainCacheOptions options,
         EntityFootprint? footprint,
         IReadOnlyList<string>? additionalTags)
     {
+        string domainTag = options.DomainTag;
         bool hasFootprint = footprint is not null && !ReferenceEquals(footprint, EntityFootprint.Empty);
         if (!hasFootprint && additionalTags is not { Count: > 0 })
-            return [CacheTags.Domain(normalizedDomain)];
+            return options.DomainTags;
+
+        if (additionalTags is not { Count: > 0 }
+            && footprint!.Primary is { } primary
+            && footprint.Members.Count == 0
+            && footprint.DependsOn.Count == 0
+            && footprint.Aliases.Count == 0)
+        {
+            return
+            [
+                domainTag,
+                CacheTags.Entity(options.Domain, primary.EntityKind, primary.ResourceId),
+                CacheTags.EntityKind(options.Domain, primary.EntityKind)
+            ];
+        }
+
+        if (!hasFootprint && additionalTags is { Count: 1 })
+        {
+            string? additionalTag = additionalTags[0];
+            if (string.IsNullOrWhiteSpace(additionalTag)
+                || string.Equals(additionalTag, domainTag, StringComparison.Ordinal))
+            {
+                return options.DomainTags;
+            }
+
+            return [domainTag, additionalTag];
+        }
 
         List<string> tags = hasFootprint
-            ? [.. footprint!.ToTags(normalizedDomain)]
-            : [CacheTags.Domain(normalizedDomain)];
+            ? [.. footprint!.ToTags(options.Domain)]
+            : [domainTag];
 
         if (additionalTags is { Count: > 0 })
         {
@@ -323,7 +350,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
         {
             Key = physicalKey,
             InstanceName = opts.DataCacheInstanceName,
-            Tags = BuildTags(opts.Domain, request.Footprint, request.AdditionalTags),
+            Tags = BuildTags(opts, request.Footprint, request.AdditionalTags),
             DomainOptions = opts
         };
     }
@@ -339,6 +366,9 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
                 Footprint = EntityFootprint.Empty
             };
         }
+
+        if (box.Footprint is not null)
+            return box;
 
         return new FootprintCacheBox<T?>
         {
