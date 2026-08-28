@@ -337,14 +337,14 @@ public class ClientCacheScheduleHttpTests
     }
 
     /// <summary>
-    /// Waits until domain options pick up the reloaded <see cref="DomainCacheOptions.ScheduledUpdateUtc"/>.
+    /// Waits until domain options pick up the reloaded <see cref="DomainHttpCacheOptions.ScheduledUpdateUtc"/>.
     /// </summary>
     private static async Task WaitForScheduledUpdateAsync(
         IServiceProvider services,
         string domain,
         DateTimeOffset expected)
     {
-        IDomainCacheOptionsProvider domains = services.GetRequiredService<IDomainCacheOptionsProvider>();
+        IRequestDomainCacheOptions domains = services.GetRequiredService<IRequestDomainCacheOptions>();
         IOptionsMonitor<CacheOrchestratorOptions> monitor =
             services.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>();
 
@@ -352,7 +352,7 @@ public class ClientCacheScheduleHttpTests
         while (DateTimeOffset.UtcNow < deadline)
         {
             _ = monitor.CurrentValue;
-            DomainCacheOptions snap = domains.GetOrCreateDomainOptions(domain);
+            DomainHttpCacheOptions snap = domains.GetOrCreateDomainOptions(domain);
             if (snap.ScheduledUpdateUtc is DateTimeOffset actual
                 && Math.Abs((actual - expected).TotalSeconds) < 1)
             {

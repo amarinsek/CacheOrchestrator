@@ -51,82 +51,134 @@
     <div class="page">
         <section class="card playground-card">
             <div class="panel-tabs" role="tablist" aria-label="Playground mode">
-                <button type="button" class="panel-tab active" role="tab" id="tabDomain" aria-selected="true" aria-controls="panelDomain" data-panel="domain">
-                    Domain endpoints playground
+                <button type="button" class="panel-tab active" role="tab" id="tabGettingStarted" aria-selected="true" aria-controls="panelGettingStarted" data-panel="getting-started">
+                    Getting started
                 </button>
-                <button type="button" class="panel-tab" role="tab" id="tabCrud" aria-selected="false" aria-controls="panelCrud" data-panel="crud">
-                    Entity invalidation (CRUD) playground
+                <button type="button" class="panel-tab" role="tab" id="tabVary" aria-selected="false" aria-controls="panelVary" data-panel="vary">
+                    Vary playground
                 </button>
                 <button type="button" class="panel-tab" role="tab" id="tabPost" aria-selected="false" aria-controls="panelPost" data-panel="post">
                     POST identity playground
                 </button>
             </div>
 
-            <!-- 1) Classic domain-scoped routes from Demo:Endpoints -->
-            <div class="cmd-panel" id="panelDomain" role="tabpanel" aria-labelledby="tabDomain">
+            <!-- 1) The complete flow from docs/guide/getting-started.md -->
+            <div class="cmd-panel" id="panelGettingStarted" role="tabpanel" aria-labelledby="tabGettingStarted">
                 <p class="panel-lead">
-                    Config-driven GET routes (<code>Demo:Endpoints</code>) plus <strong>Vary demo</strong>
-                    (<code>vary-demo</code>: try <em>Accept</em> (JSON vs XML) and <code>?lang=</code> (allowlisted; <code>utm_*</code> ignored).
-                    Also TTLs, OC/DC hits, Client Cache Schedule, and domain invalidate.
+                    Follow the same example as
+                    <a href="https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/getting-started.md" target="_blank" rel="noopener noreferrer"><code>getting-started.md</code></a>:
+                    cache a promotions response, then cache a product and invalidate it when its price changes.
+                </p>
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="guide-step-heading">
+                            <span class="guide-step-number">1</span>
+                            <div>
+                                <strong>Cache a promotions response</strong>
+                                <p>Fetch twice to see the second request served by Output Cache.</p>
+                            </div>
+                        </div>
+                        <div class="crud-bar">
+                            <div class="crud-route">
+                                <span class="crud-method">GET</span>
+                                <code class="crud-path">/api/promotions</code>
+                                <span class="domain-hint">Domain: <strong>promotions</strong> <span id="promotionsBackend" class="status-pill compact-status">…</span></span>
+                            </div>
+                            <div class="btn-group">
+                                <button id="btnPromotionsFetch" class="btn">Fetch</button>
+                                <button id="btnPromotionsFetchTwice" class="btn primary">Fetch twice</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="guide-step">
+                        <div class="guide-step-heading">
+                            <span class="guide-step-number">2</span>
+                            <div>
+                                <strong>Cache a product response</strong>
+                                <p>The GET caches the product in Data Cache and its HTTP response in Output Cache.</p>
+                            </div>
+                        </div>
+                        <div class="crud-bar">
+                            <div class="crud-route">
+                                <span class="crud-method">GET</span>
+                                <code class="crud-path" id="crudPath">/api/products/42</code>
+                                <span class="domain-hint">Domain: <strong>catalog</strong> <span id="crudBackend" class="status-pill compact-status">…</span></span>
+                            </div>
+                            <div class="btn-group">
+                                <button id="btnCrudFetch" class="btn">Fetch</button>
+                                <button id="btnCrudFetchTwice" class="btn primary">Fetch twice</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="guide-step">
+                        <div class="guide-step-heading">
+                            <span class="guide-step-number">3</span>
+                            <div>
+                                <strong>Update the product price</strong>
+                                <p>The PUT writes the new price and invalidates <code>products/42</code> in Output Cache and Data Cache.</p>
+                            </div>
+                        </div>
+                        <div class="crud-bar">
+                            <div class="crud-route">
+                                <span class="crud-method write">PUT</span>
+                                <code class="crud-path">/api/products/42</code>
+                                <span class="domain-hint">Invalidates: <strong>catalog/products/42</strong></span>
+                            </div>
+                            <div class="btn-group">
+                                <div class="put-price-group" title="New price + PUT (writes store and invalidates the entity)">
+                                    <input id="productPrice" class="price-input" type="number" min="0" step="0.01" value="12.50" inputmode="decimal" aria-label="New product price" />
+                                    <button id="btnPutProduct" type="button" class="btn accent">Update price</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="panel-foot muted">
+                    Suggested: promotions twice → product twice → update price → product once. The final GET is a server MISS and returns the new price.
+                    Keep <em>Disable browser HTTP cache</em> checked to see server OC/DC clearly.
+                    <button id="btnGettingStartedClear" class="btn ghost inline-clear">Clear log</button>
+                </p>
+            </div>
+
+            <!-- 2) Focused vary-by-request demo -->
+            <div class="cmd-panel hidden" id="panelVary" role="tabpanel" aria-labelledby="tabVary" hidden>
+                <p class="panel-lead">
+                    See how one endpoint keeps separate cache entries by response representation and selected query values.
+                    Change <code>Accept</code> or <code>lang</code> to create a new variant; tracking parameters are ignored.
                 </p>
                 <div class="playground-controls">
                     <div class="control-row">
                         <label class="control-label">
-                            Endpoint
-                            <select id="endpoint"></select>
-                        </label>
-                        <label class="control-label">
                             Accept
-                            <select id="acceptHeader" title="Used by vary-demo; harmless on other routes">
+                            <select id="acceptHeader">
                                 <option value="application/json">application/json</option>
                                 <option value="application/xml">application/xml</option>
                             </select>
                         </label>
                         <label class="control-label">
-                            Extra query params
-                            <input id="extraQuery" type="text" placeholder="lang=sl or utm_source=demo, etc." />
+                            Query params
+                            <input id="extraQuery" type="text" value="lang=en" placeholder="lang=sl or utm_source=demo" />
                         </label>
                     </div>
                     <div class="control-row checks-and-buttons">
                         <div class="btn-group">
-                            <p class="domain-hint">Domain: <strong id="domainName">—</strong> <span id="domainBackend" class="status-pill" style="margin-left:8px; padding:3px 8px; font-size:10px;">…</span></p>
-                            <button id="btnOnce" class="btn">Fetch once</button>
-                            <button id="btnTwice" class="btn primary">Fetch twice</button>
-                            <button id="btnInvalidate" class="btn danger">Invalidate domain</button>
-                            <button id="btnClear" class="btn ghost">Clear log</button>
+                            <p class="domain-hint">
+                                <span class="crud-method">GET</span>
+                                <code>/api/vary-demo</code>
+                                Domain: <strong>vary-demo</strong>
+                                <span id="varyBackend" class="status-pill compact-status">…</span>
+                            </p>
+                            <button id="btnVaryOnce" class="btn">Fetch once</button>
+                            <button id="btnVaryTwice" class="btn primary">Fetch twice</button>
+                            <button id="btnVaryInvalidate" class="btn danger">Invalidate domain</button>
+                            <button id="btnVaryClear" class="btn ghost">Clear log</button>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2) Separate CRUD entity-invalidation demo -->
-            <div class="cmd-panel hidden" id="panelCrud" role="tabpanel" aria-labelledby="tabCrud" hidden>
-                <p class="panel-lead">
-                    One product under domain <code>product-crud</code>, tagged as entity <code>products/42</code>.
-                    <strong>Invalidate entity</strong> purges only that cache entry (store data unchanged).
-                    <strong>Update price</strong> writes the price you enter and then invalidates the entity.
-                    Domain Version stays the same either way.
-                </p>
-                <div class="crud-bar">
-                    <div class="crud-route">
-                        <span class="crud-method">GET</span>
-                        <code class="crud-path" id="crudPath">/api/crud/products/42</code>
-                        <span class="domain-hint">Domain: <strong>product-crud</strong> <span id="crudBackend" class="status-pill" style="margin-left:6px; padding:3px 8px; font-size:10px;">…</span></span>
-                    </div>
-                    <div class="btn-group">
-                        <button id="btnCrudFetch" class="btn">Fetch</button>
-                        <button id="btnCrudFetchTwice" class="btn primary">Fetch twice</button>
-                        <button id="btnInvalidateEntity" class="btn danger" title="InvalidateEntity only — no DB write">Invalidate entity</button>
-                        <div class="put-price-group" title="New price + PUT (writes store and InvalidateEntity)">
-                            <input id="productPrice" class="price-input" type="number" min="0" step="0.01" value="12.50" inputmode="decimal" aria-label="New product price" />
-                            <button id="btnPutProduct" type="button" class="btn accent">Update price</button>
-                        </div>
-                        <button id="btnCrudClear" class="btn ghost">Clear log</button>
                     </div>
                 </div>
                 <p class="panel-foot muted">
-                    Suggested: Fetch → Fetch twice (OC-HIT) → Invalidate entity → Fetch (MISS, same price) → Update price → Fetch (MISS, new price).
-                    Keep header <em>Disable browser HTTP cache</em> checked to see server OC/DC clearly.
+                    Suggested: fetch twice → change <code>lang</code> → MISS → switch to XML → MISS → add only <code>utm_source</code> → HIT for the same language and representation.
                 </p>
             </div>
 
@@ -184,10 +236,12 @@
 
         <section class="card responses-card">
             <div class="row between">
-                <h2>Responses</h2>
+                <h2 id="responseTitle">Getting started responses</h2>
                 <span class="hint" id="logHint"></span>
             </div>
-            <div id="log" class="log"></div>
+            <div id="logGettingStarted" class="log" data-response-panel="getting-started" data-empty-message="No requests yet — start with promotions or product GET."></div>
+            <div id="logVary" class="log hidden" data-response-panel="vary" data-empty-message="No requests yet — fetch a vary variant." aria-hidden="true" hidden></div>
+            <div id="logPost" class="log hidden" data-response-panel="post" data-empty-message="No requests yet — run a POST search." aria-hidden="true" hidden></div>
         </section>
 
         <footer class="app-footer">

@@ -90,39 +90,26 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
     }
 
     /// <inheritdoc />
-    public async ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
-
-        foreach (string instanceName in _options.CurrentValue.DataCacheInstances.Keys)
-            await RemoveByTagAsync(instanceName, tag, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
-    public async ValueTask RemoveByTagAsync(
-        string instanceName,
-        string tag,
+    public async ValueTask InvalidateAsync(
+        DataCacheInvalidationRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(instanceName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+        ArgumentNullException.ThrowIfNull(request);
 
-        IFusionCache fusion = _fusionProvider.GetCache(instanceName);
-        await fusion.RemoveByTagAsync(tag, token: cancellationToken).ConfigureAwait(false);
-    }
+        IEnumerable<string> instances = request.InstanceName is null
+            ? _options.CurrentValue.DataCacheInstances.Keys
+            : [request.InstanceName];
 
-    /// <inheritdoc />
-    public async ValueTask RemoveByTagsAsync(
-        IEnumerable<string> tags,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(tags);
-
-        foreach (string? tag in tags)
+        foreach (string instanceName in instances)
         {
-            if (string.IsNullOrWhiteSpace(tag))
-                continue;
-            await RemoveByTagAsync(tag, cancellationToken).ConfigureAwait(false);
+            IFusionCache fusion = _fusionProvider.GetCache(instanceName);
+            foreach (string tag in request.Tags)
+            {
+                if (!string.IsNullOrWhiteSpace(tag))
+                {
+                    await fusion.RemoveByTagAsync(tag, token: cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
     }
 }

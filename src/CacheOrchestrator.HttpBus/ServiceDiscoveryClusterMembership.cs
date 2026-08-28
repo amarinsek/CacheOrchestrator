@@ -10,7 +10,7 @@ namespace CacheOrchestrator.HttpBus;
 /// <summary>
 /// Membership via <see cref="ServiceEndpointResolver"/> (configuration, DNS, platform providers).
 /// </summary>
-public sealed class ServiceDiscoveryClusterMembership : IClusterMembership
+internal sealed class ServiceDiscoveryClusterMembership : IClusterMembership
 {
     private readonly ServiceEndpointResolver _resolver;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;

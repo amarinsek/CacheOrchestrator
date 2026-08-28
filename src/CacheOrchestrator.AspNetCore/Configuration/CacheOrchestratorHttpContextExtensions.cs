@@ -8,12 +8,12 @@ namespace Microsoft.AspNetCore.Http;
 public static class CacheOrchestratorHttpContextExtensions
 {
     /// <summary>
-    /// Gets the resolved <see cref="DomainCacheOptions"/> for the current request, if the request 
+    /// Gets the resolved <see cref="DomainHttpCacheOptions"/> for the current request, if the request
     /// has been processed by the CacheOrchestrator Output Cache policy or if <c>EnsureDomainOptions</c> was called.
     /// </summary>
     /// <param name="httpContext">The HTTP context.</param>
     /// <returns>The resolved domain options, or null if a domain was not resolved for this request.</returns>
-    public static DomainCacheOptions? GetDomainCacheOptions(this HttpContext httpContext)
+    public static DomainHttpCacheOptions? GetDomainCacheOptions(this HttpContext httpContext)
     {
         ArgumentNullException.ThrowIfNull(httpContext);
         return httpContext.Features.Get<ICacheOrchestratorFeature>()?.DomainOptions;

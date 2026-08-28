@@ -25,13 +25,6 @@ public class DomainCacheOptionsProviderBenchmarks : IDisposable
                 {
                     Version = "v1",
                     DataCache = new DomainDataCacheSettings { TtlSeconds = 300 },
-                    OutputCache = new DomainOutputCacheSettings { TtlSeconds = 120 },
-                    ClientCache = new DomainClientCacheSettings
-                    {
-                        TtlSeconds = 60,
-                        TtlMinSeconds = 60,
-                        Cacheability = ClientCacheability.Public,
-                    },
                 }
             }
         };

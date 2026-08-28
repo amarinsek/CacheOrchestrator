@@ -1,29 +1,51 @@
 ---
 name: Bug Report
-about: Create a report to help us improve CacheOrchestrator
+about: Report reproducible incorrect behavior in CacheOrchestrator
 title: '[BUG] '
 labels: bug
 assignees: ''
-
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+Thanks for reporting a problem. If you are not sure whether the behavior is a bug, please submit the report anyway.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Configure CacheOrchestrator with...
-2. Run code '...'
-3. See error
+## What happened?
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+Describe the observed behavior and its impact.
 
-**Environment (please complete the following information):**
- - OS: [e.g. Windows, Linux, macOS]
- - .NET Version: [e.g. .NET 10, .NET 8]
- - CacheOrchestrator Version: [e.g. 1.0.0]
- - OutputCache/FusionCache Provider: [e.g. InMemory, Redis]
+## What did you expect?
 
-**Additional context**
-Add any other context about the problem here (e.g. exception stack trace, related config settings from `appsettings.json`).
+Describe the behavior you expected instead.
+
+## Minimal reproduction
+
+Provide the shortest steps, sample repository, or code needed to reproduce the problem.
+
+1. Configure CacheOrchestrator with ...
+2. Call ...
+3. Observe ...
+
+## Environment
+
+- CacheOrchestrator packages and versions:
+- .NET version:
+- Operating system and hosting model:
+- Output Cache backend:
+- Data Cache provider and backend:
+- Single instance or cluster:
+
+## Configuration
+
+Include the relevant configuration with all secrets, connection strings, tokens, and internal hostnames removed.
+
+```json
+{
+}
+```
+
+## Diagnostics
+
+Include the full exception and stack trace when available. Relevant logs and response headers such as `X-Cache`, `Cache-Control`, `Age`, and `ETag` are also useful.
+
+## Additional context
+
+Add anything else that may help explain or reproduce the problem.

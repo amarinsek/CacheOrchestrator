@@ -1,212 +1,284 @@
 # FAQ
 
-> **Guide.** Product overview: [root README](../../README.md). Orientation: [Guide](README.md). Catalog: [documentation index](../README.md).
+> **Guide page.** Start with [Getting started](getting-started.md), follow the [Guide index](README.md), or use this page to diagnose a specific symptom.
 
-Short answers to common mistakes. Topic pages hold the full story.
+These are short answers to common mistakes and boundary questions. Follow the linked guide or reference page for the complete model.
 
-## Scope
-
-CacheOrchestrator configures and coordinates ASP.NET Output Cache, a **data cache** engine (FusionCache or HybridCache), and client Cache-Control under one **domain** model. It does not replace those engines or own Redis topology. Custom stores beyond InMemory/Redis are registrars you write — [backends](../reference/backends.md).
-
----
-
-## First checks
+## Hits, misses, and domain resolution
 
 ### Why is a route cached when I never set a domain?
 
-It should not be. CacheOrchestrator’s **base** Output Cache policy is **`NoCache`**. Full-response caching applies only with `.CacheOutputWithDomain` / `[CacheDomain]` (or your own explicit Output Cache policy).
+CacheOrchestrator does not cache an endpoint with Output Cache merely because the services and middleware are registered. Its base Output Cache policy is `NoCache`.
 
-If a route still looks cached, check for a host-added `AddBasePolicy` / `.CacheOutput(...)`, a CDN/browser cache, or a domain you forgot.
+Full-response caching requires one of these:
 
-Details: [output-cache — base policy](../reference/output-cache.md#base-policy-and-endpoints-without-a-domain).
+- `.CacheOutputWithDomain(...)`;
+- `[CacheDomain(...)]`;
+- another explicit ASP.NET Core Output Cache policy added by the application.
 
-### Data cache runs uncached — why?
+If an unmarked route still appears cached, check for host-level `AddBasePolicy`, `.CacheOutput(...)`, reverse-proxy or CDN caching, and the browser's own cache.
 
-`IDomainDataCache.GetOrSetAsync` needs a **domain**:
+See [Output Cache](../reference/output-cache.md#base-policy-and-endpoints-without-a-domain).
 
-1. Explicit overload `GetOrSetAsync(http, domain, factory)`
-2. Options already on the request (usually from Output Cache policy)
-3. Endpoint metadata (`.CacheOutputWithDomain` / `[CacheDomain]`)
-4. Else the factory runs **without** data caching
+### Data Cache runs uncached — why?
 
-On the unresolved path you get a Warning log, metric `result=unresolved`, and often `dc=unresolved` on `X-Cache`.
+`IDomainDataCache` needs a resolved domain. It looks in this order:
 
-**Fix:** put the domain on the endpoint, or use the domain overload / `EnsureDomainOptions`.  
-Details: [data cache](../reference/data-cache.md).
+1. an explicit domain overload such as `GetOrSetAsync(http, "catalog", factory)`;
+2. a domain snapshot already attached to the request;
+3. endpoint metadata from `.CacheOutputWithDomain(...)` or `[CacheDomain]`;
+4. otherwise, it runs the factory uncached.
+
+The unresolved path produces a Warning, `result=unresolved` metrics, and typically `dc=unresolved` in `X-Cache`.
+
+For the normal HTTP path, put the domain on the endpoint. For a route that uses only Data Cache, pass the domain explicitly or call `EnsureDomainOptions`.
+
+See [Concepts — resolved snapshot](concepts.md#one-request-uses-one-resolved-snapshot) and [Data Cache](../reference/data-cache.md).
+
+### Why do I not see a Data Cache hit on the second request?
+
+An Output Cache hit returns the complete HTTP response before the endpoint runs. The Data Cache is therefore not consulted, and `dc` is omitted from `X-Cache`.
+
+To inspect Data Cache behaviour, temporarily disable Output Cache for that domain, wait for its entry to expire, or make a request whose Output Cache identity misses while the Data Cache identity still matches.
+
+The normal sequence is:
+
+```text
+first request:  oc=miss; dc=miss; fa=run
+second request: oc=hit
+later Output Cache miss:  oc=miss; dc=hit
+```
+
+### Why does the response still look cached after I invalidate it?
+
+First identify the layer:
+
+- a browser or CDN may still hold a response until its `max-age` ends;
+- another application instance may have local Output Cache without HttpBus;
+- the invalidated entry may lack the expected entity footprint;
+- a conditional request may receive `304 Not Modified` from a generation-bound ETag;
+- the write may have invalidated before the database transaction committed, allowing old data to refill the cache.
+
+Reproduce with Client Cache disabled, inspect `X-Cache`, and verify the topology and invalidation result. See [Operations](operations.md#use-a-short-incident-checklist) and [Invalidation](../reference/invalidation.md).
 
 ### Should I expose `X-Cache` in production?
 
-`X-Cache` is a diagnostic header (domain, hit/miss, schedule phase). Useful locally; it also reveals cache state to any client that sees the response.
+It is useful in development and staging, but it exposes domain names, hit/miss state, schedule phase, and timing to clients.
 
-| Setting | Default | Recommendation |
-|---------|---------|----------------|
-| `Cache:EmitDiagnosticsHeaders` | `true` | On for local/staging; consider `false` for public production APIs |
+Set `Cache:EmitDiagnosticsHeaders` to `false` for public production endpoints when that information should remain internal. Metrics, traces, logs, `Cache-Control`, and ETags continue to work.
 
-Turning it off does **not** disable metrics, tracing, health checks, or `Cache-Control` / ETag.  
-See [observability](../reference/observability.md).
+See [Operations](operations.md#read-one-request-with-x-cache) and [Observability](../reference/observability.md).
 
----
+## Authentication and request variation
 
-## Authentication and vary
+### What happens to authenticated requests by default?
 
-### Authenticated requests and API keys
+An authenticated identity or an `Authorization` header triggers the safe default:
 
-**Default:** authenticated users **or** an `Authorization` header → Output Cache **bypassed**, client cache **blocked** (`AuthBypassMode: AuthenticatedOrAuthorization`).
+- Output Cache bypasses the request;
+- Client Cache is blocked;
+- the Data Cache also bypasses by default through `DataCacheRespectAuthBypass: true`.
 
-| Goal | Config |
-|------|--------|
-| Keep safe default | leave flags as default |
-| Cache private per-user responses | `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, `ClientCache.Cacheability: Private` |
-| Public content that sends an API key | `AuthBypassMode: Never`, `VaryOutputCacheByUser: false`, careful `ClientCache.Cacheability` |
-| Bypass only cookie/Identity auth | `AuthBypassMode: AuthenticatedIdentityOnly` |
-| 2.1-like: data cache under Authorization while OC bypasses | `DataCacheRespectAuthBypass: false` (default `true` = OC↔DC parity) |
+This prevents a shared cache from accidentally serving one user's response to another.
 
-Wrong settings can leak one user’s response to another (especially with shared CDNs).  
-Details: [vary](../reference/vary.md) · [output-cache](../reference/output-cache.md#authenticated-traffic).
+### How do I cache private per-user responses?
 
-### Why does the data cache skip under Authorization?
-
-Default **`DataCacheRespectAuthBypass: true`**: when Output Cache would auth-bypass, the data cache also runs the factory uncached. Set `false` only if you intentionally want shared data-cache entries under Authorization while OC stays bypassed.
-
-### JSON vs XML on the same URL?
-
-Enable `VaryByAccept: true` (optional `AcceptNormalizationList`). Output Cache and the data cache then partition by normalized `Accept`. See [vary](../reference/vary.md).
-
-### Tenant claim without a custom key generator?
-
-Set `AuthBypassMode: Never`, `VaryOutputCacheByUser: true`, and `VaryByAuthClaims: [ "tenant_id" ]`, or register an `ICacheVaryContributor`.
-
----
-
-## Freshness and ETags
-
-### ETag = Version — is that a bug?
-
-No. ETags are **generation-bound** (from the domain `Version`), not a hash of the response body.
-
-With default `ETagMode: Version`, every URL in the domain shares the same ETag. After `InvalidateEntityAsync` without a Version bump, browsers that revalidate with `If-None-Match` can still get `304 Not Modified`.
-
-For CRUD APIs where rows mutate under a stable Version, use `ETagMode: None` (or a custom body/timestamp ETag in the endpoint).
-
-| Profile | Typical ETag mode |
-|---------|-------------------|
-| **Snapshot** (tiles, datasets) | `Version` or `Resource` |
-| **Dynamic / CRUD** | `None` |
-
-Details: [ETag modes](domain-profiles.md#etag-modes).
-
-### Client Cache Schedule vs server TTL
-
-`ClientCache.ScheduledUpdateUtc` and client TTL fields change only **browser/CDN** `Cache-Control`. They do **not** change `OutputCache.TtlSeconds` or `DataCache.TtlSeconds` / Fusion hard / fail-safe.
-
-Phases on `X-Cache`: `phase=calm|approaching|hold|n/a`.  
-See [Client Cache Schedule](client-cache-schedule.md).
-
----
-
-## Packages and topology
-
-### Redis package vs core
-
-| Package | Contains |
-|---------|----------|
-| `CacheOrchestrator` (Meta) | AspNetCore + Fusion data provider |
-| `CacheOrchestrator.Core` / `.AspNetCore` / `.FusionCache` / `.HybridCache` | Policy, HTTP host, Fusion or Hybrid provider — [packages](packages.md) |
-| `CacheOrchestrator.Redis` (Meta) | OC Redis + Fusion L2 (`AddRedisBackend`) |
-| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache only (`AddRedisOutputCacheBackend`; from **3.0.0-beta.3**) |
-| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 / backplane only (`AddRedisFusionCacheBackend`; from **3.0.0-beta.3**) |
-| `CacheOrchestrator.Redis.Shared` | Support / transitive — do not install alone |
-| `CacheOrchestrator.HttpBus` | HTTP cluster command bus |
-| `CacheOrchestrator.EFCore.Invalidation` | SaveChanges → entity invalidation |
-
-Without Redis + `AddRedisBackend()`, `"Provider": "Redis"` fails validation. Without HttpBus, multi-instance InMemory invalidation stays process-local. Without the EF package, `SaveChanges` does not purge cache.
-
-### Bus vs Redis backplane — which do I need?
-
-| Goal | Prefer |
-|------|--------|
-| Shared Fusion L2 + L1 drop on other nodes | **Redis** (L2 + backplane) |
-| Multi-instance **InMemory** purge / Version / TTL | **HttpBus** |
-| Both installed | Safe; often redundant for Fusion tag purge; HttpBus still useful for OC InMemory + runtime overlays |
-
-HttpBus does **not** share cache payloads. Details: [cluster bus](../reference/cluster-bus.md) · [topologies](topologies.md).
-
-### Multiple Redis clusters / named data-cache instances
-
-Map domains to named `DataCacheInstances`, each with its own Redis connection. Domains select an instance via `DataCache.Instance`.
+This is an explicit opt-in. A typical starting shape is:
 
 ```json
-"DataCacheInstances": {
-  "default": { "Provider": "Redis", "Redis": { "Configuration": "global:6379" } },
-  "pii":     { "Provider": "Redis", "Redis": { "Configuration": "secure:6379" } }
+{
+  "AuthBypassMode": "Never",
+  "VaryOutputCacheByUser": true,
+  "ClientCache": {
+    "Cacheability": "Private"
+  }
 }
 ```
 
-Requires `CacheOrchestrator.Redis` + `AddRedisBackend()`.  
-Details: [deployment](../reference/deployment.md#using-multiple-datacache-instances).
+Also include any claims that change the representation, such as tenant id or role. Review the complete [Vary and authenticated traffic](../reference/vary.md) matrix before enabling it.
 
-### Namespace defaults
+### What about a public API that uses an Authorization header as an API key?
 
-| Setting | Default behaviour |
-|---------|-------------------|
-| Root `Namespace` | `app-cache` |
-| Output Cache keys | `OutputCache.Namespace` ?? `{Namespace}-oc` |
-| Data-cache `default` instance | `{Namespace}-fc` (historical `-fc`; no `-default` suffix) |
-| Data-cache named instance `pii` | `{Namespace}-fc-pii` |
+The default bypass still applies because the header is an auth signal. If the response is truly public and identical for every key, set `AuthBypassMode: Never` deliberately and ensure no user-specific value affects the response.
 
-### Custom backends (SQL Server, Memcached, …)
+Do not disable auth bypass merely to improve hit rate. Confirm the security boundary first.
 
-Implement `ICacheBackendRegistrar`, register it, set `Provider` under `OutputCache` or `DataCacheInstances`. Example (Fusion L2 on SQL Server): [backends](../reference/backends.md).
+### Why is Data Cache also bypassed under Authorization?
 
----
+`DataCacheRespectAuthBypass` defaults to `true` so Output Cache and Data Cache make the same safety decision. Set it to `false` only when the endpoint response cannot be shared but the underlying cached object intentionally can be.
 
-## Invalidation and EF
+### JSON and XML share one URL. How do I keep them separate?
 
-### EF Core `ExecuteUpdate` did not invalidate cache
+Enable `VaryByAccept: true`, optionally with `AcceptNormalizationList`. Output Cache and Data Cache then use the normalized media type as vary material.
 
-The interceptor only sees `ChangeTracker` entries after a successful `SaveChanges`. Bulk `ExecuteUpdate` / `ExecuteDelete` / `ExecuteInsert` never produce those entries.
+### How do I vary by tenant claim?
 
-Call `InvalidateEntitiesAsync` or `InvalidateEntityKindAsync` yourself. Details: [EF Core invalidation](../reference/ef-core-invalidation.md).
+Set `AuthBypassMode: Never`, enable user variation, and add the claim name to `VaryByAuthClaims`, or register an `ICacheVaryContributor` for a custom identity rule.
 
-### Tracking query parameters
+See [Vary](../reference/vary.md).
 
-Known tracking keys are stripped from **cache keys / vary rules** so campaigns do not fragment the cache: `utm_*`, click ids (`gclid`, `fbclid`, …), `_ga` / `_ga_*`, `_gl` / `_gl_*`. They still reach your app on the request. (`_game` is not tracking.)
+### What happens to tracking query parameters?
 
----
+Known campaign keys such as `utm_*`, common click ids, `_ga`, `_ga_*`, `_gl`, and `_gl_*` are removed from cache identity so analytics parameters do not fragment entries. They remain available to application code on the request.
 
-## Admin
+Other query parameters vary the domain endpoint by default. See [Vary](../reference/vary.md) for the exact list and customization options.
 
-### Admin API vs Admin Console App
+## Freshness, invalidation, and ETags
 
-- **Admin API** — opt-in HTTP on **each** process (`Cache:Admin:Enabled` + `MapCacheOrchestratorAdmin`). Health, config, invalidate, runtime Version/settings. Process-lifetime `GET …/stats` is obsolete for analytics.
-- **Admin Console App** — separate process that fans out to those APIs. Traffic UI is **Prometheus-only**. Not a NuGet package. No built-in login — protect the host.
+### When should I change Version instead of invalidating?
 
-Details: [admin](../reference/admin.md) · [operations](operations.md).
+Change `Version` when the whole domain moves to a new coordinated generation: a monthly dataset, a schema change, or a large catalog release.
 
----
+Invalidate an entity when one logical record changes under the same generation. Invalidating the whole domain for every row update creates unnecessary cold-cache events.
 
-## Output Cache methods
+See [Domain profiles](domain-profiles.md).
 
-### Can I Output-cache POST (search / GraphQL)?
+### ETag stays the same after entity invalidation. Is that a bug?
 
-Only with an explicit identity binding. Without identity metadata, Output Cache applies to **GET/HEAD** with Url identity. Bind a method with `.WithCacheIdentity` / `[CacheIdentity]` (named contract) or `.WithContentHashCacheIdentity` / `[ContentHashCacheIdentity]` (bounded body hash). A method without a binding is not Output-cached, even when the domain is on the endpoint.
+No. CacheOrchestrator-generated ETags are generation-bound, not body hashes.
 
-Details: [endpoint cache identity](../reference/cache-identity.md).
+- `ETagMode: Version` changes when the domain `Version` changes.
+- `ETagMode: Resource` is distinct per resource but is still derived from domain `Version`.
+- `ETagMode: None` emits no CacheOrchestrator ETag.
 
----
+For dynamic resources changing under a stable version, use `None` or implement an application-owned ETag and conditional request flow based on a row version or timestamp.
 
-## Non-goals (by design)
+See [Domain profiles — ETag policy](domain-profiles.md#choose-an-etag-policy-deliberately).
 
-- No Output Cache for non-GET/HEAD unless the endpoint declares an explicit identity binding
-- No ownership of Redis HA / failover beyond connection options
-- No cross-instance consistency when both layers are InMemory without a backplane or bus
-- Concrete service types are **internal** — depend on interfaces + DI
+### Does Client Cache Schedule change server TTLs?
 
----
+No. `ScheduledUpdateUtc`, `ClientCache.TtlSeconds`, and `TtlMinSeconds` affect only browser/CDN `Cache-Control`.
 
-## Related
+Output Cache, Data Cache, and FusionCache engine TTLs remain independent. See [Client Cache Schedule](client-cache-schedule.md).
 
-- [Guide](README.md)  
-- [Packages](packages.md) · [Composition how-to](../how-to/composition.md)  
-- [Configuration](../reference/configuration.md)  
-- [Comparison](comparison.md)  
+### Can server invalidation purge a browser or CDN?
+
+No. CacheOrchestrator invalidates the configured server-side layers. A client may use a response until its current `max-age` expires, and a CDN may also have its own purge control plane.
+
+Choose client TTLs based on the maximum acceptable client staleness. Use Client Cache Schedule for known snapshot cutovers.
+
+### Why did an EF Core bulk update not invalidate anything?
+
+The EF interceptor observes tracked entries after a successful `SaveChanges`. `ExecuteUpdate`, `ExecuteDelete`, and similar bulk operations do not create those ChangeTracker entries.
+
+After a bulk operation, call `InvalidateEntitiesAsync`, `InvalidateEntityKindAsync`, or another appropriate invalidation explicitly. See [EF Core invalidation](../reference/ef-core-invalidation.md).
+
+### Should I invalidate before or after saving?
+
+After the write commits successfully. Invalidating first creates a race in which another request can reload and cache the old value before the transaction completes.
+
+If invalidation fails after the commit, the database is still authoritative. Inspect `CacheInvalidationResult`, alert on partial failures, and rely on bounded TTLs as a safety net while retrying or reconciling.
+
+## Packages and topology
+
+### Which package should a typical ASP.NET Core app install?
+
+Start with the `CacheOrchestrator` meta package. It combines the ASP.NET Core integration and FusionCache data provider.
+
+Use focused packages when you need Output Cache only, HybridCache instead of FusionCache, or an HTTP-free Core dependency in a reusable library. See [Packages](packages.md).
+
+### Why does `Provider: Redis` fail during startup?
+
+Configuration selects a registered provider; it does not install one. Add the appropriate Redis package and registrar:
+
+- `CacheOrchestrator.Redis` + `AddRedisBackend()` for Redis Output Cache and Fusion L2;
+- `CacheOrchestrator.AspNetCore.Redis` + `AddRedisOutputCacheBackend()` for Output Cache only;
+- `CacheOrchestrator.FusionCache.Redis` + `AddRedisFusionCacheBackend()` for Fusion L2 only.
+
+`CacheOrchestrator.Redis.Shared` is transitive support and should not be installed alone.
+
+### Redis backplane or HttpBus—which do I need?
+
+| Need | Use |
+|------|-----|
+| Share FusionCache L2 values and clear peer L1 entries | Redis L2 + backplane |
+| Share Output Cache responses | Redis Output Cache store |
+| Purge in-memory Output Cache on peer nodes | HttpBus |
+| Coordinate several in-memory nodes without Redis | HttpBus |
+| Distribute runtime Version/TTL/settings overlays | HttpBus or Admin Console fan-out |
+
+HttpBus carries commands, not cache values. Using it alongside the Redis backplane is safe but can be redundant for Fusion tag invalidation. See [Topologies](topologies.md).
+
+### Can domains use different Redis connections?
+
+Yes. Define named `DataCacheInstances`, give each its own Redis configuration, and select one with `DataCache.Instance` in the domain.
+
+Use separate instances for a real infrastructure boundary such as PII isolation, region, or workload capacity. Domains already isolate keys and tags, so most applications do not need one Redis connection per domain.
+
+See [Named Data Cache instances](topologies.md#named-data-cache-instances-isolate-workloads).
+
+### What does Namespace do?
+
+Root `Cache:Namespace` separates applications sharing the same backend. By default, Output Cache and each named Data Cache instance derive their own store namespace from it.
+
+It is not a domain and does not replace entity identity. Keep it stable for one deployed application and distinct between unrelated applications.
+
+### Can I use SQL Server, Memcached, or another custom backend?
+
+Yes, but the extension point depends on what the storage system does:
+
+- implement `IOutputCacheBackendRegistrar` for an ASP.NET Core Output Cache store;
+- implement `IFusionCacheBackendRegistrar` for FusionCache L2 storage or a backplane;
+- implement `IDataCacheProvider` only for a complete Data Cache engine.
+
+The same provider name may have separate registrars for the first two surfaces. `IOutputCacheBackendRegistrar` does not configure `DataCacheInstances`.
+
+See [Cache backends](../reference/backends.md) and the complete [extensibility catalog](../reference/extensibility.md).
+
+## Admin and multi-instance operations
+
+### What is the difference between Admin API and Admin Console?
+
+- **Admin API** is an opt-in route group inside each application process. It exposes health, effective domains, invalidation, and runtime settings operations.
+- **Admin Console App** is a separate application that discovers and controls several Admin APIs through one UI.
+
+Traffic charts in the Console use Prometheus. The Console has no built-in user login, so protect it with private networking and external authentication.
+
+See [Operations](operations.md#choose-the-admin-surface) and [Admin](../reference/admin.md).
+
+### Why did an Admin setting change affect only one instance?
+
+Runtime overlays are local unless the operation is distributed.
+
+- With HttpBus, use `distribute: true` so the origin publishes to peers.
+- Without HttpBus, the Admin Console must fan out to every target instance.
+- The FusionCache Redis backplane does not carry Version, TTL, or settings overlays.
+
+A down peer can leave the deployment partially updated. Inspect the operation result and reconcile failed instances.
+
+### Does an Admin runtime change replace configuration?
+
+No. Use runtime overlays for operational response and testing. Put permanent changes into the deployed configuration so restarts and new instances converge on the intended policy.
+
+## Output Cache methods and identity
+
+### Can I cache POST search or GraphQL requests with Output Cache?
+
+Yes, but only with an explicit cache identity binding.
+
+- Use `.WithCacheIdentity(...)` or `[CacheIdentity]` with a named contract when selected request fields define identity.
+- Use `.WithContentHashCacheIdentity(...)` or `[ContentHashCacheIdentity]` for a bounded body hash.
+
+Without identity metadata, Output Cache supports `GET` and `HEAD` with URL identity. Applying a domain alone does not cache `POST`, `PUT`, or other methods.
+
+Duplicate bindings for one method fail during registration or through analyzer `COIDENTITY001`. See [Endpoint cache identity](../reference/cache-identity.md).
+
+## Product boundaries
+
+### Does CacheOrchestrator replace FusionCache or HybridCache?
+
+No. It configures and scopes those engines through domains. Engine-specific features remain engine-specific, and the provider abstraction intentionally does not expose every underlying API.
+
+### Does it guarantee consistency across instances?
+
+Only when the topology supplies the required shared store, backplane, or command bus. Several independent in-memory processes cannot invalidate each other by themselves.
+
+### Does it operate Redis for me?
+
+No. It resolves connection options and uses Redis as a backend. Provisioning, access control, TLS, persistence, failover, monitoring, and capacity remain platform responsibilities.
+
+### Are default service implementations public?
+
+No. Application code should depend on public interfaces such as `IDomainDataCache`, `ICacheOrchestrator`, and `ICacheOrchestratorInvalidator`, then obtain implementations through dependency injection.
+
+Still stuck? Follow the request-level checklist in [Operations](operations.md#use-a-short-incident-checklist), then use the topic links above for exact configuration and API contracts.

@@ -13,8 +13,4 @@ public interface IFusionCacheBackendRegistrar
     /// </summary>
     void RegisterFusionCache(FusionCacheRegistrationContext context);
 
-    /// <summary>
-    /// Optional health probes for this Fusion instance.
-    /// </summary>
-    void RegisterHealthProbes(FusionBackendHealthRegistrationContext context);
 }

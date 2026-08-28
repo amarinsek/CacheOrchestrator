@@ -47,10 +47,8 @@ public class ServiceRegistrationCustomBackendTests
     [Fact]
     public void AddCacheOrchestrator_CustomBackend_CallsRegistrarMethods()
     {
-        ICacheBackendRegistrar customOc = Substitute.For<ICacheBackendRegistrar>();
+        IOutputCacheBackendRegistrar customOc = Substitute.For<IOutputCacheBackendRegistrar>();
         customOc.Name.Returns("CustomDB");
-        customOc.SupportsOutputCacheStore.Returns(true);
-
         CacheOrchestrator.FusionCache.Backends.IFusionCacheBackendRegistrar customFusion =
             Substitute.For<CacheOrchestrator.FusionCache.Backends.IFusionCacheBackendRegistrar>();
         customFusion.Name.Returns("CustomDB");
@@ -65,16 +63,14 @@ public class ServiceRegistrationCustomBackendTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddCacheOrchestratorAspNetCore(config, builder => builder.AddBackend(customOc));
+        services.AddCacheOrchestratorAspNetCore(config, builder => builder.AddOutputCacheBackend(customOc));
         services.AddFusionCacheBackend(customFusion);
         services.AddCacheOrchestratorFusionCache(config);
 
         using ServiceProvider sp = services.BuildServiceProvider();
 
         customOc.Received(1).RegisterOutputCache(Arg.Any<OutputCacheRegistrationContext>());
-        customOc.Received().RegisterHealthProbes(Arg.Any<BackendHealthRegistrationContext>());
         customFusion.Received(1).RegisterFusionCache(Arg.Any<CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext>());
-        customFusion.Received().RegisterHealthProbes(Arg.Any<CacheOrchestrator.FusionCache.Backends.FusionBackendHealthRegistrationContext>());
     }
 }
 

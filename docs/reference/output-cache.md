@@ -2,7 +2,7 @@
 
 > **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md).
 
-Output Cache stores the **full HTTP response**. By default that means **GET** and **HEAD** with Url identity (path, query, host, domain vary). Other methods are not Output-cached unless the endpoint opts in with **[endpoint cache identity](cache-identity.md)**. CacheOrchestrator applies ASP.NET Core Output Caching per **domain**: TTL, tags, vary rules, `Cache-Control`, and ETag all come from that domain.
+Output Cache stores the **full HTTP response**. By default that means **GET** and **HEAD** with Url identity (path, query, host, domain vary). Other methods are not cached by Output Cache unless the endpoint opts in with **[endpoint cache identity](cache-identity.md)**. CacheOrchestrator applies ASP.NET Core Output Caching per **domain**: TTL, tags, vary rules, `Cache-Control`, and ETag all come from that domain.
 
 ## Register
 
@@ -19,13 +19,13 @@ ASP.NET Core Output Caching is **policy-driven**. CacheOrchestrator registers a 
 
 | Endpoint | Output Cache |
 |----------|----------------|
-| `.CacheOutputWithDomain("…")` / `[CacheDomain("…")]` | **Yes** — domain policy (TTL, tags, client headers, diagnostics; encoding vary from domain settings) |
+| `.CacheOutputWithDomain("…")` / `[CacheDomain("…")]` | **Yes** — domain policy (TTL, tags, Client Cache headers, diagnostics; encoding vary from domain settings) |
 | No domain metadata | **No** — base `NoCache` |
 | Explicit `.CacheOutput(p => p.NoCache())` / `OutputCacheAttribute { NoStore = true }` | **No** — redundant with the base policy, still fine on Admin / metrics / ops routes |
 
 **Without `.CacheOutputWithDomain` / `[CacheDomain]`, there is no Output Cache entry.** You do not need a separate `.NoCache()` / `NoStore` for that. Built-in Admin and sample `/metrics` may still set `NoStore` explicitly; that is harmless.
 
-Data cache is separate: `IDomainDataCache` / `ICacheOrchestrator` still need a domain (endpoint metadata, explicit overload, or `CacheDomainContext`) or the factory runs uncached — see [FAQ](../guide/faq.md#fusion-runs-uncached--why).
+Data Cache is separate: `IDomainDataCache` / `ICacheOrchestrator` still need a domain (endpoint metadata, explicit overload, or `CacheDomainContext`) or the factory runs uncached — see [FAQ](../guide/faq.md#data-cache-runs-uncached--why).
 
 ## Minimal APIs
 
@@ -51,7 +51,7 @@ app.MapGet("/tiles/{z}/{x}/{y}", () => /* ... */)
    .CacheOutputWithDomainTemplate("maps-{host}-{route:z}");
 ```
 
-`resourceRouteKey` and `entityKind` tag the OC entry so `InvalidateEntityAsync` can purge that row. The func overload also accepts those two arguments (dynamic domain + entity tags). `CacheOutputWithDomainTemplate` has **no** entity overload — it only resolves the domain string.
+`resourceRouteKey` and `entityKind` tag the Output Cache entry so `InvalidateEntityAsync` can purge that row. The delegate overload also accepts those two arguments for a dynamic domain with entity tags. `CacheOutputWithDomainTemplate` has **no** entity overload; it only resolves the domain string.
 
 Templates expand these tokens:
 
@@ -60,6 +60,20 @@ Templates expand these tokens:
 - `{header:Name}` — request header
 - `{query:key}` — query parameter
 - `{custom:key}` — value from the `customProviders` map
+
+Custom providers are fixed when the template is compiled and receive the current `HttpContext`:
+
+```csharp
+var domainTokens = new Dictionary<string, Func<HttpContext, string?>>
+{
+    ["tenant"] = http => http.User.FindFirst("tenant_id")?.Value
+};
+
+app.MapGet("/api/tenant/products", () => /* ... */)
+   .CacheOutputWithDomainTemplate("catalog-{custom:tenant}", domainTokens);
+```
+
+Use templates only for bounded, trusted domain material. The resolved value is normalized as a domain name. An unconfigured result falls back to `DomainDefaults` and logs a warning; a missing token appends nothing, which can collapse distinct requests onto the same domain. Validate required tenant or routing state before caching. Template endpoints cannot declare entity identity, so use the delegate overload of `CacheOutputWithDomain` when `resourceRouteKey` and `entityKind` are also required.
 
 ## Controllers
 
@@ -72,9 +86,9 @@ public class ProductsController : ControllerBase
     [HttpGet]
     public IActionResult List() => Ok(/* ... */);
 
-    [HttpGet("{id}")]
+    [HttpGet("{id:int}")]
     [CacheDomain("store", resourceRouteKey: "id", entityKind: "products")]
-    public IActionResult Get(string id) => Ok(/* ... */);
+    public IActionResult Get(int id) => Ok(/* ... */);
 }
 ```
 
@@ -97,14 +111,14 @@ app.MapGet(...).CacheOutputWithDomainAttribute();
 | Identity contract / content-hash returns null (or body oversize) | Bypass this request |
 | Request `Cache-Control: no-store` | Bypass; client `no-store` |
 | Auth signal matches `AuthBypassMode` (default `AuthenticatedOrAuthorization`) | Bypass; client blocked |
-| `AuthBypassMode: Never` (or legacy `BypassWhenAuthenticated: false`) | Cache allowed; optional `auth-user` vary |
-| `OutputCacheEnabled: false` | Off (`oc=off`); client headers still applied. Not the same as request-level bypass (auth / no-store). |
+| `AuthBypassMode: Never` | Cache allowed; optional `auth-user` vary |
+| `OutputCache.Enabled: false` | Off (`oc=off`); Client Cache headers still apply. This is not the same as request-level bypass (auth or `no-store`). |
 | Enabled | Lookup and store, locking, TTL from the domain |
 | Status not in `CacheableStatusCodes` | No store |
 | `Set-Cookie` or response `Authorization` | No store; client blocked |
-| Signed-in user and `ClientCache.Cacheability: Public` (when `ClientForcePrivateWhenAuthenticated`) | Client header forced to **private** |
+| Signed-in user and `ClientCache.Cacheability: Public` while `ClientCache.ForcePrivateWhenAuthenticated` is `true` | Client header forced to **private** |
 
-**Vary:** host, query keys (tracking omitted; optional allow/deny lists), `Accept-Encoding`, optional `Accept` / `Accept-Language` / headers / cookies, `data-version` from `Version`. When authenticated traffic is cached and `VaryOutputCacheByUser` is true, also **`auth-user`**. Identity material (when present) is folded into OC `VaryByValues` as `co-id:*` — see [cache-keys.md](cache-keys.md) and [cache-identity.md](cache-identity.md). Full domain vary matrix: [vary.md](vary.md).
+**Vary:** host, query keys (tracking omitted; optional allow/deny lists), `Accept-Encoding`, `Accept` by default, optional `Accept-Language` / headers / cookies, and `data-version` from `Version`. When authenticated traffic is cached and `VaryOutputCacheByUser` is `true`, the policy also adds **`auth-user`**. Endpoint identity material is folded into Output Cache `VaryByValues` as `co-id:*`; see [cache keys](cache-keys.md) and [endpoint cache identity](cache-identity.md). The complete domain vary matrix is in [domain vary dimensions](vary.md).
 
 **Tags:** `domain:{name}`. If `resourceRouteKey` and `entityKind` resolve, also `entity:{domain}:{entityKind}:{id}` and `entitykind:{domain}:{entityKind}`.
 
@@ -129,13 +143,15 @@ app.MapPost("/graphql", ...)
 By default any signed-in user or `Authorization` header skips Output Cache (`AuthBypassMode: AuthenticatedOrAuthorization`). That is the safe setting for mixed public and private APIs.
 
 - **AuthBypassMode** — preferred control (`Never`, `AuthenticatedIdentityOnly`, `AuthorizationHeaderOnly`, `AuthenticatedOrAuthorization`).
-- **BypassWhenAuthenticated** — **obsolete**; still binds for compatibility (`true`/`false` map to `AuthenticatedOrAuthorization` / `Never` when `AuthBypassMode` is unset).
-- **VaryOutputCacheByUser** (default `true`) — when you allow caching, partition by user, claims, or API-key hash.
-- **DataCacheRespectAuthBypass** (default `true`) — data cache also skips when OC would auth-bypass; set `false` for 2.1-like data-cache-under-Authorization.
+- **VaryOutputCacheByUser** (default `true`) — when you allow authenticated caching, partition entries by user, selected claims, or an Authorization hash.
+- **DataCacheRespectAuthBypass** (default `true`) — Data Cache also skips when Output Cache would bypass. Set it to `false` only when the object cached by Data Cache is shared between callers.
+
+The following examples are domain entries placed under `Cache:Domains`.
 
 **Private dashboard (per-user server cache):**
 
 ```json
+{
 "user-dashboard": {
   "AuthBypassMode": "Never",
   "VaryOutputCacheByUser": true,
@@ -147,6 +163,7 @@ By default any signed-in user or `Authorization` header skips Output Cache (`Aut
     "TtlSeconds": 30
   }
 }
+}
 ```
 
 Alice and Bob both call `GET /api/me/summary`. The server stores two entries (`auth-user=u:alice` and `u:bob`). The browser may cache privately for 60 seconds. A shared CDN must not treat the response as public.
@@ -154,6 +171,7 @@ Alice and Bob both call `GET /api/me/summary`. The server stores two entries (`a
 **Public tiles with an API key (one shared entry):**
 
 ```json
+{
 "osm-tiles": {
   "AuthBypassMode": "Never",
   "VaryOutputCacheByUser": false,
@@ -165,6 +183,7 @@ Alice and Bob both call `GET /api/me/summary`. The server stores two entries (`a
   "OutputCache": {
     "TtlSeconds": 3600
   }
+}
 }
 ```
 

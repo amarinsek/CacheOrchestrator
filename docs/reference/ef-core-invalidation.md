@@ -4,11 +4,11 @@
 
 Package **`CacheOrchestrator.EFCore.Invalidation`**. After a successful `SaveChanges` / `SaveChangesAsync`, the cache for the rows that changed is purged through `ICacheOrchestratorInvalidator`.
 
-Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../../src/CacheOrchestrator.EFCore.Invalidation/README.md). See also [invalidation.md](invalidation.md), [domain-profiles.md](../guide/domain-profiles.md), [data-cache.md](data-cache.md), [configuration.md](configuration.md).
+Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../../src/CacheOrchestrator.EFCore.Invalidation/README.md). See also [invalidation.md](invalidation.md), [domain-profiles.md](../guide/domain-profiles.md), [Data Cache](data-cache.md), [configuration.md](configuration.md).
 
 ## How it works
 
-A **domain** is a cache policy group (TTL, Version, data-cache instance). Ids are unique together with `entityKind`, not inside the domain alone.
+A **domain** is a cache policy group (TTL, Version, Data Cache instance). Ids are unique together with `entityKind`, not inside the domain alone.
 
 Row identity is always `(domain, entityKind, resourceId)`:
 
@@ -31,7 +31,7 @@ SavedChanges                    SaveChangesFailed
         ▼
 InvalidateEntitiesAsync  or  InvalidateEntityKindAsync (OnBulk)
         │
-        ├─ local OC + data-cache tag purge
+        ├─ local Output Cache + Data Cache tag purge
         └─ Redis backplane / HttpBus  (if those packages are configured)
 ```
 
@@ -157,7 +157,7 @@ The EF package does not talk to Redis or the Bus. It only calls `ICacheOrchestra
 
 | Topology | After `SaveChanges` on node A |
 |----------|-------------------------------|
-| Single process | Local OC + data cache only |
+| Single process | Local Output Cache + Data Cache only |
 | Redis Fusion L2 + backplane | Shared L2 purged; other nodes drop L1 via Fusion backplane |
 | `CacheOrchestrator.HttpBus` (InMemory multi-node) | One `InvalidateCommand` per `(domain, entityKind)` group; peers ApplyLocal |
 | Neither | Other nodes keep stale L1 until TTL / Version |
@@ -193,7 +193,7 @@ Operational flags only. Bound from the same root section as `AddCacheOrchestrato
 
 - [Guide — topologies](../guide/topologies.md)  
 - [invalidation.md](invalidation.md) — tags, invalidator, multi-instance strategies  
-- [data-cache.md](data-cache.md) — `GetOrSetEntityAsync`  
-- [output-cache.md](output-cache.md) — `resourceRouteKey` + `entityKind`  
+- [Data Cache](data-cache.md) — `GetOrSetEntityAsync`
+- [Output Cache](output-cache.md) — `resourceRouteKey` + `entityKind`
 - [faq.md](../guide/faq.md) — `ExecuteUpdate`
 - Package README — copy-paste samples  

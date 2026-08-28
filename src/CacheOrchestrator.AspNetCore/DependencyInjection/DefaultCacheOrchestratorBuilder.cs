@@ -7,7 +7,7 @@ namespace CacheOrchestrator.DependencyInjection;
 
 internal sealed class DefaultCacheOrchestratorBuilder : ICacheOrchestratorBuilder
 {
-    private readonly Dictionary<string, ICacheBackendRegistrar> _registrars = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IOutputCacheBackendRegistrar> _registrars = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Action<OutputCacheOptions>> _outputCacheConfigurators = [];
 
     public DefaultCacheOrchestratorBuilder(IServiceCollection services, IConfiguration configuration)
@@ -20,7 +20,7 @@ internal sealed class DefaultCacheOrchestratorBuilder : ICacheOrchestratorBuilde
 
     public IConfiguration Configuration { get; }
 
-    public ICacheOrchestratorBuilder AddBackend(ICacheBackendRegistrar registrar)
+    public ICacheOrchestratorBuilder AddOutputCacheBackend(IOutputCacheBackendRegistrar registrar)
     {
         ArgumentNullException.ThrowIfNull(registrar);
 
@@ -38,9 +38,9 @@ internal sealed class DefaultCacheOrchestratorBuilder : ICacheOrchestratorBuilde
         return this;
     }
 
-    public ICacheBackendRegistrar ResolveRegistrar(string providerName)
+    public IOutputCacheBackendRegistrar ResolveRegistrar(string providerName)
     {
-        if (_registrars.TryGetValue(providerName, out ICacheBackendRegistrar? registrar))
+        if (_registrars.TryGetValue(providerName, out IOutputCacheBackendRegistrar? registrar))
             return registrar;
 
         throw new InvalidOperationException(

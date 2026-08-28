@@ -5,25 +5,24 @@ namespace CacheOrchestrator.Configuration;
 
 /// <summary>
 /// Validates core <see cref="CacheOrchestratorOptions"/> at startup (provider names, TTLs,
-/// data-cache instance references, Output Cache capability).
+/// data-cache instance references, and Output Cache provider names).
 /// Provider-specific connection rules (e.g. Redis) are validated by the corresponding package.
 /// </summary>
 internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<CacheOrchestratorOptions>
 {
     private readonly HashSet<string> _validProviders;
-    private readonly IReadOnlyDictionary<string, bool> _supportsOutputCache;
     private readonly ILogger? _logger;
+    private readonly bool _validateOutputCacheProvider;
 
     public CacheOrchestratorOptionsValidator(
         IEnumerable<string> validProviders,
-        IReadOnlyDictionary<string, bool>? supportsOutputCache = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        bool validateOutputCacheProvider = true)
     {
         ArgumentNullException.ThrowIfNull(validProviders);
         _validProviders = new HashSet<string>(validProviders, StringComparer.OrdinalIgnoreCase);
-        _supportsOutputCache = supportsOutputCache
-            ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
+        _validateOutputCacheProvider = validateOutputCacheProvider;
     }
 
     /// <inheritdoc />
@@ -33,21 +32,12 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 
         List<string> failures = [];
 
-        if (!_validProviders.Contains(options.OutputCache.Provider))
+        if (_validateOutputCacheProvider && !_validProviders.Contains(options.OutputCache.Provider))
         {
             failures.Add(
                 $"OutputCache.Provider must be one of: {string.Join(", ", _validProviders)}. " +
                 $"Current value: '{options.OutputCache.Provider}'.");
         }
-        else if (_supportsOutputCache.TryGetValue(options.OutputCache.Provider, out bool supportsOc)
-                 && !supportsOc)
-        {
-            failures.Add(
-                $"OutputCache.Provider '{options.OutputCache.Provider}' does not support an Output Cache store " +
-                $"(SupportsOutputCacheStore = false). Use a provider that implements an Output Cache store " +
-                $"(e.g. InMemory, or Redis via CacheOrchestrator.Redis).");
-        }
-
         if (options.DataCacheInstances.Count == 0)
         {
             failures.Add("DataCacheInstances must contain at least one entry named 'default'.");
@@ -149,20 +139,6 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
         List<string> failures)
     {
         ValidateNonNegSeconds(label, "DataCache.TtlSeconds", settings.DataCache?.TtlSeconds, failures);
-        ValidateNonNegSeconds(label, "OutputCache.TtlSeconds", settings.OutputCache?.TtlSeconds, failures);
-        ValidateNonNegSeconds(label, "ClientCache.TtlSeconds", settings.ClientCache?.TtlSeconds, failures);
-        ValidateNonNegSeconds(label, "ClientCache.TtlMinSeconds", settings.ClientCache?.TtlMinSeconds, failures);
-
-        ValidateAllowlist(label, "VaryByHeaders", settings.VaryByHeaders, Admin.DomainSettingsPatchMapper.MaxVaryByHeaders, failures, allowEmpty: true);
-        ValidateAllowlist(label, "VaryByCookies", settings.VaryByCookies, Admin.DomainSettingsPatchMapper.MaxVaryByCookies, failures, allowEmpty: true);
-        ValidateAllowlist(label, "VaryByQueryKeys", settings.VaryByQueryKeys, max: 32, failures, allowEmpty: true);
-        ValidateAllowlist(label, "IgnoreQueryKeys", settings.IgnoreQueryKeys, max: 32, failures, allowEmpty: true);
-        ValidateAllowlist(label, "VaryByAuthClaims", settings.VaryByAuthClaims, max: 16, failures, allowEmpty: true);
-        ValidateAllowlist(label, "AcceptNormalizationList", settings.AcceptNormalizationList, max: 16, failures, allowEmpty: true);
-        ValidateAllowlist(label, "AcceptLanguageNormalizationList", settings.AcceptLanguageNormalizationList, max: 16, failures, allowEmpty: true);
-
-        if (settings.AuthBypassMode is AuthBypassMode mode && !Enum.IsDefined(mode))
-            failures.Add($"{label}: AuthBypassMode value '{mode}' is not defined.");
     }
 
     private static void ValidateNonNegSeconds(

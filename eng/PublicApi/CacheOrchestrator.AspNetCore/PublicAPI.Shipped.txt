@@ -1,0 +1,363 @@
+#nullable enable
+CacheOrchestrator.Admin.AdminLocalApi
+CacheOrchestrator.Backends.IOutputCacheBackendRegistrar
+CacheOrchestrator.Backends.IOutputCacheBackendRegistrar.Name.get -> string!
+CacheOrchestrator.Backends.IOutputCacheBackendRegistrar.RegisterOutputCache(CacheOrchestrator.Backends.OutputCacheRegistrationContext! context) -> void
+CacheOrchestrator.Backends.OutputCacheRegistrationContext
+CacheOrchestrator.Backends.OutputCacheRegistrationContext.BackendSection.get -> Microsoft.Extensions.Configuration.IConfigurationSection!
+CacheOrchestrator.Backends.OutputCacheRegistrationContext.ConfigSection.get -> string!
+CacheOrchestrator.Backends.OutputCacheRegistrationContext.Configuration.get -> Microsoft.Extensions.Configuration.IConfiguration!
+CacheOrchestrator.Backends.OutputCacheRegistrationContext.Configure(System.Action<Microsoft.AspNetCore.OutputCaching.OutputCacheOptions!>! configure) -> void
+CacheOrchestrator.Backends.OutputCacheRegistrationContext.Options.get -> CacheOrchestrator.Configuration.CacheOrchestratorOptions!
+CacheOrchestrator.Backends.OutputCacheRegistrationContext.ProviderName.get -> string!
+CacheOrchestrator.Backends.OutputCacheRegistrationContext.RegisterStore(System.Action! register) -> void
+CacheOrchestrator.Backends.OutputCacheRegistrationContext.Services.get -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+CacheOrchestrator.Configuration.AuthBypassMode
+CacheOrchestrator.Configuration.AuthBypassMode.AuthenticatedIdentityOnly = 1 -> CacheOrchestrator.Configuration.AuthBypassMode
+CacheOrchestrator.Configuration.AuthBypassMode.AuthenticatedOrAuthorization = 3 -> CacheOrchestrator.Configuration.AuthBypassMode
+CacheOrchestrator.Configuration.AuthBypassMode.AuthorizationHeaderOnly = 2 -> CacheOrchestrator.Configuration.AuthBypassMode
+CacheOrchestrator.Configuration.AuthBypassMode.Never = 0 -> CacheOrchestrator.Configuration.AuthBypassMode
+CacheOrchestrator.Configuration.CacheDisposition
+CacheOrchestrator.Configuration.CacheDisposition.CacheDisposition() -> void
+CacheOrchestrator.Configuration.CacheDisposition.Data.get -> CacheOrchestrator.Configuration.DataCacheResult?
+CacheOrchestrator.Configuration.CacheDisposition.Data.set -> void
+CacheOrchestrator.Configuration.CacheDisposition.ElapsedMs.get -> long?
+CacheOrchestrator.Configuration.CacheDisposition.ElapsedMs.set -> void
+CacheOrchestrator.Configuration.CacheDisposition.Output.get -> CacheOrchestrator.Configuration.OutputCacheResult?
+CacheOrchestrator.Configuration.CacheDisposition.Output.set -> void
+CacheOrchestrator.Configuration.CacheETagFactory
+CacheOrchestrator.Configuration.ClientCacheability
+CacheOrchestrator.Configuration.ClientCacheability.NoStore = 2 -> CacheOrchestrator.Configuration.ClientCacheability
+CacheOrchestrator.Configuration.ClientCacheability.Private = 1 -> CacheOrchestrator.Configuration.ClientCacheability
+CacheOrchestrator.Configuration.ClientCacheability.Public = 0 -> CacheOrchestrator.Configuration.ClientCacheability
+CacheOrchestrator.Configuration.ClientCacheClass
+CacheOrchestrator.Configuration.ClientCacheClass.Blocked = 3 -> CacheOrchestrator.Configuration.ClientCacheClass
+CacheOrchestrator.Configuration.ClientCacheClass.NoStore = 2 -> CacheOrchestrator.Configuration.ClientCacheClass
+CacheOrchestrator.Configuration.ClientCacheClass.Private = 1 -> CacheOrchestrator.Configuration.ClientCacheClass
+CacheOrchestrator.Configuration.ClientCacheClass.Public = 0 -> CacheOrchestrator.Configuration.ClientCacheClass
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.Deconstruct(out string! Header, out int MaxAgeSeconds, out CacheOrchestrator.Configuration.ClientCacheSchedulePhase Phase) -> void
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.Equals(CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result other) -> bool
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.Header.get -> string!
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.Header.init -> void
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.MaxAgeSeconds.get -> int
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.MaxAgeSeconds.init -> void
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.Phase.get -> CacheOrchestrator.Configuration.ClientCacheSchedulePhase
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.Phase.init -> void
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.Result() -> void
+CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.Result(string! Header, int MaxAgeSeconds, CacheOrchestrator.Configuration.ClientCacheSchedulePhase Phase) -> void
+CacheOrchestrator.Configuration.ClientCacheSchedulePhase
+CacheOrchestrator.Configuration.ClientCacheSchedulePhase.Approaching = 1 -> CacheOrchestrator.Configuration.ClientCacheSchedulePhase
+CacheOrchestrator.Configuration.ClientCacheSchedulePhase.Calm = 0 -> CacheOrchestrator.Configuration.ClientCacheSchedulePhase
+CacheOrchestrator.Configuration.ClientCacheSchedulePhase.Hold = 2 -> CacheOrchestrator.Configuration.ClientCacheSchedulePhase
+CacheOrchestrator.Configuration.ClientCacheSchedulePhase.NotApplicable = 3 -> CacheOrchestrator.Configuration.ClientCacheSchedulePhase
+CacheOrchestrator.Configuration.DataCacheResult
+CacheOrchestrator.Configuration.DataCacheResult.Bypass = 3 -> CacheOrchestrator.Configuration.DataCacheResult
+CacheOrchestrator.Configuration.DataCacheResult.Hit = 0 -> CacheOrchestrator.Configuration.DataCacheResult
+CacheOrchestrator.Configuration.DataCacheResult.Miss = 1 -> CacheOrchestrator.Configuration.DataCacheResult
+CacheOrchestrator.Configuration.DataCacheResult.Off = 4 -> CacheOrchestrator.Configuration.DataCacheResult
+CacheOrchestrator.Configuration.DataCacheResult.Stale = 2 -> CacheOrchestrator.Configuration.DataCacheResult
+CacheOrchestrator.Configuration.DataCacheResult.Unresolved = 5 -> CacheOrchestrator.Configuration.DataCacheResult
+CacheOrchestrator.Configuration.DomainAuthEvaluator
+CacheOrchestrator.Configuration.DomainClientCacheSettings
+CacheOrchestrator.Configuration.DomainClientCacheSettings.Cacheability.get -> CacheOrchestrator.Configuration.ClientCacheability?
+CacheOrchestrator.Configuration.DomainClientCacheSettings.Cacheability.set -> void
+CacheOrchestrator.Configuration.DomainClientCacheSettings.DomainClientCacheSettings() -> void
+CacheOrchestrator.Configuration.DomainClientCacheSettings.ForcePrivateWhenAuthenticated.get -> bool?
+CacheOrchestrator.Configuration.DomainClientCacheSettings.ForcePrivateWhenAuthenticated.set -> void
+CacheOrchestrator.Configuration.DomainClientCacheSettings.MustRevalidateNearUpdate.get -> bool?
+CacheOrchestrator.Configuration.DomainClientCacheSettings.MustRevalidateNearUpdate.set -> void
+CacheOrchestrator.Configuration.DomainClientCacheSettings.ScheduledUpdateUtc.get -> System.DateTimeOffset?
+CacheOrchestrator.Configuration.DomainClientCacheSettings.ScheduledUpdateUtc.set -> void
+CacheOrchestrator.Configuration.DomainClientCacheSettings.TtlMinSeconds.get -> int?
+CacheOrchestrator.Configuration.DomainClientCacheSettings.TtlMinSeconds.set -> void
+CacheOrchestrator.Configuration.DomainClientCacheSettings.TtlSeconds.get -> int?
+CacheOrchestrator.Configuration.DomainClientCacheSettings.TtlSeconds.set -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.AcceptLanguageNormalizationList.get -> string![]?
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.AcceptLanguageNormalizationList.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.AcceptNormalizationList.get -> string![]?
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.AcceptNormalizationList.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.AuthBypassMode.get -> CacheOrchestrator.Configuration.AuthBypassMode
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.AuthBypassMode.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.AuthVaryIncludeAuthorizationHash.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.AuthVaryIncludeAuthorizationHash.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.CacheableStatusCodes.get -> int[]!
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.CacheableStatusCodes.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ClientCacheability.get -> CacheOrchestrator.Configuration.ClientCacheability
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ClientCacheability.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ClientForcePrivateWhenAuthenticated.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ClientForcePrivateWhenAuthenticated.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ClientMustRevalidateNearUpdate.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ClientMustRevalidateNearUpdate.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ClientTtlMinSeconds.get -> int
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ClientTtlMinSeconds.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ClientTtlSeconds.get -> int
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ClientTtlSeconds.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.CoreOptions.get -> CacheOrchestrator.Configuration.DomainCacheOptions!
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.CoreOptions.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheEnabled.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheInstanceName.get -> string!
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheNamespace.get -> string!
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheRespectAuthBypass.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheRespectAuthBypass.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheRespectNoStore.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheRespectNoStore.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheTtl.get -> System.TimeSpan
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheVaryOnEncoding.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheVaryOnEncoding.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheVaryOnPublicAddress.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DataCacheVaryOnPublicAddress.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.Domain.get -> string!
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.DomainHttpCacheOptions() -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.EmitResponseVary.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.EmitResponseVary.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.EncodingNormalizationList.get -> string![]?
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.EncodingNormalizationList.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ETag.get -> Microsoft.Extensions.Primitives.StringValues
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ETag.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ETagMode.get -> CacheOrchestrator.Configuration.ETagMode
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ETagMode.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.IgnoreQueryKeys.get -> string![]?
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.IgnoreQueryKeys.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.OutputCacheEnabled.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.OutputCacheEnabled.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.OutputCacheNamespace.get -> string!
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.OutputCacheNamespace.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.OutputCacheVaryByHost.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.OutputCacheVaryByHost.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.OutputTtl.get -> System.TimeSpan
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.OutputTtl.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ScheduledUpdateUtc.get -> System.DateTimeOffset?
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.ScheduledUpdateUtc.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.TreatAuthorizationAsAuthSignal.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.TreatAuthorizationAsAuthSignal.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByAccept.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByAccept.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByAcceptLanguage.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByAcceptLanguage.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByAuthClaims.get -> string![]?
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByAuthClaims.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByCookies.get -> string![]?
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByCookies.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByHeaders.get -> string![]?
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByHeaders.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByQueryKeys.get -> string![]?
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryByQueryKeys.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryOutputCacheByUser.get -> bool
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VaryOutputCacheByUser.init -> void
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.Version.get -> string!
+CacheOrchestrator.Configuration.DomainHttpCacheOptions.VersionHex.get -> string!
+CacheOrchestrator.Configuration.DomainHttpDataCacheSettings
+CacheOrchestrator.Configuration.DomainHttpDataCacheSettings.DomainHttpDataCacheSettings() -> void
+CacheOrchestrator.Configuration.DomainHttpDataCacheSettings.RespectNoStore.get -> bool?
+CacheOrchestrator.Configuration.DomainHttpDataCacheSettings.RespectNoStore.set -> void
+CacheOrchestrator.Configuration.DomainHttpDataCacheSettings.VaryOnEncoding.get -> bool?
+CacheOrchestrator.Configuration.DomainHttpDataCacheSettings.VaryOnEncoding.set -> void
+CacheOrchestrator.Configuration.DomainHttpDataCacheSettings.VaryOnPublicAddress.get -> bool?
+CacheOrchestrator.Configuration.DomainHttpDataCacheSettings.VaryOnPublicAddress.set -> void
+CacheOrchestrator.Configuration.DomainOutputCacheSettings
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.CacheableStatusCodes.get -> int[]?
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.CacheableStatusCodes.set -> void
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.DomainOutputCacheSettings() -> void
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.Enabled.get -> bool?
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.Enabled.set -> void
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.EncodingNormalizationList.get -> string![]?
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.EncodingNormalizationList.set -> void
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.ETagMode.get -> CacheOrchestrator.Configuration.ETagMode?
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.ETagMode.set -> void
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.TtlSeconds.get -> int?
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.TtlSeconds.set -> void
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.VaryByHost.get -> bool?
+CacheOrchestrator.Configuration.DomainOutputCacheSettings.VaryByHost.set -> void
+CacheOrchestrator.Configuration.ETagMode
+CacheOrchestrator.Configuration.ETagMode.None = 1 -> CacheOrchestrator.Configuration.ETagMode
+CacheOrchestrator.Configuration.ETagMode.Resource = 2 -> CacheOrchestrator.Configuration.ETagMode
+CacheOrchestrator.Configuration.ETagMode.Version = 0 -> CacheOrchestrator.Configuration.ETagMode
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature.Disposition.get -> CacheOrchestrator.Configuration.CacheDisposition?
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature.Disposition.set -> void
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature.DomainOptions.get -> CacheOrchestrator.Configuration.DomainHttpCacheOptions?
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature.DomainOptions.set -> void
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature.EntityKind.get -> string?
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature.EntityKind.set -> void
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature.PendingEntityFootprint.get -> CacheOrchestrator.Entity.EntityFootprint?
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature.PendingEntityFootprint.set -> void
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature.ResourceId.get -> string?
+CacheOrchestrator.Configuration.ICacheOrchestratorFeature.ResourceId.set -> void
+CacheOrchestrator.Configuration.IRequestDomainCacheOptions
+CacheOrchestrator.Configuration.IRequestDomainCacheOptions.EnsureDomainOptions(Microsoft.AspNetCore.Http.HttpContext! http, string! domain) -> CacheOrchestrator.Configuration.DomainHttpCacheOptions!
+CacheOrchestrator.Configuration.IRequestDomainCacheOptions.GetDomainOptions(Microsoft.AspNetCore.Http.HttpContext! http) -> CacheOrchestrator.Configuration.DomainHttpCacheOptions?
+CacheOrchestrator.Configuration.IRequestDomainCacheOptions.GetOrCreateDomainOptions(string! domain) -> CacheOrchestrator.Configuration.DomainHttpCacheOptions!
+CacheOrchestrator.Configuration.OutputCacheResult
+CacheOrchestrator.Configuration.OutputCacheResult.Bypass = 2 -> CacheOrchestrator.Configuration.OutputCacheResult
+CacheOrchestrator.Configuration.OutputCacheResult.Hit = 0 -> CacheOrchestrator.Configuration.OutputCacheResult
+CacheOrchestrator.Configuration.OutputCacheResult.Miss = 1 -> CacheOrchestrator.Configuration.OutputCacheResult
+CacheOrchestrator.Configuration.OutputCacheResult.Off = 3 -> CacheOrchestrator.Configuration.OutputCacheResult
+CacheOrchestrator.Configuration.XCacheHeaderFormatter
+CacheOrchestrator.DataCache.DefaultDomainKeyGenerator
+CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.DefaultDomainKeyGenerator() -> void
+CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.DefaultDomainKeyGenerator(CacheOrchestrator.Vary.CacheVaryMaterializer! materializer) -> void
+CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.DefaultDomainKeyGenerator(System.Collections.Generic.IEnumerable<CacheOrchestrator.Vary.ICacheVaryContributor!>! contributors) -> void
+CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.Generate(CacheOrchestrator.Configuration.DomainHttpCacheOptions! opts, Microsoft.AspNetCore.Http.HttpContext! http) -> string!
+CacheOrchestrator.DataCache.IDomainDataCache
+CacheOrchestrator.DataCache.IDomainDataCache.GetOrSetAsync<T>(Microsoft.AspNetCore.Http.HttpContext! http, string! domain, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>!>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
+CacheOrchestrator.DataCache.IDomainDataCache.GetOrSetAsync<T>(Microsoft.AspNetCore.Http.HttpContext! http, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>!>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
+CacheOrchestrator.DataCache.IDomainDataCache.GetOrSetEntityAsync<T>(Microsoft.AspNetCore.Http.HttpContext! http, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<CacheOrchestrator.Entity.EntityCache<T>!>!>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T?>!
+CacheOrchestrator.DataCache.IDomainDataCache.GetOrSetEntityAsync<T>(Microsoft.AspNetCore.Http.HttpContext! http, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T?>!>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T?>!
+CacheOrchestrator.DataCache.IDomainDataCache.GetOrSetEntitySetAsync<T>(Microsoft.AspNetCore.Http.HttpContext! http, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<CacheOrchestrator.Entity.EntitySet<T>!>!>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<T>!>!
+CacheOrchestrator.DataCache.IDomainDataCache.SetEntityIdentity(Microsoft.AspNetCore.Http.HttpContext! http, string! entityKind, string! resourceId) -> void
+CacheOrchestrator.DataCache.IDomainDataCacheExtensions
+CacheOrchestrator.DataCache.IDomainKeyGenerator
+CacheOrchestrator.DataCache.IDomainKeyGenerator.Generate(CacheOrchestrator.Configuration.DomainHttpCacheOptions! options, Microsoft.AspNetCore.Http.HttpContext! httpContext) -> string!
+CacheOrchestrator.DependencyInjection.ApplicationBuilderExtensions
+CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder
+CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder.AddOutputCacheBackend(CacheOrchestrator.Backends.IOutputCacheBackendRegistrar! registrar) -> CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder!
+CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder.ConfigureOutputCache(System.Action<Microsoft.AspNetCore.OutputCaching.OutputCacheOptions!>! configure) -> CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder!
+CacheOrchestrator.DependencyInjection.ServiceCollectionExtensions
+CacheOrchestrator.Diagnostics.CacheOrchestratorMetricsHttpExtensions
+CacheOrchestrator.Identity.CacheIdentities
+CacheOrchestrator.Identity.CacheIdentityAttribute
+CacheOrchestrator.Identity.CacheIdentityAttribute.CacheIdentityAttribute(string![]! methods, string! contractName) -> void
+CacheOrchestrator.Identity.CacheIdentityAttribute.ContractName.get -> string!
+CacheOrchestrator.Identity.CacheIdentityAttribute.Methods.get -> string![]!
+CacheOrchestrator.Identity.CacheIdentityBinding
+CacheOrchestrator.Identity.CacheIdentityBinding.Contract.get -> CacheOrchestrator.Identity.ICacheIdentityContract?
+CacheOrchestrator.Identity.CacheIdentityBinding.ContractName.get -> string?
+CacheOrchestrator.Identity.CacheIdentityBinding.Kind.get -> CacheOrchestrator.Identity.CacheIdentityKind
+CacheOrchestrator.Identity.CacheIdentityBinding.MaxBodyBytes.get -> int
+CacheOrchestrator.Identity.CacheIdentityBinding.RequiresRequestBody.get -> bool
+CacheOrchestrator.Identity.CacheIdentityContext
+CacheOrchestrator.Identity.CacheIdentityContext.CacheIdentityContext() -> void
+CacheOrchestrator.Identity.CacheIdentityContext.HttpContext.get -> Microsoft.AspNetCore.Http.HttpContext!
+CacheOrchestrator.Identity.CacheIdentityContext.HttpContext.init -> void
+CacheOrchestrator.Identity.CacheIdentityContext.Options.get -> CacheOrchestrator.Configuration.DomainHttpCacheOptions!
+CacheOrchestrator.Identity.CacheIdentityContext.Options.init -> void
+CacheOrchestrator.Identity.CacheIdentityContext.Surface.get -> CacheOrchestrator.Vary.CacheVarySurface
+CacheOrchestrator.Identity.CacheIdentityContext.Surface.init -> void
+CacheOrchestrator.Identity.CacheIdentityEndpointExtensions
+CacheOrchestrator.Identity.CacheIdentityEndpointMetadata
+CacheOrchestrator.Identity.CacheIdentityEndpointMetadata.Bindings.get -> System.Collections.Generic.IReadOnlyDictionary<string!, CacheOrchestrator.Identity.CacheIdentityBinding!>!
+CacheOrchestrator.Identity.CacheIdentityEndpointMetadata.CacheIdentityEndpointMetadata() -> void
+CacheOrchestrator.Identity.CacheIdentityEndpointMetadata.Count.get -> int
+CacheOrchestrator.Identity.CacheIdentityEndpointMetadata.IsResolved.get -> bool
+CacheOrchestrator.Identity.CacheIdentityEndpointMetadata.TryGetBinding(string! httpMethod, out CacheOrchestrator.Identity.CacheIdentityBinding? binding) -> bool
+CacheOrchestrator.Identity.CacheIdentityKind
+CacheOrchestrator.Identity.CacheIdentityKind.ContentHash = 2 -> CacheOrchestrator.Identity.CacheIdentityKind
+CacheOrchestrator.Identity.CacheIdentityKind.NamedContract = 1 -> CacheOrchestrator.Identity.CacheIdentityKind
+CacheOrchestrator.Identity.CacheIdentityKind.Url = 0 -> CacheOrchestrator.Identity.CacheIdentityKind
+CacheOrchestrator.Identity.CacheIdentityMaterial
+CacheOrchestrator.Identity.CacheIdentityMaterial.CacheIdentityMaterial(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! values) -> void
+CacheOrchestrator.Identity.CacheIdentityMaterial.CacheIdentityMaterial(System.Collections.Generic.IReadOnlyDictionary<string!, string!>! values) -> void
+CacheOrchestrator.Identity.CacheIdentityMaterial.Values.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+CacheOrchestrator.Identity.CacheIdentityServiceCollectionExtensions
+CacheOrchestrator.Identity.ContentHashCacheIdentityAttribute
+CacheOrchestrator.Identity.ContentHashCacheIdentityAttribute.ContentHashCacheIdentityAttribute(string![]! methods) -> void
+CacheOrchestrator.Identity.ContentHashCacheIdentityAttribute.MaxBodyBytes.get -> int
+CacheOrchestrator.Identity.ContentHashCacheIdentityAttribute.MaxBodyBytes.set -> void
+CacheOrchestrator.Identity.ContentHashCacheIdentityAttribute.Methods.get -> string![]!
+CacheOrchestrator.Identity.ICacheIdentityContract
+CacheOrchestrator.Identity.ICacheIdentityContract.BuildAsync(CacheOrchestrator.Identity.CacheIdentityContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<CacheOrchestrator.Identity.CacheIdentityMaterial?>
+CacheOrchestrator.Identity.ICacheIdentityContract.Name.get -> string!
+CacheOrchestrator.OutputCache.CacheDomainAttribute
+CacheOrchestrator.OutputCache.CacheDomainAttribute.CacheDomainAttribute(string! domain) -> void
+CacheOrchestrator.OutputCache.CacheDomainAttribute.CacheDomainAttribute(string! domain, string! entityKind) -> void
+CacheOrchestrator.OutputCache.CacheDomainAttribute.CacheDomainAttribute(string! domain, string! resourceRouteKey, string! entityKind) -> void
+CacheOrchestrator.OutputCache.CacheDomainAttribute.Domain.get -> string!
+CacheOrchestrator.OutputCache.CacheDomainAttribute.EntityKind.get -> string?
+CacheOrchestrator.OutputCache.CacheDomainAttribute.ResourceRouteKey.get -> string?
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.CacheRequestAsync(Microsoft.AspNetCore.OutputCaching.OutputCacheContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.DomainOutputCachePolicy(string! domain) -> void
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.DomainOutputCachePolicy(string! domain, string! entityKind) -> void
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.DomainOutputCachePolicy(string! domain, string! resourceRouteKey, string! entityKind) -> void
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.DomainOutputCachePolicy(System.Func<Microsoft.AspNetCore.Http.HttpContext!, string!>! domainResolver) -> void
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.DomainOutputCachePolicy(System.Func<Microsoft.AspNetCore.Http.HttpContext!, string!>! domainResolver, string! entityKind) -> void
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.DomainOutputCachePolicy(System.Func<Microsoft.AspNetCore.Http.HttpContext!, string!>! domainResolver, string! resourceRouteKey, string! entityKind) -> void
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.EntityKind.get -> string?
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.FixedDomain.get -> string?
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.ResolveDomain(Microsoft.AspNetCore.Http.HttpContext! http) -> string!
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.ResourceRouteKey.get -> string?
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.ServeFromCacheAsync(Microsoft.AspNetCore.OutputCaching.OutputCacheContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+CacheOrchestrator.OutputCache.DomainOutputCachePolicy.ServeResponseAsync(Microsoft.AspNetCore.OutputCaching.OutputCacheContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+CacheOrchestrator.OutputCache.EndpointConventionBuilderExtensions
+CacheOrchestrator.Utilities.DomainTemplateCompiler
+CacheOrchestrator.Vary.CacheVaryContext
+CacheOrchestrator.Vary.CacheVaryContext.CacheVaryContext() -> void
+CacheOrchestrator.Vary.CacheVaryContext.HttpContext.get -> Microsoft.AspNetCore.Http.HttpContext!
+CacheOrchestrator.Vary.CacheVaryContext.HttpContext.init -> void
+CacheOrchestrator.Vary.CacheVaryContext.Options.get -> CacheOrchestrator.Configuration.DomainHttpCacheOptions!
+CacheOrchestrator.Vary.CacheVaryContext.Options.init -> void
+CacheOrchestrator.Vary.CacheVaryContext.Surface.get -> CacheOrchestrator.Vary.CacheVarySurface
+CacheOrchestrator.Vary.CacheVaryContext.Surface.init -> void
+CacheOrchestrator.Vary.CacheVaryMaterial
+CacheOrchestrator.Vary.CacheVaryMaterial.CacheVaryMaterial() -> void
+CacheOrchestrator.Vary.CacheVaryMaterial.HeaderNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+CacheOrchestrator.Vary.CacheVaryMaterial.HeaderNames.init -> void
+CacheOrchestrator.Vary.CacheVaryMaterial.QueryKeys.get -> System.Collections.Generic.IReadOnlyList<string!>!
+CacheOrchestrator.Vary.CacheVaryMaterial.QueryKeys.init -> void
+CacheOrchestrator.Vary.CacheVaryMaterial.ResponseVaryHeaderNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+CacheOrchestrator.Vary.CacheVaryMaterial.ResponseVaryHeaderNames.init -> void
+CacheOrchestrator.Vary.CacheVaryMaterial.Values.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+CacheOrchestrator.Vary.CacheVaryMaterial.Values.init -> void
+CacheOrchestrator.Vary.CacheVaryMaterializer
+CacheOrchestrator.Vary.CacheVaryMaterializer.Build(Microsoft.AspNetCore.Http.HttpContext! http, CacheOrchestrator.Configuration.DomainHttpCacheOptions! options, CacheOrchestrator.Vary.CacheVarySurface surface) -> CacheOrchestrator.Vary.CacheVaryMaterial!
+CacheOrchestrator.Vary.CacheVaryMaterializer.CacheVaryMaterializer() -> void
+CacheOrchestrator.Vary.CacheVaryMaterializer.CacheVaryMaterializer(System.Collections.Generic.IEnumerable<CacheOrchestrator.Vary.ICacheVaryContributor!>! contributors) -> void
+CacheOrchestrator.Vary.CacheVarySurface
+CacheOrchestrator.Vary.CacheVarySurface.Fusion = 1 -> CacheOrchestrator.Vary.CacheVarySurface
+CacheOrchestrator.Vary.CacheVarySurface.OutputCache = 0 -> CacheOrchestrator.Vary.CacheVarySurface
+CacheOrchestrator.Vary.ICacheVaryBuilder
+CacheOrchestrator.Vary.ICacheVaryBuilder.AddHashedValue(string! key, string! raw) -> void
+CacheOrchestrator.Vary.ICacheVaryBuilder.AddHeader(string! headerName) -> void
+CacheOrchestrator.Vary.ICacheVaryBuilder.AddValue(string! key, string! value) -> void
+CacheOrchestrator.Vary.ICacheVaryContributor
+CacheOrchestrator.Vary.ICacheVaryContributor.Contribute(CacheOrchestrator.Vary.CacheVaryContext! context, CacheOrchestrator.Vary.ICacheVaryBuilder! builder) -> void
+CacheOrchestrator.Vary.ICacheVaryContributor.Order.get -> int
+const CacheOrchestrator.Identity.CacheIdentities.Url = "__cache_orchestrator.url__" -> string!
+const CacheOrchestrator.Identity.ContentHashCacheIdentityAttribute.DefaultMaxBodyBytes = 65536 -> int
+const CacheOrchestrator.Vary.CacheVaryMaterializer.MaxVaryByCookies = 8 -> int
+const CacheOrchestrator.Vary.CacheVaryMaterializer.MaxVaryByHeaders = 8 -> int
+Microsoft.AspNetCore.Http.CacheOrchestratorHttpContextExtensions
+override CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.GetHashCode() -> int
+static CacheOrchestrator.Admin.AdminLocalApi.Map(Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
+static CacheOrchestrator.Configuration.CacheETagFactory.FromVersion(string! version) -> Microsoft.Extensions.Primitives.StringValues
+static CacheOrchestrator.Configuration.CacheETagFactory.FromVersionAndResource(string! versionHex, string! resourceKey) -> Microsoft.Extensions.Primitives.StringValues
+static CacheOrchestrator.Configuration.CacheETagFactory.FromVersionAndResource(string! versionHex, System.ReadOnlySpan<char> part1, System.ReadOnlySpan<char> part2 = default(System.ReadOnlySpan<char>), System.ReadOnlySpan<char> part3 = default(System.ReadOnlySpan<char>)) -> Microsoft.Extensions.Primitives.StringValues
+static CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Build(CacheOrchestrator.Configuration.DomainHttpCacheOptions! config, System.DateTimeOffset now, CacheOrchestrator.Configuration.ClientCacheability? cacheabilityOverride = null) -> CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result
+static CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.operator !=(CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result left, CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result right) -> bool
+static CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.operator ==(CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result left, CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result right) -> bool
+static CacheOrchestrator.Configuration.DomainAuthEvaluator.GetEffectiveAuthBypassMode(CacheOrchestrator.Configuration.DomainHttpCacheOptions! options) -> CacheOrchestrator.Configuration.AuthBypassMode
+static CacheOrchestrator.Configuration.DomainAuthEvaluator.HasAuthSignal(Microsoft.AspNetCore.Http.HttpContext! http, CacheOrchestrator.Configuration.DomainHttpCacheOptions! options) -> bool
+static CacheOrchestrator.Configuration.DomainAuthEvaluator.ResolveAuthenticatedVaryKey(Microsoft.AspNetCore.Http.HttpContext! http, CacheOrchestrator.Configuration.DomainHttpCacheOptions! options) -> string!
+static CacheOrchestrator.Configuration.DomainAuthEvaluator.ShouldBypassForAuth(Microsoft.AspNetCore.Http.HttpContext! http, CacheOrchestrator.Configuration.DomainHttpCacheOptions! options) -> bool
+static CacheOrchestrator.Configuration.XCacheHeaderFormatter.Format(string! domain, CacheOrchestrator.Configuration.ClientCacheClass client, CacheOrchestrator.Configuration.OutputCacheResult output, CacheOrchestrator.Configuration.DataCacheResult? data, long? ms, string! version, CacheOrchestrator.Configuration.ClientCacheSchedulePhase phase = CacheOrchestrator.Configuration.ClientCacheSchedulePhase.NotApplicable) -> string!
+static CacheOrchestrator.Configuration.XCacheHeaderFormatter.PhaseToString(CacheOrchestrator.Configuration.ClientCacheSchedulePhase phase) -> string!
+static CacheOrchestrator.DataCache.IDomainDataCacheExtensions.SetEntityIdentity<TId>(this CacheOrchestrator.DataCache.IDomainDataCache! cache, Microsoft.AspNetCore.Http.HttpContext! http, string! entityKind, TId resourceId) -> void
+static CacheOrchestrator.DependencyInjection.ApplicationBuilderExtensions.MapCacheOrchestratorAdmin(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
+static CacheOrchestrator.DependencyInjection.ApplicationBuilderExtensions.UseCacheOrchestrator(this Microsoft.AspNetCore.Builder.IApplicationBuilder! app) -> Microsoft.AspNetCore.Builder.IApplicationBuilder!
+static CacheOrchestrator.DependencyInjection.ServiceCollectionExtensions.AddCacheOrchestratorAspNetCore(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration, System.Action<CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder!>? configure = null, string! configSection = "Cache", bool enableMvcConvention = true) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static CacheOrchestrator.Diagnostics.CacheOrchestratorMetricsHttpExtensions.TryGetEndpointRouteLabel(Microsoft.AspNetCore.Http.HttpContext! http) -> string?
+static CacheOrchestrator.Identity.CacheIdentityAttribute.PopulateMetadata(System.Reflection.MethodInfo! method, Microsoft.AspNetCore.Builder.EndpointBuilder! builder) -> void
+static CacheOrchestrator.Identity.CacheIdentityEndpointExtensions.WithCacheIdentity(this Microsoft.AspNetCore.Builder.RouteHandlerBuilder! builder, System.Collections.Generic.IEnumerable<string!>! methods, string! contractName) -> Microsoft.AspNetCore.Builder.RouteHandlerBuilder!
+static CacheOrchestrator.Identity.CacheIdentityEndpointExtensions.WithContentHashCacheIdentity(this Microsoft.AspNetCore.Builder.RouteHandlerBuilder! builder, System.Collections.Generic.IEnumerable<string!>! methods, int maxBodyBytes = 65536) -> Microsoft.AspNetCore.Builder.RouteHandlerBuilder!
+static CacheOrchestrator.Identity.CacheIdentityMaterial.Empty.get -> CacheOrchestrator.Identity.CacheIdentityMaterial!
+static CacheOrchestrator.Identity.CacheIdentityServiceCollectionExtensions.AddCacheIdentityContract<TContract>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static CacheOrchestrator.Identity.ContentHashCacheIdentityAttribute.PopulateMetadata(System.Reflection.MethodInfo! method, Microsoft.AspNetCore.Builder.EndpointBuilder! builder) -> void
+static CacheOrchestrator.OutputCache.EndpointConventionBuilderExtensions.CacheOutputWithDomain(this Microsoft.AspNetCore.Builder.RouteHandlerBuilder! builder, string! domain) -> Microsoft.AspNetCore.Builder.RouteHandlerBuilder!
+static CacheOrchestrator.OutputCache.EndpointConventionBuilderExtensions.CacheOutputWithDomain(this Microsoft.AspNetCore.Builder.RouteHandlerBuilder! builder, string! domain, string! entityKind) -> Microsoft.AspNetCore.Builder.RouteHandlerBuilder!
+static CacheOrchestrator.OutputCache.EndpointConventionBuilderExtensions.CacheOutputWithDomain(this Microsoft.AspNetCore.Builder.RouteHandlerBuilder! builder, string! domain, string! resourceRouteKey, string! entityKind) -> Microsoft.AspNetCore.Builder.RouteHandlerBuilder!
+static CacheOrchestrator.OutputCache.EndpointConventionBuilderExtensions.CacheOutputWithDomain(this Microsoft.AspNetCore.Builder.RouteHandlerBuilder! builder, System.Func<Microsoft.AspNetCore.Http.HttpContext!, string!>! domainResolver) -> Microsoft.AspNetCore.Builder.RouteHandlerBuilder!
+static CacheOrchestrator.OutputCache.EndpointConventionBuilderExtensions.CacheOutputWithDomain(this Microsoft.AspNetCore.Builder.RouteHandlerBuilder! builder, System.Func<Microsoft.AspNetCore.Http.HttpContext!, string!>! domainResolver, string! entityKind) -> Microsoft.AspNetCore.Builder.RouteHandlerBuilder!
+static CacheOrchestrator.OutputCache.EndpointConventionBuilderExtensions.CacheOutputWithDomain(this Microsoft.AspNetCore.Builder.RouteHandlerBuilder! builder, System.Func<Microsoft.AspNetCore.Http.HttpContext!, string!>! domainResolver, string! resourceRouteKey, string! entityKind) -> Microsoft.AspNetCore.Builder.RouteHandlerBuilder!
+static CacheOrchestrator.OutputCache.EndpointConventionBuilderExtensions.CacheOutputWithDomainAttribute<TBuilder>(this TBuilder builder) -> TBuilder
+static CacheOrchestrator.OutputCache.EndpointConventionBuilderExtensions.CacheOutputWithDomainTemplate(this Microsoft.AspNetCore.Builder.RouteHandlerBuilder! builder, string! template, System.Collections.Generic.IReadOnlyDictionary<string!, System.Func<Microsoft.AspNetCore.Http.HttpContext!, string?>!>? customProviders = null) -> Microsoft.AspNetCore.Builder.RouteHandlerBuilder!
+static CacheOrchestrator.Utilities.DomainTemplateCompiler.GetOrAdd(string! template, System.Collections.Generic.IReadOnlyDictionary<string!, System.Func<Microsoft.AspNetCore.Http.HttpContext!, string?>!>? customProviders = null) -> System.Func<Microsoft.AspNetCore.Http.HttpContext!, string!>!
+static CacheOrchestrator.Vary.CacheVaryMaterializer.CollectQueryKeysForOutputCache(Microsoft.AspNetCore.Http.IQueryCollection! query, CacheOrchestrator.Configuration.DomainHttpCacheOptions! options) -> Microsoft.Extensions.Primitives.StringValues
+static CacheOrchestrator.Vary.CacheVaryMaterializer.HashSegment(string! raw) -> string!
+static CacheOrchestrator.Vary.CacheVaryMaterializer.IsSensitiveHeader(string! headerName) -> bool
+static CacheOrchestrator.Vary.CacheVaryMaterializer.ResolveQueryKeys(Microsoft.AspNetCore.Http.IQueryCollection! query, CacheOrchestrator.Configuration.DomainHttpCacheOptions! options) -> System.Collections.Generic.IReadOnlyList<string!>!
+static Microsoft.AspNetCore.Http.CacheOrchestratorHttpContextExtensions.GetDomainCacheOptions(this Microsoft.AspNetCore.Http.HttpContext! httpContext) -> CacheOrchestrator.Configuration.DomainHttpCacheOptions?
+~override CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.Equals(object obj) -> bool
+~override CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.ToString() -> string

@@ -3,28 +3,39 @@ import { json } from '@codemirror/lang-json';
 import { oneDark } from '@codemirror/theme-one-dark';
 
 // ─── DOM refs ───────────────────────────────────────────────────────────────
-const logEl           = document.getElementById('log');
-const endpointEl      = document.getElementById('endpoint');
-const domainNameEl    = document.getElementById('domainName');
 const editorOverlay   = document.getElementById('editorOverlay');
 const editorMount     = document.getElementById('editorMount');
 const editorErrorEl   = document.getElementById('editorError');
 const logHintEl       = document.getElementById('logHint');
-const btnOnceEl       = document.getElementById('btnOnce');
-const btnTwiceEl      = document.getElementById('btnTwice');
-const panelDomain     = document.getElementById('panelDomain');
-const panelCrud       = document.getElementById('panelCrud');
+const responseTitleEl = document.getElementById('responseTitle');
+const panelGettingStarted = document.getElementById('panelGettingStarted');
+const panelVary       = document.getElementById('panelVary');
 const panelPost       = document.getElementById('panelPost');
+const promotionsBackendEl = document.getElementById('promotionsBackend');
 const crudBackendEl   = document.getElementById('crudBackend');
+const varyBackendEl   = document.getElementById('varyBackend');
 const postBackendEl   = document.getElementById('postBackend');
 
-const CRUD_URL = '/api/crud/products/42';
-const CRUD_DOMAIN = 'product-crud';
+const PROMOTIONS_URL = '/api/promotions';
+const CRUD_URL = '/api/products/42';
+const VARY_URL = '/api/vary-demo';
+const VARY_DOMAIN = 'vary-demo';
 const POST_SEARCH_URL = '/api/demo/search';
 const POST_CREATE_URL = '/api/demo/products';
 const POST_DOMAIN = 'product-search';
+const DEMO_REQUEST_ID_HEADER = 'X-Demo-Request-Id';
 
-let endpoints = [];
+const responseLogs = {
+    'getting-started': document.getElementById('logGettingStarted'),
+    vary: document.getElementById('logVary'),
+    post: document.getElementById('logPost'),
+};
+const responseTitles = {
+    'getting-started': 'Getting started responses',
+    vary: 'Vary responses',
+    post: 'POST identity responses',
+};
+let activePanelName = 'getting-started';
 
 // ─── CodeMirror editor instance ─────────────────────────────────────────────
 let cmEditor = null;
@@ -46,50 +57,34 @@ function getEditorContent() {
     return cmEditor ? cmEditor.state.doc.toString() : '';
 }
 
-function selectedEndpoint() {
-    const key = endpointEl.value;
-    return endpoints.find(x => optionKey(x) === key) ?? null;
-}
-
-function optionKey(e) {
-    return `${(e.method || 'GET').toUpperCase()} ${e.url}`;
-}
-
 async function loadEndpoints() {
     const all = await (await fetch('/api/demo/endpoints', { cache: 'no-store' })).json();
-    // Domain panel: config-driven routes only (CRUD lives in its own panel).
-    endpoints = all.filter(e => e.source !== 'hardcoded');
-    endpointEl.innerHTML = endpoints.map(e => {
-        const method = (e.method || 'GET').toUpperCase();
-        const label = e.label || e.url;
-        return `<option value="${escAttr(optionKey(e))}">${escHtml(method)} ${escHtml(label)} (${escHtml(e.domain)})</option>`;
-    }).join('');
-    updateDomainLabel();
+    const promotions = all.find(e => e.group === 'getting-started' && e.url === PROMOTIONS_URL);
+    const crud = all.find(e => e.group === 'getting-started' && (e.url || '').startsWith('/api/products/'));
+    const vary = all.find(e => e.group === 'vary');
 
-    const crud = all.find(e => e.source === 'hardcoded' && e.domain === CRUD_DOMAIN)
-        || all.find(e => (e.url || '').includes('/api/crud/products'));
+    if (promotionsBackendEl) {
+        promotionsBackendEl.textContent = promotions?.backend || '…';
+    }
     if (crudBackendEl) {
         crudBackendEl.textContent = crud?.backend || '…';
     }
+    if (varyBackendEl) {
+        varyBackendEl.textContent = vary?.backend || '…';
+    }
 
-    const postMeta = all.find(e => e.source === 'hardcoded' && e.domain === POST_DOMAIN && (e.url || '').includes('/api/demo/search'))
+    const postMeta = all.find(e => e.group === 'post' && e.domain === POST_DOMAIN && (e.url || '').includes('/api/demo/search'))
         || all.find(e => e.domain === POST_DOMAIN);
     if (postBackendEl) {
         postBackendEl.textContent = postMeta?.backend || '…';
     }
 }
 
-function updateDomainLabel() {
-    const e = selectedEndpoint();
-    domainNameEl.textContent = e?.domain ?? '—';
-    document.getElementById('domainBackend').textContent = e?.backend ?? '…';
-}
-
 // ─── Panel switch ────────────────────────────────────────────────────────────
 function setPanel(name) {
     const panels = [
-        { el: panelDomain, key: 'domain' },
-        { el: panelCrud, key: 'crud' },
+        { el: panelGettingStarted, key: 'getting-started' },
+        { el: panelVary, key: 'vary' },
         { el: panelPost, key: 'post' },
     ];
     for (const p of panels) {
@@ -103,6 +98,18 @@ function setPanel(name) {
         tab.classList.toggle('active', on);
         tab.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+
+    activePanelName = name;
+    for (const [key, log] of Object.entries(responseLogs)) {
+        const on = key === name;
+        log?.classList.toggle('hidden', !on);
+        if (log) {
+            log.hidden = !on;
+            log.setAttribute('aria-hidden', on ? 'false' : 'true');
+        }
+    }
+    responseTitleEl.textContent = responseTitles[name] || 'Responses';
+    updateLogHint();
 }
 
 document.querySelectorAll('.panel-tab').forEach((tab) => {
@@ -110,10 +117,8 @@ document.querySelectorAll('.panel-tab').forEach((tab) => {
 });
 
 // ─── Fetch helpers ───────────────────────────────────────────────────────────
-function pickDomainUrl() {
-    const e = selectedEndpoint();
-    let url = e?.url || endpointEl.value;
-    url = url.replace(/{id}/g, '42').replace(/{[^}]+}/g, 'demo');
+function buildVaryUrl() {
+    let url = VARY_URL;
     const extra = document.getElementById('extraQuery').value.trim();
     if (extra) url += (url.includes('?') ? '&' : '?') + extra.replace(/^\?/, '');
     return url;
@@ -122,8 +127,7 @@ function pickDomainUrl() {
 /**
  * Fetch options for playground requests.
  * Default cache: 'no-store' (server OC/DC visible). Checkbox uses cache: 'default' for client max-age demos.
- */
-/**
+ *
  * @param {'GET'|'PUT'|'POST'} [method]
  * @param {{ disableBrowserCache?: boolean, price?: number, jsonBody?: object }} [opts]
  */
@@ -131,9 +135,11 @@ function buildFetchInit(method = 'GET', { disableBrowserCache = true, price, jso
     /** @type {RequestInit} */
     const init = {
         method,
-        // Fetch cache mode only — not HTTP Cache-Control: no-store (server OC/DC still run).
+        // Browser fetch cache mode only; server OC/DC still run normally.
         cache: disableBrowserCache ? 'no-store' : 'default',
-        headers: {},
+        headers: {
+            [DEMO_REQUEST_ID_HEADER]: crypto.randomUUID(),
+        },
     };
     const acceptEl = document.getElementById('acceptHeader');
     if (acceptEl?.value) {
@@ -235,33 +241,36 @@ function escHtml(s) {
         .replace(/"/g, '&quot;');
 }
 
-function escAttr(s) {
-    return escHtml(s).replace(/'/g, '&#39;');
-}
-
 /**
  * @param {string} url
  * @param {RequestInit} init
+ * @param {'getting-started'|'vary'|'post'} responsePanel
  */
-async function runRequest(url, init) {
+async function runRequest(url, init, responsePanel) {
     const method = (init.method || 'GET').toUpperCase();
+    const requestId = new Headers(init.headers).get(DEMO_REQUEST_ID_HEADER) || '';
     const started = performance.now();
 
     let res;
     try {
         res = await fetch(url, init);
     } catch (err) {
-        appendLog({ error: String(err), url: `${method} ${url}` });
+        appendLog({ error: String(err), url: `${method} ${url}` }, responsePanel);
         return;
     }
 
     const ms = Math.round(performance.now() - started);
     const body = await res.text();
 
-    let isBrowserCache = false;
+    const echoedRequestId = res.headers.get(DEMO_REQUEST_ID_HEADER) || '';
+    let isBrowserCache = requestId !== '' && echoedRequestId !== requestId;
+
+    // Keep Resource Timing as a fallback for environments that strip the demo
+    // echo header. It is useful supporting evidence, but not reliable enough
+    // to be the primary browser-cache signal on its own.
     await new Promise(r => requestAnimationFrame(() => r()));
     const pEntries = performance.getEntriesByName(res.url);
-    if (pEntries.length > 0) {
+    if (!isBrowserCache && echoedRequestId === '' && pEntries.length > 0) {
         const lastEntry = pEntries[pEntries.length - 1];
         if (lastEntry.transferSize === 0 && lastEntry.decodedBodySize > 0) {
             isBrowserCache = true;
@@ -283,7 +292,7 @@ async function runRequest(url, init) {
         body,
         phase,
         status: res.status,
-    });
+    }, responsePanel);
 }
 
 /** Header checkbox — default true: bypass browser HTTP cache; server OC/DC unchanged. */
@@ -293,28 +302,36 @@ function isBrowserCacheDisabled() {
     return el ? !!el.checked : true;
 }
 
-async function fetchDomainOnce() {
-    await runRequest(pickDomainUrl(), buildFetchInit('GET', {
+async function fetchVaryOnce() {
+    await runRequest(buildVaryUrl(), buildFetchInit('GET', {
         disableBrowserCache: isBrowserCacheDisabled(),
-    }));
+    }), 'vary');
+}
+
+async function fetchPromotionsOnce() {
+    await runRequest(PROMOTIONS_URL, buildFetchInit('GET', {
+        disableBrowserCache: isBrowserCacheDisabled(),
+    }), 'getting-started');
 }
 
 async function fetchCrudOnce() {
     await runRequest(CRUD_URL, buildFetchInit('GET', {
         disableBrowserCache: isBrowserCacheDisabled(),
-    }));
+    }), 'getting-started');
 }
 
-function logInvalidateResult(title, body) {
+function logInvalidateResult(title, body, responsePanel) {
+    const log = responseLogs[responsePanel];
     const entry = document.createElement('div');
     entry.className = 'entry';
     entry.innerHTML = `<div class="meta"><span class="tag phase-hold">${escHtml(title)}</span></div>
 <div class="headers">${escHtml(JSON.stringify(body, null, 2))}</div>`;
-    logEl.prepend(entry);
-    logHintEl.textContent = `${logEl.children.length} request(s)`;
+    log.prepend(entry);
+    updateLogHint();
 }
 
-function appendLog({ isBrowserCache, xcache, cc, etag, demoMs, ms, url, body, phase, status, error }) {
+function appendLog({ isBrowserCache, xcache, cc, etag, demoMs, ms, url, body, phase, status, error }, responsePanel) {
+    const log = responseLogs[responsePanel];
     const entry = document.createElement('div');
     entry.className = 'entry';
 
@@ -325,28 +342,38 @@ function appendLog({ isBrowserCache, xcache, cc, etag, demoMs, ms, url, body, ph
         const sourceTag = isBrowserCache
             ? `<span class="tag browser">BROWSER-CACHE</span>`
             : cacheTag(xcache);
+        const displayedXCache = isBrowserCache
+            ? '— (browser cache; server was not contacted)'
+            : (xcache || '—');
+        const displayedServerMs = isBrowserCache ? '' : demoMs;
 
         entry.innerHTML = `
 <div class="meta">
   ${sourceTag}
-  ${phaseTag(phase)}
+  ${phaseTag(isBrowserCache ? '' : phase)}
   ${status !== 200 ? `<strong>${status}</strong> ` : ''}<span class="url">${escHtml(url)}</span>
-  · ${ms} ms client${demoMs ? ` · ${demoMs} ms server` : ''}
+  · ${ms} ms client${displayedServerMs ? ` · ${displayedServerMs} ms server` : ''}
 </div>
 <div class="headers">cache-control: ${escHtml(cc || '—')}
 etag: ${escHtml(etag || '—')}
-x-cache: ${escHtml(xcache || '—')}
+x-cache: ${escHtml(displayedXCache)}
 
 body: ${escHtml((body || '').slice(0, 600))}</div>`;
     }
 
-    logEl.prepend(entry);
-    logHintEl.textContent = `${logEl.children.length} request(s)`;
+    log.prepend(entry);
+    updateLogHint();
+    return entry;
 }
 
-function clearLog() {
-    logEl.innerHTML = '';
-    logHintEl.textContent = '';
+function updateLogHint() {
+    const count = responseLogs[activePanelName]?.children.length || 0;
+    logHintEl.textContent = count > 0 ? `${count} request(s)` : '';
+}
+
+function clearLog(responsePanel) {
+    responseLogs[responsePanel].innerHTML = '';
+    updateLogHint();
 }
 
 // ─── JSON editor modal ───────────────────────────────────────────────────────
@@ -370,6 +397,7 @@ function closeEditor() {
 }
 
 async function saveSettings() {
+    const responsePanel = activePanelName;
     const content = getEditorContent();
 
     try {
@@ -392,12 +420,12 @@ async function saveSettings() {
     if (res.ok) {
         closeEditor();
         await loadEndpoints();
-        appendLog({
+        const entry = appendLog({
             error: null, xcache: '', cc: '', etag: '', demoMs: '', ms: 0,
             url: 'appsettings.json', body: '', phase: '', status: 200,
             isBrowserCache: false,
-        });
-        logEl.firstChild.querySelector('.meta').innerHTML =
+        }, responsePanel);
+        entry.querySelector('.meta').innerHTML =
             `<span class="tag phase-calm">SAVED</span> appsettings.json — config reloaded (no invalidation)`;
     } else {
         let msg = 'Save failed.';
@@ -411,8 +439,11 @@ async function saveSettings() {
 }
 
 // ─── Event listeners ─────────────────────────────────────────────────────────
-btnOnceEl.onclick = () => fetchDomainOnce();
-btnTwiceEl.onclick = async () => { await fetchDomainOnce(); await fetchDomainOnce(); };
+document.getElementById('btnPromotionsFetch').onclick = () => fetchPromotionsOnce();
+document.getElementById('btnPromotionsFetchTwice').onclick = async () => {
+    await fetchPromotionsOnce();
+    await fetchPromotionsOnce();
+};
 
 document.getElementById('btnCrudFetch').onclick = () => fetchCrudOnce();
 document.getElementById('btnCrudFetchTwice').onclick = async () => {
@@ -423,23 +454,21 @@ document.getElementById('btnPutProduct').onclick = async () => {
     const price = readProductPrice();
     if (price == null) return;
     // Writes always go to the network.
-    await runRequest(CRUD_URL, buildFetchInit('PUT', { disableBrowserCache: true, price }));
+    await runRequest(CRUD_URL, buildFetchInit('PUT', { disableBrowserCache: true, price }), 'getting-started');
 };
-document.getElementById('btnInvalidateEntity').onclick = async () => {
-    const res = await fetch(
-        `/api/demo/invalidate-entity/${encodeURIComponent(CRUD_DOMAIN)}/products/42`,
-        { method: 'POST', cache: 'no-store' });
-    const body = await res.json();
-    logInvalidateResult('INVALIDATE ENTITY products/42', body);
+document.getElementById('btnGettingStartedClear').onclick = () => clearLog('getting-started');
+document.getElementById('btnVaryOnce').onclick = () => fetchVaryOnce();
+document.getElementById('btnVaryTwice').onclick = async () => {
+    await fetchVaryOnce();
+    await fetchVaryOnce();
 };
-document.getElementById('btnClear').onclick = clearLog;
-document.getElementById('btnCrudClear').onclick = clearLog;
-document.getElementById('btnPostClear').onclick = clearLog;
+document.getElementById('btnVaryClear').onclick = () => clearLog('vary');
+document.getElementById('btnPostClear').onclick = () => clearLog('post');
 
 async function fetchPostSearchOnce() {
     const disableBrowserCache = document.getElementById('disableBrowserCache')?.checked ?? true;
     const body = readPostSearchBody();
-    await runRequest(POST_SEARCH_URL, buildFetchInit('POST', { disableBrowserCache, jsonBody: body }));
+    await runRequest(POST_SEARCH_URL, buildFetchInit('POST', { disableBrowserCache, jsonBody: body }), 'post');
 }
 
 document.getElementById('btnPostSearchOnce').onclick = () => fetchPostSearchOnce();
@@ -452,21 +481,16 @@ document.getElementById('btnPostCreate').onclick = async () => {
     await runRequest(POST_CREATE_URL, buildFetchInit('POST', {
         disableBrowserCache,
         jsonBody: { name: 'New item' },
-    }));
+    }), 'post');
 };
 
-endpointEl.onchange = updateDomainLabel;
-
-document.getElementById('btnInvalidate').onclick = async () => {
-    const e = selectedEndpoint();
-    const domain = e?.domain ?? '';
-    if (!domain) return;
-    const res = await fetch(`/api/demo/invalidate/${encodeURIComponent(domain)}`, {
+document.getElementById('btnVaryInvalidate').onclick = async () => {
+    const res = await fetch(`/api/demo/invalidate/${encodeURIComponent(VARY_DOMAIN)}`, {
         method: 'POST',
         cache: 'no-store',
     });
     const body = await res.json();
-    logInvalidateResult(`INVALIDATE DOMAIN ${domain}`, body);
+    logInvalidateResult(`INVALIDATE DOMAIN ${VARY_DOMAIN}`, body, 'vary');
 };
 
 document.getElementById('btnEditSettings').onclick = openEditor;
@@ -483,5 +507,5 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ─── Init ────────────────────────────────────────────────────────────────────
-setPanel('domain');
+setPanel('getting-started');
 loadEndpoints();

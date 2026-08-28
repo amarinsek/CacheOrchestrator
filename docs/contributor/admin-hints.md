@@ -90,7 +90,7 @@ Full disable options and pack examples: [hints/README.md](../../src/CacheOrchest
 | **Warning** | Fault worth fixing (high factory share, stale covering failures, drift, hard &lt; soft TTL, lingering hold) |
 | **Info** | Operational note (approaching cutover, recent hold, runtime overlay, frequent invalidations) |
 
-**Factory share** in Admin is `factoryRuns / requests` (API: `factoryShare`). **Factory** is also known as **origin** in CDN terms. Prefer factory share / factory failure rate over raw data-cache hit rate. A 0% DC layer rate with low factory share is often normal when Output Cache absorbs traffic.
+**Factory share** in Admin is `factoryRuns / requests` (API: `factoryShare`). **Factory** is also known as **origin** in CDN terms. Prefer factory share / factory failure rate over raw Data Cache hit rate. A 0% Data Cache layer rate with low factory share is often normal when Output Cache absorbs traffic.
 
 ---
 
@@ -110,7 +110,7 @@ Shipped in `core-hints.json` (domain and/or endpoint scope as applicable):
 | `client-ttl-gt-output`, `schedule-flat` | Client TTL / ramp |
 | `fusion-hard-lt-soft` | Fusion soft vs hard |
 | `runtime-override` | Runtime Version/TTL overlay |
-| `instance-oc-hit-spread`, `instance-factory-spread` | Cross-instance OC / factory share drift |
+| `instance-oc-hit-spread`, `instance-factory-spread` | Cross-instance Output Cache / factory share drift |
 
 Exact thresholds, messages, and `badge` labels: open **`core-hints.json`** or Settings → click a row.
 
@@ -146,4 +146,4 @@ Exact thresholds, messages, and `badge` labels: open **`core-hints.json`** or Se
 - **[Writing rules (distributed with Admin)](../../src/CacheOrchestrator.AdminConsole/hints/README.md)**  
 - [Admin Console App README](../../src/CacheOrchestrator.AdminConsole/README.md)  
 - [admin.md](../reference/admin.md)  
-- [client-cache-schedule.md](../guide/client-cache-schedule.md)  
+- [Client Cache Schedule](../guide/client-cache-schedule.md)

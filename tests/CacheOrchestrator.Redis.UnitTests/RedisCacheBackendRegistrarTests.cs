@@ -17,12 +17,9 @@ public class RedisCacheBackendRegistrarTests
     public void Name_IsRedis() => _sut.Name.Should().Be("Redis");
 
     [Fact]
-    public void SupportsOutputCacheStore_IsTrue() => _sut.SupportsOutputCacheStore.Should().BeTrue();
-
-    [Fact]
     public void MetaRegistrar_ImplementsBothSurfaces()
     {
-        _sut.Should().BeAssignableTo<ICacheBackendRegistrar>();
+        _sut.Should().BeAssignableTo<IOutputCacheBackendRegistrar>();
         _sut.Should().BeAssignableTo<IFusionCacheBackendRegistrar>();
     }
 

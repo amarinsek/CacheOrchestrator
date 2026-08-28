@@ -52,6 +52,7 @@ public class RedisFusionCacheBackendRegistrarTests
 
         Action act = () => _sut.RegisterFusionCache(context);
         act.Should().NotThrow();
+        services.Should().Contain(d => d.ServiceType == typeof(ICacheOrchestratorHealthProbe));
     }
 
     [Fact]
@@ -88,30 +89,9 @@ public class RedisFusionCacheBackendRegistrarTests
     }
 
     [Fact]
-    public void RegisterHealthProbes_AddsProbeForInstance()
-    {
-        var services = new ServiceCollection();
-        var options = new CacheOrchestratorOptions();
-        var instanceOpts = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" };
-        IConfigurationRoot configuration = new ConfigurationBuilder().Build();
-        var context = new FusionBackendHealthRegistrationContext(
-            services, configuration, "Cache", "pii", "Redis", options, instanceOpts);
-
-        _sut.RegisterHealthProbes(context);
-        services.Should().Contain(d => d.ServiceType == typeof(ICacheOrchestratorHealthProbe));
-    }
-
-    [Fact]
     public void RegisterFusionCache_WhenContextIsNull_Throws()
     {
         Action act = () => _sut.RegisterFusionCache(null!);
-        act.Should().Throw<ArgumentNullException>();
-    }
-
-    [Fact]
-    public void RegisterHealthProbes_WhenContextIsNull_Throws()
-    {
-        Action act = () => _sut.RegisterHealthProbes(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 

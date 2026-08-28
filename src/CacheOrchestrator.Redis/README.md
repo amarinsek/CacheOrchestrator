@@ -1,8 +1,8 @@
 # CacheOrchestrator.Redis
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model.
+[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
-This is the **meta** Redis package: Output Cache store **and** Fusion data-cache L2 / backplane. Prefer it for typical web apps.
+This is the **meta** Redis package: Output Cache store **and** Fusion Data Cache L2 / backplane. Prefer it for typical web apps.
 
 - Output Cache only: `CacheOrchestrator.AspNetCore.Redis`
 - Fusion L2 only (no ASP.NET): `CacheOrchestrator.FusionCache.Redis`
@@ -14,7 +14,7 @@ This is the **meta** Redis package: Output Cache store **and** Fusion data-cache
 dotnet add package CacheOrchestrator.Redis --prerelease
 ```
 
-## Config
+## Configuration
 
 ```json
 {
@@ -28,7 +28,7 @@ dotnet add package CacheOrchestrator.Redis --prerelease
 
 Default connection: `Cache:Redis`. Overrides: `Cache:OutputCache:Redis`, `Cache:DataCacheInstances:{name}:Redis`. Set `"OutputCache": { "Provider": "Redis" }` to store full HTTP responses in Redis as well.
 
-## Example
+## Usage
 
 ```bash
 dotnet add package CacheOrchestrator --prerelease
@@ -40,26 +40,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 
 var app = builder.Build();
 app.UseCacheOrchestrator();
-
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
-{
-    var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
-    return Results.Json(data);
-})
-.CacheOutputWithDomain("catalog");
 ```
-
-## Related packages
-
-| Package | Role |
-|---------|------|
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package (AspNetCore + Fusion) for typical web apps |
-| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Http-free domains and `ICacheOrchestrator` |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, Admin API, `IDomainDataCache` |
-| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | FusionCache data-cache provider |
-| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache only (from **3.0.0-beta.3**) |
-| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 only (from **3.0.0-beta.3**) |
-| `CacheOrchestrator.Redis.Shared` | Support / transitive — do not install alone |
 
 ## Documentation
 

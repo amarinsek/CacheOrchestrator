@@ -2,15 +2,15 @@
 
 > **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md). Canonical detail for Redis and custom registrars.
 
-Policy (domains, TTLs, invalidation, client headers) is separate from **storage**. InMemory ships with the host packages. Redis is `CacheOrchestrator.Redis`. Any other provider name is a registrar you implement and pass to `AddBackend`. See [packages.md](../guide/packages.md), [comparison.md](../guide/comparison.md), and [faq.md](../guide/faq.md).
+Policy (domains, TTLs, invalidation, Client Cache) is separate from **storage**. InMemory ships with the host packages and Redis is supplied by focused integration packages. Custom storage has three distinct boundaries: an Output Cache store, FusionCache L2/backplane, or a complete Data Cache engine. Do not use one registrar as though it configured all three.
 
 ## First-party backends
 
-| Provider | Package | Registration | Output Cache | Data-cache L2 (Fusion) |
+| Provider | Package | Registration | Output Cache | Data Cache L2 (Fusion) |
 |----------|---------|--------------|--------------|------------------------|
 | **InMemory** | Core / AspNetCore / meta | Automatic | ASP.NET in-process store (+ size limits) | None (L1 only) |
 | **Redis** (meta) | `CacheOrchestrator.Redis` | `o.AddRedisBackend()` | Redis Output Cache store | Keyed Redis L2 + backplane |
-| **Redis** (OC only) | `CacheOrchestrator.AspNetCore.Redis` | `o.AddRedisOutputCacheBackend()` | Redis Output Cache store | — |
+| **Redis** (Output Cache only) | `CacheOrchestrator.AspNetCore.Redis` | `o.AddRedisOutputCacheBackend()` | Redis Output Cache store | — |
 | **Redis** (Fusion only) | `CacheOrchestrator.FusionCache.Redis` | `AddRedisFusionCacheBackend(...)` | — | Keyed Redis L2 + backplane |
 
 `CacheOrchestrator.Redis.Shared` is a **support** package (transitive). Do not install it alone.
@@ -20,14 +20,14 @@ Policy (domains, TTLs, invalidation, client headers) is separate from **storage*
 Typical web apps and labs (both surfaces):
 
 ```bash
-dotnet add package CacheOrchestrator.Redis --prerelease
+dotnet add package CacheOrchestrator.Redis
 ```
 
-Single surface (**from release 3.0.0-beta.3** onwards):
+Install only the storage surface you need:
 
 ```bash
-dotnet add package CacheOrchestrator.AspNetCore.Redis --prerelease
-dotnet add package CacheOrchestrator.FusionCache.Redis --prerelease
+dotnet add package CacheOrchestrator.AspNetCore.Redis
+dotnet add package CacheOrchestrator.FusionCache.Redis
 ```
 
 ## Register
@@ -46,6 +46,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 ## Configure
 
 ```json
+{
 "Cache": {
   "OutputCache": { "Provider": "InMemory" },
   "DataCacheInstances": {
@@ -58,6 +59,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
     "CircuitBreakerSeconds": 5
   }
 }
+}
 ```
 
 `Cache:Redis` (and optional `…:OutputCache:Redis` / `…:DataCacheInstances:{name}:Redis`) is read by the **Redis package**, not by core `CacheOrchestratorOptions`.  
@@ -67,9 +69,10 @@ Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
 
 | Responsibility | Package / interface | How |
 |----------------|---------------------|-----|
-| **Output Cache store** | AspNetCore `ICacheBackendRegistrar` | `SupportsOutputCacheStore = true`, implement `RegisterOutputCache` |
-| **Data-cache L2 (Fusion)** | FusionCache `IFusionCacheBackendRegistrar` | `RegisterFusionCache` — **keyed** `IDistributedCache` per instance name; register via `AddFusionCacheBackend` or Redis `AddRedisBackend` |
-| **Health probes** | Both (optional) | `RegisterHealthProbes` → `ICacheOrchestratorHealthProbe`. Redis registers probes for OC (`oc`) and each Fusion instance. |
+| **Output Cache store** | AspNetCore `IOutputCacheBackendRegistrar` | Implement `RegisterOutputCache` |
+| **Data Cache L2 (Fusion)** | FusionCache `IFusionCacheBackendRegistrar` | `RegisterFusionCache` — **keyed** `IDistributedCache` per instance name; register via `AddFusionCacheBackend` or Redis `AddRedisBackend` |
+| **Complete Data Cache engine** | Core `IDataCacheProvider` | Implement get/create, set, named-instance isolation, generic values, and tag invalidation; register exactly one provider |
+| **Health probes** | Both (optional) | Register `ICacheOrchestratorHealthProbe` from the registrar's main registration method. Redis does this for Output Cache (`oc`) and each Fusion instance. |
 
 ### Output Cache registration rules
 
@@ -77,32 +80,31 @@ Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
    Do **not** call `services.AddOutputCache` yourself — the host does that once.  
 2. Prefer `context.RegisterStore(() => …)` for store packages that must run **after** `AddOutputCache`  
    (e.g. `AddStackExchangeRedisOutputCache`).  
-3. If the store has no ASP.NET Output Cache adapter, set `SupportsOutputCacheStore` to `false` and use that provider only for Fusion L2. Keep Output Cache on `InMemory` or `Redis`. The SQL Server example below does this.
+3. Implement this interface only when the provider has an ASP.NET Output Cache adapter. A Fusion-only provider implements only `IFusionCacheBackendRegistrar`.
 
 ### Fusion L2 rules (multi-instance safe)
 
 1. Register a **keyed** `IDistributedCache` with key = `context.InstanceName`.  
 2. Call `context.FusionBuilder.WithRegisteredKeyedDistributedCache(context.InstanceName)`.  
-3. Register a **keyed** `IDistributedCache` per data-cache instance name. A single global `AddDistributedSqlServerCache` or `AddStackExchangeRedisCache` would let the last instance overwrite the others.
+3. Register a **keyed** `IDistributedCache` per Data Cache instance name. A single global `AddDistributedSqlServerCache` or `AddStackExchangeRedisCache` would let the last instance overwrite the others.
 4. Optional backplane: attach on `context.FusionBuilder` (Redis package does this).  
 5. Bind settings from `context.BackendSection`  
    (`Cache:DataCacheInstances:{instance}:{Provider}`).
 
-### Config path convention (`BackendConfiguration`)
+### Config path convention
 
 | Surface | Path |
 |---------|------|
 | Output backend | `{section}:OutputCache:{Provider}` e.g. `Cache:OutputCache:SqlServer` |
-| Data-cache backend | `{section}:DataCacheInstances:{instance}:{Provider}` e.g. `Cache:DataCacheInstances:default:SqlServer` |
+| Data Cache backend | `{section}:DataCacheInstances:{instance}:{Provider}` e.g. `Cache:DataCacheInstances:default:SqlServer` |
 
-Helpers: `BackendConfiguration.GetOutputBackendSection` / `GetFusionBackendSection`,  
-or `context.BackendSection` on registration contexts. (`GetFusionBackendSection` reads **`DataCacheInstances`**.)
+Use `context.BackendSection` on the registration context. The Fusion path always reads **`DataCacheInstances`**.
 
 ### Distributed resilience (L2)
 
 | Setting | Config | Applied when |
 |---------|--------|----------------|
-| Soft / hard timeout, circuit breaker | `Cache:Distributed:*` (core) | Data-cache provider ≠ `InMemory` |
+| Soft / hard timeout, circuit breaker | `Cache:Distributed:*` (core) | Data Cache provider ≠ `InMemory` |
 
 ---
 
@@ -130,7 +132,7 @@ public sealed class SqlServerFusionBackendRegistrar : IFusionCacheBackendRegistr
 
         string table = context.BackendSection["TableName"] ?? $"FusionCache_{context.InstanceName}";
 
-        // One SqlServer cache instance per data-cache instance name (keyed).
+        // One SqlServer cache instance per Data Cache instance name (keyed).
         context.Services.TryAddKeyedSingleton<IDistributedCache>(context.InstanceName, (_, _) =>
         {
             var options = Options.Create(new SqlServerCacheOptions
@@ -144,12 +146,7 @@ public sealed class SqlServerFusionBackendRegistrar : IFusionCacheBackendRegistr
 
         context.FusionBuilder.WithRegisteredKeyedDistributedCache(context.InstanceName);
         // No Redis-style backplane unless you add one yourself.
-    }
-
-    public void RegisterHealthProbes(FusionBackendHealthRegistrationContext context)
-    {
-        // Optional: register a SQL connectivity probe via ICacheOrchestratorHealthProbe
-        // or Microsoft.Extensions.Diagnostics.HealthChecks.
+        // Optional: register ICacheOrchestratorHealthProbe through context.Services.
     }
 }
 ```
@@ -165,6 +162,7 @@ builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 Config:
 
 ```json
+{
 "Cache": {
   "OutputCache": { "Provider": "InMemory" },
   "DataCacheInstances": {
@@ -183,6 +181,7 @@ Config:
     "CircuitBreakerSeconds": 10
   }
 }
+}
 ```
 
 ---
@@ -191,9 +190,11 @@ Config:
 
 | API | Purpose |
 |-----|---------|
-| `AddBackend(ICacheBackendRegistrar)` | Register / replace a provider by `Name` |
+| `AddOutputCacheBackend(IOutputCacheBackendRegistrar)` | Register / replace a provider by `Name` |
 | `AddRedisBackend()` | From `CacheOrchestrator.Redis` |
 | `ConfigureOutputCache(Action<OutputCacheOptions>)` | App-level Output Cache options (after backend defaults) |
+
+`AddOutputCacheBackend` is specifically an Output Cache builder API. Fusion registrars use `AddFusionCacheBackend`; complete Data Cache engines are DI providers. See [Extensibility](extensibility.md#data-cache-engine-idatacacheprovider) for the full contracts and registration rules.
 
 ## Related
 
@@ -201,4 +202,5 @@ Config:
 - [Guide — topologies](../guide/topologies.md)  
 - [configuration.md](configuration.md) — `Distributed`, Redis, providers  
 - [deployment.md](deployment.md) — multi-instance Redis  
+- [Extensibility](extensibility.md) — all application, provider, and host extension points
 - [architecture.md](../contributor/architecture.md) — public API surface  

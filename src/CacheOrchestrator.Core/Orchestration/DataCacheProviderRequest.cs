@@ -6,9 +6,8 @@ namespace CacheOrchestrator.Orchestration;
 /// Physical get-or-create inputs for an <see cref="IDataCacheProvider"/>.
 /// </summary>
 /// <remarks>
-/// Built by <see cref="ICacheOrchestrator"/> after domain policy resolution.
-/// <see cref="DomainOptions"/> remains on the request until domain options are split per package;
-/// providers that need engine-specific entry options read from it.
+/// Built by <see cref="ICacheOrchestrator"/> after HTTP-free domain policy resolution.
+/// Engine-specific settings are resolved by the provider package and are not carried by this contract.
 /// </remarks>
 public sealed class DataCacheProviderRequest
 {
@@ -21,6 +20,6 @@ public sealed class DataCacheProviderRequest
     /// <summary>Tags to attach on set (domain / entity / entitykind / extras).</summary>
     public required IReadOnlyList<string> Tags { get; init; }
 
-    /// <summary>Resolved domain snapshot for TTL and provider-specific knobs.</summary>
+    /// <summary>Resolved HTTP-free domain snapshot for Data Cache policy.</summary>
     public required DomainCacheOptions DomainOptions { get; init; }
 }

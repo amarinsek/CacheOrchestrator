@@ -32,7 +32,7 @@ public class AdminRegistrationTests
         using ServiceProvider sp = services.BuildServiceProvider();
         IAdminStatsCollector collector = sp.GetRequiredService<IAdminStatsCollector>();
         collector.IsEnabled.Should().BeFalse();
-        sp.GetService<AdminQueryService>().Should().BeNull();
+        sp.GetRequiredService<ICacheOrchestratorManagement>().Should().NotBeNull();
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public class AdminRegistrationTests
         IAdminStatsCollector collector = sp.GetRequiredService<IAdminStatsCollector>();
         collector.IsEnabled.Should().BeTrue();
         sp.GetRequiredService<IDomainRuntimeOverrideStore>().Should().NotBeNull();
-        sp.GetRequiredService<AdminQueryService>().Should().NotBeNull();
+        sp.GetRequiredService<ICacheOrchestratorManagement>().Should().NotBeNull();
     }
 
     [Fact]

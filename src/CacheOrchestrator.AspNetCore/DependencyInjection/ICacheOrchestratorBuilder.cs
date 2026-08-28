@@ -14,7 +14,7 @@ public interface ICacheOrchestratorBuilder : ICacheOrchestratorServiceBuilder
     /// </summary>
     /// <param name="registrar">The backend registrar implementation.</param>
     /// <returns>The builder instance.</returns>
-    ICacheOrchestratorBuilder AddBackend(ICacheBackendRegistrar registrar);
+    ICacheOrchestratorBuilder AddOutputCacheBackend(IOutputCacheBackendRegistrar registrar);
 
     /// <summary>
     /// Adds a callback that configures the shared ASP.NET Core <see cref="OutputCacheOptions"/>

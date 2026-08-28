@@ -7,7 +7,7 @@ namespace CacheOrchestrator.HttpBus;
 /// <summary>
 /// Membership from <c>Cache:Cluster:Bus:Static:Instances</c>.
 /// </summary>
-public sealed class StaticClusterMembership : IClusterMembership
+internal sealed class StaticClusterMembership : IClusterMembership
 {
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
 

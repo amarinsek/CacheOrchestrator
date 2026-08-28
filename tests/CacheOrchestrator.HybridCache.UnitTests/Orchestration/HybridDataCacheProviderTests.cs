@@ -72,17 +72,25 @@ public class HybridDataCacheProviderTests
     }
 
     [Fact]
-    public async Task RemoveByTagAsync_DelegatesToHybrid()
+    public async Task InvalidateAsync_DelegatesTagsToHybrid()
     {
-        await _sut.RemoveByTagAsync("domain:products", TestContext.Current.CancellationToken);
+        await _sut.InvalidateAsync(
+            new DataCacheInvalidationRequest { Tags = ["domain:products"] },
+            TestContext.Current.CancellationToken);
 
         await _cache.Received(1).RemoveByTagAsync("domain:products", Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task RemoveByTagAsync_WithInstanceName_StillUsesSingleHybridCache()
+    public async Task InvalidateAsync_WithInstanceName_StillUsesSingleHybridCache()
     {
-        await _sut.RemoveByTagAsync("secondary", "domain:products", TestContext.Current.CancellationToken);
+        await _sut.InvalidateAsync(
+            new DataCacheInvalidationRequest
+            {
+                InstanceName = "secondary",
+                Tags = ["domain:products"]
+            },
+            TestContext.Current.CancellationToken);
 
         await _cache.Received(1).RemoveByTagAsync("domain:products", Arg.Any<CancellationToken>());
     }

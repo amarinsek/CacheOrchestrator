@@ -12,8 +12,8 @@ Decision tables: [packages](../guide/packages.md) · [topologies](../guide/topol
 
 - [§1. Typical web (InMemory Fusion)](#scenario-1)
 - [§2. Output Cache only](#scenario-2)
-- [§3. Data cache only](#scenario-3)
-- [§4. Redis data-cache L2](#scenario-4)
+- [§3. Data Cache only](#scenario-3)
+- [§4. Redis Data Cache L2](#scenario-4)
 - [§5. HybridCache](#scenario-5)
 - [§6. Dynamic domain](#scenario-6)
 - [§7. Class library + host](#scenario-7)
@@ -22,7 +22,7 @@ Decision tables: [packages](../guide/packages.md) · [topologies](../guide/topol
 
 ---
 <a id="scenario-1"></a>
-## 1. Typical web — OC + data cache + client headers (InMemory Fusion)
+## 1. Typical web — Output Cache + Data Cache + Client Cache (InMemory Fusion)
 
 Uses the **meta** package `CacheOrchestrator` (`AddCacheOrchestrator` = AspNetCore + Fusion). You can instead install the two packages separately:
 
@@ -69,7 +69,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 **Code**
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
     return Results.Json(data);
@@ -116,7 +116,7 @@ builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
 **Code**
 
 ```csharp
-app.MapGet("/api/products/{id}", async (string id) =>
+app.MapGet("/api/products/{id:int}", async (int id) =>
 {
     var data = await LoadProductAsync(id);
     return Results.Json(data);
@@ -127,7 +127,7 @@ app.MapGet("/api/products/{id}", async (string id) =>
 ---
 
 <a id="scenario-3"></a>
-## 3. Data cache only (AspNetCore + FusionCache)
+## 3. Data Cache only (AspNetCore + FusionCache)
 
 Not the meta package. No `.CacheOutputWithDomain` — base Output Cache policy is `NoCache`.
 
@@ -161,10 +161,10 @@ builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 }
 ```
 
-**Code** — same `GetOrSetAsync` shape as §1; pass the domain because the route has no OC domain metadata:
+**Code** — same `GetOrSetAsync` shape as §1; pass the domain because the route has no Output Cache domain metadata:
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, "catalog", ct => LoadProductAsync(id, ct));
     return Results.Json(data);
@@ -174,7 +174,7 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 ---
 
 <a id="scenario-4"></a>
-## 4. Redis data-cache L2 (Fusion) + InMemory Output Cache
+## 4. Redis Data Cache L2 (Fusion) + InMemory Output Cache
 
 **Packages**
 
@@ -212,7 +212,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 **Code** (same as §1)
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
     return Results.Json(data);
@@ -265,7 +265,7 @@ builder.Services.AddCacheOrchestratorHybridCache();
 **Code** (same as §1)
 
 ```csharp
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
     return Results.Json(data);
@@ -314,7 +314,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 static string CatalogDomain(HttpContext http) =>
     $"tenant-{http.Request.RouteValues["tenant"]}";
 
-app.MapGet("/t/{tenant}/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+app.MapGet("/t/{tenant}/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, CatalogDomain(http), ct => LoadProductAsync(id, ct));
     return Results.Json(data);
@@ -340,7 +340,7 @@ public sealed class CatalogService(ICacheOrchestrator cache)
 {
     public ValueTask<ProductDto?> GetProductAsync(
         CacheDomainContext cacheDomain,
-        string id,
+        int id,
         CancellationToken cancellationToken) =>
         cache.GetOrCreateAsync(
             cacheDomain,
@@ -387,7 +387,7 @@ builder.Services.AddScoped<CatalogService>();
 ```csharp
 var catalogDomain = new CacheDomainContext("catalog");
 
-app.MapGet("/api/products/{id}", async (string id, CatalogService catalog, CancellationToken ct) =>
+app.MapGet("/api/products/{id:int}", async (int id, CatalogService catalog, CancellationToken ct) =>
 {
     var data = await catalog.GetProductAsync(catalogDomain, id, ct);
     return Results.Json(data);
@@ -401,8 +401,8 @@ app.MapGet("/api/products/{id}", async (string id, CatalogService catalog, Cance
 CacheDomainContext CatalogDomain(HttpContext http) =>
     new($"tenant-{http.Request.RouteValues["tenant"]}");
 
-app.MapGet("/t/{tenant}/products/{id}", async (
-    HttpContext http, string id, CatalogService catalog, CancellationToken ct) =>
+app.MapGet("/t/{tenant}/products/{id:int}", async (
+    HttpContext http, int id, CatalogService catalog, CancellationToken ct) =>
 {
     var data = await catalog.GetProductAsync(CatalogDomain(http), id, ct);
     return Results.Json(data);
@@ -418,13 +418,15 @@ dotnet add package CacheOrchestrator.FusionCache --prerelease
 ```
 
 ```csharp
+builder.Services.AddCacheOrchestratorCore(builder.Configuration);
 builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
-// + host wiring for options / ICacheOrchestrator as required
 builder.Services.AddScoped<CatalogService>();
 
 var domain = new CacheDomainContext($"tenant-{job.TenantId}");
 await catalog.GetProductAsync(domain, job.ProductId, cancellationToken);
 ```
+
+This composition is HTTP-free. `AddCacheOrchestratorCore` registers domain options, `ICacheOrchestrator`, invalidation, and cluster contracts; FusionCache supplies `IDataCacheProvider`. The worker has no middleware or endpoint setup.
 
 ---
 
@@ -478,7 +480,7 @@ builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
 [CacheEntity("catalog", "products")]
 public class Product { public int Id { get; set; } public decimal Price { get; set; } }
 
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache, AppDbContext db) =>
+app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache, AppDbContext db) =>
 {
     var data = await cache.GetOrSetEntityAsync(http, async ct =>
     {
@@ -489,9 +491,9 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 })
 .CacheOutputWithDomain("catalog", resourceRouteKey: "id", entityKind: "products");
 
-app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, AppDbContext db, CancellationToken ct) =>
+app.MapPut("/api/products/{id:int}", async (int id, UpdatePriceBody body, AppDbContext db, CancellationToken ct) =>
 {
-    Product product = await db.Products.SingleAsync(x => x.Id.ToString() == id, ct);
+    Product product = await db.Products.SingleAsync(x => x.Id == id, ct);
     product.Price = body.Price;
     await db.SaveChangesAsync(ct); // interceptor invalidates entity tags — no manual Invalidate*
     return Results.NoContent();
@@ -522,7 +524,7 @@ public sealed class CatalogService(ICacheOrchestrator cache, AppDbContext db)
 {
     public ValueTask<ProductDto?> GetProductAsync(
         CacheDomainContext cacheDomain,
-        string id,
+        int id,
         CancellationToken cancellationToken) =>
         cache.GetOrCreateEntityAsync(
             cacheDomain,
@@ -531,15 +533,15 @@ public sealed class CatalogService(ICacheOrchestrator cache, AppDbContext db)
             async ct =>
             {
                 Product? p = await db.Products.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Id.ToString() == id, ct);
+                    .FirstOrDefaultAsync(x => x.Id == id, ct);
                 return p is null ? null : new ProductDto(p.Id, p.Price);
             },
             defaultEntityKind: "products",
             cancellationToken);
 
-    public async Task UpdatePriceAsync(string id, decimal price, CancellationToken cancellationToken)
+    public async Task UpdatePriceAsync(int id, decimal price, CancellationToken cancellationToken)
     {
-        Product product = await db.Products.SingleAsync(x => x.Id.ToString() == id, cancellationToken);
+        Product product = await db.Products.SingleAsync(x => x.Id == id, cancellationToken);
         product.Price = price;
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -596,14 +598,14 @@ builder.Services.AddScoped<CatalogService>();
 ```csharp
 var catalogDomain = new CacheDomainContext("catalog", entityKind: "products");
 
-app.MapGet("/api/products/{id}", async (string id, CatalogService catalog, CancellationToken ct) =>
+app.MapGet("/api/products/{id:int}", async (int id, CatalogService catalog, CancellationToken ct) =>
 {
     var data = await catalog.GetProductAsync(catalogDomain, id, ct);
     return data is null ? Results.NotFound() : Results.Json(data);
 })
 .CacheOutputWithDomain(catalogDomain.Domain, resourceRouteKey: "id", entityKind: "products");
 
-app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, CatalogService catalog, CancellationToken ct) =>
+app.MapPut("/api/products/{id:int}", async (int id, UpdatePriceBody body, CatalogService catalog, CancellationToken ct) =>
 {
     await catalog.UpdatePriceAsync(id, body.Price, ct);
     return Results.NoContent();
@@ -617,5 +619,5 @@ app.MapPut("/api/products/{id}", async (string id, UpdatePriceBody body, Catalog
 - [Packages guide](../guide/packages.md) — which NuGet to install  
 - [Topologies](../guide/topologies.md)  
 - [Configuration](../reference/configuration.md)  
-- [Data cache](../reference/data-cache.md)  
+- [Data Cache](../reference/data-cache.md)
 - [EF Core invalidation](../reference/ef-core-invalidation.md)  

@@ -113,14 +113,6 @@ public static class CacheOrchestratorFusionCacheServiceExtensions
                 instanceOptions,
                 fusionRegistrar);
 
-            fusionRegistrar.RegisterHealthProbes(new FusionBackendHealthRegistrationContext(
-                services,
-                configuration,
-                configSection,
-                instanceName,
-                fusionRegistrar.Name,
-                rootOpts,
-                instanceOptions));
         }
     }
 

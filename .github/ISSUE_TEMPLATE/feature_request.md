@@ -1,20 +1,41 @@
 ---
 name: Feature Request
-about: Suggest an idea for CacheOrchestrator
+about: Propose a CacheOrchestrator use case or improvement
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''
-
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+Thanks for suggesting an improvement. Start with the problem you need to solve; you do not need to design the final API.
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen. How should the API look? What configuration should be added?
+## Use case
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or workarounds you've considered.
+Describe the application or operational scenario and why the current behavior is insufficient.
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+## Desired outcome
+
+What should become possible or easier?
+
+## Current approach
+
+How do you solve or work around this today, if at all?
+
+## Scope
+
+Which area appears related, if known?
+
+- Core orchestration or invalidation
+- ASP.NET Core Output Cache or Client Cache
+- FusionCache or HybridCache
+- Redis or multi-instance coordination
+- EF Core invalidation
+- Admin Console or observability
+- Documentation or developer experience
+
+## Possible design
+
+Optional: include an API, configuration, or behavior proposal. The use case is more important than a complete design.
+
+## Additional context
+
+Add examples, links, diagrams, or other details that clarify the request.

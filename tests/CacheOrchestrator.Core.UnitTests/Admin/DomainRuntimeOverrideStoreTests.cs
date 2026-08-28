@@ -18,7 +18,7 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "v1",
-                    OutputCache = new() { TtlSeconds = 60 }
+                    DataCache = new() { TtlSeconds = 60 }
                 }
             }
         });
@@ -33,7 +33,7 @@ public class DomainRuntimeOverrideStoreTests
         after.Should().NotBeSameAs(before);
         after.Version.Should().Be("v2");
         after.VersionHex.Should().NotBe(hexBefore);
-        after.OutputTtl.Should().Be(TimeSpan.FromSeconds(60));
+        after.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(60));
         store.Get("catalog")!.Version.Should().Be("v2");
     }
 
@@ -48,24 +48,19 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "v1",
-                    OutputCache = new() { TtlSeconds = 60 },
                     DataCache = new() { TtlSeconds = 100 },
-                    ClientCache = new() { TtlSeconds = 30 }
                 }
             }
         });
 
         store.PatchSettings("catalog", new DomainSettingsPatch
         {
-            OutputCacheTtl = TimeSpan.FromSeconds(120),
-            ClientTtl = TimeSpan.FromSeconds(15)
+            DataCacheTtl = TimeSpan.FromSeconds(120)
         });
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("catalog");
         opts.Version.Should().Be("v1");
-        opts.OutputTtl.Should().Be(TimeSpan.FromSeconds(120));
-        opts.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(100));
-        opts.ClientTtlSeconds.Should().Be(15);
+        opts.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(120));
     }
 
     [Fact]
@@ -79,17 +74,17 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "v1",
-                    OutputCache = new() { TtlSeconds = 60 }
+                    DataCache = new() { TtlSeconds = 60 }
                 }
             }
         });
 
-        store.PatchSettings("catalog", new DomainSettingsPatch { OutputCacheTtl = TimeSpan.FromSeconds(99) });
+        store.PatchSettings("catalog", new DomainSettingsPatch { DataCacheTtl = TimeSpan.FromSeconds(99) });
         store.SetVersion("catalog", "v9");
 
         DomainCacheOptions opts = provider.GetOrCreateDomainOptions("catalog");
         opts.Version.Should().Be("v9");
-        opts.OutputTtl.Should().Be(TimeSpan.FromSeconds(99));
+        opts.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(99));
     }
 
     [Fact]
@@ -103,7 +98,7 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "cfg-1",
-                    OutputCache = new() { TtlSeconds = 10 }
+                    DataCache = new() { TtlSeconds = 10 }
                 }
             }
         });
@@ -122,14 +117,14 @@ public class DomainRuntimeOverrideStoreTests
                 ["catalog"] = new()
                 {
                     Version = "cfg-2",
-                    OutputCache = new() { TtlSeconds = 20 }
+                    DataCache = new() { TtlSeconds = 20 }
                 }
             }
         });
 
         DomainCacheOptions after = provider.GetOrCreateDomainOptions("catalog");
         after.Version.Should().Be("rt-1", "runtime overlay wins over reloaded config");
-        after.OutputTtl.Should().Be(TimeSpan.FromSeconds(20));
+        after.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(20));
     }
 
     private static DomainCacheOptionsProvider CreateProvider(

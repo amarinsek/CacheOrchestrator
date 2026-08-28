@@ -63,8 +63,8 @@ public class CacheOrchestratorInvalidatorTests
         result.Scope.Should().Be("(skipped)");
         result.Errors.Should().NotBeEmpty();
 
-        await _dataCache.DidNotReceiveWithAnyArgs()
-            .RemoveByTagAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _dataCache.DidNotReceiveWithAnyArgs().InvalidateAsync(
+            default!, TestContext.Current.CancellationToken);
 
         await _httpCache.DidNotReceiveWithAnyArgs()
             .EvictByTagAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -87,10 +87,7 @@ public class CacheOrchestratorInvalidatorTests
         result.Tags.Should().Equal("domain:products");
         result.Errors.Should().BeEmpty();
 
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "default",
-            "domain:products",
-            Arg.Any<CancellationToken>());
+        await AssertDataInvalidated("default", "domain:products");
 
         await _httpCache.Received(1).EvictByTagAsync(
             "domain:products",
@@ -117,10 +114,7 @@ public class CacheOrchestratorInvalidatorTests
         result.Tags.Should().Equal("entity:store:products:42");
         result.Scope.Should().Be("store/products/42");
 
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "default",
-            "entity:store:products:42",
-            Arg.Any<CancellationToken>());
+        await AssertDataInvalidated("default", "entity:store:products:42");
 
         await _httpCache.Received(1).EvictByTagAsync(
             "entity:store:products:42",
@@ -140,10 +134,10 @@ public class CacheOrchestratorInvalidatorTests
         result.Scope.Should().Be("store/products");
         result.Tags.Should().Equal("entity:store:products:42", "entity:store:products:7");
 
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "default", "entity:store:products:42", Arg.Any<CancellationToken>());
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "default", "entity:store:products:7", Arg.Any<CancellationToken>());
+        await AssertDataInvalidated(
+            "default",
+            "entity:store:products:42",
+            "entity:store:products:7");
 
         await _httpCache.Received(1).EvictByTagAsync(
             "entity:store:products:42", Arg.Any<CancellationToken>());
@@ -161,10 +155,7 @@ public class CacheOrchestratorInvalidatorTests
         result.Tags.Should().Equal("entitykind:store:products");
         result.Scope.Should().Be("store/products");
 
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "default",
-            "entitykind:store:products",
-            Arg.Any<CancellationToken>());
+        await AssertDataInvalidated("default", "entitykind:store:products");
 
         await _httpCache.Received(1).EvictByTagAsync(
             "entitykind:store:products",
@@ -182,8 +173,8 @@ public class CacheOrchestratorInvalidatorTests
         result.IsSkipped.Should().BeTrue();
         result.Succeeded.Should().BeFalse();
 
-        await _dataCache.DidNotReceiveWithAnyArgs()
-            .RemoveByTagAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _dataCache.DidNotReceiveWithAnyArgs().InvalidateAsync(
+            default!, TestContext.Current.CancellationToken);
         await _httpCache.DidNotReceiveWithAnyArgs()
             .EvictByTagAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -220,10 +211,8 @@ public class CacheOrchestratorInvalidatorTests
         result.Succeeded.Should().BeTrue();
         result.Tags.Should().BeEquivalentTo(["domain:products", "domain:catalog"]);
 
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "default", "domain:products", Arg.Any<CancellationToken>());
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "default", "domain:catalog", Arg.Any<CancellationToken>());
+        await AssertDataInvalidated("default", "domain:products");
+        await AssertDataInvalidated("default", "domain:catalog");
     }
 
     [Fact]
@@ -235,10 +224,8 @@ public class CacheOrchestratorInvalidatorTests
         result.Succeeded.Should().BeTrue();
         result.Tags.Should().Equal("custom:tag");
 
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "default", "custom:tag", Arg.Any<CancellationToken>());
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "pii", "custom:tag", Arg.Any<CancellationToken>());
+        await AssertDataInvalidated("default", "custom:tag");
+        await AssertDataInvalidated("pii", "custom:tag");
         await _httpCache.Received(1).EvictByTagAsync("custom:tag", Arg.Any<CancellationToken>());
     }
 
@@ -255,15 +242,9 @@ public class CacheOrchestratorInvalidatorTests
 
         await _sut.InvalidateDomainAsync("users", TestContext.Current.CancellationToken);
 
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "pii",
-            "domain:users",
-            Arg.Any<CancellationToken>());
+        await AssertDataInvalidated("pii", "domain:users");
 
-        await _dataCache.DidNotReceive().RemoveByTagAsync(
-            "default",
-            Arg.Any<string>(),
-            Arg.Any<CancellationToken>());
+        await AssertDataNotInvalidated("default");
     }
 
     // =========================
@@ -274,9 +255,8 @@ public class CacheOrchestratorInvalidatorTests
     public async Task InvalidateDomainAsync_WhenFusionCacheThrows_StillCallsOutputCache_AndReportsPartial()
     {
         _dataCache
-            .When(x => x.RemoveByTagAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
+            .When(x => x.InvalidateAsync(
+                Arg.Any<DataCacheInvalidationRequest>(),
                 Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("Fusion failed"));
 
@@ -310,19 +290,15 @@ public class CacheOrchestratorInvalidatorTests
         result.OutputSucceeded.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Contains("OutputCache", StringComparison.OrdinalIgnoreCase));
 
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "default",
-            "domain:products",
-            Arg.Any<CancellationToken>());
+        await AssertDataInvalidated("default", "domain:products");
     }
 
     [Fact]
     public async Task InvalidateDomainAsync_WhenBothThrow_DoesNotPropagateException()
     {
         _dataCache
-            .When(x => x.RemoveByTagAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
+            .When(x => x.InvalidateAsync(
+                Arg.Any<DataCacheInvalidationRequest>(),
                 Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("Fusion failed"));
 
@@ -380,8 +356,7 @@ public class CacheOrchestratorInvalidatorTests
             await _sut.InvalidateDomainAsync("products", TestContext.Current.CancellationToken);
 
         result.Succeeded.Should().BeTrue();
-        await _dataCache.Received(1).RemoveByTagAsync(
-            "default", "domain:products", Arg.Any<CancellationToken>());
+        await AssertDataInvalidated("default", "domain:products");
     }
 
     [Fact]
@@ -413,6 +388,21 @@ public class CacheOrchestratorInvalidatorTests
             Arg.Any<CancellationToken>());
         await observer.Received(1).OnBeforeInvalidateAsync(
             Arg.Is<CacheInvalidationContext>(c => c.Kind == CacheInvalidationKind.Domain && c.Scope == "catalog"),
+            Arg.Any<CancellationToken>());
+    }
+
+    private async Task AssertDataInvalidated(string instanceName, params string[] tags)
+    {
+        await _dataCache.Received(1).InvalidateAsync(
+            Arg.Is<DataCacheInvalidationRequest>(request =>
+                request.InstanceName == instanceName && request.Tags.SequenceEqual(tags)),
+            Arg.Any<CancellationToken>());
+    }
+
+    private async Task AssertDataNotInvalidated(string instanceName)
+    {
+        await _dataCache.DidNotReceive().InvalidateAsync(
+            Arg.Is<DataCacheInvalidationRequest>(request => request.InstanceName == instanceName),
             Arg.Any<CancellationToken>());
     }
 }

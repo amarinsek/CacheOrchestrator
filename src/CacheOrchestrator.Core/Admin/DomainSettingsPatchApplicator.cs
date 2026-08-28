@@ -6,7 +6,7 @@ namespace CacheOrchestrator.Admin;
 /// <summary>
 /// Applies a sparse Admin settings dictionary to Core overlays and optional package contributors.
 /// </summary>
-public static class DomainSettingsPatchApplicator
+internal static class DomainSettingsPatchApplicator
 {
     /// <summary>
     /// Validates catalog ids, routes Core keys through <see cref="DomainSettingsPatchMapper"/>,
@@ -55,15 +55,6 @@ public static class DomainSettingsPatchApplicator
         if (core.Count > 0)
         {
             patch = DomainSettingsPatchMapper.FromDictionary(core);
-            if (patch.ClientTtl is TimeSpan max
-                && patch.ClientTtlMin is TimeSpan min
-                && min > max)
-            {
-                throw new ArgumentException(
-                    "clientCache.ttlMinSeconds must be <= clientCache.ttlSeconds when both are set.",
-                    nameof(settings));
-            }
-
             store.PatchSettings(domain, patch);
         }
 

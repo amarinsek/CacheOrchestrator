@@ -120,8 +120,6 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
     }
 
     /// <inheritdoc />
-    public AdminLiveStatsSnapshot GetSnapshot() =>
-        AdminStatsV1Mapper.ToLiveSnapshot(GetRawSnapshot());
 
     /// <summary>Exposes endpoint→domain hints recorded at runtime (for snapshot assembly).</summary>
     internal IReadOnlyDictionary<string, string?> EndpointDomainHints => _endpointConfiguredDomain;

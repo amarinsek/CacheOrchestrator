@@ -16,8 +16,6 @@ public static class DomainSettingCatalog
     private static readonly HashSet<Type> NestedSectionTypes =
     [
         typeof(DomainDataCacheSettings),
-        typeof(DomainOutputCacheSettings),
-        typeof(DomainClientCacheSettings),
     ];
 
     private static readonly ConcurrentDictionary<string, (Type Type, string IdPrefix, string PropertyPrefix)> ExtraSections =
@@ -30,10 +28,11 @@ public static class DomainSettingCatalog
     public static void RegisterSection(Type settingsType, string idPrefix, string propertyPrefix)
     {
         ArgumentNullException.ThrowIfNull(settingsType);
-        ArgumentException.ThrowIfNullOrWhiteSpace(idPrefix);
-        ArgumentException.ThrowIfNullOrWhiteSpace(propertyPrefix);
+        ArgumentNullException.ThrowIfNull(idPrefix);
+        ArgumentNullException.ThrowIfNull(propertyPrefix);
 
-        ExtraSections[idPrefix] = (settingsType, idPrefix, propertyPrefix);
+        string key = idPrefix.Length == 0 ? settingsType.AssemblyQualifiedName! : idPrefix;
+        ExtraSections[key] = (settingsType, idPrefix, propertyPrefix);
         Cache.Clear();
     }
 
@@ -68,7 +67,14 @@ public static class DomainSettingCatalog
         Walk(typeof(CacheOrchestratorOptions.DomainCacheSettings), prefixId: null, prefixProperty: null, overlayOnly, list);
 
         foreach ((Type type, string idPrefix, string propertyPrefix) in ExtraSections.Values)
-            Walk(type, idPrefix, propertyPrefix, overlayOnly, list);
+        {
+            Walk(
+                type,
+                idPrefix.Length == 0 ? null : idPrefix,
+                propertyPrefix.Length == 0 ? null : propertyPrefix,
+                overlayOnly,
+                list);
+        }
 
         list.Sort((a, b) =>
         {

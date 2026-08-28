@@ -14,8 +14,9 @@ dotnet_diagnostic.IDE0052.severity = none        # Remove unread private members
 dotnet_diagnostic.IDE0060.severity = none        # Remove unused parameter
 dotnet_diagnostic.IDE1006.severity = none        # Naming styles
 dotnet_diagnostic.IDE0130.severity = none        # Namespace does not match file location
-dotnet_diagnostic.IDE0022.severity = suggestion
-dotnet_diagnostic.IDE0072.severity = none
+dotnet_diagnostic.IDE0022.severity = suggestion  # Use expression body for methods
+dotnet_diagnostic.IDE0072.severity = suggestion  # Add missing cases to switch expression
+dotnet_diagnostic.IDE0211.severity = suggestion  # Top level statment
 
 
 # Code style and analyzer rules for return expressions and throw helpers

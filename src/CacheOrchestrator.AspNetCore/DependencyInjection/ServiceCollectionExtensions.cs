@@ -4,7 +4,6 @@ using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Identity;
-using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.Orchestration;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.OutputCaching;
@@ -32,7 +31,7 @@ public static class ServiceCollectionExtensions
     /// <param name="configuration">Application configuration (binds the cache section).</param>
     /// <param name="configure">
     /// Optional builder callback (e.g. <c>o =&gt; o.AddRedisBackend()</c>,
-    /// <c>o.ConfigureOutputCache(...)</c>, <c>o.AddBackend(custom)</c>).
+    /// <c>o.ConfigureOutputCache(...)</c>, <c>o.AddOutputCacheBackend(custom)</c>).
     /// </param>
     /// <param name="configSection">Configuration section name. Default: <c>Cache</c>.</param>
     /// <param name="enableMvcConvention">
@@ -56,6 +55,8 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
+        RegisterHttpDomainSettingCatalog();
+
         // Backend registrars and options monitors resolve IConfiguration from DI.
         // Host builders usually register it; bare ServiceCollection unit tests do not.
         services.TryAddSingleton(configuration);
@@ -63,31 +64,32 @@ public static class ServiceCollectionExtensions
         DefaultCacheOrchestratorBuilder builder = new(services, configuration);
 
         // Built-in InMemory only. Redis: install CacheOrchestrator.Redis and call AddRedisBackend().
-        builder.AddBackend(new InMemoryCacheBackendRegistrar());
+        builder.AddOutputCacheBackend(new InMemoryCacheBackendRegistrar());
 
         // Allow consumers to add/override providers (e.g. o => o.AddRedisBackend())
         configure?.Invoke(builder);
 
         CacheOrchestratorOptions opts = BindAndValidateOptions(services, configuration, configSection, builder);
 
-        RegisterCoreServices(services);
+        CacheOrchestratorCoreServiceCollectionExtensions.AddCoreServices(
+            services,
+            configuration,
+            configSection,
+            registerCoreValidator: false);
+        services.AddOptions<CacheOrchestratorHttpOptions>()
+            .Bind(configuration.GetSection(configSection))
+            .ValidateOnStart();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<CacheOrchestratorHttpOptions>, CacheOrchestratorHttpOptionsValidator>());
+        RegisterAspNetCoreServices(services);
         RegisterAdminServices(services, opts.Admin);
 
         if (enableMvcConvention)
             RegisterControllerConvention(services);
 
         // Register Output Cache (single provider)
-        ICacheBackendRegistrar outputRegistrar = builder.ResolveRegistrar(opts.OutputCache.Provider);
+        IOutputCacheBackendRegistrar outputRegistrar = builder.ResolveRegistrar(opts.OutputCache.Provider);
         RegisterOutputCache(services, configuration, opts, configSection, outputRegistrar, builder);
-
-        outputRegistrar.RegisterHealthProbes(new BackendHealthRegistrationContext(
-            services,
-            configuration,
-            configSection,
-            instanceName: "oc",
-            providerName: outputRegistrar.Name,
-            rootOptions: opts,
-            instanceOptions: new CacheOrchestratorOptions.DataCacheInstanceOptions()));
 
         return services;
     }
@@ -104,17 +106,9 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
 
         HashSet<string> validProviders = new(builder.GetRegisteredProviderNames(), StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, bool> outputCacheSupport = new(StringComparer.OrdinalIgnoreCase);
-        foreach (string name in builder.GetRegisteredProviderNames())
-        {
-            ICacheBackendRegistrar reg = builder.ResolveRegistrar(name);
-            outputCacheSupport[name] = reg.SupportsOutputCacheStore;
-        }
-
         services.AddSingleton<IValidateOptions<CacheOrchestratorOptions>>(sp =>
             new CacheOrchestratorOptionsValidator(
                 validProviders,
-                outputCacheSupport,
                 sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()
                     ?.CreateLogger(typeof(CacheOrchestratorOptionsValidator).FullName
                         ?? nameof(CacheOrchestratorOptionsValidator))));
@@ -124,25 +118,17 @@ public static class ServiceCollectionExtensions
         return opts;
     }
 
-    private static void RegisterCoreServices(IServiceCollection services)
+    private static void RegisterAspNetCoreServices(IServiceCollection services)
     {
-        services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton<IInstanceIdProvider, DefaultInstanceIdProvider>();
-        services.TryAddSingleton<ClusterCommandFactory>();
-        services.TryAddSingleton<ClusterCommandDedupeStore>();
-        // Bus package may register real implementations in the builder callback before this runs;
-        // TryAdd keeps Http/Static bus when already present.
-        services.TryAddSingleton<IClusterCommandBus>(_ => NullClusterCommandBus.Instance);
-        services.TryAddSingleton<IClusterMembership>(_ => NullClusterMembership.Instance);
-        services.TryAddSingleton<IClusterCommandHandler, DefaultClusterCommandHandler>();
-        // Fusion/Hybrid replace this via TryAdd / RemoveAll. Keeps Output Cache–only hosts constructible.
-        services.TryAddSingleton<IDataCacheProvider>(_ => NullDataCacheProvider.Instance);
-        services.AddSingleton<IDomainCacheOptionsProvider, DomainCacheOptionsProvider>();
-        services.AddSingleton<IRequestDomainCacheOptions, RequestDomainCacheOptionsProvider>();
-        services.AddSingleton<IDomainDataCache, DomainDataCacheService>();
-        services.AddSingleton<ICacheOrchestrator, CacheOrchestratorService>();
-        services.TryAddSingleton<IHttpCacheInvalidationSink, OutputCacheInvalidationSink>();
-        services.AddSingleton<ICacheOrchestratorInvalidator, CacheOrchestratorInvalidator>();
+        services.TryAddSingleton<IHttpDomainRuntimeOverrideStore, HttpDomainRuntimeOverrideStore>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IDomainSettingsPatchContributor, HttpDomainSettingsPatchContributor>());
+        services.TryAddSingleton<IRequestDomainCacheOptions, RequestDomainCacheOptionsProvider>();
+        services.RemoveAll<IAdminDomainConfigProvider>();
+        services.AddSingleton<IAdminDomainConfigProvider, HttpAdminDomainConfigProvider>();
+        services.TryAddSingleton<IDomainDataCache, DomainDataCacheService>();
+        services.RemoveAll<IHttpCacheInvalidationSink>();
+        services.AddSingleton<IHttpCacheInvalidationSink, OutputCacheInvalidationSink>();
         services.TryAddSingleton<Vary.CacheVaryMaterializer>(sp =>
             new Vary.CacheVaryMaterializer(sp.GetServices<Vary.ICacheVaryContributor>()));
         services.TryAddSingleton<IDomainKeyGenerator>(sp =>
@@ -152,12 +138,22 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<CacheIdentityResolutionHostedService>();
     }
 
+    private static void RegisterHttpDomainSettingCatalog()
+    {
+        DomainSettingCatalog.RegisterSection(typeof(DomainHttpCacheSettings), "", "");
+        DomainSettingCatalog.RegisterSection(typeof(DomainHttpDataCacheSettings), "dataCache", "DataCache");
+        DomainSettingCatalog.RegisterSection(typeof(DomainOutputCacheSettings), "outputCache", "OutputCache");
+        DomainSettingCatalog.RegisterSection(typeof(DomainClientCacheSettings), "clientCache", "ClientCache");
+    }
+
     private static void RegisterAdminServices(
         IServiceCollection services,
         CacheOrchestratorOptions.AdminOptions admin)
     {
         if (admin.Enabled)
         {
+            services.RemoveAll<IDomainRuntimeOverrideStore>();
+            services.RemoveAll<IAdminStatsCollector>();
             services.AddSingleton<IDomainRuntimeOverrideStore, DomainRuntimeOverrideStore>();
             services.AddSingleton<IAdminStatsCollector>(sp =>
             {
@@ -168,13 +164,12 @@ public static class ServiceCollectionExtensions
                     instanceId,
                     sp.GetService<TimeProvider>());
             });
+            services.RemoveAll<IAdminEndpointCatalog>();
             services.AddSingleton<IAdminEndpointCatalog, AdminEndpointCatalog>();
-            services.AddSingleton<AdminQueryService>();
             services.AddSingleton<AdminApiKeyEndpointFilter>();
         }
         else
         {
-            services.TryAddSingleton<IDomainRuntimeOverrideStore>(_ => NullDomainRuntimeOverrideStore.Instance);
             services.TryAddSingleton<IAdminStatsCollector>(_ => NoOpAdminStatsCollector.Instance);
             services.TryAddSingleton<IAdminEndpointCatalog>(_ => NullAdminEndpointCatalog.Instance);
         }
@@ -188,18 +183,9 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         CacheOrchestratorOptions opts,
         string configSection,
-        ICacheBackendRegistrar registrar,
+        IOutputCacheBackendRegistrar registrar,
         DefaultCacheOrchestratorBuilder builder)
     {
-        if (!registrar.SupportsOutputCacheStore)
-        {
-            throw new InvalidOperationException(
-                $"OutputCache.Provider is '{registrar.Name}', but that backend does not support an Output Cache store " +
-                $"(SupportsOutputCacheStore = false). Use a provider that supports Output Cache " +
-                $"(e.g. InMemory, or Redis via CacheOrchestrator.Redis), " +
-                $"and keep '{registrar.Name}' only under DataCacheInstances.");
-        }
-
         List<Action<OutputCacheOptions>> optionConfigurators = [];
 
         // Base policy: no cache. Output Cache is opt-in via .CacheOutputWithDomain / [CacheDomain].

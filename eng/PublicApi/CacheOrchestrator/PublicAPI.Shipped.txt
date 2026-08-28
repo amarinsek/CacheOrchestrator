@@ -1,0 +1,3 @@
+#nullable enable
+CacheOrchestrator.DependencyInjection.CacheOrchestratorServiceCollectionExtensions
+static CacheOrchestrator.DependencyInjection.CacheOrchestratorServiceCollectionExtensions.AddCacheOrchestrator(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration, System.Action<CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder!>? configure = null, string! configSection = "Cache", bool enableMvcConvention = true) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

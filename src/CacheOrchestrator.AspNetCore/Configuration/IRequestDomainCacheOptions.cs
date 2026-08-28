@@ -3,27 +3,18 @@ using Microsoft.AspNetCore.Http;
 namespace CacheOrchestrator.Configuration;
 
 /// <summary>
-/// Resolves effective per-domain cache options for the current HTTP request.
+/// Resolves effective ASP.NET Core cache policy and pins it to the current request.
 /// </summary>
-public interface IRequestDomainCacheOptions : IDomainCacheOptionsProvider
+public interface IRequestDomainCacheOptions
 {
-    /// <summary>
-    /// Ensures domain options are resolved and cached on the request, then returns them.
-    /// </summary>
-    /// <param name="http">Current HTTP context.</param>
-    /// <param name="domain">Raw domain name (normalized internally).</param>
-    /// <returns>Effective domain options (never null).</returns>
-    /// <remarks>
-    /// If a snapshot for the same normalized domain is already on the request, it is reused.
-    /// A different domain replaces the request snapshot (Output Cache headers already queued
-    /// for the previous domain are unchanged).
-    /// </remarks>
-    DomainCacheOptions EnsureDomainOptions(HttpContext http, string domain);
+    /// <summary>Gets or creates the current ASP.NET Core snapshot for a domain.</summary>
+    DomainHttpCacheOptions GetOrCreateDomainOptions(string domain);
 
     /// <summary>
-    /// Returns options previously stored on the request, or <see langword="null"/> if none.
+    /// Resolves and stores domain options on the request, reusing a snapshot for the same domain.
     /// </summary>
-    /// <param name="http">Current HTTP context.</param>
-    /// <returns>Cached options for this request, or null.</returns>
-    DomainCacheOptions? GetDomainOptions(HttpContext http);
+    DomainHttpCacheOptions EnsureDomainOptions(HttpContext http, string domain);
+
+    /// <summary>Returns the snapshot stored on the request, or null when none was resolved.</summary>
+    DomainHttpCacheOptions? GetDomainOptions(HttpContext http);
 }

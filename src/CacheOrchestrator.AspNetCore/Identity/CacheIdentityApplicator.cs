@@ -16,7 +16,7 @@ internal static class CacheIdentityApplicator
     public static async ValueTask<CacheIdentityMaterial?> BuildAsync(
         CacheIdentityBinding binding,
         HttpContext http,
-        DomainCacheOptions options,
+        DomainHttpCacheOptions options,
         CacheVarySurface surface,
         ILogger? logger,
         CancellationToken cancellationToken)

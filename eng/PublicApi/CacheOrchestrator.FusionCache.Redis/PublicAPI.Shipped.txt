@@ -1,0 +1,3 @@
+#nullable enable
+CacheOrchestrator.Redis.CacheOrchestratorFusionCacheRedisServiceExtensions
+static CacheOrchestrator.Redis.CacheOrchestratorFusionCacheRedisServiceExtensions.AddRedisFusionCacheBackend(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration, string! configSection = "Cache") -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

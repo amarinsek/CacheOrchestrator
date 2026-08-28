@@ -34,6 +34,26 @@ WebApplication app = builder.Build();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+// The UI uses this echo to distinguish a real server request from a response
+// replayed by the browser HTTP cache. Register outside Output Cache so every
+// network request gets its own value, including Output Cache hits.
+const string demoRequestIdHeader = "X-Demo-Request-Id";
+app.Use(async (http, next) =>
+{
+    string requestId = http.Request.Headers[demoRequestIdHeader].ToString();
+    if (!string.IsNullOrWhiteSpace(requestId))
+    {
+        http.Response.OnStarting(() =>
+        {
+            http.Response.Headers[demoRequestIdHeader] = requestId;
+            return Task.CompletedTask;
+        });
+    }
+
+    await next(http);
+});
+
 app.UseCacheOrchestrator();
 
 app.MapCacheOrchestratorAdmin(); // no-op unless Cache:Admin:Enabled
@@ -42,7 +62,7 @@ app.MapCacheOrchestratorHttpBus(); // no-op when Cache:Cluster:Bus:Enabled is fa
 app.MapPrometheusScrapingEndpoint() // GET /metrics
     .WithMetadata(new Microsoft.AspNetCore.OutputCaching.OutputCacheAttribute { NoStore = true });
 
-app.MapDemoDataEndpoints(builder.Configuration);
+app.MapGettingStartedEndpoints();
 app.MapVaryDemoEndpoint();
 app.MapPostIdentityDemoEndpoints();
 app.MapDemoStudioEndpoints();

@@ -12,7 +12,7 @@ namespace CacheOrchestrator.HttpBus;
 /// <summary>
 /// Publishes cluster commands to peers over HTTP (<c>POST {base}{prefix}/cluster/apply</c>).
 /// </summary>
-public sealed class HttpClusterCommandBus : IClusterCommandBus
+internal sealed class HttpClusterCommandBus : IClusterCommandBus
 {
     /// <summary>Named <see cref="HttpClient"/> for peer command delivery.</summary>
     public const string HttpClientName = "CacheOrchestrator.ClusterBus";
@@ -20,7 +20,8 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     private readonly IHttpClientFactory _httpClientFactory;
@@ -121,8 +122,8 @@ public sealed class HttpClusterCommandBus : IClusterCommandBus
 
             Uri applyUri = BuildApplyUri(peer.BaseUrl, routePrefix);
             using HttpRequestMessage request = new(HttpMethod.Post, applyUri);
-            // Serialize as base ClusterCommand so polymorphic commandType discriminator is written.
-            request.Content = JsonContent.Create(command, typeof(ClusterCommand), options: JsonOptions);
+            var envelope = ClusterCommandEnvelopeV1.FromCommand(command);
+            request.Content = JsonContent.Create(envelope, options: JsonOptions);
             if (!string.IsNullOrEmpty(apiKey))
                 request.Headers.TryAddWithoutValidation(ClusterEndpointAuth.HeaderName, apiKey);
 

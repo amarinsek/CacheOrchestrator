@@ -1,12 +1,47 @@
 # Comparison
 
-> **Guide.** Product overview: [root README](../../README.md). Orientation: [Guide](README.md). Catalog: [documentation index](../README.md).
+> **Guide page.** Start with [Getting started](getting-started.md) for a working example or return to the [Guide index](README.md).
 
-The same snapshot endpoint — map tiles with a planned cutover — written two ways: hand-rolled Output Cache + FusionCache, then CacheOrchestrator.
+CacheOrchestrator is useful when an application must keep several cache layers and several domains consistent. It replaces repeated policy and coordination code, not the underlying cache engines.
 
-The CacheOrchestrator side uses the same profile as [domain profiles](domain-profiles.md). Count the policy code that moves into configuration.
+This page compares the responsibilities you own with direct ASP.NET Core and FusionCache usage against the same application using CacheOrchestrator.
 
-## Without CacheOrchestrator
+## The underlying stack stays the same
+
+With or without CacheOrchestrator, the request can still use:
+
+- browser or CDN caching through HTTP `Cache-Control`;
+- ASP.NET Core Output Caching for complete responses;
+- FusionCache or HybridCache for application objects;
+- Redis when stores must be shared;
+- application code that loads and updates data.
+
+CacheOrchestrator adds a domain model above those components:
+
+```text
+Domain configuration
+   ├─ client header policy
+   ├─ Output Cache policy and identity
+   ├─ Data Cache policy and engine selection
+   └─ shared invalidation tags and Version
+```
+
+The benefit grows when those policies would otherwise be repeated or allowed to drift.
+
+## Compare one snapshot endpoint
+
+Consider a tile dataset with these requirements:
+
+- a new generation is published monthly;
+- data objects may stay cached for 30 days;
+- HTTP responses may stay in Output Cache for 7 days;
+- public clients may cache for 30 days, but their TTL must shorten before the next release;
+- authenticated requests must not accidentally enter a shared cache;
+- operators need one way to inspect and invalidate the domain.
+
+### Using the platform libraries directly
+
+The application owns each concern separately:
 
 ```csharp
 builder.Services.AddOutputCache(options =>
@@ -16,153 +51,175 @@ builder.Services.AddOutputCache(options =>
         .Tag("domain:osm-tiles")
         .SetVaryByHost(true)
         .SetVaryByQuery("format")
-        .SetVaryByValue("data-version", _ => "2026-08"));
+        .SetVaryByValue("data-version", _ => "2030-08"));
 });
 
 builder.Services.AddFusionCache()
-    .WithDefaultEntryOptions(e =>
+    .WithDefaultEntryOptions(options =>
     {
-        e.Duration = TimeSpan.FromDays(30);
-        e.SetFailSafe(true, TimeSpan.FromDays(90));
-        e.JitterMaxDuration = TimeSpan.FromSeconds(30);
-        e.FactorySoftTimeout = TimeSpan.FromMilliseconds(150);
-        e.FactoryHardTimeout = TimeSpan.FromSeconds(2);
+        options.Duration = TimeSpan.FromDays(30);
+        options.SetFailSafe(true, TimeSpan.FromDays(90));
     });
-
-app.UseOutputCache();
-
-app.MapGet("/tiles/{z}/{x}/{y}", async (
-    HttpContext http,
-    IFusionCache cache,
-    int z, int x, int y,
-    CancellationToken cancellationToken) =>
-{
-    if (http.User.Identity?.IsAuthenticated == true
-        || !string.IsNullOrEmpty(http.Request.Headers.Authorization))
-    {
-        http.Response.Headers.CacheControl = "no-store";
-        var fresh = await LoadTileAsync(z, x, y, cancellationToken);
-        return Results.Bytes(fresh, "image/png");
-    }
-
-    var key = $"osm-tiles:2026-08:{z}:{x}:{y}";
-    var tile = await cache.GetOrSetAsync(
-        key,
-        ct => LoadTileAsync(z, x, y, ct),
-        tags: ["domain:osm-tiles"],
-        token: cancellationToken);
-
-    var cutover = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero);
-    var maxAge = ClientMaxAge(
-        utcNow: DateTimeOffset.UtcNow,
-        scheduledUpdateUtc: cutover,
-        calmSeconds: 2_592_000,
-        floorSeconds: 900);
-
-    http.Response.Headers.CacheControl = $"public, max-age={maxAge}, must-revalidate";
-    http.Response.Headers.ETag = "W/\"2026-08\"";
-
-    return Results.Bytes(tile, "image/png");
-})
-.CacheOutput("osm-tiles");
-
-static int ClientMaxAge(
-    DateTimeOffset utcNow,
-    DateTimeOffset scheduledUpdateUtc,
-    int calmSeconds,
-    int floorSeconds)
-{
-    var secondsLeft = (scheduledUpdateUtc - utcNow).TotalSeconds;
-    if (secondsLeft <= 0)
-        return floorSeconds;
-    if (secondsLeft >= calmSeconds)
-        return calmSeconds;
-
-    var t = Math.Clamp(secondsLeft, floorSeconds, calmSeconds);
-    return (int)Math.Round(
-        floorSeconds + (calmSeconds - floorSeconds) * (t - floorSeconds) / (calmSeconds - floorSeconds));
-}
 ```
 
-Invalidation without CacheOrchestrator:
+The endpoint or surrounding middleware must then own the remaining coordination:
 
-```csharp
-await fusionCache.RemoveByTagAsync("domain:osm-tiles", cancellationToken);
-await outputCache.EvictByTagAsync("domain:osm-tiles", cancellationToken);
-```
+- construct a Data Cache key containing domain, generation, and request identity;
+- attach the correct invalidation tags;
+- compute and emit client `Cache-Control`;
+- implement the cutover ramp;
+- keep auth bypass and vary dimensions aligned across Output Cache and Data Cache;
+- generate ETags consistently;
+- evict Output Cache and FusionCache together;
+- add diagnostics that explain which layer served the request.
 
-## With CacheOrchestrator
+None of this is impossible. The risk is that each domain grows a slightly different implementation and that a later policy change reaches only one layer.
+
+### Using CacheOrchestrator
+
+The coordinated policy lives in one domain:
 
 ```json
-"Domains": {
-  "osm-tiles": {
-    "Version": "2026-08",
-    "DataCache": {
-      "TtlSeconds": 2592000
-    },
-    "OutputCache": {
-      "TtlSeconds": 604800,
-      "ETagMode": "Version"
-    },
-    "ClientCache": {
-      "Cacheability": "Public",
-      "TtlSeconds": 2592000,
-      "TtlMinSeconds": 900,
-      "ScheduledUpdateUtc": "2026-09-01T00:00:00Z",
-      "MustRevalidateNearUpdate": true
-    },
-    "FusionCache": {
-      "HardTtlSeconds": 5184000,
-      "FailSafeSeconds": 7776000
+{
+  "Cache": {
+    "Domains": {
+      "osm-tiles": {
+        "Version": "2030-08",
+        "DataCache": {
+          "TtlSeconds": 2592000
+        },
+        "OutputCache": {
+          "TtlSeconds": 604800,
+          "ETagMode": "Version"
+        },
+        "ClientCache": {
+          "Cacheability": "Public",
+          "TtlSeconds": 2592000,
+          "TtlMinSeconds": 900,
+          "ScheduledUpdateUtc": "2030-09-01T00:00:00Z",
+          "MustRevalidateNearUpdate": true
+        }
+      }
     }
   }
 }
 ```
 
-```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration);
-app.UseCacheOrchestrator();
+The endpoint names that policy and reuses its request snapshot:
 
+```csharp
 app.MapGet("/tiles/{z}/{x}/{y}", async (
     HttpContext http,
+    int z,
+    int x,
+    int y,
     IDomainDataCache cache,
-    int z, int x, int y,
     CancellationToken cancellationToken) =>
 {
-    var tile = await cache.GetOrSetAsync(http, ct => LoadTileAsync(z, x, y, ct), cancellationToken);
+    byte[] tile = await cache.GetOrSetAsync(
+        http,
+        token => LoadTileAsync(z, x, y, token),
+        cancellationToken);
+
     return Results.Bytes(tile, "image/png");
 })
 .CacheOutputWithDomain("osm-tiles");
 ```
 
-Invalidation with CacheOrchestrator:
+At the next release, changing `Version` moves new server requests and validators to the new generation. Client Cache Schedule prepares browsers and CDNs to request that generation near the cutover. If an immediate server purge is needed, one invalidator addresses the domain:
 
 ```csharp
 await invalidator.InvalidateDomainAsync("osm-tiles", cancellationToken);
 ```
 
-## Further comparison
+The Client Cache Schedule, auth defaults, tags, vary materialization, and `X-Cache` diagnostics come from the resolved domain rather than endpoint-specific code.
 
-| Concern | Manual | CacheOrchestrator |
-|---------|--------|-------------------|
-| Second and more domains | Another policy, Fusion options, key scheme, and header block | Another `Domains` entry and `.CacheOutputWithDomain("…")` |
-| Per-domain TTLs | Many named policies or magic numbers | One domain entry in config |
-| Client `max-age` near cutover | Hand-written or forgotten | **Client Cache Schedule** |
-| Fusion + OC same domain | Duplicate config | Shared `DomainCacheOptions` |
-| Auth bypass / per-user vary | Easy to get wrong | Defaults + explicit flags |
-| Tags `domain:` / `entity:` | Manual string conventions | Built-in |
-| Multi Redis for PII vs catalog | Easy to get L2 wrong | Named instances + keyed L2 |
-| `X-Cache` diagnostics | You write the header | Built-in |
+## Compare dynamic entity invalidation
 
-## Starting small
+For a product detail endpoint, direct cache usage requires the write path to know every store and every tag convention:
 
-If you are working on a smaller app — one or two endpoints, or Output Cache alone — wiring the platform APIs yourself can look shorter. CacheOrchestrator is still worth using. You get a lot immediately (TTLs and `Cache-Control` in settings, auth bypass, tags, `X-Cache`, and so on). You also have a base you can use later (a second domain, a planned cutover, Redis, the cluster bus, and so on).
+```csharp
+await fusionCache.RemoveByTagAsync(
+    "entity:catalog:products:42",
+    cancellationToken);
 
-## Related
+await outputCache.EvictByTagAsync(
+    "entity:catalog:products:42",
+    cancellationToken);
+```
 
-- [Guide](README.md)
-- [getting-started.md](getting-started.md)
-- [faq.md](faq.md)
-- [architecture.md](../contributor/architecture.md)
-- [backends.md](../reference/backends.md)
-- [domain-profiles.md](domain-profiles.md)
+With CacheOrchestrator, the read declares entity identity once and the write addresses that identity through one abstraction:
+
+```csharp
+app.MapGet("/api/products/{id}", GetProductAsync)
+   .CacheOutputWithDomain(
+       "catalog",
+       entityKind: "products",
+       resourceRouteKey: "id");
+
+await invalidator.InvalidateEntityAsync(
+    "catalog",
+    "products",
+    42,
+    cancellationToken);
+```
+
+The invalidator removes matching Output Cache and Data Cache entries. Multi-instance reach still depends on the chosen Redis and bus topology.
+
+## Responsibility matrix
+
+| Concern | Direct platform stack | CacheOrchestrator |
+|---------|-----------------------|-------------------|
+| Per-domain server TTLs | Named Output Cache policies and engine options | Nested domain settings |
+| Client `Cache-Control` | Endpoint or middleware code | `ClientCache` settings |
+| Planned client cutover | Custom algorithm and telemetry | Client Cache Schedule |
+| Output/data vary parity | Maintain two identity implementations | Shared vary materialization |
+| Authenticated traffic | Design and apply bypass rules in each layer | Conservative default with explicit opt-in |
+| Domain and entity tags | Define and reproduce string conventions | Built-in identity and footprint |
+| Coordinated server invalidation | Call every store correctly | `ICacheOrchestratorInvalidator` |
+| Snapshot generation | Add version material to every key and validator | Domain `Version` |
+| Data engine selection | Application DI and engine-specific calls | Provider packages behind stable APIs |
+| Request diagnostics | Build headers, meters, traces, and logs | Built-in `X-Cache` and telemetry |
+| Multi-instance commands | Custom transport or direct fan-out | Optional HttpBus / Admin Console fan-out |
+
+CacheOrchestrator reduces application-owned coordination. It does not remove the need to choose sensible TTLs, identities, topology, or security boundaries.
+
+## When CacheOrchestrator is a strong fit
+
+Use it when several of these are true:
+
+- an endpoint uses both Output Cache and a Data Cache;
+- the application has multiple data domains with different policies;
+- writes must invalidate HTTP responses and cached objects together;
+- snapshot datasets use controlled version cutovers;
+- browser/CDN TTLs must shorten before a planned release;
+- several instances need shared stores or distributed commands;
+- operators need consistent diagnostics and live domain inspection;
+- reusable libraries should stay independent of the host cache engine.
+
+## When direct platform APIs may be simpler
+
+Direct ASP.NET Core or engine APIs can be the clearer choice when:
+
+- only one or two endpoints use one cache layer;
+- there is no shared domain policy or cross-layer invalidation;
+- the application needs engine-specific behaviour that the provider abstraction does not expose;
+- an existing cache-key and invalidation architecture is already mature and consistent;
+- adopting another configuration and diagnostics model would add more concepts than it removes.
+
+CacheOrchestrator is intentionally not a Redis operations layer, CDN control plane, replacement for FusionCache or HybridCache features, or guarantee of cross-instance consistency without the required topology.
+
+## Adopt it incrementally
+
+You do not need to enable every layer at once.
+
+1. Start with one Output Cache domain and inspect `X-Cache`.
+2. Add `IDomainDataCache` where object creation is expensive.
+3. Declare entity identity for dynamic detail endpoints.
+4. Move writes to `ICacheOrchestratorInvalidator` or the EF integration.
+5. Add Redis when values must be shared or survive process restarts.
+6. Add HttpBus only when local peer stores or runtime overlays need commands.
+
+Endpoint domain names and the core invalidation model remain stable as infrastructure grows.
+
+Try the complete first path in [Getting started](getting-started.md), or use the [FAQ](faq.md) when evaluating a specific edge case.

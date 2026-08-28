@@ -7,12 +7,12 @@ namespace CacheOrchestrator.Benchmarks.Benchmarks;
 [ShortJob]
 public class ClientCacheHeaderGeneratorBenchmarks
 {
-    private DomainCacheOptions _calm = null!;
-    private DomainCacheOptions _ramp = null!;
-    private DomainCacheOptions _hold = null!;
-    private DomainCacheOptions _mustRevalidate = null!;
-    private DomainCacheOptions _noStore = null!;
-    private DomainCacheOptions _private = null!;
+    private DomainHttpCacheOptions _calm = null!;
+    private DomainHttpCacheOptions _ramp = null!;
+    private DomainHttpCacheOptions _hold = null!;
+    private DomainHttpCacheOptions _mustRevalidate = null!;
+    private DomainHttpCacheOptions _noStore = null!;
+    private DomainHttpCacheOptions _private = null!;
     private DateTimeOffset _now;
 
     [GlobalSetup]
@@ -51,23 +51,26 @@ public class ClientCacheHeaderGeneratorBenchmarks
     public string Build_Private()
         => ClientCacheHeaderGenerator.Build(_private, _now).Header;
 
-    private static DomainCacheOptions CreateOptions(
+    private static DomainHttpCacheOptions CreateOptions(
         DateTimeOffset? schedule,
         ClientCacheability cacheability = ClientCacheability.Public,
         bool mustRevalidateNear = false) => new()
         {
-            Domain = "catalog",
-            Version = "1",
-            VersionHex = "01",
+            CoreOptions = new DomainCacheOptions
+            {
+                Domain = "catalog",
+                Version = "1",
+                VersionHex = "01",
+                DataCacheEnabled = true,
+                DataCacheTtl = TimeSpan.FromSeconds(60),
+            },
             ClientCacheability = cacheability,
             ClientTtlSeconds = 3600,
             ClientTtlMinSeconds = 60,
             ScheduledUpdateUtc = schedule,
             ClientMustRevalidateNearUpdate = mustRevalidateNear,
             OutputCacheEnabled = true,
-            DataCacheEnabled = true,
             OutputTtl = TimeSpan.FromSeconds(60),
-            DataCacheTtl = TimeSpan.FromSeconds(60),
             CacheableStatusCodes = [200],
             OutputCacheNamespace = "b",
             EncodingNormalizationList = null,

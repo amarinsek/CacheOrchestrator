@@ -1,6 +1,6 @@
 # CacheOrchestrator
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
+[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
 This **meta** package is the usual starting point for web apps: it includes **AspNetCore** + **FusionCache**.
 
@@ -12,7 +12,7 @@ Targets **.NET 8** and **.NET 10**.
 dotnet add package CacheOrchestrator --prerelease
 ```
 
-## Config
+## Configuration
 
 ```json
 {
@@ -31,7 +31,7 @@ dotnet add package CacheOrchestrator --prerelease
 }
 ```
 
-## Example
+## Usage
 
 ```csharp
 builder.Services.AddCacheOrchestrator(builder.Configuration);
@@ -39,7 +39,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 var app = builder.Build();
 app.UseCacheOrchestrator();
 
-app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
 {
     var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
     return Results.Json(data);
@@ -48,18 +48,6 @@ app.MapGet("/api/products/{id}", async (HttpContext http, string id, IDomainData
 ```
 
 More layouts (Redis, Hybrid, libraries, EF): [packages.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md).
-
-## Related packages
-
-| Package | Role |
-|---------|------|
-| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Http-free domains and `ICacheOrchestrator` (libraries / workers) |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, Admin API, `IDomainDataCache` |
-| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | FusionCache data-cache provider (included in this meta package) |
-| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache data-cache provider |
-| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Redis Output Cache store / Fusion L2 / backplane |
-| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.2) | Multi-instance invalidate / Version / settings bus |
-| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | Invalidate after EF `SaveChanges` |
 
 ## Documentation
 

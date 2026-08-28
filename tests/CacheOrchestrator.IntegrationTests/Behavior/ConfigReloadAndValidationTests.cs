@@ -105,7 +105,7 @@ public class ConfigReloadAndValidationTests
 
         IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
         DefaultHttpContext http = new();
-        DomainCacheOptions pinned = domains.EnsureDomainOptions(http, "pin");
+        DomainHttpCacheOptions pinned = domains.EnsureDomainOptions(http, "pin");
         pinned.Version.Should().Be("1");
         pinned.ClientTtlSeconds.Should().Be(10);
 
@@ -117,12 +117,12 @@ public class ConfigReloadAndValidationTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
         _ = sp.GetRequiredService<IOptionsMonitor<CacheOrchestratorOptions>>().CurrentValue;
 
-        DomainCacheOptions stillPinned = domains.GetDomainOptions(http)!;
+        DomainHttpCacheOptions stillPinned = domains.GetDomainOptions(http)!;
         stillPinned.Should().BeSameAs(pinned);
         stillPinned.Version.Should().Be("1");
         stillPinned.ClientTtlSeconds.Should().Be(10);
 
-        DomainCacheOptions fresh = domains.EnsureDomainOptions(new DefaultHttpContext(), "pin");
+        DomainHttpCacheOptions fresh = domains.EnsureDomainOptions(new DefaultHttpContext(), "pin");
         // After global cache clear, new request sees reloaded values (may need poll)
         DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(3);
         while (DateTimeOffset.UtcNow < deadline && fresh.Version != "2")

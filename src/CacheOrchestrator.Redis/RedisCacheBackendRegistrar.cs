@@ -9,7 +9,7 @@ namespace CacheOrchestrator.Redis;
 /// the same dual behaviour. Leaf packages expose
 /// <see cref="RedisOutputCacheBackendRegistrar"/> and <see cref="RedisFusionCacheBackendRegistrar"/>.
 /// </summary>
-public sealed class RedisCacheBackendRegistrar : ICacheBackendRegistrar, IFusionCacheBackendRegistrar
+internal sealed class RedisCacheBackendRegistrar : IOutputCacheBackendRegistrar, IFusionCacheBackendRegistrar
 {
     private readonly RedisOutputCacheBackendRegistrar _outputCache = new();
     private readonly RedisFusionCacheBackendRegistrar _fusionCache = new();
@@ -18,21 +18,10 @@ public sealed class RedisCacheBackendRegistrar : ICacheBackendRegistrar, IFusion
     public string Name => RedisConfiguration.ProviderName;
 
     /// <inheritdoc />
-    public bool SupportsOutputCacheStore => true;
-
-    /// <inheritdoc />
     public void RegisterOutputCache(OutputCacheRegistrationContext context) =>
         _outputCache.RegisterOutputCache(context);
 
     /// <inheritdoc />
     public void RegisterFusionCache(FusionCacheRegistrationContext context) =>
         _fusionCache.RegisterFusionCache(context);
-
-    /// <inheritdoc cref="ICacheBackendRegistrar.RegisterHealthProbes" />
-    public void RegisterHealthProbes(BackendHealthRegistrationContext context) =>
-        _outputCache.RegisterHealthProbes(context);
-
-    /// <inheritdoc cref="IFusionCacheBackendRegistrar.RegisterHealthProbes" />
-    public void RegisterHealthProbes(FusionBackendHealthRegistrationContext context) =>
-        _fusionCache.RegisterHealthProbes(context);
 }

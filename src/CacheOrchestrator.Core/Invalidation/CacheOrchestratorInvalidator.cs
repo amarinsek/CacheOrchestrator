@@ -311,26 +311,27 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
 
         foreach (string instanceName in instanceNames)
         {
-            foreach (string tag in tags)
+            try
             {
-                try
-                {
-                    await _dataCache.RemoveByTagAsync(instanceName, tag, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    dataOk = false;
-                    string msg = $"DataCache tag '{tag}' on '{instanceName}' ({_dataCache.Name}): {ex.Message}";
-                    errors.Add(msg);
-                    activity?.AddEvent(new ActivityEvent("dc.invalidate.failed"));
-                    _logger.LogWarning(
-                        ex,
-                        "Failed to invalidate data-cache tag '{Tag}' on instance '{Instance}' ({Provider})",
-                        tag,
-                        instanceName,
-                        _dataCache.Name);
-                }
+                await _dataCache.InvalidateAsync(
+                    new DataCacheInvalidationRequest
+                    {
+                        InstanceName = instanceName,
+                        Tags = tags
+                    },
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                dataOk = false;
+                string msg = $"DataCache tags on '{instanceName}' ({_dataCache.Name}): {ex.Message}";
+                errors.Add(msg);
+                activity?.AddEvent(new ActivityEvent("dc.invalidate.failed"));
+                _logger.LogWarning(
+                    ex,
+                    "Failed to invalidate data-cache tags on instance '{Instance}' ({Provider})",
+                    instanceName,
+                    _dataCache.Name);
             }
         }
 

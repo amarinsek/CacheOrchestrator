@@ -12,7 +12,7 @@ public sealed class CacheVaryContext
     public required HttpContext HttpContext { get; init; }
 
     /// <summary>Resolved domain options for this request.</summary>
-    public required DomainCacheOptions Options { get; init; }
+    public required DomainHttpCacheOptions Options { get; init; }
 
     /// <summary>Which cache surface is building vary material.</summary>
     public required CacheVarySurface Surface { get; init; }

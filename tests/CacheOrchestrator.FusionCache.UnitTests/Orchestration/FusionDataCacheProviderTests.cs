@@ -84,7 +84,7 @@ public class FusionDataCacheProviderTests
     }
 
     [Fact]
-    public async Task RemoveByTagAsync_RemovesOnAllConfiguredInstances()
+    public async Task InvalidateAsync_WithoutInstance_RemovesTagsOnAllConfiguredInstances()
     {
         IFusionCache second = Substitute.For<IFusionCache>();
         _fusionProvider.GetCache("secondary").Returns(second);
@@ -97,7 +97,9 @@ public class FusionDataCacheProviderTests
             }
         });
 
-        await _sut.RemoveByTagAsync("domain:products", TestContext.Current.CancellationToken);
+        await _sut.InvalidateAsync(
+            new DataCacheInvalidationRequest { Tags = ["domain:products"] },
+            TestContext.Current.CancellationToken);
 
         await _fusionCache.Received(1).RemoveByTagAsync("domain:products", token: Arg.Any<CancellationToken>());
         await second.Received(1).RemoveByTagAsync("domain:products", token: Arg.Any<CancellationToken>());

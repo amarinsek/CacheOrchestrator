@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Net.Http.Headers;
 using System.Security.Claims;
@@ -23,7 +23,7 @@ public class DomainAuthEvaluatorTests
         bool expectedBypass)
     {
         HttpContext http = CreateHttp(authenticated, hasAuthorization);
-        DomainCacheOptions opts = new()
+        DomainHttpCacheOptions opts = new()
         {
             AuthBypassMode = mode,
             TreatAuthorizationAsAuthSignal = true,
@@ -36,7 +36,7 @@ public class DomainAuthEvaluatorTests
     public void TreatAuthorizationAsAuthSignal_False_IgnoresAuthorizationHeaderForOrMode()
     {
         HttpContext http = CreateHttp(authenticated: false, hasAuthorization: true);
-        DomainCacheOptions opts = new()
+        DomainHttpCacheOptions opts = new()
         {
             AuthBypassMode = AuthBypassMode.AuthenticatedOrAuthorization,
             TreatAuthorizationAsAuthSignal = false,
@@ -49,7 +49,7 @@ public class DomainAuthEvaluatorTests
     [Fact]
     public void GetEffectiveAuthBypassMode_ReturnsConfiguredMode()
     {
-        DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
+        DomainHttpCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
 
         DomainAuthEvaluator.GetEffectiveAuthBypassMode(opts).Should().Be(AuthBypassMode.Never);
     }
@@ -58,7 +58,7 @@ public class DomainAuthEvaluatorTests
     public void ResolveAuthenticatedVaryKey_UsesNamePrefix()
     {
         HttpContext http = CreateHttp(authenticated: true, hasAuthorization: false);
-        DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
+        DomainHttpCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
 
         DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("u:user");
     }
@@ -72,7 +72,7 @@ public class DomainAuthEvaluatorTests
                 [new Claim("tenant_id", "acme"), new Claim("role", "admin"), new Claim(ClaimTypes.Name, "carol")],
                 authenticationType: "test"))
         };
-        DomainCacheOptions opts = new()
+        DomainHttpCacheOptions opts = new()
         {
             AuthBypassMode = AuthBypassMode.Never,
             VaryByAuthClaims = ["tenant_id", "role"],
@@ -86,7 +86,7 @@ public class DomainAuthEvaluatorTests
     public void ResolveAuthenticatedVaryKey_HashesAuthorization_AndDoesNotLeakToken()
     {
         HttpContext http = CreateHttp(authenticated: false, hasAuthorization: true);
-        DomainCacheOptions opts = new()
+        DomainHttpCacheOptions opts = new()
         {
             AuthBypassMode = AuthBypassMode.Never,
             AuthVaryIncludeAuthorizationHash = true,
@@ -103,7 +103,7 @@ public class DomainAuthEvaluatorTests
     public void ResolveAuthenticatedVaryKey_WhenHashDisabled_ReturnsAuthSentinel()
     {
         HttpContext http = CreateHttp(authenticated: false, hasAuthorization: true);
-        DomainCacheOptions opts = new()
+        DomainHttpCacheOptions opts = new()
         {
             AuthBypassMode = AuthBypassMode.Never,
             AuthVaryIncludeAuthorizationHash = false,
@@ -121,7 +121,7 @@ public class DomainAuthEvaluatorTests
                 [new Claim("sub", "user-42")],
                 authenticationType: "test"))
         };
-        DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
+        DomainHttpCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
 
         DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("id:user-42");
     }
@@ -135,7 +135,7 @@ public class DomainAuthEvaluatorTests
                 [new Claim(ClaimTypes.NameIdentifier, "nid-7")],
                 authenticationType: "test"))
         };
-        DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
+        DomainHttpCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
 
         DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("id:nid-7");
     }
@@ -144,7 +144,7 @@ public class DomainAuthEvaluatorTests
     public void ResolveAuthenticatedVaryKey_WhenAnonymous_ReturnsAuthSentinel()
     {
         HttpContext http = CreateHttp(authenticated: false, hasAuthorization: false);
-        DomainCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
+        DomainHttpCacheOptions opts = new() { AuthBypassMode = AuthBypassMode.Never };
 
         DomainAuthEvaluator.ResolveAuthenticatedVaryKey(http, opts).Should().Be("auth");
     }

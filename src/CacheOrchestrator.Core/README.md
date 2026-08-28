@@ -1,8 +1,8 @@
 # CacheOrchestrator.Core
 
-[CacheOrchestrator](https://github.com/amarinsek/CacheOrchestrator) unifies the configuration of Output Cache, data cache, and client Cache-Control within a single domain model. It ensures seamless coordination and cache invalidation across all layers while significantly reducing boilerplate code.
+[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
-This package is the **Http-free core**: domain options, Version, portable `DataCache` policy, entity footprint/tags, **`ICacheOrchestrator`**, **`CacheDomainContext`**, invalidation, and cluster **contracts**. Use it from class libraries and workers. It does not reference ASP.NET or a concrete cache engine.
+This package is the **HTTP-free core**: domain options, Version, portable `DataCache` policy, entity footprint/tags, **`ICacheOrchestrator`**, **`ICacheOrchestratorManagement`**, invalidation, and cluster **contracts**. Use it from class libraries and workers. It does not reference ASP.NET or a concrete cache engine.
 
 ## Install
 
@@ -10,7 +10,9 @@ This package is the **Http-free core**: domain options, Version, portable `DataC
 dotnet add package CacheOrchestrator.Core --prerelease
 ```
 
-## Config
+A reusable library stops there. A standalone worker also installs one Data Cache provider, for example `CacheOrchestrator.FusionCache`.
+
+## Configuration
 
 The host binds domain policy (the library only consumes it via `ICacheOrchestrator`):
 
@@ -28,14 +30,17 @@ The host binds domain policy (the library only consumes it via `ICacheOrchestrat
 }
 ```
 
-## Example
+## Usage
 
 ```csharp
+builder.Services.AddCacheOrchestratorCore(builder.Configuration);
+builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
+
 public sealed class CatalogService(ICacheOrchestrator cache)
 {
     public ValueTask<ProductDto?> GetProductAsync(
         CacheDomainContext cacheDomain,
-        string id,
+        int id,
         CancellationToken cancellationToken) =>
         cache.GetOrCreateAsync(
             cacheDomain,
@@ -45,23 +50,11 @@ public sealed class CatalogService(ICacheOrchestrator cache)
 }
 ```
 
-The host supplies `CacheDomainContext`, registers a data provider (Fusion or Hybrid), and optionally AspNetCore for Output Cache / client headers.
-
-## Related packages
-
-| Package | Role |
-|---------|------|
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package (AspNetCore + Fusion) for typical web apps |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, Admin API, `IDomainDataCache` |
-| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | FusionCache data-cache provider |
-| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache data-cache provider |
-| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Redis Output Cache store / Fusion L2 / backplane |
-| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.2) | Multi-instance invalidate / Version / settings bus |
-| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | Invalidate after EF `SaveChanges` |
+The worker installs Core plus one provider package. A reusable class library needs only Core; its host owns registration. Add the ASP.NET Core package only when the host needs Output Cache, Client Cache headers, or HTTP helpers.
 
 ## Documentation
 
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
+- [Core API](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/core-api.md) · [packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

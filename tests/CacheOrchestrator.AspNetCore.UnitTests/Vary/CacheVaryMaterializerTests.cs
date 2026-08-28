@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
@@ -13,7 +13,7 @@ public class CacheVaryMaterializerTests
     public void Build_DefaultOptions_OutputCache_VariesAcceptEncodingWhenPresent()
     {
         DefaultHttpContext http = CreateHttp(acceptEncoding: "gzip");
-        DomainCacheOptions opts = CreateOptions();
+        DomainHttpCacheOptions opts = CreateOptions();
 
         CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.OutputCache);
 
@@ -25,7 +25,7 @@ public class CacheVaryMaterializerTests
     public void Build_DefaultOptions_Fusion_VariesEncodingWhenFlagOn()
     {
         DefaultHttpContext http = CreateHttp(acceptEncoding: "br");
-        DomainCacheOptions opts = CreateOptions(varyEncoding: true);
+        DomainHttpCacheOptions opts = CreateOptions(varyEncoding: true);
 
         CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
 
@@ -36,7 +36,7 @@ public class CacheVaryMaterializerTests
     public void Build_VaryByAccept_IncludesAcceptHeader()
     {
         DefaultHttpContext http = CreateHttp(accept: "application/json");
-        DomainCacheOptions opts = CreateOptions(varyByAccept: true);
+        DomainHttpCacheOptions opts = CreateOptions(varyByAccept: true);
 
         CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.OutputCache);
 
@@ -48,7 +48,7 @@ public class CacheVaryMaterializerTests
     public void Build_VaryByQueryKeys_Empty_MeansNoQueryVary()
     {
         DefaultHttpContext http = CreateHttp(query: new() { ["id"] = "1", ["utm_source"] = "x" });
-        DomainCacheOptions opts = CreateOptions(varyByQueryKeys: []);
+        DomainHttpCacheOptions opts = CreateOptions(varyByQueryKeys: []);
 
         IReadOnlyList<string> keys = CacheVaryMaterializer.ResolveQueryKeys(http.Request.Query, opts);
 
@@ -59,7 +59,7 @@ public class CacheVaryMaterializerTests
     public void Build_VaryByQueryKeys_Allowlist_OnlyListedKeys()
     {
         DefaultHttpContext http = CreateHttp(query: new() { ["id"] = "1", ["page"] = "2", ["utm_source"] = "x" });
-        DomainCacheOptions opts = CreateOptions(varyByQueryKeys: ["id"]);
+        DomainHttpCacheOptions opts = CreateOptions(varyByQueryKeys: ["id"]);
 
         IReadOnlyList<string> keys = CacheVaryMaterializer.ResolveQueryKeys(http.Request.Query, opts);
 
@@ -70,7 +70,7 @@ public class CacheVaryMaterializerTests
     public void Build_IgnoreQueryKeys_RemovesExtraKeys()
     {
         DefaultHttpContext http = CreateHttp(query: new() { ["id"] = "1", ["debug"] = "1" });
-        DomainCacheOptions opts = CreateOptions(ignoreQueryKeys: ["debug"]);
+        DomainHttpCacheOptions opts = CreateOptions(ignoreQueryKeys: ["debug"]);
 
         IReadOnlyList<string> keys = CacheVaryMaterializer.ResolveQueryKeys(http.Request.Query, opts);
 
@@ -82,7 +82,7 @@ public class CacheVaryMaterializerTests
     {
         DefaultHttpContext http = CreateHttp();
         http.Request.Headers.Authorization = "Bearer secret-token";
-        DomainCacheOptions opts = CreateOptions(
+        DomainHttpCacheOptions opts = CreateOptions(
             authBypassMode: AuthBypassMode.Never,
             varyByHeaders: ["Authorization"]);
 
@@ -107,7 +107,7 @@ public class CacheVaryMaterializerTests
                     ["ab_bucket"] = "variant-a",
                     ["session"] = "raw-secret",
                 })));
-        DomainCacheOptions opts = CreateOptions(varyByCookies: ["ab_bucket"]);
+        DomainHttpCacheOptions opts = CreateOptions(varyByCookies: ["ab_bucket"]);
 
         CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
 
@@ -124,7 +124,7 @@ public class CacheVaryMaterializerTests
         http.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.Name, "alice")],
             authenticationType: "test"));
-        DomainCacheOptions opts = CreateOptions(authBypassMode: AuthBypassMode.Never, varyByUser: true);
+        DomainHttpCacheOptions opts = CreateOptions(authBypassMode: AuthBypassMode.Never, varyByUser: true);
 
         CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.OutputCache);
 
@@ -137,7 +137,7 @@ public class CacheVaryMaterializerTests
     {
         DefaultHttpContext http = CreateHttp();
         http.Request.Headers.Authorization = "Bearer x";
-        DomainCacheOptions opts = CreateOptions(authBypassMode: AuthBypassMode.AuthenticatedOrAuthorization, varyByUser: true);
+        DomainHttpCacheOptions opts = CreateOptions(authBypassMode: AuthBypassMode.AuthenticatedOrAuthorization, varyByUser: true);
 
         CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
 
@@ -151,7 +151,7 @@ public class CacheVaryMaterializerTests
         http.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.Name, "bob")],
             authenticationType: "test"));
-        DomainCacheOptions opts = CreateOptions(authBypassMode: AuthBypassMode.Never, varyByUser: true);
+        DomainHttpCacheOptions opts = CreateOptions(authBypassMode: AuthBypassMode.Never, varyByUser: true);
 
         CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
 
@@ -166,7 +166,7 @@ public class CacheVaryMaterializerTests
         http.User = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim("tenant_id", "acme"), new Claim(ClaimTypes.Name, "carol")],
             authenticationType: "test"));
-        DomainCacheOptions opts = CreateOptions(
+        DomainHttpCacheOptions opts = CreateOptions(
             authBypassMode: AuthBypassMode.Never,
             varyByUser: true,
             varyByAuthClaims: ["tenant_id"]);
@@ -183,7 +183,7 @@ public class CacheVaryMaterializerTests
         var late = new TestContributor(order: 200, key: "b", value: "2");
         var materializer = new CacheVaryMaterializer([late, early]);
         DefaultHttpContext http = CreateHttp();
-        DomainCacheOptions opts = CreateOptions();
+        DomainHttpCacheOptions opts = CreateOptions();
 
         CacheVaryMaterial material = materializer.Build(http, opts, CacheVarySurface.Fusion);
 
@@ -196,7 +196,7 @@ public class CacheVaryMaterializerTests
     public void AcceptNormalization_CollapsesToPreferList()
     {
         DefaultHttpContext http = CreateHttp(accept: "text/html, application/json;q=0.9");
-        DomainCacheOptions opts = CreateOptions(
+        DomainHttpCacheOptions opts = CreateOptions(
             varyByAccept: true,
             acceptNormalization: ["application/json", "application/xml"]);
 
@@ -209,7 +209,7 @@ public class CacheVaryMaterializerTests
     public void AcceptNormalization_DoesNotMatchJsonSeqAsJson()
     {
         DefaultHttpContext http = CreateHttp(accept: "application/json-seq");
-        DomainCacheOptions opts = CreateOptions(
+        DomainHttpCacheOptions opts = CreateOptions(
             varyByAccept: true,
             acceptNormalization: ["application/json", "application/xml"]);
 
@@ -222,7 +222,7 @@ public class CacheVaryMaterializerTests
     public void AcceptNormalization_UsesFirstPreferThatIsPresent()
     {
         DefaultHttpContext http = CreateHttp(accept: "application/json");
-        DomainCacheOptions opts = CreateOptions(
+        DomainHttpCacheOptions opts = CreateOptions(
             varyByAccept: true,
             acceptNormalization: ["application/xml", "application/json"]);
 
@@ -231,7 +231,7 @@ public class CacheVaryMaterializerTests
         http.Request.Headers.Accept.ToString().Should().Be("application/json");
     }
 
-    private static DomainCacheOptions CreateOptions(
+    private static DomainHttpCacheOptions CreateOptions(
         bool varyEncoding = false,
         bool varyByAccept = false,
         bool varyByUser = true,
@@ -243,7 +243,7 @@ public class CacheVaryMaterializerTests
         string[]? varyByAuthClaims = null,
         string[]? acceptNormalization = null) => new()
         {
-            Domain = "products",
+            CoreOptions = new DomainCacheOptions { Domain = "products" },
             AuthBypassMode = authBypassMode,
             VaryOutputCacheByUser = varyByUser,
             DataCacheVaryOnEncoding = varyEncoding,

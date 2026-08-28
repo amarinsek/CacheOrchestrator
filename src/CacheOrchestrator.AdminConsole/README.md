@@ -1,28 +1,44 @@
 # CacheOrchestrator.AdminConsole
 
-> **Runbook (local).** Orientation: [Guide — operations](../../docs/guide/operations.md). Architecture/security: [docs/reference/admin.md](../../docs/reference/admin.md). Docker: [deploy/admin/README.md](../../deploy/admin/README.md). Writing rules: [hints/README.md](hints/README.md).
+The Admin Console App gives operators one place to inspect multiple CacheOrchestrator instances, review live cache statistics and recommendations, and run domain invalidation or Version/TTL operations.
 
-Admin Console App for multi-instance CacheOrchestrator: live stats, domain settings, invalidation, Version/TTL, **time-series Metrics**, and **recommendation Hints**.
+<img src="../../docs/assets/admin-overview.png" alt="CacheOrchestrator Admin Console overview with instance health and cache statistics" width="800" />
 
-<img src="../../docs/assets/admin-overview.png" width="800" />
+## Quick start
 
-It calls the **Admin API** on each instance you list (`Cache:Admin:Enabled`, `MapCacheOrchestratorAdmin`).
+From the repository root, start the Playground, Prometheus, and Admin Console together:
 
-**Stats (Prom-only):** Console **2.2+** traffic KPIs, domain/endpoint tables, impact, and hints come from **Prometheus** (`AdminConsole:Metrics` + `GET /api/stats/window`). Local Admin API is used for health, domain config, and operations (invalidate / Version / TTL) only. Instance process-lifetime `GET …/stats` remains for diagnostics but is **not** used by the stats UI.
+```bash
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build -d
+```
 
-**Impact / charts:** Need Prometheus scrape of the `CacheOrchestrator` meter (e.g. `cache_orchestrator.dc.requests`, `cache_orchestrator.factory.duration`). Without Metrics store, statistics and charts are unavailable.
+Open:
 
-This host is **not** a NuGet package. It targets **.NET 10** only.  
-Monitored app instances may still run on **.NET 8** or **.NET 10** — Admin talks **HTTP only**, so Admin TFM does not need to match instance TFMs.
+- http://localhost:5188/ — Admin Console
+- http://localhost:5289/ — Playground
+- http://localhost:9090/ — Prometheus
 
-| Guide | |
-|-------|--|
-| [Guide — operations](../../docs/guide/operations.md) | Which document to open |
-| This README | Run / configure this host |
-| **[deploy/admin/README.md](../../deploy/admin/README.md)** | **Docker image, volumes, custom hints, logs** |
-| **[hints/README.md](hints/README.md)** | **How to write and add custom hint rules** (ships next to the rule packs) |
-| [docs/reference/admin.md](../../docs/reference/admin.md) | Architecture, security, Metrics store |
-| [docs/contributor/admin-hints.md](../../docs/contributor/admin-hints.md) | Repo overview of the hints feature |
+For a direct host run, continue to [Run locally](#run-locally).
+
+> [!NOTE]
+> This host is not a NuGet package and targets .NET 10 only. Monitored applications may run on .NET 8 or .NET 10 because the Admin Console communicates with them over HTTP.
+
+## How it works
+
+- The **Admin API** on each configured instance provides health, effective domain settings, discovery, and operations such as invalidation and Version/TTL changes.
+- **Prometheus** provides time-window statistics, charts, domain and endpoint traffic tables, impact analysis, and recommendation inputs.
+- Without a Metrics store, health, configuration, and operations remain available, but traffic statistics and charts do not.
+
+## Choose the next document
+
+| Need | Read |
+|------|------|
+| Understand the operator workflow | [Guide — operations](../../docs/guide/operations.md) |
+| Architecture, security, and API contracts | [Admin reference](../../docs/reference/admin.md) |
+| Docker image, volumes, custom hints, and logs | [Admin deployment](../../deploy/admin/README.md) |
+| Write and install custom hint rules | [Hints handbook](hints/README.md) |
+| Contribute to the hints implementation | [Admin hints contributor guide](../../docs/contributor/admin-hints.md) |
+| Coordinate operations across instances | [Cluster bus reference](../../docs/reference/cluster-bus.md) |
 
 ---
 
@@ -88,7 +104,7 @@ Product pack **`hints/core-hints.json` is always loaded** in every environment.
 
 ---
 
-## Run (local)
+## Run locally
 
 ```bash
 dotnet run --project src/CacheOrchestrator.AdminConsole
@@ -200,6 +216,10 @@ Repo architecture notes: [docs/contributor/admin-hints.md](../../docs/contributo
 
 ## Metrics (Prometheus)
 
+Traffic KPIs, time-window domain and endpoint tables, impact analysis, charts, and recommendation inputs come from Prometheus through `AdminConsole:Metrics` and `GET /api/stats/window`. The Local Admin API is used for health, effective configuration, discovery, and operations.
+
+Instance process-lifetime `GET …/stats` remains available for diagnostics but is not used by the statistics UI. Prometheus must scrape the `CacheOrchestrator` meter, including measurements such as `cache_orchestrator.dc.requests` and `cache_orchestrator.factory.duration`.
+
 ```json
 "AdminConsole": {
   "Metrics": {
@@ -210,20 +230,4 @@ Repo architecture notes: [docs/contributor/admin-hints.md](../../docs/contributo
 }
 ```
 
-```bash
-# Playground + Prometheus + Admin Console in one stack
-docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build -d
-```
-
-Guide: [Playground topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) · [docs/reference/admin.md](../../docs/reference/admin.md).
-
----
-
-## Further reading
-
-- [Guide — operations](../../docs/guide/operations.md)  
-- **[deploy/admin/README.md](../../deploy/admin/README.md)** — Docker / GHCR  
-- [docs/reference/admin.md](../../docs/reference/admin.md) — fan-out, security, Metrics store  
-- [docs/contributor/admin-hints.md](../../docs/contributor/admin-hints.md) — hints feature in the monorepo  
-- **[hints/README.md](hints/README.md)** — writing custom rules  
-- [docs/reference/cluster-bus.md](../../docs/reference/cluster-bus.md) — multi-instance bus  
+Use the [Quick start](#quick-start) for a ready-to-run stack. For additional Redis and multi-instance layouts, continue with the [Playground topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md). Architecture and provider details are in the [Admin reference](../../docs/reference/admin.md).

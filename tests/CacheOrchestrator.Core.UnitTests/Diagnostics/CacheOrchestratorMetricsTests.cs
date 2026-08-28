@@ -242,7 +242,7 @@ public class CacheOrchestratorMetricsTests
 
         CacheOrchestratorMetrics.RecordClientSchedule(
             expectedDomain,
-            XCacheHeaderFormatter.PhaseToString(ClientCacheSchedulePhase.Hold));
+            "hold");
 
         value.Should().Be(1);
         domain.Should().Be(expectedDomain);

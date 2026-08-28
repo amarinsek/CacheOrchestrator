@@ -31,7 +31,7 @@ public class DomainDataCacheServiceTests
         var http = new DefaultHttpContext();
         http.Request.Method = "GET";
         http.Request.Path = "/api/uncached";
-        _domainConfig.GetDomainOptions(http).Returns((DomainCacheOptions?)null);
+        _domainConfig.GetDomainOptions(http).Returns((DomainHttpCacheOptions?)null);
 
         bool factoryCalled = false;
         int result = await _sut.GetOrSetAsync(http, _ =>
@@ -51,8 +51,8 @@ public class DomainDataCacheServiceTests
     public async Task GetOrSetAsync_WithDomainOverload_WhenConfigMissing_EnsuresDomain()
     {
         var http = new DefaultHttpContext();
-        DomainCacheOptions cfg = CreateConfig(domain: "reports");
-        _domainConfig.GetDomainOptions(http).Returns((DomainCacheOptions?)null);
+        DomainHttpCacheOptions cfg = CreateConfig(domain: "reports");
+        _domainConfig.GetDomainOptions(http).Returns((DomainHttpCacheOptions?)null);
         _domainConfig.EnsureDomainOptions(http, "reports").Returns(cfg);
         _keyGenerator.Generate(cfg, http).Returns("reports:v:key");
         StubOrchestratorGetOrCreate(1);
@@ -67,8 +67,8 @@ public class DomainDataCacheServiceTests
     public async Task GetOrSetAsync_WhenConfigMissing_ResolvesDomainFromPolicyMetadata()
     {
         var http = new DefaultHttpContext();
-        DomainCacheOptions cfg = CreateConfig(domain: "catalog");
-        _domainConfig.GetDomainOptions(http).Returns((DomainCacheOptions?)null);
+        DomainHttpCacheOptions cfg = CreateConfig(domain: "catalog");
+        _domainConfig.GetDomainOptions(http).Returns((DomainHttpCacheOptions?)null);
         _domainConfig.EnsureDomainOptions(http, "catalog").Returns(cfg);
         _keyGenerator.Generate(cfg, http).Returns("key");
 
@@ -88,7 +88,7 @@ public class DomainDataCacheServiceTests
     public async Task GetOrSetAsync_WhenDataCacheDisabled_CallsFactoryDirectly()
     {
         var http = new DefaultHttpContext();
-        DomainCacheOptions cfg = CreateConfig(enabled: false);
+        DomainHttpCacheOptions cfg = CreateConfig(enabled: false);
         _domainConfig.GetDomainOptions(http).Returns(cfg);
 
         bool factoryCalled = false;
@@ -110,7 +110,7 @@ public class DomainDataCacheServiceTests
     public async Task GetOrSetAsync_WhenEnabled_DelegatesToOrchestratorWithPhysicalKey()
     {
         var http = new DefaultHttpContext();
-        DomainCacheOptions cfg = CreateConfig();
+        DomainHttpCacheOptions cfg = CreateConfig();
         _domainConfig.GetDomainOptions(http).Returns(cfg);
         _keyGenerator.Generate(cfg, http).Returns("products:abc:hash");
 
@@ -139,7 +139,7 @@ public class DomainDataCacheServiceTests
     public async Task GetOrSetEntityAsync_RequiresIdentity_AndStagesFootprint()
     {
         var http = new DefaultHttpContext();
-        DomainCacheOptions cfg = CreateConfig();
+        DomainHttpCacheOptions cfg = CreateConfig();
         _domainConfig.GetDomainOptions(http).Returns(cfg);
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature
         {
@@ -206,7 +206,7 @@ public class DomainDataCacheServiceTests
             NullLogger<DomainDataCacheService>.Instance,
             admin);
         var http = new DefaultHttpContext();
-        DomainCacheOptions cfg = CreateConfig(enabled: false);
+        DomainHttpCacheOptions cfg = CreateConfig(enabled: false);
         _domainConfig.GetDomainOptions(http).Returns(cfg);
 
         await sut.GetOrSetAsync(http, _ => Task.FromResult(1), TestContext.Current.CancellationToken);
@@ -229,13 +229,16 @@ public class DomainDataCacheServiceTests
             .Returns(ValueTask.FromResult<T?>(value));
     }
 
-    private static DomainCacheOptions CreateConfig(string domain = "products", bool enabled = true) => new()
+    private static DomainHttpCacheOptions CreateConfig(string domain = "products", bool enabled = true) => new()
     {
-        Domain = domain,
-        Version = "1",
-        VersionHex = "abc",
-        DataCacheEnabled = enabled,
-        DataCacheInstanceName = "default",
-        DataCacheTtl = TimeSpan.FromMinutes(5),
+        CoreOptions = new DomainCacheOptions
+        {
+            Domain = domain,
+            Version = "1",
+            VersionHex = "abc",
+            DataCacheEnabled = enabled,
+            DataCacheInstanceName = "default",
+            DataCacheTtl = TimeSpan.FromMinutes(5),
+        },
     };
 }

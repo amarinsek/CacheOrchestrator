@@ -45,16 +45,16 @@ The simplest topology. One process, no Redis, no cross-process coordination.
 ```
 
 **Limitations:**
-- Output Cache and data-cache entries are **not shared** between process restarts or replicas.
+- Output Cache and Data Cache entries are **not shared** between process restarts or replicas.
 - No invalidation signal reaches other instances -- `InvalidateDomainAsync` only clears the calling process.
 
 ---
 
 ## Multiple instances with Redis
 
-Redis is the distributed backend that ships with the library (`CacheOrchestrator.Redis`). For SQL Server, Memcached, or Cosmos, implement `ICacheBackendRegistrar` and call `AddBackend`. [backends.md](backends.md) includes an example of Fusion L2 on SQL Server.
+Redis is the distributed backend that ships with the library (`CacheOrchestrator.Redis`). For another store, use the contract for the required surface: `IOutputCacheBackendRegistrar` for Output Cache, `IFusionCacheBackendRegistrar` for FusionCache L2/backplane, or `IDataCacheProvider` for a complete Data Cache engine. [Backends](backends.md) includes a Fusion L2 example for SQL Server; [Extensibility](extensibility.md) defines every boundary.
 
-Multiple replicas share both Output Cache data and Fusion data-cache entries through Redis.
+Multiple replicas share both Output Cache data and Fusion Data Cache entries through Redis.
 Fusion also receives **backplane** invalidation signals so L1 (in-memory) is cleared on all nodes
 when any node invalidates a tag.
 
@@ -88,7 +88,7 @@ Instance A (ASP.NET)          Instance B (ASP.NET)
 Output Cache:
   Instance A writes -> Redis -> Instance B reads (shared store)
 
-Data-cache (Fusion) invalidation:
+Data Cache (Fusion) invalidation:
   Instance A calls InvalidateDomainAsync
     -> removes tag from Redis L2
     -> publishes backplane message
@@ -100,13 +100,13 @@ Instance B's L1 memory would still hold stale data until its TTL expired. The Re
 (pub/sub) delivers the invalidation signal so L1 is cleared immediately on all nodes.
 
 **Backplane channel:** `{DataCacheNamespace}:backplane` (e.g. `my-app-fc:backplane`).
-Effective data-cache namespace is `Cache:DataCacheInstances:{name}:Namespace` if set, else `{Cache:Namespace}-fc` for instance `default`, else `{Cache:Namespace}-fc-{instanceName}`. The `-fc` suffix is historical. Multiple apps on the same Redis cluster stay isolated when those prefixes differ.
+Effective Data Cache namespace is `Cache:DataCacheInstances:{name}:Namespace` if set, else `{Cache:Namespace}-fc` for instance `default`, else `{Cache:Namespace}-fc-{instanceName}`. The `-fc` suffix is historical. Multiple apps on the same Redis cluster stay isolated when those prefixes differ.
 
 Runtime Version / TTL / **settings** overlays are **not** carried by the Fusion backplane. Use the [cluster bus](cluster-bus.md) (`CacheOrchestrator.HttpBus`) or Admin Console fan-out for those.
 
 ---
 
-## Multiple instances without Redis (InMemory data cache, no backplane)
+## Multiple instances without Redis (InMemory Data Cache, no backplane)
 
 Possible when Redis is not available, at the cost of stale L1 data across instances.
 
@@ -148,10 +148,10 @@ Full setup and Bus vs Redis matrix: **[cluster-bus.md](cluster-bus.md)**.
 
 ---
 
-## Mixed backends (Output Cache InMemory + data cache Redis)
+## Mixed backends (Output Cache InMemory + Data Cache Redis)
 
 A common hybrid: Output Cache stays in-process for maximum response speed,
-while the Fusion data-cache provider uses Redis so object data is shared and invalidation propagates.
+while the Fusion Data Cache provider uses Redis so object data is shared and invalidation propagates.
 
 ```json
 {
@@ -171,15 +171,15 @@ while the Fusion data-cache provider uses Redis so object data is shared and inv
 | Layer | Storage | Cross-instance? |
 |-------|---------|-----------------|
 | Output Cache (HTTP responses) | Per-process memory | No |
-| Data cache L1 (Fusion) | Per-process memory | No (but invalidated via backplane) |
-| Data cache L2 (Fusion) | Redis | Yes |
+| Data Cache L1 (Fusion) | Per-process memory | No (but invalidated via backplane) |
+| Data Cache L2 (Fusion) | Redis | Yes |
 
 Output Cache will eventually diverge between instances (until TTL expires or endpoint is not hit on that instance yet).
 Fusion object data stays consistent because Redis is the shared source of truth and the backplane keeps L1 in sync.
 
 ---
 
-## Using multiple data-cache instances {#using-multiple-datacache-instances}
+## Using multiple Data Cache instances
 
 By default, CacheOrchestrator uses a single `default` entry in `DataCacheInstances` for all domains. This provides isolation via keys and tags, which is sufficient for most applications.
 
@@ -339,9 +339,9 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 - [Guide — topologies](../guide/topologies.md) — which layout to pick  
 - [configuration.md](configuration.md) — namespaces, providers, full schema  
 - [backends.md](backends.md) — Redis package and custom registrars  
-- [data-cache.md](data-cache.md)  
+- [Data Cache](data-cache.md)
 - [invalidation.md](invalidation.md)  
 - [observability.md](observability.md)  
 - [faq.md](../guide/faq.md) — multi-instance and InMemory limitations  
-- [comparison.md](../guide/comparison.md) — when Redis OC alone is enough  
+- [comparison.md](../guide/comparison.md) — when Redis Output Cache alone is enough
 - [domain-profiles.md](../guide/domain-profiles.md) — Version vs TTL cutovers  

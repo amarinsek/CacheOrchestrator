@@ -9,16 +9,15 @@ public class DomainSettingCatalogTests
     {
         IReadOnlyList<DomainSettingCatalogEntry> all = DomainSettingCatalog.GetEntries();
         Assert.NotEmpty(all);
-        Assert.Contains(all, e => e.Id == "outputCache.ttlSeconds" && e.RuntimeOverlay);
         Assert.Contains(all, e => e.Id == "dataCache.enabled" && e.RuntimeOverlay);
         Assert.Contains(all, e => e.Id == "dataCache.ttlSeconds" && e.RuntimeOverlay);
         Assert.DoesNotContain(all, e => e.Id == "dataCache.hardTtl");
         Assert.DoesNotContain(all, e => e.Id == "dataCache.failSafe");
-        Assert.Contains(all, e => e.Id == "clientCache.scheduledUpdateUtc" && e.RuntimeOverlay);
         Assert.Contains(all, e => e.Id == "dataCache.instance" && !e.RuntimeOverlay);
         Assert.DoesNotContain(all, e => e.Id.StartsWith("fusionCache.", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(all, e => e.Id == "version" && !e.RuntimeOverlay);
-        Assert.Contains(all, e => e.Id == "authBypassMode" && e.RuntimeOverlay);
+        Assert.DoesNotContain(all, e => e.Id.StartsWith("outputCache.", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(all, e => e.Id.StartsWith("clientCache.", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -34,8 +33,8 @@ public class DomainSettingCatalogTests
     [Fact]
     public void Find_is_case_insensitive()
     {
-        DomainSettingCatalogEntry? a = DomainSettingCatalog.Find("outputCache.ttlSeconds");
-        DomainSettingCatalogEntry? b = DomainSettingCatalog.Find("outputCache.ttlSeconds");
+        DomainSettingCatalogEntry? a = DomainSettingCatalog.Find("dataCache.ttlSeconds");
+        DomainSettingCatalogEntry? b = DomainSettingCatalog.Find("DATACACHE.TTLSECONDS");
         Assert.NotNull(a);
         Assert.NotNull(b);
         Assert.Equal(a.Id, b.Id);

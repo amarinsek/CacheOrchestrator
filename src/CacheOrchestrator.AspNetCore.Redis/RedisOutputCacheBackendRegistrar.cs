@@ -9,13 +9,10 @@ namespace CacheOrchestrator.Redis;
 /// <summary>
 /// Registers a Redis-backed ASP.NET Core Output Cache store and health probe.
 /// </summary>
-public sealed class RedisOutputCacheBackendRegistrar : ICacheBackendRegistrar
+internal sealed class RedisOutputCacheBackendRegistrar : IOutputCacheBackendRegistrar
 {
     /// <inheritdoc />
     public string Name => RedisConfiguration.ProviderName;
-
-    /// <inheritdoc />
-    public bool SupportsOutputCacheStore => true;
 
     /// <inheritdoc />
     public void RegisterOutputCache(OutputCacheRegistrationContext context)
@@ -35,6 +32,12 @@ public sealed class RedisOutputCacheBackendRegistrar : ICacheBackendRegistrar
 
         ConfigurationOptions configOptions = RedisConfigurationOptionsFactory.Create(redis);
 
+        context.Services.AddSingleton<ICacheOrchestratorHealthProbe>(sp =>
+        {
+            IConnectionMultiplexer mux = sp.GetRequiredKeyedService<IConnectionMultiplexer>("oc");
+            return new RedisCacheHealthProbe("redis:oc", mux);
+        });
+
         context.RegisterStore(() =>
         {
             context.Services.TryAddKeyedSingleton<IConnectionMultiplexer>(
@@ -46,17 +49,6 @@ public sealed class RedisOutputCacheBackendRegistrar : ICacheBackendRegistrar
                 o.ConfigurationOptions = configOptions;
                 o.InstanceName = context.Options.OutputNamespace;
             });
-        });
-    }
-
-    /// <inheritdoc />
-    public void RegisterHealthProbes(BackendHealthRegistrationContext context)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        context.Services.AddSingleton<ICacheOrchestratorHealthProbe>(sp =>
-        {
-            IConnectionMultiplexer mux = sp.GetRequiredKeyedService<IConnectionMultiplexer>(context.InstanceName);
-            return new RedisCacheHealthProbe($"redis:{context.InstanceName}", mux);
         });
     }
 }

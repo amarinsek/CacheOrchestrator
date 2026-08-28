@@ -257,6 +257,62 @@ h2 {
     line-height: 1.4;
 }
 
+.guide-steps {
+    display: grid;
+    gap: 12px;
+}
+
+.guide-step {
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.guide-step-heading {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.guide-step-heading strong {
+    color: var(--text);
+    font-size: 13px;
+}
+
+.guide-step-heading p {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.guide-step-number {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #1b3a67;
+    color: #cde4ff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.compact-status {
+    margin-left: 6px;
+    padding: 3px 8px;
+    font-size: 10px;
+}
+
+.inline-clear {
+    margin-left: 8px;
+    padding: 5px 9px;
+    font-size: 11px;
+}
+
 .crud-bar {
     display: flex;
     flex-wrap: wrap;
@@ -286,6 +342,12 @@ h2 {
     border-radius: 6px;
     padding: 3px 8px;
     background: rgba(61, 214, 140, 0.08);
+}
+
+.crud-method.write {
+    color: var(--accent);
+    border-color: #2f5f9f;
+    background: rgba(80, 150, 255, 0.1);
 }
 
 .crud-path {
@@ -474,14 +536,17 @@ input[type="number"]::-webkit-inner-spin-button {
 .row.between { justify-content: space-between; align-items: center; }
 
 .log { display: grid; gap: 10px; margin-top: 10px; }
+.log.hidden { display: none; }
 
 .log:empty::after {
-    content: 'No requests yet — click Fetch once or Fetch twice.';
+    content: attr(data-empty-message);
     color: var(--muted);
     font-size: 13px;
     text-align: center;
     padding: 24px 0;
 }
+
+.log.hidden:empty::after { content: none; }
 
 .entry {
     background: #0a0d12;

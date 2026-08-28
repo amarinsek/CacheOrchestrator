@@ -14,7 +14,7 @@ namespace CacheOrchestrator.Redis;
 /// <summary>
 /// Registers Redis L2 and backplane for a named FusionCache instance.
 /// </summary>
-public sealed class RedisFusionCacheBackendRegistrar : IFusionCacheBackendRegistrar
+internal sealed class RedisFusionCacheBackendRegistrar : IFusionCacheBackendRegistrar
 {
     /// <inheritdoc />
     public string Name => RedisConfiguration.ProviderName;
@@ -43,6 +43,12 @@ public sealed class RedisFusionCacheBackendRegistrar : IFusionCacheBackendRegist
             instanceName,
             (_, _) => ConnectionMultiplexer.Connect(configOptions));
 
+        context.Services.AddSingleton<ICacheOrchestratorHealthProbe>(sp =>
+        {
+            IConnectionMultiplexer mux = sp.GetRequiredKeyedService<IConnectionMultiplexer>(instanceName);
+            return new RedisCacheHealthProbe($"redis:{instanceName}", mux);
+        });
+
         context.Services.TryAddKeyedSingleton<IDistributedCache>(instanceName, (sp, _) =>
         {
             IConnectionMultiplexer mux = sp.GetRequiredKeyedService<IConnectionMultiplexer>(instanceName);
@@ -69,16 +75,5 @@ public sealed class RedisFusionCacheBackendRegistrar : IFusionCacheBackendRegist
 
         string backplaneChannel = fcNamespace + ":backplane";
         context.FusionBuilder.WithOptions(o => o.BackplaneChannelPrefix = backplaneChannel);
-    }
-
-    /// <inheritdoc />
-    public void RegisterHealthProbes(FusionBackendHealthRegistrationContext context)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        context.Services.AddSingleton<ICacheOrchestratorHealthProbe>(sp =>
-        {
-            IConnectionMultiplexer mux = sp.GetRequiredKeyedService<IConnectionMultiplexer>(context.InstanceName);
-            return new RedisCacheHealthProbe($"redis:{context.InstanceName}", mux);
-        });
     }
 }

@@ -35,9 +35,10 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 
 ```
 Domain (config name)
-  → DomainCacheOptions (resolved snapshot)
-      → DomainOutputCachePolicy (HTTP)
-      → ICacheOrchestrator / IDomainDataCache get-or-set (data)
+  → DomainCacheOptions (Core: identity + Data Cache)
+      → ICacheOrchestrator get-or-set (HTTP-free data)
+      → DomainHttpCacheOptions (AspNetCore: CoreOptions + HTTP policy)
+          → DomainOutputCachePolicy / IDomainDataCache
       → EntityFootprint tags (domain + entity / entitykind; optional members / dependsOn / aliases)
 ```
 
@@ -51,7 +52,7 @@ Domain (config name)
 Happy path: **no** manual `EnsureDomainOptions` when OC domain is on the endpoint.  
 **Data-cache-only** endpoints: use domain overload or `EnsureDomainOptions`.
 
-**Entity identity:** declare once on `.CacheOutputWithDomain` / `[CacheDomain]` (`resourceRouteKey` + `entityKind` for detail, or `entityKind` alone for collections). `GetOrSetEntityAsync(http, factory)` / `GetOrSetEntitySetAsync` consume it. Extend tags with `EntityCache` / `EntitySet`. Data-cache-only: `SetEntityIdentity`. Explicit kind/id overloads are obsolete.
+**Entity identity:** declare once on `.CacheOutputWithDomain` / `[CacheDomain]` (`resourceRouteKey` + `entityKind` for detail, or `entityKind` alone for collections). `GetOrSetEntityAsync(http, factory)` / `GetOrSetEntitySetAsync` consume it. Extend tags with `EntityCache` / `EntitySet`. Data-cache-only: `SetEntityIdentity`.
 
 **Endpoint cache identity (HTTP method → key material):** without identity metadata, OC is GET/HEAD + Url. Opt in with `.WithCacheIdentity(methods, contractName)` / `.WithContentHashCacheIdentity(methods, …)` (or MVC attributes). A method is Output Cached only when it has a binding. Named contracts are resolved onto endpoint metadata at host start (not per request). Duplicate method bindings fail at registration / analyzer `COIDENTITY001`. Reference: `docs/reference/cache-identity.md`.
 
@@ -69,11 +70,11 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 
 | API | Namespace |
 |-----|-----------|
-| `AddCacheOrchestrator` (meta = AspNet + Fusion) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
-| `ICacheOrchestratorBuilder` / `ICacheBackendRegistrar` (OC) | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
+| `AddCacheOrchestratorCore` / `AddCacheOrchestrator` (meta = AspNet + Fusion) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
+| `ICacheOrchestratorBuilder` / `IOutputCacheBackendRegistrar` (OC) | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
 | `AddCacheOrchestratorFusionCache` / `IFusionCacheBackendRegistrar` | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.FusionCache.Backends` |
 | `AddCacheOrchestratorHybridCache` | `CacheOrchestrator.DependencyInjection` (HybridCache package) |
-| `AddRedisBackend` / `RedisCacheBackendRegistrar` (meta) | `CacheOrchestrator.Redis` |
+| `AddRedisBackend` (meta Redis composition) | `CacheOrchestrator.Redis` |
 | `AddRedisOutputCacheBackend` | `CacheOrchestrator.AspNetCore.Redis` |
 | `AddRedisFusionCacheBackend` | `CacheOrchestrator.FusionCache.Redis` |
 | `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheOrchestrator.OutputCache` |
@@ -82,9 +83,10 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `IDomainDataCache` | `CacheOrchestrator.DataCache` (HTTP API in AspNetCore) |
 | `EntityCache` / `EntitySet` / `EntityFootprint` | `CacheOrchestrator.Entity` (Core) |
 | `ICacheVaryContributor` / `CacheVaryMaterializer` / `ICacheVaryBuilder` | `CacheOrchestrator.Vary` |
-| `AuthBypassMode` / `DomainAuthEvaluator` | `CacheOrchestrator.Configuration` |
-| `IDomainCacheOptionsProvider` / `DomainCacheOptions` / `DomainName` | `CacheOrchestrator.Configuration` |
+| `AuthBypassMode` / `ETagMode` / `ClientCacheability` / `DomainAuthEvaluator` (AspNetCore) | `CacheOrchestrator.Configuration` |
+| `IDomainCacheOptionsProvider` / `DomainCacheOptions` / `DomainName` (Core); `IRequestDomainCacheOptions` / `DomainHttpCacheOptions` (AspNetCore) | `CacheOrchestrator.Configuration` |
 | `ICacheOrchestratorInvalidator` / `ICacheInvalidationObserver` / `CacheInvalidationResult` | `CacheOrchestrator.Invalidation` |
+| `ICacheOrchestratorManagement` / `IAdminDomainConfigProvider` / `IAdminEndpointCatalog` | `CacheOrchestrator.Admin` (Core) |
 | `CacheTags` | `CacheOrchestrator.Configuration` |
 | Health: `AddCacheOrchestrator` on `IHealthChecksBuilder` | `CacheOrchestrator.Diagnostics` |
 | `MapCacheOrchestratorAdmin` / Admin API | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Admin` |
@@ -99,13 +101,13 @@ There is **no** `CacheOrchestrator.Abstractions` folder — interfaces sit besid
 
 ## Config vs runtime naming
 
-Nested JSON under `DataCache` / `OutputCache` / `ClientCache` / optional `FusionCache` uses **int seconds** (`TtlSeconds`, …). Runtime Core snapshot often uses `TimeSpan` (except client max-age ints):
+Nested JSON under `DataCache` / `OutputCache` / `ClientCache` / optional `FusionCache` uses **int seconds** (`TtlSeconds`, …). Runtime settings are split between Core `DomainCacheOptions` and ASP.NET Core `DomainHttpCacheOptions`:
 
-| JSON | Runtime `DomainCacheOptions` |
-|------|------------------------------|
-| `OutputCache:TtlSeconds` | `OutputTtl` (`TimeSpan`) |
-| `DataCache:TtlSeconds` | `DataCacheTtl` (`TimeSpan`) |
-| `ClientCache:TtlSeconds` / `TtlMinSeconds` | `ClientTtlSeconds` / `ClientTtlMinSeconds` (`int`) |
+| JSON | Runtime |
+|------|---------|
+| `OutputCache:TtlSeconds` | `DomainHttpCacheOptions.OutputTtl` (`TimeSpan`) |
+| `DataCache:TtlSeconds` | `DomainCacheOptions.DataCacheTtl` (`TimeSpan`) |
+| `ClientCache:TtlSeconds` / `TtlMinSeconds` | `DomainHttpCacheOptions.ClientTtlSeconds` / `ClientTtlMinSeconds` (`int`) |
 
 Fusion-only knobs (`HardTtlSeconds`, `FailSafeSeconds`, factory timeouts, …) bind in the **FusionCache** package (`DomainFusionCacheSettings`), not on Core `DomainCacheOptions`. Root engines: `DataCacheInstances` (not `FusionCacheInstances`).
 
@@ -128,7 +130,7 @@ Do not rename config property names without a breaking-change plan (bound from a
 ## Folder map
 
 ```
-src/CacheOrchestrator.Core/         Http-free: options, Entity footprint, orchestration, invalidation, cluster contracts
+src/CacheOrchestrator.Core/         Http-free: options, Entity footprint, orchestration, invalidation, management, cluster contracts
 src/CacheOrchestrator.FusionCache/  Fusion IDataCacheProvider + named Ziggy instances + L2 registrars
 src/CacheOrchestrator.HybridCache/  HybridCache IDataCacheProvider
 src/CacheOrchestrator.AspNetCore/   HTTP: OutputCache, Vary, Admin API, IDomainDataCache (Core only)

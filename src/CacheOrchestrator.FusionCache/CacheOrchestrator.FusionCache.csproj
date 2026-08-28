@@ -37,6 +37,7 @@
 		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.FusionCache.Redis.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.FusionCache.Redis" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Redis" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Benchmarks" />
 	</ItemGroup>
 </Project>

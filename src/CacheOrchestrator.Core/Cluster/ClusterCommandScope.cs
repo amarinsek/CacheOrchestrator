@@ -4,7 +4,7 @@ namespace CacheOrchestrator.Cluster;
 /// Async flow flags for cluster apply / local-only Admin actions.
 /// Suppresses bus re-publish on receive paths and optional local-only Admin ops.
 /// </summary>
-public static class ClusterCommandScope
+internal static class ClusterCommandScope
 {
     private static readonly AsyncLocal<bool> Remote = new();
     private static readonly AsyncLocal<bool> LocalOnly = new();

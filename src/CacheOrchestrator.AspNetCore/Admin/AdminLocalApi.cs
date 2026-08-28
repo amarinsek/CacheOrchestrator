@@ -1,6 +1,5 @@
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
-using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Invalidation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -56,274 +55,109 @@ public static class AdminLocalApi
             .WithTags("CacheOrchestrator Admin")
             .WithMetadata(new OutputCacheAttribute { NoStore = true });
 
-        group.MapGet("/health", async (AdminQueryService query, CancellationToken cancellationToken) =>
-            Results.Ok(await query.GetHealthAsync(cancellationToken)));
+        group.MapGet("/health", async (
+            ICacheOrchestratorManagement management,
+            CancellationToken cancellationToken) =>
+            Results.Ok(await management.GetHealthAsync(cancellationToken).ConfigureAwait(false)));
 
         // Always available when Local Admin is on (even without CacheOrchestrator.HttpBus).
         // Prevents SPA MapFallbackToFile HTML from being mistaken for JSON on probe misses.
         group.MapGet("/cluster/info", async (
-            IInstanceIdProvider instanceId,
-            IClusterMembership membership,
-            IClusterCommandBus bus,
-            IOptionsMonitor<CacheOrchestratorOptions> options,
+            ICacheOrchestratorManagement management,
             CancellationToken cancellationToken) =>
-        {
-            IReadOnlyList<ClusterPeer> peers =
-                await membership.GetPeersAsync(cancellationToken).ConfigureAwait(false);
+            Results.Ok(await management.GetClusterInfoAsync(cancellationToken).ConfigureAwait(false)));
 
-            return Results.Ok(new
-            {
-                instanceId = instanceId.InstanceId,
-                @namespace = options.CurrentValue.Namespace,
-                busEnabled = bus.IsEnabled,
-                membership = membership.Kind,
-                peerCount = peers.Count,
-                peers = peers.Select(p => new { id = p.Id, url = p.BaseUrl.ToString() }).ToArray()
-            });
-        });
-
-        // Obsolete: process-lifetime counters. Prefer OTEL/Prometheus for analytics.
+        // Process-lifetime raw counters. Prefer OTEL/Prometheus for time-window analytics.
         // Kept for external tools; Admin Console stats UI uses Prometheus only.
-#pragma warning disable CS0618
-        group.MapGet("/stats", (AdminQueryService query) => Results.Ok(query.GetStats()));
-#pragma warning restore CS0618
+        group.MapGet("/stats", (ICacheOrchestratorManagement management) => Results.Ok(management.GetStats()));
 
-        group.MapGet("/endpoints", (AdminQueryService query) => Results.Ok(query.GetEndpoints()));
+        group.MapGet("/endpoints", (ICacheOrchestratorManagement management) =>
+            Results.Ok(management.GetEndpoints()));
 
-        group.MapGet("/domains", (AdminQueryService query) => Results.Ok(query.GetDomains()));
+        group.MapGet("/domains", (ICacheOrchestratorManagement management) =>
+            Results.Ok(management.GetDomains()));
 
-        group.MapGet("/domains/{domain}", (string domain, AdminQueryService query) =>
+        group.MapGet("/domains/{domain}", (string domain, ICacheOrchestratorManagement management) =>
         {
-            AdminDomainConfigDto? dto = query.GetDomain(domain);
+            AdminDomainConfigDto? dto = management.GetDomain(domain);
             return dto is null ? Results.NotFound() : Results.Ok(dto);
         });
 
         group.MapPost("/invalidate", async (
-            AdminInvalidateRequest body,
-            ICacheOrchestratorInvalidator invalidator,
+            AdminInvalidateRequest? body,
+            ICacheOrchestratorManagement management,
             CancellationToken cancellationToken) =>
         {
             if (body is null)
                 return Results.BadRequest(new { error = "Request body is required." });
 
-            string scope = (body.Scope ?? "domain").Trim().ToLowerInvariant();
-
-            // distribute=false (default): local only. distribute=true: invalidator may publish when bus enabled.
-            using IDisposable? localOnly = body.Distribute ? null : ClusterCommandScope.EnterLocalOnly();
-
-            CacheInvalidationResult result;
-            switch (scope)
-            {
-                case "domain":
-                    if (string.IsNullOrWhiteSpace(body.Domain))
-                        return Results.BadRequest(new { error = "domain is required for scope=domain." });
-                    result = await invalidator.InvalidateDomainAsync(body.Domain, cancellationToken)
-                        .ConfigureAwait(false);
-                    break;
-
-                case "entity":
-                    if (string.IsNullOrWhiteSpace(body.Domain)
-                        || string.IsNullOrWhiteSpace(body.EntityKind)
-                        || string.IsNullOrWhiteSpace(body.EntityId))
-                    {
-                        return Results.BadRequest(new
-                        {
-                            error = "domain, entityKind, and entityId are required for scope=entity."
-                        });
-                    }
-
-                    result = await invalidator.InvalidateEntityAsync(
-                            body.Domain,
-                            body.EntityKind,
-                            body.EntityId,
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                    break;
-
-                case "entitykind":
-                    if (string.IsNullOrWhiteSpace(body.Domain) || string.IsNullOrWhiteSpace(body.EntityKind))
-                    {
-                        return Results.BadRequest(new
-                        {
-                            error = "domain and entityKind are required for scope=entityKind."
-                        });
-                    }
-
-                    result = await invalidator.InvalidateEntityKindAsync(
-                            body.Domain,
-                            body.EntityKind,
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                    break;
-
-                case "tags":
-                    if (body.Tags is null || body.Tags.Length == 0)
-                        return Results.BadRequest(new { error = "tags are required for scope=tags." });
-                    result = await invalidator.InvalidateTagsAsync(body.Tags, cancellationToken)
-                        .ConfigureAwait(false);
-                    break;
-
-                default:
-                    return Results.BadRequest(new { error = "scope must be domain, entity, entityKind, or tags." });
-            }
-
-            if (body.Distribute
-                && result.ClusterPublish is { AllSucceeded: false } publish)
-            {
-                return ClusterPublishIncomplete(
-                    domain: body.Domain,
-                    publish,
-                    payload: result);
-            }
-
-            return Results.Ok(result);
-        });
-
-        group.MapPost("/domains/{domain}/version", async (
-            string domain,
-            AdminVersionRequest? body,
-            IDomainRuntimeOverrideStore overrides,
-            AdminQueryService query,
-            IClusterCommandBus bus,
-            ClusterCommandFactory commands,
-            ILoggerFactory loggerFactory,
-            CancellationToken cancellationToken) =>
-        {
-            if (string.IsNullOrWhiteSpace(domain))
-                return Results.BadRequest(new { error = "domain is required." });
-
-            string? requested = body?.Version;
-            string version = string.IsNullOrWhiteSpace(requested)
-                ? "rt-" + DateTimeOffset.UtcNow.UtcTicks.ToString("x")
-                : requested.Trim();
-
-            overrides.SetVersion(domain, version);
-
-            IResult? publishConflict = null;
-            if (body?.Distribute == true && bus.IsEnabled)
-            {
-                VersionBumpCommand cmd = commands.CreateVersionBump(domain, version);
-                publishConflict = await PublishMutationOrConflictAsync(
-                        bus,
-                        cmd,
-                        nameof(VersionBumpCommand),
-                        domain,
-                        loggerFactory,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            AdminDomainConfigDto effective = query.GetDomainConfig(DomainName.Normalize(domain));
-            AdminDomainMutationResultDto ok = new()
-            {
-                Domain = effective.Name,
-                Effective = effective
-            };
-            return publishConflict ?? Results.Ok(ok);
-        });
-
-        group.MapGet("/domain-settings/catalog", () =>
-            Results.Ok(new AdminDomainSettingsCatalogDto
-            {
-                Settings = DomainSettingCatalog.GetEntries(),
-            }));
-
-        group.MapMethods("/domains/{domain}/settings", ["PATCH"], async (
-            string domain,
-            AdminSettingsPatchRequest body,
-            IDomainRuntimeOverrideStore overrides,
-            IEnumerable<IDomainSettingsPatchContributor> settingsContributors,
-            AdminQueryService query,
-            IClusterCommandBus bus,
-            ClusterCommandFactory commands,
-            ILoggerFactory loggerFactory,
-            CancellationToken cancellationToken) =>
-        {
-            if (string.IsNullOrWhiteSpace(domain))
-                return Results.BadRequest(new { error = "domain is required." });
-            if (body?.Settings is null || body.Settings.Count == 0)
-                return Results.BadRequest(new { error = "settings must contain at least one entry." });
-
             try
             {
-                DomainSettingsPatchApplicator.Apply(
-                    domain,
-                    body.Settings,
-                    overrides,
-                    settingsContributors);
+                CacheInvalidationResult result = await management.InvalidateAsync(body, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (body.Distribute && result.ClusterPublish is { AllSucceeded: false } publish)
+                    return ClusterPublishIncomplete(body.Domain, publish, result);
+
+                return Results.Ok(result);
             }
             catch (ArgumentException ex)
             {
                 return Results.BadRequest(new { error = ex.Message });
             }
+        });
 
-            IResult? publishConflict = null;
-            if (body.Distribute && bus.IsEnabled)
+        group.MapPost("/domains/{domain}/version", async (
+            string domain,
+            AdminVersionRequest? body,
+            ICacheOrchestratorManagement management,
+            CancellationToken cancellationToken) =>
+        {
+            try
             {
-                SettingsPatchCommand cmd = commands.CreateSettingsPatch(domain, body.Settings);
-                publishConflict = await PublishMutationOrConflictAsync(
-                        bus,
-                        cmd,
-                        nameof(SettingsPatchCommand),
-                        domain,
-                        loggerFactory,
-                        cancellationToken)
+                AdminDomainMutationResultDto result = await management
+                    .SetVersionAsync(domain, body, cancellationToken)
                     .ConfigureAwait(false);
+                return MutationResult(result);
             }
-
-            AdminDomainConfigDto effective = query.GetDomainConfig(DomainName.Normalize(domain));
-            AdminDomainMutationResultDto ok = new()
+            catch (ArgumentException ex)
             {
-                Domain = effective.Name,
-                Effective = effective
-            };
-            return publishConflict ?? Results.Ok(ok);
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
+
+        group.MapGet("/domain-settings/catalog", (ICacheOrchestratorManagement management) =>
+            Results.Ok(management.GetDomainSettingsCatalog()));
+
+        group.MapMethods("/domains/{domain}/settings", ["PATCH"], async (
+            string domain,
+            AdminSettingsPatchRequest? body,
+            ICacheOrchestratorManagement management,
+            CancellationToken cancellationToken) =>
+        {
+            if (body is null)
+                return Results.BadRequest(new { error = "Request body is required." });
+
+            try
+            {
+                AdminDomainMutationResultDto result = await management
+                    .PatchSettingsAsync(domain, body, cancellationToken)
+                    .ConfigureAwait(false);
+                return MutationResult(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
         });
 
         return endpoints;
     }
 
-    /// <summary>
-    /// Publishes a mutation command. Returns HTTP 409 when any peer failed (local already applied);
-    /// otherwise <see langword="null"/> so the caller can return 200 with the success payload.
-    /// </summary>
-    private static async Task<IResult?> PublishMutationOrConflictAsync(
-        IClusterCommandBus bus,
-        ClusterCommand command,
-        string metricName,
-        string domain,
-        ILoggerFactory loggerFactory,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            ClusterPublishResult published = await bus.PublishAsync(command, cancellationToken)
-                .ConfigureAwait(false);
-            CacheOrchestratorMetrics.RecordClusterPublished(metricName);
-            if (published.AllSucceeded)
-                return null;
-
-            return ClusterPublishIncomplete(domain, published, payload: null);
-        }
-        catch (Exception ex)
-        {
-            CacheOrchestratorMetrics.RecordClusterPublishFailure("exception");
-            loggerFactory.CreateLogger("CacheOrchestrator.Admin")
-                .LogWarning(ex, "Cluster publish failed for {Command} on domain {Domain}", metricName, domain);
-            return ClusterPublishIncomplete(
-                domain,
-                new ClusterPublishResult(
-                [
-                    new ClusterPeerPublishOutcome
-                    {
-                        PeerId = "(bus)",
-                        Succeeded = false,
-                        Error = ex.Message,
-                    },
-                ]),
-                payload: null);
-        }
-    }
+    private static IResult MutationResult(AdminDomainMutationResultDto result) =>
+        result.ClusterPublish is { AllSucceeded: false } publish
+            ? ClusterPublishIncomplete(result.Domain, publish, payload: null)
+            : Results.Ok(result);
 
     private static IResult ClusterPublishIncomplete(
         string? domain,
