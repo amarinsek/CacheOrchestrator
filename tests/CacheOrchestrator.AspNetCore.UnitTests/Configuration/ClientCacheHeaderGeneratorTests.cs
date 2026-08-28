@@ -75,6 +75,20 @@ public class ClientCacheHeaderGeneratorTests
         result.Header.Should().Be("private, max-age=90");
     }
 
+    [Fact]
+    public void ZeroTtl_EmitsMaxAgeZero_AndDisablesSchedule()
+    {
+        var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
+            Cfg(ttl: 0, ttlMin: 60, schedule: schedule),
+            schedule.AddHours(-1));
+
+        result.Header.Should().Be("public, max-age=0");
+        result.MaxAgeSeconds.Should().Be(0);
+        result.Phase.Should().Be(ClientCacheSchedulePhase.NotApplicable);
+    }
+
     // =========================
     // Calm (far from schedule)
     // =========================
@@ -199,6 +213,19 @@ public class ClientCacheHeaderGeneratorTests
         result.MaxAgeSeconds.Should().Be(90);
         result.Phase.Should().Be(ClientCacheSchedulePhase.Hold);
         result.Header.Should().Be("public, max-age=90");
+    }
+
+    [Fact]
+    public void ZeroMinimum_AfterSchedule_EmitsMaxAgeZero()
+    {
+        var schedule = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+
+        ClientCacheHeaderGenerator.Result result = ClientCacheHeaderGenerator.Build(
+            Cfg(ttl: 3600, ttlMin: 0, schedule: schedule),
+            schedule);
+
+        result.Header.Should().Be("public, max-age=0");
+        result.Phase.Should().Be(ClientCacheSchedulePhase.Hold);
     }
 
     [Fact]

@@ -39,6 +39,13 @@ internal sealed class CacheOrchestratorHealthCheck : IHealthCheck
         CacheOrchestratorOptions opts = _options.CurrentValue;
         Dictionary<string, object> data =
             new() { ["data_cache_provider"] = _dataCacheProvider.Name };
+        DataCacheProviderCapabilities capabilities = GetCapabilities(_dataCacheProvider);
+        data["data_cache_capability:named_instances"] = capabilities.SupportsNamedInstances;
+        data["data_cache_capability:fail_safe"] = capabilities.SupportsFailSafe;
+        data["data_cache_capability:eager_refresh"] = capabilities.SupportsEagerRefresh;
+        data["data_cache_capability:backplane"] = capabilities.SupportsBackplane;
+        data["data_cache_capability:entry_size_limit"] = capabilities.SupportsEntrySizeLimit;
+        data["data_cache_capability:batch_invalidation"] = capabilities.SupportsBatchInvalidation;
 
         foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOpts) in opts.DataCacheInstances)
             data[$"data_cache_instance:{instanceName}"] = instanceOpts.Provider ?? "InMemory";
@@ -89,4 +96,9 @@ internal sealed class CacheOrchestratorHealthCheck : IHealthCheck
             description,
             data: data);
     }
+
+    private static DataCacheProviderCapabilities GetCapabilities(IDataCacheProvider provider) =>
+        provider is IDataCacheProviderCapabilities source
+            ? source.Capabilities
+            : new DataCacheProviderCapabilities();
 }

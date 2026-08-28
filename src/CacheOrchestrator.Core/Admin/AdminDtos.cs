@@ -110,6 +110,15 @@ public sealed class AdminHealthDto
     /// Lifetime request count on this process (from Admin live counters), when available.
     /// </summary>
     public long Requests { get; init; }
+
+    /// <summary>Registered Data Cache provider name.</summary>
+    public string DataCacheProvider { get; init; } = "Unknown";
+
+    /// <summary>
+    /// Capabilities declared by the registered provider. All values are false when a custom
+    /// provider does not implement <c>IDataCacheProviderCapabilities</c>.
+    /// </summary>
+    public Orchestration.DataCacheProviderCapabilities DataCacheCapabilities { get; init; } = new();
 }
 
 /// <summary>Cluster identity and membership snapshot for the current instance.</summary>

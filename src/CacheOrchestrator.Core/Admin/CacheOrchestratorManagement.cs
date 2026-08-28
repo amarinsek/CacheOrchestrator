@@ -2,6 +2,7 @@ using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Invalidation;
+using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -28,6 +29,7 @@ internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
     private readonly ClusterCommandFactory _commands;
     private readonly IDomainSettingsPatchContributor[] _settingsContributors;
     private readonly ILogger<CacheOrchestratorManagement> _logger;
+    private readonly IDataCacheProvider _dataCacheProvider;
 
     public CacheOrchestratorManagement(
         IAdminStatsCollector stats,
@@ -43,7 +45,8 @@ internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
         ILogger<CacheOrchestratorManagement>? logger = null,
         TimeProvider? timeProvider = null,
         IEnumerable<ICacheOrchestratorHealthProbe>? probes = null,
-        IEnumerable<IDomainSettingsPatchContributor>? settingsContributors = null)
+        IEnumerable<IDomainSettingsPatchContributor>? settingsContributors = null,
+        IDataCacheProvider? dataCacheProvider = null)
     {
         ArgumentNullException.ThrowIfNull(stats);
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -70,6 +73,7 @@ internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
         _time = timeProvider ?? TimeProvider.System;
         _probes = probes is null ? [] : [.. probes];
         _settingsContributors = settingsContributors is null ? [] : [.. settingsContributors];
+        _dataCacheProvider = dataCacheProvider ?? NullDataCacheProvider.Instance;
     }
 
     public async Task<AdminHealthDto> GetHealthAsync(CancellationToken cancellationToken = default)
@@ -116,15 +120,22 @@ internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
             }
         }
 
+        bool providerOk = _dataCacheProvider is not NullDataCacheProvider
+            || !DataCacheProviderStartupDiagnostic.IsDataCacheEnabled(_options.CurrentValue);
+        DataCacheProviderCapabilities capabilities =
+            (_dataCacheProvider as IDataCacheProviderCapabilities)?.Capabilities ?? new();
+
         return new AdminHealthDto
         {
-            Healthy = statsOk && probesOk,
+            Healthy = statsOk && probesOk && providerOk,
             InstanceId = AdminInstanceId.Resolve(_options.CurrentValue),
             UtcNow = now,
             AdminEnabled = admin.Enabled,
             StartedAtUtc = started,
             UptimeSeconds = uptimeSeconds,
-            Requests = requests
+            Requests = requests,
+            DataCacheProvider = _dataCacheProvider.Name,
+            DataCacheCapabilities = capabilities
         };
     }
 

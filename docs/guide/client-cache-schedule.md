@@ -83,6 +83,8 @@ The settings mean:
 
 Configuration durations are integer seconds. If the minimum exceeds the maximum, it is clamped to the maximum. Equal values produce no visible ramp.
 
+Set `TtlSeconds` to `0` when clients must revalidate every response: CacheOrchestrator emits `max-age=0` and the schedule is not applicable. A positive `TtlSeconds` may use `TtlMinSeconds: 0` to ramp all the way down to immediate revalidation at cutover.
+
 ## Understand what the schedule does not do
 
 Client Cache Schedule does not:

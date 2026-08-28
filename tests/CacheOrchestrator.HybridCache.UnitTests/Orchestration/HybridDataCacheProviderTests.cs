@@ -23,6 +23,19 @@ public class HybridDataCacheProviderTests
     public void Name_IsHybridCache() => _sut.Name.Should().Be("HybridCache");
 
     [Fact]
+    public void Capabilities_DescribeHybridProviderSurface()
+    {
+        DataCacheProviderCapabilities capabilities = _sut.Capabilities;
+
+        capabilities.SupportsNamedInstances.Should().BeFalse();
+        capabilities.SupportsFailSafe.Should().BeFalse();
+        capabilities.SupportsEagerRefresh.Should().BeFalse();
+        capabilities.SupportsBackplane.Should().BeFalse();
+        capabilities.SupportsEntrySizeLimit.Should().BeFalse();
+        capabilities.SupportsBatchInvalidation.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_CallsHybridWithKeyTagsAndDataCacheTtl()
     {
         string? passedKey = null;

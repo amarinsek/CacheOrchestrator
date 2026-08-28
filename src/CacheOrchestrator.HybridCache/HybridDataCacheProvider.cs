@@ -16,8 +16,16 @@ namespace CacheOrchestrator.HybridCache;
 /// are not applied. Named data-cache instances are ignored — a single DI <see cref="HybridCache"/>
 /// is used for all domains.
 /// </remarks>
-internal sealed class HybridDataCacheProvider : IDataCacheProvider
+internal sealed class HybridDataCacheProvider :
+    IDataCacheProvider,
+    IDataCacheBatchInvalidator,
+    IDataCacheProviderCapabilities
 {
+    private const int InvalidationParallelism = 8;
+    private static readonly DataCacheProviderCapabilities ProviderCapabilities = new()
+    {
+        SupportsBatchInvalidation = true
+    };
     private readonly Microsoft.Extensions.Caching.Hybrid.HybridCache _cache;
     private readonly ILogger<HybridDataCacheProvider> _logger;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
@@ -39,6 +47,9 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
 
     /// <inheritdoc />
     public string Name => "HybridCache";
+
+    /// <inheritdoc />
+    public DataCacheProviderCapabilities Capabilities => ProviderCapabilities;
 
     /// <inheritdoc />
     public async ValueTask<DataCacheProviderResult<T>> GetOrCreateAsync<T>(
@@ -134,20 +145,54 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
     }
 
     /// <inheritdoc />
-    public async ValueTask InvalidateAsync(
+    public ValueTask InvalidateAsync(
         DataCacheInvalidationRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        return InvalidateBatchAsync([request], cancellationToken);
+    }
 
-        string cacheNamespace = ResolveNamespace(request.InstanceName);
-        foreach (string tag in request.Tags)
+    /// <inheritdoc />
+    public async ValueTask InvalidateBatchAsync(
+        IReadOnlyList<DataCacheInvalidationRequest> requests,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(requests);
+
+        List<string> tags = [];
+        for (int requestIndex = 0; requestIndex < requests.Count; requestIndex++)
         {
-            if (!string.IsNullOrWhiteSpace(tag))
+            DataCacheInvalidationRequest request = requests[requestIndex];
+            ArgumentNullException.ThrowIfNull(request);
+
+            string cacheNamespace = ResolveNamespace(request.InstanceName);
+            for (int tagIndex = 0; tagIndex < request.Tags.Count; tagIndex++)
             {
-                await _cache.RemoveByTagAsync(Prefix(cacheNamespace, tag), cancellationToken).ConfigureAwait(false);
+                string tag = request.Tags[tagIndex];
+                if (!string.IsNullOrWhiteSpace(tag))
+                    tags.Add(Prefix(cacheNamespace, tag));
             }
         }
+
+        if (tags.Count == 0)
+            return;
+
+        if (tags.Count == 1)
+        {
+            await _cache.RemoveByTagAsync(tags[0], cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await Parallel.ForEachAsync(
+                tags,
+                new ParallelOptions
+                {
+                    CancellationToken = cancellationToken,
+                    MaxDegreeOfParallelism = InvalidationParallelism
+                },
+                _cache.RemoveByTagAsync)
+            .ConfigureAwait(false);
     }
 
     private string ResolveNamespace(string? instanceName)

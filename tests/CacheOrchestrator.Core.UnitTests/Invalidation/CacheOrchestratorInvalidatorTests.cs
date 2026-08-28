@@ -216,6 +216,38 @@ public class CacheOrchestratorInvalidatorTests
     }
 
     [Fact]
+    public async Task InvalidateTagsAsync_UsesBatchCapabilityAcrossNamedInstances()
+    {
+        IDataCacheProvider provider = Substitute.For<IDataCacheProvider, IDataCacheBatchInvalidator>();
+        provider.Name.Returns("BatchProvider");
+        IDataCacheBatchInvalidator batch = (IDataCacheBatchInvalidator)provider;
+        batch.InvalidateBatchAsync(Arg.Any<IReadOnlyList<DataCacheInvalidationRequest>>(), Arg.Any<CancellationToken>())
+            .Returns(ValueTask.CompletedTask);
+        CacheOrchestratorInvalidator sut = new(
+            provider,
+            _domainOptionsProvider,
+            _httpCache,
+            _options,
+            _observers,
+            NullLogger<CacheOrchestratorInvalidator>.Instance);
+
+        CacheInvalidationResult result = await sut.InvalidateTagsAsync(
+            ["domain:products", "entitykind:products:items"],
+            TestContext.Current.CancellationToken);
+
+        result.Succeeded.Should().BeTrue();
+        await batch.Received(1).InvalidateBatchAsync(
+            Arg.Is<IReadOnlyList<DataCacheInvalidationRequest>>(requests =>
+                requests.Count == 2
+                && requests.Select(request => request.InstanceName).SequenceEqual(new[] { "default", "pii" })
+                && requests.All(request => request.Tags.Count == 2)),
+            Arg.Any<CancellationToken>());
+        await provider.DidNotReceiveWithAnyArgs().InvalidateAsync(
+            default!,
+            TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task InvalidateTagsAsync_EvictsOnAllFusionInstances()
     {
         CacheInvalidationResult result =

@@ -38,6 +38,19 @@ public class FusionDataCacheProviderTests
     public void Name_IsFusionCache() => _sut.Name.Should().Be("FusionCache");
 
     [Fact]
+    public void Capabilities_DescribeFusionProviderSurface()
+    {
+        DataCacheProviderCapabilities capabilities = _sut.Capabilities;
+
+        capabilities.SupportsNamedInstances.Should().BeTrue();
+        capabilities.SupportsFailSafe.Should().BeTrue();
+        capabilities.SupportsEagerRefresh.Should().BeTrue();
+        capabilities.SupportsBackplane.Should().BeTrue();
+        capabilities.SupportsEntrySizeLimit.Should().BeTrue();
+        capabilities.SupportsBatchInvalidation.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_CallsFusionGetOrSetWithKeyTagsAndFactory()
     {
         DomainCacheOptions domain = new()

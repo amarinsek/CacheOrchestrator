@@ -46,7 +46,7 @@ internal sealed class CacheOrchestratorHttpOptionsValidator : IValidateOptions<C
         int min = settings.ClientCache?.TtlMinSeconds
             ?? defaults.ClientCache?.TtlMinSeconds
             ?? 60;
-        if (min > ttl)
+        if (ttl > 0 && min > ttl)
         {
             failures.Add($"{label}: ClientCache.TtlMinSeconds must be <= ClientCache.TtlSeconds.");
         }

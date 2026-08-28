@@ -185,8 +185,8 @@ Core produces an immutable `DomainCacheOptions` snapshot for domain identity and
 | Property | Default* | Description |
 |----------|----------|-------------|
 | `Cacheability` | `Public` | `Public`, `Private`, `NoStore` |
-| `TtlSeconds` | `3600` | Target max-age (seconds) far from schedule (Calm) |
-| `TtlMinSeconds` | `60` | Floor max-age (seconds) near/at update and during post-version hold |
+| `TtlSeconds` | `3600` | Target max-age far from schedule; `0` emits `max-age=0` and disables the schedule ramp |
+| `TtlMinSeconds` | `60` | Floor max-age near/at update and during hold; `0` is valid and the value is ignored when `TtlSeconds` is `0` |
 | `ScheduledUpdateUtc` | null | Planned cutover; linear ramp of max-age toward min |
 | `MustRevalidateNearUpdate` | false | Append `must-revalidate` at min floor |
 | `ForcePrivateWhenAuthenticated` | true | Force client Private for signed-in Identity + Public |
@@ -271,7 +271,7 @@ Package-owned validators run on start (`ValidateOnStart`). Core validates portab
 - Redis provider requires a connection string (`Cache:Redis:Configuration` or the scoped `OutputCache:Redis` / `DataCacheInstances:{name}:Redis` override)
 - Negative TTLs and Fusion durations fail; `FusionCache.EagerRefreshRatio` must be in `[0, 1)` when present
 - Effective Fusion factory timeouts must be positive with soft &lt; hard; fail-safe must be disabled (`0`) or cover the effective Data Cache duration
-- Effective `ClientCache.TtlMinSeconds` must not exceed `TtlSeconds`, including inherited default/domain combinations
+- Effective `ClientCache.TtlMinSeconds` must not exceed a positive `TtlSeconds`, including inherited default/domain combinations; it is ignored when `TtlSeconds` is `0`
 - An enabled HttpBus requires an API key unless unauthenticated mode is explicitly allowed; command freshness and clock-skew windows must be valid
 - Allowlists have max lengths (headers, cookies, query, claims, Accept lists)
 - `AuthBypassMode` must be a defined enum value  

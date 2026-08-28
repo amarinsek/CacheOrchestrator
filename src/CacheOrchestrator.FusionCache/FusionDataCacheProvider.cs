@@ -10,8 +10,21 @@ namespace CacheOrchestrator.FusionCache;
 /// <summary>
 /// <see cref="IDataCacheProvider"/> backed by ZiggyCreatures FusionCache.
 /// </summary>
-internal sealed class FusionDataCacheProvider : IDataCacheProvider
+internal sealed class FusionDataCacheProvider :
+    IDataCacheProvider,
+    IDataCacheBatchInvalidator,
+    IDataCacheProviderCapabilities
 {
+    private const int InvalidationParallelism = 8;
+    private static readonly DataCacheProviderCapabilities ProviderCapabilities = new()
+    {
+        SupportsNamedInstances = true,
+        SupportsFailSafe = true,
+        SupportsEagerRefresh = true,
+        SupportsBackplane = true,
+        SupportsEntrySizeLimit = true,
+        SupportsBatchInvalidation = true
+    };
     private readonly IFusionCacheProvider _fusionProvider;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly IFusionDomainSettingsProvider _fusionDomainSettings;
@@ -37,6 +50,9 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
 
     /// <inheritdoc />
     public string Name => "FusionCache";
+
+    /// <inheritdoc />
+    public DataCacheProviderCapabilities Capabilities => ProviderCapabilities;
 
     private sealed class CachedEntryOptions
     {
@@ -109,27 +125,63 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
     }
 
     /// <inheritdoc />
-    public async ValueTask InvalidateAsync(
+    public ValueTask InvalidateAsync(
         DataCacheInvalidationRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        return InvalidateBatchAsync([request], cancellationToken);
+    }
 
-        IEnumerable<string> instances = request.InstanceName is null
-            ? _options.CurrentValue.DataCacheInstances.Keys
-            : [request.InstanceName];
+    /// <inheritdoc />
+    public async ValueTask InvalidateBatchAsync(
+        IReadOnlyList<DataCacheInvalidationRequest> requests,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(requests);
 
-        foreach (string instanceName in instances)
+        List<(IFusionCache Cache, string Tag)> operations = [];
+        for (int requestIndex = 0; requestIndex < requests.Count; requestIndex++)
         {
-            IFusionCache fusion = _fusionProvider.GetCache(instanceName);
-            foreach (string tag in request.Tags)
+            DataCacheInvalidationRequest request = requests[requestIndex];
+            ArgumentNullException.ThrowIfNull(request);
+
+            IEnumerable<string> instances = request.InstanceName is null
+                ? _options.CurrentValue.DataCacheInstances.Keys
+                : [request.InstanceName];
+
+            foreach (string instanceName in instances)
             {
-                if (!string.IsNullOrWhiteSpace(tag))
+                IFusionCache fusion = _fusionProvider.GetCache(instanceName);
+                for (int tagIndex = 0; tagIndex < request.Tags.Count; tagIndex++)
                 {
-                    await fusion.RemoveByTagAsync(tag, token: cancellationToken).ConfigureAwait(false);
+                    string tag = request.Tags[tagIndex];
+                    if (!string.IsNullOrWhiteSpace(tag))
+                        operations.Add((fusion, tag));
                 }
             }
         }
+
+        if (operations.Count == 0)
+            return;
+
+        if (operations.Count == 1)
+        {
+            (IFusionCache cache, string tag) = operations[0];
+            await cache.RemoveByTagAsync(tag, token: cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await Parallel.ForEachAsync(
+                operations,
+                new ParallelOptions
+                {
+                    CancellationToken = cancellationToken,
+                    MaxDegreeOfParallelism = InvalidationParallelism
+                },
+                static async (operation, token) =>
+                    await operation.Cache.RemoveByTagAsync(operation.Tag, token: token).ConfigureAwait(false))
+            .ConfigureAwait(false);
     }
 
     private FusionCacheEntryOptions GetEntryOptions(DomainCacheOptions domainOptions)

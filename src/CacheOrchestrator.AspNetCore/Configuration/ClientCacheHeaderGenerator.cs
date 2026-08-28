@@ -23,8 +23,11 @@ public static class ClientCacheHeaderGenerator
         if (cacheability == ClientCacheability.NoStore)
             return new Result("no-store", 0, ClientCacheSchedulePhase.NotApplicable);
 
-        int max = Math.Max(1, config.ClientTtlSeconds);
-        int min = Math.Clamp(config.ClientTtlMinSeconds, 1, max);
+        int max = Math.Max(0, config.ClientTtlSeconds);
+        if (max == 0)
+            return Finish(cacheability, 0, ClientCacheSchedulePhase.NotApplicable, mustRevalidate: false);
+
+        int min = Math.Clamp(config.ClientTtlMinSeconds, 0, max);
         bool mustRevalidateNear = config.ClientMustRevalidateNearUpdate;
 
         if (config.ScheduledUpdateUtc is null)

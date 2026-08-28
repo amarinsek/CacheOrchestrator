@@ -305,33 +305,59 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         bool outputOk = true;
         List<string> errors = [];
 
-        IEnumerable<string> instanceNames = allDataCacheInstances
-            ? _options.CurrentValue.DataCacheInstances.Keys
+        string[] instanceNames = allDataCacheInstances
+            ? [.. _options.CurrentValue.DataCacheInstances.Keys]
             : [dataCacheInstanceName ?? "default"];
+        var dataRequests = new DataCacheInvalidationRequest[instanceNames.Length];
+        for (int i = 0; i < instanceNames.Length; i++)
+        {
+            dataRequests[i] = new DataCacheInvalidationRequest
+            {
+                InstanceName = instanceNames[i],
+                Tags = tags
+            };
+        }
 
-        foreach (string instanceName in instanceNames)
+        if (_dataCache is IDataCacheBatchInvalidator batchInvalidator)
         {
             try
             {
-                await _dataCache.InvalidateAsync(
-                    new DataCacheInvalidationRequest
-                    {
-                        InstanceName = instanceName,
-                        Tags = tags
-                    },
-                    cancellationToken).ConfigureAwait(false);
+                await batchInvalidator.InvalidateBatchAsync(dataRequests, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 dataOk = false;
-                string msg = $"DataCache tags on '{instanceName}' ({_dataCache.Name}): {ex.Message}";
+                string msg = $"DataCache batch ({_dataCache.Name}): {ex.Message}";
                 errors.Add(msg);
                 activity?.AddEvent(new ActivityEvent("dc.invalidate.failed"));
                 _logger.LogWarning(
                     ex,
-                    "Failed to invalidate data-cache tags on instance '{Instance}' ({Provider})",
-                    instanceName,
+                    "Failed to batch-invalidate data-cache tags on {InstanceCount} instance(s) ({Provider})",
+                    instanceNames.Length,
                     _dataCache.Name);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < dataRequests.Length; i++)
+            {
+                try
+                {
+                    await _dataCache.InvalidateAsync(dataRequests[i], cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    dataOk = false;
+                    string instanceName = instanceNames[i];
+                    string msg = $"DataCache tags on '{instanceName}' ({_dataCache.Name}): {ex.Message}";
+                    errors.Add(msg);
+                    activity?.AddEvent(new ActivityEvent("dc.invalidate.failed"));
+                    _logger.LogWarning(
+                        ex,
+                        "Failed to invalidate data-cache tags on instance '{Instance}' ({Provider})",
+                        instanceName,
+                        _dataCache.Name);
+                }
             }
         }
 

@@ -8,3 +8,25 @@ CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.DataCacheProviderResu
 CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.Outcome.get -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
 CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.Value.get -> T
 CacheOrchestrator.Orchestration.IDataCacheProvider.GetOrCreateAsync<T>(CacheOrchestrator.Orchestration.DataCacheProviderRequest! request, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<CacheOrchestrator.Orchestration.DataCacheProviderResult<T>>
+CacheOrchestrator.Admin.AdminHealthDto.DataCacheCapabilities.get -> CacheOrchestrator.Orchestration.DataCacheProviderCapabilities!
+CacheOrchestrator.Admin.AdminHealthDto.DataCacheCapabilities.init -> void
+CacheOrchestrator.Admin.AdminHealthDto.DataCacheProvider.get -> string!
+CacheOrchestrator.Admin.AdminHealthDto.DataCacheProvider.init -> void
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.DataCacheProviderCapabilities() -> void
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsBackplane.get -> bool
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsBackplane.init -> void
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsBatchInvalidation.get -> bool
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsBatchInvalidation.init -> void
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsEagerRefresh.get -> bool
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsEagerRefresh.init -> void
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsEntrySizeLimit.get -> bool
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsEntrySizeLimit.init -> void
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsFailSafe.get -> bool
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsFailSafe.init -> void
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsNamedInstances.get -> bool
+CacheOrchestrator.Orchestration.DataCacheProviderCapabilities.SupportsNamedInstances.init -> void
+CacheOrchestrator.Orchestration.IDataCacheBatchInvalidator
+CacheOrchestrator.Orchestration.IDataCacheBatchInvalidator.InvalidateBatchAsync(System.Collections.Generic.IReadOnlyList<CacheOrchestrator.Orchestration.DataCacheInvalidationRequest!>! requests, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+CacheOrchestrator.Orchestration.IDataCacheProviderCapabilities
+CacheOrchestrator.Orchestration.IDataCacheProviderCapabilities.Capabilities.get -> CacheOrchestrator.Orchestration.DataCacheProviderCapabilities!

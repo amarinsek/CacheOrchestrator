@@ -42,6 +42,7 @@ public class CacheOrchestratorHealthCheckTests
         HealthCheckResult result = await sut.CheckHealthAsync(ctx, TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(HealthStatus.Healthy);
+        result.Data.Should().ContainKey("data_cache_capability:batch_invalidation");
     }
 
     [Fact]

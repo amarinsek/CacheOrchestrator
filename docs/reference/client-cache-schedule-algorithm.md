@@ -6,22 +6,23 @@ Exact phase and `max-age` rules used by `ClientCacheHeaderGenerator.Build`. For 
 
 ## Algorithm (exact)
 
-Inputs (after clamps):
-
-- `max = max(1, ClientTtlSeconds)`  
-- `min = clamp(ClientTtlMinSeconds, 1, max)`  
-
 ### 1. NoStore
 
 → `Cache-Control: no-store`, phase `NotApplicable`.
 
-### 2. No schedule
+### 2. Clamp and zero TTL
+
+- `max = max(0, ClientTtlSeconds)`
+- when `max == 0`, return `max-age=0` with phase `NotApplicable`
+- otherwise `min = clamp(ClientTtlMinSeconds, 0, max)`
+
+### 3. No schedule
 
 If `ScheduledUpdateUtc` is null:
 
 → `max-age = max`, phase `NotApplicable`.
 
-### 3. Hold
+### 4. Hold
 
 If `now >= ScheduledUpdateUtc`:
 
@@ -32,14 +33,14 @@ If `now >= ScheduledUpdateUtc`:
 1. Publish new data / bump `Version`, and  
 2. Set the **next** `ScheduledUpdateUtc` (and usually leave hold enabled for the new version).
 
-### 4. Calm
+### 5. Calm
 
 If `secondsToSchedule = (ScheduledUpdateUtc - now).TotalSeconds`  
 and `secondsToSchedule >= max`:
 
 → `max-age = max`, phase `Calm`.
 
-### 5. Ramp (Approaching)
+### 6. Ramp (Approaching)
 
 Otherwise `min ≤ secondsToSchedule < max` (after clamp of `t`):
 

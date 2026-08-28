@@ -3,6 +3,7 @@ using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Invalidation;
+using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -20,6 +21,8 @@ public sealed class CacheOrchestratorManagementTests
         health.Healthy.Should().BeTrue();
         health.AdminEnabled.Should().BeTrue();
         health.InstanceId.Should().NotBeNullOrWhiteSpace();
+        health.DataCacheProvider.Should().Be("Test");
+        health.DataCacheCapabilities.SupportsBatchInvalidation.Should().BeFalse();
     }
 
     [Fact]
@@ -145,6 +148,14 @@ public sealed class CacheOrchestratorManagementTests
             new ClusterCommandFactory(instanceId, options),
             NullLogger<CacheOrchestratorManagement>.Instance,
             TimeProvider.System,
-            probes);
+            probes,
+            dataCacheProvider: CreateDataCacheProvider());
+    }
+
+    private static IDataCacheProvider CreateDataCacheProvider()
+    {
+        IDataCacheProvider provider = Substitute.For<IDataCacheProvider>();
+        provider.Name.Returns("Test");
+        return provider;
     }
 }

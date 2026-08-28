@@ -4,8 +4,9 @@ namespace CacheOrchestrator.Orchestration;
 /// Pass-through data-cache provider used when no Fusion/Hybrid package is registered
 /// (Output Cache–only hosts). Factories always run; tag removes are no-ops.
 /// </summary>
-internal sealed class NullDataCacheProvider : IDataCacheProvider
+internal sealed class NullDataCacheProvider : IDataCacheProvider, IDataCacheProviderCapabilities
 {
+    private static readonly DataCacheProviderCapabilities ProviderCapabilities = new();
     /// <summary>Shared instance for DI and tests.</summary>
     public static readonly NullDataCacheProvider Instance = new();
 
@@ -15,6 +16,8 @@ internal sealed class NullDataCacheProvider : IDataCacheProvider
 
     /// <inheritdoc />
     public string Name => "Null";
+
+    public DataCacheProviderCapabilities Capabilities => ProviderCapabilities;
 
     /// <inheritdoc />
     public async ValueTask<DataCacheProviderResult<T>> GetOrCreateAsync<T>(

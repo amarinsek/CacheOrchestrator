@@ -126,4 +126,27 @@ public class HttpConfigurationOwnershipTests
         result.Failures.Should().Contain(message =>
             message.Contains("ClientCache.TtlMinSeconds", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void HttpValidator_AllowsZeroClientTtl_WithInheritedMinimum()
+    {
+        CacheOrchestratorHttpOptions options = new()
+        {
+            DomainDefaults = new()
+            {
+                ClientCache = new() { TtlMinSeconds = 60 }
+            },
+            Domains =
+            {
+                ["products"] = new()
+                {
+                    ClientCache = new() { TtlSeconds = 0 }
+                }
+            }
+        };
+
+        ValidateOptionsResult result = new CacheOrchestratorHttpOptionsValidator().Validate(null, options);
+
+        result.Succeeded.Should().BeTrue();
+    }
 }
