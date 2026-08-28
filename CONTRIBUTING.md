@@ -1,13 +1,87 @@
 # Contributing to CacheOrchestrator
 
-Thanks for helping improve **CacheOrchestrator**. This guide covers build, test, coding style, and pull requests.
+Thanks for helping improve **CacheOrchestrator**. Code is only one way to contribute: testing v3 in a real application, reporting surprising behavior, improving an example, or pointing out unclear documentation is just as valuable.
 
-## Prerequisites
+You do not need to understand the whole project before getting involved. Start with the path that matches what you want to contribute.
 
-- [.NET SDK](https://dotnet.microsoft.com/download) that supports **net8.0** and **net10.0** (SDK 10.x is fine for multi-target builds). Libraries and library tests multi-target both; **Admin Console App** and its unit tests are **net10.0 only**; samples are net10-only.
-- Optional: Docker (Redis integration tests, [playground topology labs](#topology-labs-docker-compose))
+## Ways to contribute
 
-## Clone and build
+- **Test v3** in an application or one of the playground labs and share what worked, what failed, or what was difficult to understand.
+- **Report a bug** with a small reproduction, configuration, logs, or relevant `X-Cache` headers.
+- **Improve documentation** when an explanation, example, or link could be clearer.
+- **Propose a feature** by describing the use case before designing the API.
+- **Submit a code change** for a focused issue or improvement.
+
+Not sure whether something is a bug? Open an issue anyway. Unexpected behavior and confusing configuration are useful feedback even when the implementation is technically working as designed.
+
+## Help test v3
+
+CacheOrchestrator v3 is approaching its stable release, and feedback from real applications is especially useful. You can make a valuable contribution without writing library code.
+
+We are particularly interested in:
+
+- ASP.NET Core applications using Output Cache with FusionCache;
+- standalone workers using Core with FusionCache;
+- ASP.NET Core applications using HybridCache;
+- Redis-backed and multi-instance deployments;
+- Client Cache behavior in real browsers, CDNs, and reverse proxies;
+- automatic EF Core invalidation after `SaveChanges`;
+- configuration, diagnostics, package composition, and documentation that feel unclear.
+
+### Try it in your application
+
+Install the appropriate prerelease package:
+
+```bash
+dotnet add package CacheOrchestrator --prerelease
+```
+
+The meta package is the typical ASP.NET Core + FusionCache path. Other supported compositions are listed in the [package guide](docs/guide/packages.md) and [composition how-to](docs/how-to/composition.md).
+
+Please do not test a new cache setup against production traffic first. Start in a local, development, or staging environment.
+
+### Try a guided playground lab
+
+The numbered Docker Compose labs progress from a single in-memory instance to multi-instance Redis and HTTP bus topologies:
+
+```bash
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build
+```
+
+Continue with the [playground lab guide](samples/CacheOrchestrator.Sample/labs/README.md) when you want to test Redis, multiple instances, invalidation propagation, or separate Output Cache and Data Cache stores.
+
+### Share the result
+
+Use the [**v3 testing feedback** issue template](https://github.com/amarinsek/CacheOrchestrator/issues/new?template=v3_testing_feedback.md). A useful report includes as much of the following as is practical:
+
+- CacheOrchestrator package names and versions;
+- .NET version, operating system, and hosting model;
+- Data Cache and Output Cache backends;
+- a minimal configuration with secrets removed;
+- what you tried, what you expected, and what happened;
+- relevant logs, response headers such as `X-Cache`, or a small reproduction.
+
+Successful reports are welcome too. Knowing which compositions work in real environments helps establish confidence before the stable release.
+
+## Report bugs and request features
+
+- For a bug, use the [**bug report** template](https://github.com/amarinsek/CacheOrchestrator/issues/new?template=bug_report.md) and include a minimal reproduction when possible.
+- For v3 evaluation results, including usability or documentation feedback, use the [**v3 testing feedback** template](https://github.com/amarinsek/CacheOrchestrator/issues/new?template=v3_testing_feedback.md).
+- For a feature, lead with the problem and use case. An API proposal is helpful but not required.
+- For security vulnerabilities, do **not** open a public issue. Follow [SECURITY.md](SECURITY.md).
+
+Before starting a large implementation, open an issue so the scope and package ownership can be agreed without wasting your time.
+
+## Development setup
+
+### Prerequisites
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/download), which can build the library targets `net8.0` and `net10.0`.
+- Docker when running Redis integration tests or the playground topology labs.
+
+The Admin Console App, its tests, and the samples target `net10.0`. Packaged libraries and their tests target both `net8.0` and `net10.0`.
+
+### Clone and build
 
 ```bash
 git clone https://github.com/amarinsek/CacheOrchestrator.git
@@ -17,243 +91,98 @@ dotnet restore CacheOrchestrator.slnx
 dotnet build CacheOrchestrator.slnx -c Release
 ```
 
-## Tests
+### Run relevant tests
+
+Run the tests for the package you changed. For example:
 
 ```bash
-# Unit tests — multi-target net8.0 + net10.0 per library package.
-dotnet test tests/CacheOrchestrator.UnitTests -c Release
-dotnet test tests/CacheOrchestrator.Redis.UnitTests -c Release
-dotnet test tests/CacheOrchestrator.HttpBus.UnitTests -c Release
-dotnet test tests/CacheOrchestrator.EFCore.Invalidation.UnitTests -c Release
-# Or one TFM, e.g.:
-dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net8.0
-dotnet test tests/CacheOrchestrator.UnitTests -c Release -f net10.0
-
-# Admin Console App tests are net10.0 only
-dotnet test tests/CacheOrchestrator.AdminConsole.UnitTests -c Release -f net10.0
-
-# Integration tests — multi-target net8.0 + net10.0 (matches published library TFMs)
-# - InMemory tests: no Docker
-# - Redis tests: Testcontainers starts redis:7-alpine (Docker required)
-dotnet test tests/CacheOrchestrator.IntegrationTests -c Release
-# Or one TFM:
-dotnet test tests/CacheOrchestrator.IntegrationTests -c Release -f net8.0
-dotnet test tests/CacheOrchestrator.IntegrationTests -c Release -f net10.0
+dotnet test tests/CacheOrchestrator.Core.UnitTests/CacheOrchestrator.Core.UnitTests.csproj -c Release
+dotnet test tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj -c Release
+dotnet test tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj -c Release
+dotnet test tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj -c Release
 ```
 
-### Redis integration tests (Testcontainers)
-
-| Requirement | Detail |
-|-------------|--------|
-| Docker | Engine running (Docker Desktop, or GitHub Actions `ubuntu-latest`) |
-| Image | `redis:7-alpine` (pulled on first run) |
-| Shared fixture | `[Collection("Redis")]` + `RedisFixture` (one container per collection) |
-| Multi-instance | `FusionCacheMultiInstanceRedisTests` starts **two** containers |
-
-If Docker is down, Redis tests fail with a clear message pointing at Docker — they are **not** skipped silently (so CI cannot go green without Redis coverage).
-
-CI (`build.yml` / `publish.yml`):
-
-1. `docker version` / `docker info`
-2. `dotnet test` IntegrationTests (includes Testcontainers Redis)
-
-Micro-benchmarks (optional):
+Use `-f net8.0` or `-f net10.0` to run one target framework. The Admin Console tests are `net10.0` only:
 
 ```bash
-dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks
+dotnet test tests/CacheOrchestrator.AdminConsole.UnitTests/CacheOrchestrator.AdminConsole.UnitTests.csproj -c Release -f net10.0
 ```
 
-See [docs/contributor/benchmarks/results.md](docs/contributor/benchmarks/results.md).
-
-## Samples
-
-### Host (no Docker)
+Integration tests exercise both in-memory and Redis behavior. Docker must be running because Redis coverage uses Testcontainers and is not silently skipped:
 
 ```bash
-# One-minute InMemory demo (MISS → HIT)
-dotnet run --project samples/CacheOrchestrator.Minimal
-
-# Interactive playground (TTL, schedule, Redis, CRUD)
-dotnet run --project samples/CacheOrchestrator.Sample
-
-# Same check as CI (miss → hit on /hello; needs prior Release build)
-dotnet build samples/CacheOrchestrator.Minimal -c Release
-bash samples/CacheOrchestrator.Minimal/smoke.sh
+dotnet test tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj -c Release
 ```
 
-Notes: [samples/CacheOrchestrator.Minimal](samples/CacheOrchestrator.Minimal), [samples/CacheOrchestrator.Sample](samples/CacheOrchestrator.Sample).
+The complete project-to-test mapping and CI commands are visible in [`.github/workflows/build.yml`](.github/workflows/build.yml). Optional micro-benchmarks are documented in [docs/contributor/benchmarks/results.md](docs/contributor/benchmarks/results.md).
 
-### Topology labs (Docker Compose)
-
-Numbered Compose stacks for **cache layouts**: Playground + Prometheus + Admin Console, then Redis L2, two app instances, HTTP cluster bus, dual Redis. They are a **teaching environment**, not a production blueprint, and **not** part of the NuGet packages.
-
-Docker must be running. From the repository root:
-
-```bash
-docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build
-```
-
-| Stage | Compose file | Stack |
-|-------|----------------|--------|
-| **01** | `compose/01-observability.yml` | Playground + Prometheus + Admin Console (InMemory) |
-| **02** | `compose/02-redis.yml` | Stage 01 + Redis as Fusion **L2** |
-| **03** | `compose/03-multi.yml` | Two playgrounds + shared Redis L2 |
-| **04** | `compose/04-bus.yml` | Stage 03 + HTTP cluster bus |
-| **05** | `compose/05-dual-redis-bus.yml` | Two Redis (OC store vs Fusion L2/backplane) + bus |
-
-Default URLs: Playground [http://localhost:5289](http://localhost:5289), Admin Console [http://localhost:5188](http://localhost:5188). Stages 03–05 also publish Playground B on port **5290**.
-
-After library or Admin Console changes, rebuild images (`up --build`) so the stacks pick up new assemblies.
-
-Full guide, diagrams, troubleshooting: [samples/CacheOrchestrator.Sample/labs/README.md](samples/CacheOrchestrator.Sample/labs/README.md). Orientation: [Guide — topologies](docs/guide/topologies.md).
-
-If you change public cache behaviour, check whether a lab stage still demonstrates what it claims (especially OC vs Fusion vs bus gaps in stages 03–05).
-
-## Project layout
+## Find your way around
 
 | Path | Role |
 |------|------|
-| `src/CacheOrchestrator` | Core library (InMemory; no Redis package references) |
-| `src/CacheOrchestrator.Redis` | Optional Redis backends |
-| `src/CacheOrchestrator.HttpBus` | Optional HTTP cluster command bus |
-| `src/CacheOrchestrator.EFCore.Invalidation` | Optional SaveChanges invalidation |
-| `src/CacheOrchestrator.AdminConsole` | Admin Console App (not a NuGet package; net10 only) |
-| `deploy/admin` | Admin Console Docker runbook and example config |
-| `tests/*` | Unit, integration, benchmarks |
-| `samples/*` | Minimal demo, playground, [topology labs](samples/CacheOrchestrator.Sample/labs) |
-| `docs/guide/`, `docs/how-to/`, `docs/reference/` | End-user docs (hub: [docs/README.md](docs/README.md)) |
-| `docs/contributor/` | Architecture, releasing, benchmarks, [worklog template](docs/contributor/templates/worklog-template.md) |
+| `src/CacheOrchestrator.Core` | HTTP-free domain orchestration, invalidation, management, and shared contracts |
+| `src/CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP Data Cache helpers, and Local Admin HTTP adapter |
+| `src/CacheOrchestrator.FusionCache` | FusionCache Data Cache provider |
+| `src/CacheOrchestrator.HybridCache` | HybridCache Data Cache provider |
+| `src/CacheOrchestrator` | Meta package for the typical ASP.NET Core + FusionCache composition |
+| `src/CacheOrchestrator.Redis*` | Redis meta package and focused Output Cache / FusionCache integrations |
+| `src/CacheOrchestrator.HttpBus` | HTTP cluster bus transport |
+| `src/CacheOrchestrator.EFCore.Invalidation` | EF Core `SaveChanges` invalidation integration |
+| `src/CacheOrchestrator.AdminConsole` | Admin Console App; not a NuGet package |
+| `tests` | Unit, integration, analyzer, and benchmark projects |
+| `samples` | Minimal example, interactive playground, and topology labs |
+| `docs` | Guide, how-to, reference, and contributor documentation |
 
-Agent-oriented conventions live in [AGENTS.md](AGENTS.md) (same rules for human contributors).
+For deeper context, see the [contributor architecture](docs/contributor/architecture.md). You do not need to read it for a documentation fix or a focused bug report.
 
 ## Coding conventions
 
-- **English only** for code comments and XML documentation.
-- Follow the repo **[`.editorconfig`](.editorconfig)** (style, analyzers, formatting). Before opening a PR, run:
+Follow [`.editorconfig`](.editorconfig). The repository conventions that are easiest to miss are:
 
-  ```bash
-  dotnet format CacheOrchestrator.slnx
-  ```
+- use English for code comments and XML documentation;
+- preserve public configuration keys unless the change has an explicit breaking-change plan;
+- keep interfaces beside their implementations rather than creating an Abstractions assembly;
+- use `ConfigureAwait(false)` in library code;
+- keep default implementations internal when applications can depend on an interface and DI;
+- prefer small, focused public APIs.
 
-  Prefer fixing what the IDE / `dotnet format` reports rather than inventing local style rules.
+Before opening a code PR, run:
 
-Project-level rules that are easy to miss:
+```bash
+dotnet format CacheOrchestrator.slnx
+dotnet build CacheOrchestrator.slnx -c Release
+```
 
-- Public config keys bound from appsettings are a **public contract** — rename only with a breaking-change plan and docs/changelog updates.
-- Interfaces live next to implementations (there is **no** separate `CacheOrchestrator.Abstractions` assembly).
-- Library code: **`ConfigureAwait(false)`** on awaits; prefer **`sealed`** public concrete types where practical.
-- Keep public API surface small: apps depend on interfaces + DI; default services stay **internal**.
-- Packable projects declare their contract in `eng/PublicApi/{Project}/PublicAPI.Shipped.txt`. New API belongs in `PublicAPI.Unshipped.txt`; removals or signature changes fail the build through `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Move reviewed entries to `Shipped` as part of a release baseline.
+Packable libraries declare their API contract under `eng/PublicApi/{Project}`. Add reviewed new APIs to `PublicAPI.Unshipped.txt`; removals and signature changes require an explicit breaking-change decision. Maintainers move the release baseline to `PublicAPI.Shipped.txt`.
 
-## Documentation
+## Documentation changes
 
-When you change public API, config keys, or behaviour, update the **right tier** (do not dump reference into the root README):
+Put information in the narrowest appropriate documentation tier:
 
-1. **Product** — root [README.md](README.md) only if the try/minimal path or feature list changes
-2. **Guide** — [docs/guide/](docs/guide/README.md) (getting-started, concepts, packages, topologies, FAQ, …)
-3. **How-to** — [docs/how-to/composition.md](docs/how-to/composition.md) when package wiring scenarios change
-4. **Reference** — [docs/reference/](docs/reference/) (configuration, keys, deployment, …)
-5. **Contributor** — [docs/contributor/](docs/contributor/) only for maintainer-facing pages
-6. Record user-facing changes in the [worklog Changelog](#worklog) — **do not** edit [CHANGELOG.md](CHANGELOG.md) in the PR
+1. root [README.md](README.md) for the product overview and quick start;
+2. [docs/guide](docs/guide/README.md) for learning and concepts;
+3. [docs/how-to](docs/how-to/composition.md) for task-oriented package composition;
+4. [docs/reference](docs/reference/) for precise technical behavior;
+5. [docs/contributor](docs/contributor/) for architecture and maintainer procedures.
 
-Hub: [docs/README.md](docs/README.md).
-
-### NuGet packaging (SourceLink + symbols + release notes)
-
-Packable projects inherit from `Directory.Build.props`:
-
-| Setting | Source |
-|---------|--------|
-| **Version** | **Git tags** via [MinVer](https://github.com/adamralph/minver) (`v1.0.0` → `1.0.0`) |
-| Authors, license, repo URL | `Directory.Build.props` |
-| Package **description** | each `.csproj` (`Description`) |
-| Package **readme** (NuGet UI) | `src/CacheOrchestrator*.csproj` `README.md` (`PackageReadmeFile`) — **not** the root GitHub README |
-| Package **release notes** (NuGet UI) | **`PACKAGE_RELEASE_NOTES.md`** → `PackageReleaseNotes` |
-| SourceLink + **`.snupkg`** | `Directory.Build.props` + `Microsoft.SourceLink.GitHub` |
-
-`PackageReleaseNotes` is **not** auto-generated from `CHANGELOG.md`.  
-Full release procedure (maintainer): **[docs/contributor/releasing.md](docs/contributor/releasing.md)**.
-
-#### Release checklist (maintainer)
-
-The maintainer folds each merged PR’s worklog Changelog into [CHANGELOG.md](CHANGELOG.md) (ongoing). On a release:
-
-1. Confirm **CHANGELOG.md** and update **PACKAGE_RELEASE_NOTES.md**.
-2. Commit on `main`.
-3. Tag **`v{version}`** (e.g. `v1.0.0`) and push the tag.
-4. Publish **GitHub Release** for that tag → `publish.yml` packs and pushes to NuGet and builds the Admin Console image on GHCR
-   (Trusted Publishing / OIDC — configure policy on nuget.org; no `NUGET_API_KEY` secret required).
-5. Confirm nuget.org (version from tag, release notes, symbols).
-
-Do **not** set `<Version>` manually in `Directory.Build.props` — MinVer owns it.
-
-All packable NuGet libraries share the same MinVer version and `PACKAGE_RELEASE_NOTES.md` (see `publish.yml` for the pack list). `CacheOrchestrator.Redis.Shared` is support/transitive (not an app install target). Admin Console is Docker/GHCR only (`IsPackable=false`).
-
-#### Optional package signing
-
-Not enabled by default (no cert in repo). When you have a code-signing certificate, sign after pack with `dotnet nuget sign` (see [docs/contributor/releasing.md](docs/contributor/releasing.md)).
-
-### Product description (keep in sync)
-
-| | Text |
-|--|------|
-| **Short** (NuGet / `.csproj` / GitHub About) | Domain-based configuration and coordination for ASP.NET Core Output Cache, FusionCache, and client Cache-Control — not a cache of its own. |
-| **Lead** (README intro) | **CacheOrchestrator** configures and coordinates three existing layers in ASP.NET Core — Output Cache (OC), FusionCache (L1/L2), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, FusionCache still holds the object, and the browser or CDN still honours `Cache-Control`. |
-
-Core package `Description` may append: `Redis backends: install CacheOrchestrator.Redis.`
-
-## Worklog
-Use a worklog for any branch that is more than a one-line fix. It serves as the living record of the branch and becomes the final PR description.
-
-**How to use it:**
-1.  Copy `docs/contributor/templates/worklog-template.md` when you open a branch.
-2.  Save your working copy in a `_local/` folder at the project root (ignored by Git) or your personal notes. **Name the file after your branch** (e.g., `_local/fix-etag-resource.md`). **Do not commit this file.**
-3.  Update the document continuously as you work, following these rules:
-    *   **Title:** Write a short, imperative sentence (max ~70 characters). This will be your PR title.
-    *   **Summary:** Briefly explain the problem (Why) and the solution (What).
-    *   **Changelog:** Record **net changes only** (ignore intermediate/reverted attempts). Delete any subheadings (like `### Removed`) that have no entries.
-    *   **Breaking Changes:** List them explicitly, or leave as `None`.
-    *   **How to test:** Describe how a reviewer can verify your changes (e.g., specific unit tests to run, or local reproduction steps).
-    *   **Work Items:** Archive your work sequentially (**oldest first**). Document what landed and the architectural rules applied. Do not record chat, rejected alternatives, or draft locations.
-
-**When you open the Pull Request:**
-*   **PR Title:** Use the text from your `## Title` section.
-*   **PR Description:** Copy and paste the rest of the document (from `## Summary` downwards).
-
-*Note: Do not edit `CHANGELOG.md` directly in a PR. The maintainer will copy the net entries from your worklog after merging.*
-
-## Community expectations
-
-- Be respectful in issues and pull requests.
-- No harassment, spam, or personal attacks.
-- The maintainer may close issues/PRs or block accounts that make collaboration impossible.
+Update examples, samples, and package READMEs when a public API or configuration surface changes. Do not edit `CHANGELOG.md` in an ordinary PR; record the user-facing outcome in the PR description or worklog so the maintainer can assemble release notes.
 
 ## Pull requests
 
-1. **Fork** (or branch from `main` if you have write access)
-2. Copy the [worklog template](#worklog) for the branch
-3. Keep PRs focused — one topic per PR when possible
-4. Ensure `dotnet build` and unit tests pass (core `CacheOrchestrator.UnitTests` plus Redis / Bus / EFCore.Invalidation unit-test projects when those packages change; Admin Console tests on net10)
-5. Prefer clear commit messages (what / why, not just “fix”)
-6. Fill in the PR title and description from the worklog **Summary**; attach the rest of the worklog in the PR body ([Worklog](#worklog))
-7. Do **not** commit secrets, production Redis endpoints, or filled worklogs
+1. Fork the repository, or branch from `main` if you have write access.
+2. Keep the change focused and explain the problem before the implementation details.
+3. Add or update tests in proportion to the change.
+4. Update the relevant documentation or sample when public behavior changes.
+5. Run the relevant tests and state exactly what you verified.
+6. Avoid committing secrets, production endpoints, generated artifacts, or personal worklogs.
 
-### Safe change checklist
+Small external contributions only need a clear PR description covering context, the resulting change, and verification. Maintainers and larger contributions should use the [worklog template](docs/contributor/templates/worklog-template.md); keep the working copy under `_local/` and paste its contents into the PR rather than committing the file.
 
-1. Build solution (`CacheOrchestrator.slnx`)
-2. Run unit tests (projects listed under [Tests](#tests))
-3. Update sample if public API or config surface changes
-4. Avoid reintroducing a separate Abstractions assembly
-5. Avoid non-English comments or `ct` as a public parameter name
+The detailed release and NuGet publishing procedure belongs in [docs/contributor/releasing.md](docs/contributor/releasing.md), not in individual PRs.
 
-## Issues
+## Community expectations
 
-- Bugs: use the bug report template; include TFM, package version, minimal repro
-- Features: describe the domain/use case and whether it is core vs Redis package scope
-
-## Security
-
-Please do **not** open public issues for vulnerabilities. See [SECURITY.md](SECURITY.md).
+Be respectful and assume good intent. Questions are welcome, and asking for guidance is better than silently getting stuck. Harassment, spam, and personal attacks are not accepted.
 
 ## License
 

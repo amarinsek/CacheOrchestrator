@@ -247,7 +247,9 @@ The library is **modular**. The Core package provides the foundational policies,
 >
 > **Try v3 now** with the Quick start above (`dotnet add package … --prerelease`). Expect breaking changes until the stable **v3.0.0** release.
 >
-> Prefer building from source or contributing? Clone this repository — `main` tracks the same v3 work and may move faster than the latest beta package.
+> **Help test v3.** Reports from real ASP.NET Core applications, standalone workers, Redis deployments, browsers, and playground labs are especially valuable. Successful results and confusing behavior are welcome too — see [Contributing](CONTRIBUTING.md#help-test-v3).
+>
+> Prefer building from source or contributing code? Clone this repository — `main` tracks the same v3 work and may move faster than the latest beta package.
 
 ## Documentation
 
