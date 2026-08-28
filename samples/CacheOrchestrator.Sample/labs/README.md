@@ -20,7 +20,7 @@ For a single process on your machine without Docker, use the [Playground sample]
 
 Each lab gives you a **running playground** (and Admin Console + Prometheus). Treat it as a sandpit:
 
-1. Open the **Playground** UI: **Domain endpoints** (GET catalogue), **CRUD**, or **POST identity** (read-only search contract vs create without identity).  
+1. Open the **Playground** UI: follow the **Getting started** tab, then try the focused **Vary** and **POST identity** playgrounds.
 2. Click **Fetch** / **Search** more than once — watch badges and `X-Cache` (OC-HIT, DC-HIT, FACTORY, schedule phase, …).  
 3. Open **appsettings** in the UI, change a TTL, Version, or Client Cache Schedule value, save, then fetch again.  
 4. Open **Admin Console** — Overview, Domains, Hints, Metrics — and relate numbers to what you just did.  
@@ -28,7 +28,9 @@ Each lab gives you a **running playground** (and Admin Console + Prometheus). Tr
 
 There is no single “correct” click path. Change settings, invalidate, compare two URLs, then look at Admin Console. That loop is how the domain model becomes concrete.
 
-**TTLs are playground-tuned on purpose.** Domain values are shorter than production so you can **see expiry at each layer** without waiting minutes. They are still long enough to fetch a few times, read badges, and think. Domains differ by intent (e.g. **search** is the shortest; **product-detail** / **product-crud** / **product-search** stay warmer so multi-step flows work). Open **appsettings** → `Cache:Domains` to inspect or change them.
+**TTLs are playground-tuned on purpose.** Domain values are shorter than the [Getting started](../../../docs/guide/getting-started.md) values so you can **see expiry at each layer** without waiting minutes. They are still long enough to fetch a few times, read badges, and think. Domains differ by intent: **promotions** expires quickly, while **catalog**, **product-crud**, and **product-search** stay warmer so multi-step flows work. Open **appsettings** → `Cache:Domains` to inspect or change them.
+
+The product dictionary is a per-process stand-in for a database. In stages 03–05, run a product GET/PUT sequence against the same Playground node; real application replicas normally read and write a shared database. The labs use multiple nodes to demonstrate cache and command propagation, not distributed persistence.
 
 If behaviour looks surprising, see **[Troubleshooting](#troubleshooting)** (browser cache toggle, TTLs, keys, multi-instance gaps, …).
 
@@ -461,7 +463,7 @@ Other simplifications exist for the same reason: **focus on cache behaviour** (O
 | POST identity tab: unknown domain `product-search` / options miss | Stages **03–05** shared volume may predate that domain — `down -v` then `up --build` to re-seed. Stages **01–02**: rebuild playground image so baked `appsettings.json` includes `product-search`. |
 | `Error response from daemon: open /var/lib/docker/tmp/...` on `up --build` | Old compose used a **volume file subpath** mount (fragile on Docker Desktop). Current labs mount `/shared` as a directory + entrypoint symlink. Pull latest compose/Dockerfile; one-time `down -v` if an old broken mount is stuck, then `up --build -d`. |
 | Bus not distributing | Stages 04–05 only; peers use Docker DNS URLs in lab config |
-| No **BROWSER-CACHE**, or always server hits | Header toggle **Disable browser HTTP cache** is **on by default** (for server OC/FC demos). Uncheck only when you want client `max-age` / BROWSER-CACHE. |
+| No **BROWSER-CACHE**, or always server hits | Header toggle **Disable browser HTTP cache** is **on by default** (for server OC/FC demos). Uncheck only when you want client `max-age` / BROWSER-CACHE. The Playground uses a per-request echo to distinguish browser responses from cached responses whose old `X-Cache` header says `oc=hit`. |
 | OC-HIT then sudden MISS / FACTORY | Domain **TTL** expired — check `OutputCache.TtlSeconds` vs `DataCache.TtlSeconds` / `fusionCache.hardTtlSeconds` for that domain in `Cache:Domains` |
 | Always FACTORY, never hits | Domain disabled? Wrong endpoint/domain? Keys differ (query, host — multi-lab keys note in Stage 03)? |
 | Client headers not what you expect | `ClientCache.TtlSeconds` / schedule / **Disable browser HTTP cache** (Fetch uses `no-store` when on) |

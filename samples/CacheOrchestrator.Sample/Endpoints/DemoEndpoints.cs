@@ -11,51 +11,8 @@ using System.Text.Json;
 
 namespace CacheOrchestrator.Sample.Endpoints;
 
-/// <summary>Options for a single demo data endpoint loaded from configuration.</summary>
-public sealed class DemoEndpointConfig
-{
-    public string Path { get; set; } = "/api/unknown";
-    public string Domain { get; set; } = "default";
-    public int DelayMs { get; set; } = 50;
-    public string Label { get; set; } = "";
-}
-
 public static class DemoEndpoints
 {
-    /// <summary>
-    /// Registers data endpoints dynamically from configuration (Demo:Endpoints[]).
-    /// Each endpoint simulates an async data fetch and is cached with the configured domain.
-    /// </summary>
-    public static void MapDemoDataEndpoints(this WebApplication app, IConfiguration config)
-    {
-        List<DemoEndpointConfig> entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
-
-        foreach (DemoEndpointConfig entry in entries)
-        {
-            var path = entry.Path;
-            var domain = entry.Domain;
-            var delayMs = entry.DelayMs;
-
-            app.MapGet(path, async (HttpContext http, IDomainDataCache cache) =>
-            {
-                var sw = Stopwatch.StartNew();
-                var data = await cache.GetOrSetAsync(http, async _ =>
-                {
-                    await Task.Delay(delayMs);
-                    return new
-                    {
-                        path,
-                        domain,
-                        generatedAt = DateTimeOffset.UtcNow
-                    };
-                });
-                sw.Stop();
-                http.Response.Headers["X-Demo-Elapsed-Ms"] = sw.ElapsedMilliseconds.ToString();
-                return Results.Json(data);
-            }).CacheOutputWithDomain(domain);
-        }
-    }
-
     /// <summary>
     /// Single compact demo for domain vary: <c>VaryByAccept</c> + <c>VaryByQueryKeys: [lang]</c>
     /// under domain <c>vary-demo</c> (<c>AuthBypassMode: Never</c>).
@@ -173,32 +130,28 @@ public static class DemoEndpoints
             where TBuilder : IEndpointConventionBuilder
             => builder.WithMetadata(new Microsoft.AspNetCore.OutputCaching.OutputCacheAttribute { NoStore = true });
 
-        NoOutputCache(app.MapGet("/api/demo/endpoints", (IConfiguration config, CacheOrchestrator.Configuration.IRequestDomainCacheOptions provider) =>
+        NoOutputCache(app.MapGet("/api/demo/endpoints", (IConfiguration config, IRequestDomainCacheOptions provider) =>
         {
-            List<DemoEndpointConfig> entries = config.GetSection("Demo:Endpoints").Get<List<DemoEndpointConfig>>() ?? [];
             string BackendFor(string domain)
             {
                 DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions(domain);
-                var fcName = opts.DataCacheInstanceName ?? "default";
-                var fcProvider = config[$"Cache:DataCacheInstances:{fcName}:Provider"] ?? "InMemory";
-                var ocProvider = config["Cache:OutputCache:Provider"] ?? "InMemory";
+                string fcName = opts.DataCacheInstanceName ?? "default";
+                string fcProvider = config[$"Cache:DataCacheInstances:{fcName}:Provider"] ?? "InMemory";
+                string ocProvider = config["Cache:OutputCache:Provider"] ?? "InMemory";
                 return $"{ocProvider} / {fcProvider}";
             }
 
-            // Config-driven demo routes only (CRUD is a separate UI panel).
-            var fromConfig = entries.Select(e => new
+            var endpoints = new[]
             {
-                url = e.Path,
-                domain = e.Domain,
-                label = string.IsNullOrWhiteSpace(e.Label) ? e.Path : e.Label,
-                backend = BackendFor(e.Domain),
-                method = "GET",
-                source = "config",
-            });
-
-            // Vary demo (Accept + lang query) — listed with config routes so it appears in the domain panel.
-            var varyMeta = new[]
-            {
+                new
+                {
+                    url = "/api/promotions",
+                    domain = "promotions",
+                    label = "Promotions (Getting started)",
+                    backend = BackendFor("promotions"),
+                    method = "GET",
+                    group = "getting-started",
+                },
                 new
                 {
                     url = "/api/vary-demo",
@@ -206,27 +159,17 @@ public static class DemoEndpoints
                     label = "Vary demo (Accept + ?lang=)",
                     backend = BackendFor("vary-demo"),
                     method = "GET",
-                    source = "config",
+                    group = "vary",
                 },
-            };
-
-            // Metadata for the Entity invalidation panel (not mixed into the domain dropdown).
-            var crudMeta = new[]
-            {
                 new
                 {
-                    url = "/api/crud/products/{id}",
-                    domain = "product-crud",
-                    label = "CRUD product",
-                    backend = BackendFor("product-crud"),
+                    url = "/api/products/{id:int}",
+                    domain = "catalog",
+                    label = "Product GET/PUT (Getting started)",
+                    backend = BackendFor("catalog"),
                     method = "GET",
-                    source = "hardcoded",
+                    group = "getting-started",
                 },
-            };
-
-            // POST identity panel (search + create contrast).
-            var postIdentityMeta = new[]
-            {
                 new
                 {
                     url = "/api/demo/search",
@@ -234,7 +177,7 @@ public static class DemoEndpoints
                     label = "POST search (identity contract)",
                     backend = BackendFor("product-search"),
                     method = "POST",
-                    source = "hardcoded",
+                    group = "post",
                 },
                 new
                 {
@@ -243,18 +186,27 @@ public static class DemoEndpoints
                     label = "POST create (no identity)",
                     backend = BackendFor("product-search"),
                     method = "POST",
-                    source = "hardcoded",
+                    group = "post",
+                },
+                new
+                {
+                    url = "/api/crud/products/{id}",
+                    domain = "product-crud",
+                    label = "Additional CRUD product",
+                    backend = BackendFor("product-crud"),
+                    method = "GET",
+                    group = "extra",
                 },
             };
 
-            return Results.Json(fromConfig.Concat(varyMeta).Concat(crudMeta).Concat(postIdentityMeta));
+            return Results.Json(endpoints);
         }));
 
         // Returns the raw appsettings.json content for the JSON editor.
         NoOutputCache(app.MapGet("/api/demo/appsettings", (IWebHostEnvironment env) =>
         {
-            var path = Path.Combine(env.ContentRootPath, "appsettings.json");
-            var content = File.ReadAllText(path);
+            string path = Path.Combine(env.ContentRootPath, "appsettings.json");
+            string content = File.ReadAllText(path);
             return Results.Text(content, "application/json");
         }));
 
@@ -265,7 +217,7 @@ public static class DemoEndpoints
             IConfiguration config) =>
         {
             using var reader = new StreamReader(request.Body);
-            var raw = await reader.ReadToEndAsync();
+            string raw = await reader.ReadToEndAsync();
 
             // Validate JSON before saving
             try
@@ -280,12 +232,12 @@ public static class DemoEndpoints
                     statusCode: 400);
             }
 
-            var path = Path.Combine(env.ContentRootPath, "appsettings.json");
+            string path = Path.Combine(env.ContentRootPath, "appsettings.json");
 
             try
             {
                 var doc = JsonDocument.Parse(raw);
-                var formatted = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
+                string formatted = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(path, formatted);
             }
             catch (Exception ex)

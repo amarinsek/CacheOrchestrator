@@ -224,7 +224,7 @@ The GET endpoint adds two ideas:
 
 You do not pass `"catalog"` to `GetOrSetEntityAsync`. `.CacheOutputWithDomain(...)` places the resolved domain options and entity identity on the request before the handler runs, and `IDomainDataCache` reuses that request snapshot.
 
-## 6. Update and invalidate one product
+## 6. Update the product price and invalidate its caches
 
 Restart the application and request product `42` twice:
 
@@ -235,7 +235,7 @@ curl -i http://localhost:5000/api/products/42
 
 The first request reaches the endpoint and the Data Cache factory. Its `X-Cache` header typically includes `oc=miss`, `dc=miss`, and `fa=run`. The second request is served as an Output Cache hit, so the endpoint and Data Cache are not consulted.
 
-Now update that product:
+Now change the product price from `10.00` to `12.50`:
 
 ```bash
 curl -i -X PUT http://localhost:5000/api/products/42 \
@@ -277,4 +277,4 @@ You have now used one domain definition to coordinate Client Cache, Output Cache
 | Inspect every `X-Cache` field and metric | [Observability](../reference/observability.md) |
 | Troubleshoot common mistakes | [FAQ](faq.md) |
 
-For a runnable playground with Redis, scheduling, observability, and CRUD examples, see [CacheOrchestrator.Sample](../../samples/CacheOrchestrator.Sample).
+The playground maps the same `/api/promotions` and generic `GET`/`PUT /api/products/{id}` flow in [GettingStartedEndpoints.cs](../../samples/CacheOrchestrator.Sample/Endpoints/GettingStartedEndpoints.cs), with shorter TTLs so cache expiry is quick to observe. It then adds Redis, scheduling, observability, and advanced endpoint examples; see [CacheOrchestrator.Sample](../../samples/CacheOrchestrator.Sample).
