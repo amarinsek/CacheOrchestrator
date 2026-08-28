@@ -119,7 +119,6 @@ internal sealed class RequestDomainCacheOptionsProvider : IRequestDomainCacheOpt
     private DomainHttpCacheOptions CreateDomainOptions(string domain)
     {
         DomainCacheOptions core = _coreOptions.GetOrCreateDomainOptions(domain);
-        CacheOrchestratorOptions coreRoot = _coreOptionsMonitor.CurrentValue;
         CacheOrchestratorHttpOptions options = _httpOptionsMonitor.CurrentValue;
         DomainHttpCacheSettings defaults = options.DomainDefaults;
         HttpDomainRuntimeOverride? overlay = _httpRuntimeOverrides.Get(domain);
@@ -210,7 +209,7 @@ internal sealed class RequestDomainCacheOptionsProvider : IRequestDomainCacheOpt
                     defaults.ClientCache?.MustRevalidateNearUpdate,
                     false),
             OutputTtl = outputTtl < TimeSpan.Zero ? TimeSpan.Zero : outputTtl,
-            OutputCacheNamespace = coreRoot.OutputNamespace,
+            OutputCacheNamespace = options.OutputNamespace,
             DataCacheRespectNoStore = overlay?.DataCacheRespectNoStore
                 ?? Pick(domainSettings.DataCache?.RespectNoStore, defaults.DataCache?.RespectNoStore, true),
             DataCacheVaryOnPublicAddress = overlay?.DataCacheVaryOnPublicAddress

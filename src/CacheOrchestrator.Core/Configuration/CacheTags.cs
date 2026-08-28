@@ -21,7 +21,7 @@ public static class CacheTags
     public static string Domain(string normalizedDomain)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(normalizedDomain);
-        return DomainPrefix + normalizedDomain;
+        return DomainPrefix + EncodeSegment(normalizedDomain);
     }
 
     /// <summary>
@@ -29,13 +29,16 @@ public static class CacheTags
     /// </summary>
     /// <param name="normalizedDomain">Already-normalized domain name.</param>
     /// <param name="normalizedEntityKind">Already-normalized entity kind (resource type).</param>
-    /// <param name="normalizedResourceId">Already-normalized resource id.</param>
+    /// <param name="normalizedResourceId">Canonical opaque resource id.</param>
     public static string Entity(string normalizedDomain, string normalizedEntityKind, string normalizedResourceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(normalizedDomain);
         ArgumentException.ThrowIfNullOrWhiteSpace(normalizedEntityKind);
         ArgumentException.ThrowIfNullOrWhiteSpace(normalizedResourceId);
-        return EntityPrefix + normalizedDomain + ":" + normalizedEntityKind + ":" + normalizedResourceId;
+        return EntityPrefix
+            + EncodeSegment(normalizedDomain) + ":"
+            + EncodeSegment(normalizedEntityKind) + ":"
+            + EncodeSegment(normalizedResourceId);
     }
 
     /// <summary>
@@ -47,6 +50,8 @@ public static class CacheTags
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(normalizedDomain);
         ArgumentException.ThrowIfNullOrWhiteSpace(normalizedEntityKind);
-        return EntityKindPrefix + normalizedDomain + ":" + normalizedEntityKind;
+        return EntityKindPrefix + EncodeSegment(normalizedDomain) + ":" + EncodeSegment(normalizedEntityKind);
     }
+
+    private static string EncodeSegment(string value) => Uri.EscapeDataString(value);
 }

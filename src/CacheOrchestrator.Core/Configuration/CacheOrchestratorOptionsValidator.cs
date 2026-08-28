@@ -4,25 +4,17 @@ using Microsoft.Extensions.Options;
 namespace CacheOrchestrator.Configuration;
 
 /// <summary>
-/// Validates core <see cref="CacheOrchestratorOptions"/> at startup (provider names, TTLs,
-/// data-cache instance references, and Output Cache provider names).
+/// Validates core <see cref="CacheOrchestratorOptions"/> at startup (Data Cache settings,
+/// instance references, and portable domain settings).
 /// Provider-specific connection rules (e.g. Redis) are validated by the corresponding package.
 /// </summary>
 internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<CacheOrchestratorOptions>
 {
-    private readonly HashSet<string> _validProviders;
     private readonly ILogger? _logger;
-    private readonly bool _validateOutputCacheProvider;
 
-    public CacheOrchestratorOptionsValidator(
-        IEnumerable<string> validProviders,
-        ILogger? logger = null,
-        bool validateOutputCacheProvider = true)
+    public CacheOrchestratorOptionsValidator(ILogger? logger = null)
     {
-        ArgumentNullException.ThrowIfNull(validProviders);
-        _validProviders = new HashSet<string>(validProviders, StringComparer.OrdinalIgnoreCase);
         _logger = logger;
-        _validateOutputCacheProvider = validateOutputCacheProvider;
     }
 
     /// <inheritdoc />
@@ -32,12 +24,6 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 
         List<string> failures = [];
 
-        if (_validateOutputCacheProvider && !_validProviders.Contains(options.OutputCache.Provider))
-        {
-            failures.Add(
-                $"OutputCache.Provider must be one of: {string.Join(", ", _validProviders)}. " +
-                $"Current value: '{options.OutputCache.Provider}'.");
-        }
         if (options.DataCacheInstances.Count == 0)
         {
             failures.Add("DataCacheInstances must contain at least one entry named 'default'.");

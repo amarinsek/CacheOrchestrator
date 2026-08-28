@@ -7,16 +7,16 @@ using System.Text;
 namespace CacheOrchestrator.Admin;
 
 /// <summary>
-/// Validates <c>X-Cache-Admin-Key</c> when <see cref="CacheOrchestratorOptions.AdminOptions.ApiKey"/> is set.
+/// Validates <c>X-Cache-Admin-Key</c> when the ASP.NET Core Admin API key is set.
 /// </summary>
 internal sealed class AdminApiKeyEndpointFilter : IEndpointFilter
 {
     /// <summary>Header name for the shared admin API key.</summary>
     public const string HeaderName = "X-Cache-Admin-Key";
 
-    private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
+    private readonly IOptionsMonitor<CacheOrchestratorHttpOptions> _options;
 
-    public AdminApiKeyEndpointFilter(IOptionsMonitor<CacheOrchestratorOptions> options)
+    public AdminApiKeyEndpointFilter(IOptionsMonitor<CacheOrchestratorHttpOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;

@@ -46,34 +46,30 @@ app.MapGet("/api/t/{tenant}/items/{id}", (string tenant, string id) => /* ... */
        http => $"tenant-{http.Request.RouteValues["tenant"]}",
        resourceRouteKey: "id",
        entityKind: "items");
-
-app.MapGet("/tiles/{z}/{x}/{y}", () => /* ... */)
-   .CacheOutputWithDomainTemplate("maps-{host}-{route:z}");
 ```
 
-`resourceRouteKey` and `entityKind` tag the Output Cache entry so `InvalidateEntityAsync` can purge that row. The delegate overload also accepts those two arguments for a dynamic domain with entity tags. `CacheOutputWithDomainTemplate` has **no** entity overload; it only resolves the domain string.
+`resourceRouteKey` and `entityKind` tag the Output Cache entry so `InvalidateEntityAsync` can purge that row. The delegate overload also accepts those two arguments for a dynamic domain with entity tags.
 
-Templates expand these tokens:
-
-- `{host}` — host without port
-- `{route:name}` — route value
-- `{header:Name}` — request header
-- `{query:key}` — query parameter
-- `{custom:key}` — value from the `customProviders` map
-
-Custom providers are fixed when the template is compiled and receive the current `HttpContext`:
+Use `CacheOutputWithDomainTemplate` when the same endpoint serves a finite set of configured domains. This keeps one endpoint implementation while each variant receives its own policy:
 
 ```csharp
-var domainTokens = new Dictionary<string, Func<HttpContext, string?>>
-{
-    ["tenant"] = http => http.User.FindFirst("tenant_id")?.Value
-};
-
-app.MapGet("/api/tenant/products", () => /* ... */)
-   .CacheOutputWithDomainTemplate("catalog-{custom:tenant}", domainTokens);
+group.MapGet("{tileset}/{z:int}/{x:int}/{y:int}.{ext?}", HandleTileAsync)
+     .CacheOutputWithDomainTemplate("tiles-{route:tileset}");
 ```
 
-Use templates only for bounded, trusted domain material. The resolved value is normalized as a domain name. An unconfigured result falls back to `DomainDefaults` and logs a warning; a missing token appends nothing, which can collapse distinct requests onto the same domain. Validate required tenant or routing state before caching. Template endpoints cannot declare entity identity, so use the delegate overload of `CacheOutputWithDomain` when `resourceRouteKey` and `entityKind` are also required.
+```json
+{
+  "Cache": {
+    "Domains": {
+      "tiles-satellite": { "Version": "1" },
+      "tiles-osm": { "Version": "1" },
+      "tiles-vehicle": { "Version": "1" }
+    }
+  }
+}
+```
+
+The template resolves `{route:tileset}` and selects `tiles-satellite`, `tiles-osm`, or `tiles-vehicle`. It never creates a domain at request time. An empty or unconfigured result fails closed: the handler still runs, but Output Cache and request-scoped Data Cache are bypassed and the response receives `Cache-Control: no-store`. Templates also support `{host}`, `{header:Name}`, `{query:key}`, and application-defined `{custom:key}` providers; see [Extensibility](extensibility.md#domain-template-tokens).
 
 ## Controllers
 

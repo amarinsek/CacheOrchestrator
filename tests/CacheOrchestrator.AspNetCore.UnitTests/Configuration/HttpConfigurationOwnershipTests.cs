@@ -37,6 +37,35 @@ public class HttpConfigurationOwnershipTests
     }
 
     [Fact]
+    public void HttpRootSettings_BindToAspNetCoreOptions()
+    {
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Cache:Namespace"] = "shop",
+                ["Cache:EmitDiagnosticsHeaders"] = "false",
+                ["Cache:Metrics:IncludeEndpointLabel"] = "false",
+                ["Cache:OutputCache:Provider"] = "Redis",
+                ["Cache:OutputCache:Namespace"] = "shop-output",
+                ["Cache:Admin:Enabled"] = "true",
+                ["Cache:Admin:ApiKey"] = "secret",
+                ["Cache:Admin:RoutePrefix"] = "/management/cache"
+            })
+            .Build();
+
+        CacheOrchestratorHttpOptions options = new();
+        configuration.GetSection("Cache").Bind(options);
+
+        options.EmitDiagnosticsHeaders.Should().BeFalse();
+        options.Metrics.IncludeEndpointLabel.Should().BeFalse();
+        options.OutputCache.Provider.Should().Be("Redis");
+        options.OutputNamespace.Should().Be("shop-output");
+        options.Admin.Enabled.Should().BeTrue();
+        options.Admin.ApiKey.Should().Be("secret");
+        options.Admin.RoutePrefix.Should().Be("/management/cache");
+    }
+
+    [Fact]
     public void HttpValidator_RejectsHttpTtlAndVaryErrors()
     {
         CacheOrchestratorHttpOptions options = new()
@@ -56,5 +85,68 @@ public class HttpConfigurationOwnershipTests
         result.Succeeded.Should().BeFalse();
         result.Failures.Should().Contain(message => message.Contains("OutputCache.TtlSeconds", StringComparison.Ordinal));
         result.Failures.Should().Contain(message => message.Contains("VaryByHeaders[1]", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void HttpValidator_RejectsOutputProviderNotRegisteredByAspNetCoreHost()
+    {
+        CacheOrchestratorHttpOptions options = new()
+        {
+            OutputCache = { Provider = "Redis" }
+        };
+
+        ValidateOptionsResult result = new CacheOrchestratorHttpOptionsValidator(["InMemory"])
+            .Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(message => message.Contains("Redis", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void HttpValidator_RejectsInheritedClientTtlRelationship()
+    {
+        CacheOrchestratorHttpOptions options = new()
+        {
+            DomainDefaults = new()
+            {
+                ClientCache = new() { TtlSeconds = 30, TtlMinSeconds = 10 }
+            },
+            Domains =
+            {
+                ["products"] = new()
+                {
+                    ClientCache = new() { TtlMinSeconds = 40 }
+                }
+            }
+        };
+
+        ValidateOptionsResult result = new CacheOrchestratorHttpOptionsValidator().Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(message =>
+            message.Contains("ClientCache.TtlMinSeconds", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void HttpValidator_AllowsZeroClientTtl_WithInheritedMinimum()
+    {
+        CacheOrchestratorHttpOptions options = new()
+        {
+            DomainDefaults = new()
+            {
+                ClientCache = new() { TtlMinSeconds = 60 }
+            },
+            Domains =
+            {
+                ["products"] = new()
+                {
+                    ClientCache = new() { TtlSeconds = 0 }
+                }
+            }
+        };
+
+        ValidateOptionsResult result = new CacheOrchestratorHttpOptionsValidator().Validate(null, options);
+
+        result.Succeeded.Should().BeTrue();
     }
 }

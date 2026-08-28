@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Entity;
+using CacheOrchestrator.Entity;
 
 namespace CacheOrchestrator.Core.UnitTests.Fusion;
 
@@ -22,7 +22,7 @@ public class EntityFootprintTests
         tags.Should().Contain("entitykind:store:order-lines");
         tags.Should().Contain("entity:store:customers:9");
         tags.Should().Contain("entity:store:products:42");
-        tags.Should().Contain("entity:store:orders-by-number:a-5");
+        tags.Should().Contain("entity:store:orders-by-number:A-5");
     }
 
     [Fact]
@@ -37,6 +37,22 @@ public class EntityFootprintTests
             "domain:store",
             "entity:store:products:1",
             "entitykind:store:products");
+    }
+
+    [Fact]
+    public void WithPrimary_WhenIdentityIsUnchanged_ReusesFootprint()
+    {
+        var footprint = new EntityFootprint(new EntityRef("products", "1"));
+
+        footprint.WithPrimary(new EntityRef("products", "1")).Should().BeSameAs(footprint);
+    }
+
+    [Fact]
+    public void Merge_WhenInstanceIsUnchanged_ReusesFootprint()
+    {
+        var footprint = new EntityFootprint(new EntityRef("products", "1"));
+
+        footprint.Merge(footprint).Should().BeSameAs(footprint);
     }
 
     [Fact]

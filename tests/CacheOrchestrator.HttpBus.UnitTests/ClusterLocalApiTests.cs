@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -103,6 +104,54 @@ public class ClusterLocalApiTests
         doc.RootElement.GetProperty("applied").GetBoolean().Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(-600, "too old")]
+    [InlineData(120, "future")]
+    public async Task Apply_WhenTimestampOutsideFreshnessWindow_ReturnsBadRequest(
+        int offsetSeconds,
+        string expectedError)
+    {
+        using IHost host = await CreateHostAsync(busEnabled: true, adminEnabled: false, apiKey: "k");
+        HttpClient client = host.GetTestClient();
+        client.DefaultRequestHeaders.Add(ClusterEndpointAuth.HeaderName, "k");
+
+        HttpResponseMessage response = await client.PostAsync(
+            "/cache-admin/local/cluster/apply",
+            JsonBody(origin: "peer-1", timestampUtc: DateTimeOffset.UtcNow.AddSeconds(offsetSeconds)),
+            Ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync(Ct)).Should().Contain(expectedError);
+    }
+
+    [Fact]
+    public async Task Map_WhenBusEnabledWithoutApiKeyOrExplicitOptIn_RejectsConfiguration()
+    {
+        Func<Task> act = async () =>
+        {
+            using IHost host = await CreateHostAsync(busEnabled: true, adminEnabled: false);
+        };
+
+        await act.Should().ThrowAsync<OptionsValidationException>()
+            .WithMessage("*AllowUnauthenticated*");
+    }
+
+    [Fact]
+    public async Task Apply_WhenUnauthenticatedExplicitlyAllowed_AppliesWithoutHeader()
+    {
+        using IHost host = await CreateHostAsync(
+            busEnabled: true,
+            adminEnabled: false,
+            allowUnauthenticated: true);
+
+        HttpResponseMessage response = await host.GetTestClient().PostAsync(
+            "/cache-admin/local/cluster/apply",
+            JsonBody(origin: "peer-1"),
+            Ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     [Fact]
     public async Task Info_WhenAdminDisabled_IsMapped()
     {
@@ -126,15 +175,19 @@ public class ClusterLocalApiTests
         act.Should().Throw<ArgumentNullException>();
     }
 
-    private static StringContent JsonBody(string origin, string ns = "app1")
+    private static StringContent JsonBody(
+        string origin,
+        string ns = "app1",
+        DateTimeOffset? timestampUtc = null)
     {
+        timestampUtc ??= DateTimeOffset.UtcNow;
         string json = $$"""
             {
               "commandType": "invalidate",
               "commandId": "{{Guid.NewGuid()}}",
               "originInstanceId": "{{origin}}",
               "namespace": "{{ns}}",
-              "timestampUtc": "{{DateTimeOffset.UtcNow:O}}",
+              "timestampUtc": "{{timestampUtc:O}}",
               "kind": 0,
               "scope": "products",
               "tags": ["domain:products"],
@@ -148,7 +201,8 @@ public class ClusterLocalApiTests
         bool busEnabled,
         bool adminEnabled,
         string? apiKey = null,
-        string instanceId = "self-1")
+        string instanceId = "self-1",
+        bool allowUnauthenticated = false)
     {
         Dictionary<string, string?> data = new()
         {
@@ -158,6 +212,7 @@ public class ClusterLocalApiTests
             ["Cache:InstanceId"] = instanceId,
             ["Cache:Admin:Enabled"] = adminEnabled ? "true" : "false",
             ["Cache:Cluster:Bus:Enabled"] = busEnabled ? "true" : "false",
+            ["Cache:Cluster:Bus:AllowUnauthenticated"] = allowUnauthenticated ? "true" : "false",
             ["Cache:Cluster:Bus:Membership"] = "Static"
         };
         if (apiKey is not null)

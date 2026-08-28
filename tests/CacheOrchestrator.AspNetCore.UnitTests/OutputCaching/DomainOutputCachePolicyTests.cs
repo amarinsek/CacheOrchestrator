@@ -311,6 +311,7 @@ public class DomainOutputCachePolicyTests
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
         ulong versionHash = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes("v1"));
+        context.CacheVaryByRules.VaryByValues["cache-domain"].ToString().Should().Be("products");
         context.CacheVaryByRules.VaryByValues["data-version"].ToString().Should().Be($"{versionHash:x16}");
         context.CacheVaryByRules.CacheKeyPrefix.Should().Be("test-oc");
     }
@@ -484,7 +485,7 @@ public class DomainOutputCachePolicyTests
     {
         var policy = new DomainOutputCachePolicy("products");
         (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(
-            orchestratorOptions: new CacheOrchestratorOptions { EmitDiagnosticsHeaders = false });
+            httpOptions: new CacheOrchestratorHttpOptions { EmitDiagnosticsHeaders = false });
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
         await FlushHeadersAsync(http);
@@ -515,7 +516,7 @@ public class DomainOutputCachePolicyTests
         int clientTtlSeconds = 60,
         int clientTtlMinSeconds = 60,
         TimeProvider? timeProvider = null,
-        CacheOrchestratorOptions? orchestratorOptions = null)
+        CacheOrchestratorHttpOptions? httpOptions = null)
     {
         var http = new DefaultHttpContext();
         var responseFeature = new OnStartingResponseFeature();
@@ -546,12 +547,10 @@ public class DomainOutputCachePolicyTests
         services.AddSingleton(domainConfig);
         services.AddSingleton(typeof(ILogger<DomainOutputCachePolicy>), NullLogger<DomainOutputCachePolicy>.Instance);
         services.AddSingleton(timeProvider ?? TimeProvider.System);
-        if (orchestratorOptions is not null)
-        {
-            IOptionsMonitor<CacheOrchestratorOptions> monitor = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
-            monitor.CurrentValue.Returns(orchestratorOptions);
-            services.AddSingleton(monitor);
-        }
+        IOptionsMonitor<CacheOrchestratorHttpOptions> monitor =
+            new FixedOptionsMonitor<CacheOrchestratorHttpOptions>(
+                httpOptions ?? new CacheOrchestratorHttpOptions());
+        services.AddSingleton(monitor);
 
         http.RequestServices = services.BuildServiceProvider();
 

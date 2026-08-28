@@ -2,7 +2,7 @@
 
 > **Reference.** Product overview: [root README](../../README.md). Orientation: [packages](../guide/packages.md). Catalog: [documentation index](../README.md). HTTP API: [Data Cache](data-cache.md).
 
-`CacheOrchestrator.Core` is the HTTP-free application API for class libraries, workers, message handlers, gRPC services, and other hosts that should not depend on ASP.NET Core. The primary abstraction is `ICacheOrchestrator`; a registered `IDataCacheProvider` owns physical storage.
+`CacheOrchestrator.Core` is the HTTP-free application API for class libraries, workers, message handlers, gRPC services, and other hosts that should not depend on ASP.NET Core. The primary abstraction is `ICacheOrchestrator`; a registered `IDataCacheProvider` owns physical storage. If Data Cache is enabled without a provider, the host logs a startup warning and the health check reports the configured failure status instead of silently appearing configured.
 
 The caller supplies a **domain** and a stable **logical key**. CacheOrchestrator resolves the domain policy, adds the domain `Version`, attaches invalidation tags, and delegates the operation to the provider.
 
@@ -243,7 +243,7 @@ Core and HTTP keys are not the same shape, but their domain and entity tags alig
 
 ## Provider boundary
 
-Applications should depend on `ICacheOrchestrator`, not `IDataCacheProvider`. Provider authors implement `IDataCacheProvider` and receive a fully formed `DataCacheProviderRequest` containing the physical key, instance name, tags, and the HTTP-free `DomainCacheOptions`. Provider-specific runtime settings are resolved by the provider package rather than added to the Core request contract. See [Extensibility](extensibility.md#data-cache-engine-idatacacheprovider).
+Applications should depend on `ICacheOrchestrator`, not `IDataCacheProvider`. Provider authors implement `IDataCacheProvider` and receive a fully formed `DataCacheProviderRequest` containing the physical key, instance name, tags, and the HTTP-free `DomainCacheOptions`. `GetOrCreateAsync<T>` returns `DataCacheProviderResult<T>` so the provider can distinguish a value materialized by this call from a cached or stale value. Provider-specific runtime settings are resolved by the provider package rather than added to the Core request contract. See [Extensibility](extensibility.md#data-cache-engine-idatacacheprovider).
 
 ## Related
 

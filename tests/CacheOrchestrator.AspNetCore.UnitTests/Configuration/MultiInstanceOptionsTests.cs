@@ -34,7 +34,6 @@ public class MultiInstanceOptionsTests
     private static CacheOrchestratorOptions TwoInstanceOptions() => new()
     {
         Namespace = "my-app",
-        OutputCache = { Provider = "InMemory" },
         DataCacheInstances = new Dictionary<string, CacheOrchestratorOptions.DataCacheInstanceOptions>(
             StringComparer.OrdinalIgnoreCase)
         {

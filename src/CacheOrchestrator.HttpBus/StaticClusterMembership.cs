@@ -1,5 +1,4 @@
 using CacheOrchestrator.Cluster;
-using CacheOrchestrator.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.HttpBus;
@@ -9,12 +8,12 @@ namespace CacheOrchestrator.HttpBus;
 /// </summary>
 internal sealed class StaticClusterMembership : IClusterMembership
 {
-    private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
+    private readonly IOptionsMonitor<HttpBusOptions> _options;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StaticClusterMembership"/> class.
     /// </summary>
-    public StaticClusterMembership(IOptionsMonitor<CacheOrchestratorOptions> options)
+    public StaticClusterMembership(IOptionsMonitor<HttpBusOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
@@ -26,11 +25,11 @@ internal sealed class StaticClusterMembership : IClusterMembership
     /// <inheritdoc />
     public Task<IReadOnlyList<ClusterPeer>> GetPeersAsync(CancellationToken cancellationToken = default)
     {
-        CacheOrchestratorOptions.StaticClusterMembershipOptions staticOpts =
+        HttpBusStaticMembershipOptions staticOpts =
             _options.CurrentValue.Cluster.Bus.Static;
 
         List<ClusterPeer> peers = [];
-        foreach (CacheOrchestratorOptions.StaticClusterPeerOptions? entry in staticOpts.Instances)
+        foreach (HttpBusStaticPeerOptions? entry in staticOpts.Instances)
         {
             if (entry is null)
                 continue;

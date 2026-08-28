@@ -2,6 +2,7 @@ using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.FusionCache;
@@ -9,12 +10,26 @@ namespace CacheOrchestrator.FusionCache;
 /// <summary>
 /// <see cref="IDataCacheProvider"/> backed by ZiggyCreatures FusionCache.
 /// </summary>
-internal sealed class FusionDataCacheProvider : IDataCacheProvider
+internal sealed class FusionDataCacheProvider :
+    IDataCacheProvider,
+    IDataCacheBatchInvalidator,
+    IDataCacheProviderCapabilities
 {
+    private const int InvalidationParallelism = 8;
+    private static readonly DataCacheProviderCapabilities ProviderCapabilities = new()
+    {
+        SupportsNamedInstances = true,
+        SupportsFailSafe = true,
+        SupportsEagerRefresh = true,
+        SupportsBackplane = true,
+        SupportsEntrySizeLimit = true,
+        SupportsBatchInvalidation = true
+    };
     private readonly IFusionCacheProvider _fusionProvider;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly IFusionDomainSettingsProvider _fusionDomainSettings;
     private readonly ILogger<FusionDataCacheProvider> _logger;
+    private readonly ConcurrentDictionary<string, CachedEntryOptions> _entryOptions = new(StringComparer.Ordinal);
 
     public FusionDataCacheProvider(
         IFusionCacheProvider fusionProvider,
@@ -37,7 +52,17 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
     public string Name => "FusionCache";
 
     /// <inheritdoc />
-    public async ValueTask<T> GetOrCreateAsync<T>(
+    public DataCacheProviderCapabilities Capabilities => ProviderCapabilities;
+
+    private sealed class CachedEntryOptions
+    {
+        public required DomainCacheOptions DomainOptions { get; init; }
+        public required DomainFusionCacheSettings FusionSettings { get; init; }
+        public required FusionCacheEntryOptions EntryOptions { get; init; }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<DataCacheProviderResult<T>> GetOrCreateAsync<T>(
         DataCacheProviderRequest request,
         Func<CancellationToken, ValueTask<T>> factory,
         CancellationToken cancellationToken = default)
@@ -46,13 +71,17 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         ArgumentNullException.ThrowIfNull(factory);
 
         IFusionCache fusion = _fusionProvider.GetCache(request.InstanceName);
-        DomainFusionCacheSettings fusionSettings = _fusionDomainSettings.Get(request.DomainOptions.Domain);
-        FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(request.DomainOptions, fusionSettings);
+        FusionCacheEntryOptions entryOptions = GetEntryOptions(request.DomainOptions);
         string[] tags = request.Tags as string[] ?? [.. request.Tags];
 
-        T result = await fusion.GetOrSetAsync<T>(
+        var materializationId = Guid.NewGuid();
+        FusionProviderCacheEntry<T> entry = await fusion.GetOrSetAsync<FusionProviderCacheEntry<T>>(
                 request.Key,
-                async (_, token) => await factory(token).ConfigureAwait(false),
+                async (_, token) => new FusionProviderCacheEntry<T>
+                {
+                    Value = await factory(token).ConfigureAwait(false),
+                    MaterializationId = materializationId
+                },
                 entryOptions,
                 tags: tags,
                 token: cancellationToken)
@@ -61,7 +90,10 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         if (_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("FusionDataCacheProvider GetOrCreate Key={Key}", request.Key);
 
-        return result;
+        DataCacheProviderOutcome outcome = entry.MaterializationId == materializationId
+            ? DataCacheProviderOutcome.Materialized
+            : DataCacheProviderOutcome.Cached;
+        return new DataCacheProviderResult<T>(entry.Value, outcome);
     }
 
     /// <inheritdoc />
@@ -73,13 +105,16 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         ArgumentNullException.ThrowIfNull(request);
 
         IFusionCache fusion = _fusionProvider.GetCache(request.InstanceName);
-        DomainFusionCacheSettings fusionSettings = _fusionDomainSettings.Get(request.DomainOptions.Domain);
-        FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(request.DomainOptions, fusionSettings);
+        FusionCacheEntryOptions entryOptions = GetEntryOptions(request.DomainOptions);
         string[] tags = request.Tags as string[] ?? [.. request.Tags];
 
         await fusion.SetAsync(
                 request.Key,
-                value,
+                new FusionProviderCacheEntry<T>
+                {
+                    Value = value,
+                    MaterializationId = Guid.NewGuid()
+                },
                 entryOptions,
                 tags: tags,
                 token: cancellationToken)
@@ -90,26 +125,83 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
     }
 
     /// <inheritdoc />
-    public async ValueTask InvalidateAsync(
+    public ValueTask InvalidateAsync(
         DataCacheInvalidationRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        return InvalidateBatchAsync([request], cancellationToken);
+    }
 
-        IEnumerable<string> instances = request.InstanceName is null
-            ? _options.CurrentValue.DataCacheInstances.Keys
-            : [request.InstanceName];
+    /// <inheritdoc />
+    public async ValueTask InvalidateBatchAsync(
+        IReadOnlyList<DataCacheInvalidationRequest> requests,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(requests);
 
-        foreach (string instanceName in instances)
+        List<(IFusionCache Cache, string Tag)> operations = [];
+        for (int requestIndex = 0; requestIndex < requests.Count; requestIndex++)
         {
-            IFusionCache fusion = _fusionProvider.GetCache(instanceName);
-            foreach (string tag in request.Tags)
+            DataCacheInvalidationRequest request = requests[requestIndex];
+            ArgumentNullException.ThrowIfNull(request);
+
+            IEnumerable<string> instances = request.InstanceName is null
+                ? _options.CurrentValue.DataCacheInstances.Keys
+                : [request.InstanceName];
+
+            foreach (string instanceName in instances)
             {
-                if (!string.IsNullOrWhiteSpace(tag))
+                IFusionCache fusion = _fusionProvider.GetCache(instanceName);
+                for (int tagIndex = 0; tagIndex < request.Tags.Count; tagIndex++)
                 {
-                    await fusion.RemoveByTagAsync(tag, token: cancellationToken).ConfigureAwait(false);
+                    string tag = request.Tags[tagIndex];
+                    if (!string.IsNullOrWhiteSpace(tag))
+                        operations.Add((fusion, tag));
                 }
             }
         }
+
+        if (operations.Count == 0)
+            return;
+
+        if (operations.Count == 1)
+        {
+            (IFusionCache cache, string tag) = operations[0];
+            await cache.RemoveByTagAsync(tag, token: cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await Parallel.ForEachAsync(
+                operations,
+                new ParallelOptions
+                {
+                    CancellationToken = cancellationToken,
+                    MaxDegreeOfParallelism = InvalidationParallelism
+                },
+                static async (operation, token) =>
+                    await operation.Cache.RemoveByTagAsync(operation.Tag, token: token).ConfigureAwait(false))
+            .ConfigureAwait(false);
+    }
+
+    private FusionCacheEntryOptions GetEntryOptions(DomainCacheOptions domainOptions)
+    {
+        string domain = domainOptions.Domain;
+        DomainFusionCacheSettings fusionSettings = _fusionDomainSettings.Get(domain);
+        if (_entryOptions.TryGetValue(domain, out CachedEntryOptions? cached)
+            && ReferenceEquals(cached.DomainOptions, domainOptions)
+            && ReferenceEquals(cached.FusionSettings, fusionSettings))
+        {
+            return cached.EntryOptions;
+        }
+
+        FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(domainOptions, fusionSettings);
+        _entryOptions[domain] = new CachedEntryOptions
+        {
+            DomainOptions = domainOptions,
+            FusionSettings = fusionSettings,
+            EntryOptions = entryOptions
+        };
+        return entryOptions;
     }
 }

@@ -47,7 +47,7 @@ internal sealed class RedisOutputCacheBackendRegistrar : IOutputCacheBackendRegi
             context.Services.AddStackExchangeRedisOutputCache(o =>
             {
                 o.ConfigurationOptions = configOptions;
-                o.InstanceName = context.Options.OutputNamespace;
+                o.InstanceName = context.OutputCacheNamespace;
             });
         });
     }

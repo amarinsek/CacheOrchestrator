@@ -106,20 +106,28 @@ public static class DomainName
     }
 
     /// <summary>
-    /// Normalizes a resource id for cache keys and entity tags (same character rules as domains).
+    /// Canonicalizes a resource id for cache keys and entity tags without discarding opaque identity material.
     /// </summary>
     /// <param name="resourceId">Raw resource id (e.g. product id from the route).</param>
     /// <returns>
-    /// Normalized id, or empty string when input is null/whitespace, or when the value
-    /// contains no usable characters (unlike <see cref="Normalize"/>, this does not fall
-    /// back to <see cref="Default"/> — that would collide unrelated ids).
+    /// Trimmed id, a canonical lowercase <c>D</c>-format GUID when the input is a GUID,
+    /// or empty string when input is null/whitespace.
     /// </returns>
-    public static string NormalizeResourceId(string? resourceId) => NormalizeKeySegment(resourceId);
+    public static string NormalizeResourceId(string? resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+            return string.Empty;
+
+        string value = resourceId.Trim();
+        return Guid.TryParse(value, out Guid guid)
+            ? guid.ToString("D")
+            : value;
+    }
 
     /// <summary>
     /// Normalizes an entity kind (resource type) for cache keys and tags.
-    /// Same character rules as <see cref="NormalizeResourceId"/>: garbage such as <c>!!!</c>
-    /// becomes empty instead of <see cref="Default"/>, so unrelated kinds do not share a tag.
+    /// Entity kinds are schema names and use the restricted normalized-segment rules; garbage such
+    /// as <c>!!!</c> becomes empty instead of <see cref="Default"/>, so unrelated kinds do not share a tag.
     /// </summary>
     /// <param name="entityKind">Raw entity kind (e.g. <c>products</c>).</param>
     /// <returns>Normalized kind, or empty string when the value is unusable.</returns>

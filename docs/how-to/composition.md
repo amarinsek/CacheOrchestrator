@@ -292,7 +292,7 @@ dotnet add package CacheOrchestrator --prerelease
 builder.Services.AddCacheOrchestrator(builder.Configuration);
 ```
 
-**Config** — domain defaults for all resolved names (or one `Domains` entry per name, e.g. `tenant-acme`):
+**Config** — defaults shared by every allowed name, plus one `Domains` entry per value the resolver may select:
 
 ```json
 {
@@ -303,6 +303,10 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
       "DataCache": { "Enabled": true, "TtlSeconds": 300 },
       "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
       "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
+    },
+    "Domains": {
+      "tenant-acme": { "Version": "1" },
+      "tenant-contoso": { "Version": "1" }
     }
   }
 }
@@ -321,6 +325,8 @@ app.MapGet("/t/{tenant}/products/{id:int}", async (HttpContext http, int id, IDo
 })
 .CacheOutputWithDomain(CatalogDomain);
 ```
+
+The resolver selects a configured domain; it does not create one. An empty or unknown result bypasses Output Cache and request-scoped Data Cache and emits `Cache-Control: no-store`. The handler still decides whether an unknown tenant returns `404`, `403`, or another application response.
 
 ---
 

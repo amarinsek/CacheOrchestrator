@@ -9,6 +9,8 @@ The most important domain decision is how the underlying data changes.
 
 The same application can use both profiles. Give them separate domains because their freshness rules are fundamentally different.
 
+Here **dynamic / CRUD profile** describes how data changes inside one stable domain such as `catalog`. It is different from a [dynamically resolved domain name](../reference/output-cache.md#minimal-apis), where request state selects one configured domain such as `tiles-lsi` or `tiles-osm`.
+
 ## Choose the freshness boundary first
 
 Ask one question:

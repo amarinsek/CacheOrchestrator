@@ -60,13 +60,13 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
         try
         {
             // Store type is T? so null values can be cached when the caller uses a nullable T.
-            T? value = await _dataCache.GetOrCreateAsync(
+            DataCacheProviderResult<T?> result = await _dataCache.GetOrCreateAsync(
                     providerRequest,
                     factory,
                     cancellationToken)
                 .ConfigureAwait(false);
-            activity?.SetTag("cache.result", "ok");
-            return value;
+            activity?.SetTag("cache.result", result.Outcome == DataCacheProviderOutcome.Materialized ? "miss" : "hit");
+            return result.Value;
         }
         catch (OperationCanceledException)
         {
@@ -103,31 +103,28 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
         }
 
         DataCacheProviderRequest earlyRequest = CreateProviderRequest(opts, request);
-        bool materialized = false;
-
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.orchestrator.get_or_create_footprint");
         activity?.SetTag("domain", opts.Domain);
         activity?.SetTag("provider", _dataCache.Name);
 
         try
         {
-            FootprintCacheBox<T?> box = await _dataCache.GetOrCreateAsync(
+            DataCacheProviderResult<FootprintCacheBox<T?>> result = await _dataCache.GetOrCreateAsync(
                     earlyRequest,
                     async token =>
                     {
-                        materialized = true;
                         FootprintCacheBox<T?> produced = await factory(token).ConfigureAwait(false);
                         return NormalizeBox(produced);
                     },
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            box = NormalizeBox(box);
+            FootprintCacheBox<T?> box = NormalizeBox(result.Value);
 
             // Refresh tags after miss when the factory expanded the footprint beyond early tags.
-            if (materialized)
+            if (result.Outcome == DataCacheProviderOutcome.Materialized)
             {
-                IReadOnlyList<string> finalTags = BuildTags(opts.Domain, box.Footprint, request.AdditionalTags);
+                IReadOnlyList<string> finalTags = BuildTags(opts, box.Footprint, request.AdditionalTags);
                 DataCacheProviderRequest finalRequest = new()
                 {
                     Key = earlyRequest.Key,
@@ -139,7 +136,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
                 await _dataCache.SetAsync(finalRequest, box, cancellationToken).ConfigureAwait(false);
             }
 
-            activity?.SetTag("cache.result", materialized ? "miss" : "hit");
+            activity?.SetTag("cache.result", result.Outcome == DataCacheProviderOutcome.Materialized ? "miss" : "hit");
             return box;
         }
         catch (OperationCanceledException)
@@ -288,13 +285,44 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
         => string.Concat(opts.Domain, ":", opts.VersionHex, ":", logicalKey);
 
     internal static IReadOnlyList<string> BuildTags(
-        string normalizedDomain,
+        DomainCacheOptions options,
         EntityFootprint? footprint,
         IReadOnlyList<string>? additionalTags)
     {
-        List<string> tags = footprint is null || ReferenceEquals(footprint, EntityFootprint.Empty)
-            ? [CacheTags.Domain(normalizedDomain)]
-            : [.. footprint.ToTags(normalizedDomain)];
+        string domainTag = options.DomainTag;
+        bool hasFootprint = footprint is not null && !ReferenceEquals(footprint, EntityFootprint.Empty);
+        if (!hasFootprint && additionalTags is not { Count: > 0 })
+            return options.DomainTags;
+
+        if (additionalTags is not { Count: > 0 }
+            && footprint!.Primary is { } primary
+            && footprint.Members.Count == 0
+            && footprint.DependsOn.Count == 0
+            && footprint.Aliases.Count == 0)
+        {
+            return
+            [
+                domainTag,
+                CacheTags.Entity(options.Domain, primary.EntityKind, primary.ResourceId),
+                CacheTags.EntityKind(options.Domain, primary.EntityKind)
+            ];
+        }
+
+        if (!hasFootprint && additionalTags is { Count: 1 })
+        {
+            string? additionalTag = additionalTags[0];
+            if (string.IsNullOrWhiteSpace(additionalTag)
+                || string.Equals(additionalTag, domainTag, StringComparison.Ordinal))
+            {
+                return options.DomainTags;
+            }
+
+            return [domainTag, additionalTag];
+        }
+
+        List<string> tags = hasFootprint
+            ? [.. footprint!.ToTags(options.Domain)]
+            : [domainTag];
 
         if (additionalTags is { Count: > 0 })
         {
@@ -309,7 +337,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
             }
         }
 
-        return tags;
+        return [.. tags];
     }
 
     private static DataCacheProviderRequest CreateProviderRequest(DomainCacheOptions opts, CacheEntryRequest request)
@@ -322,7 +350,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
         {
             Key = physicalKey,
             InstanceName = opts.DataCacheInstanceName,
-            Tags = BuildTags(opts.Domain, request.Footprint, request.AdditionalTags),
+            Tags = BuildTags(opts, request.Footprint, request.AdditionalTags),
             DomainOptions = opts
         };
     }
@@ -338,6 +366,9 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
                 Footprint = EntityFootprint.Empty
             };
         }
+
+        if (box.Footprint is not null)
+            return box;
 
         return new FootprintCacheBox<T?>
         {

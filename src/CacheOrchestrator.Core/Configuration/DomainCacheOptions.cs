@@ -5,6 +5,11 @@ namespace CacheOrchestrator.Configuration;
 /// </summary>
 public sealed class DomainCacheOptions
 {
+#pragma warning disable IDE0032 // Manual fields support thread-safe lazy hot-path tag preparation.
+    private string? _domainTag;
+    private string[]? _domainTags;
+#pragma warning restore IDE0032
+
     /// <summary>Normalized domain name.</summary>
     public string Domain { get; init; } = string.Empty;
 
@@ -28,4 +33,32 @@ public sealed class DomainCacheOptions
 
     /// <summary>Key prefix / namespace for the selected Data Cache instance.</summary>
     public string DataCacheNamespace { get; init; } = string.Empty;
+
+    /// <summary>Prepared immutable domain tag reused by Data Cache requests for this snapshot.</summary>
+    internal string DomainTag
+    {
+        get
+        {
+            string? cached = Volatile.Read(ref _domainTag);
+            if (cached is not null)
+                return cached;
+
+            string created = CacheTags.Domain(Domain);
+            return Interlocked.CompareExchange(ref _domainTag, created, null) ?? created;
+        }
+    }
+
+    /// <summary>Prepared domain-only tag collection reused by Data Cache requests for this snapshot.</summary>
+    internal string[] DomainTags
+    {
+        get
+        {
+            string[]? cached = Volatile.Read(ref _domainTags);
+            if (cached is not null)
+                return cached;
+
+            string[] created = [DomainTag];
+            return Interlocked.CompareExchange(ref _domainTags, created, null) ?? created;
+        }
+    }
 }

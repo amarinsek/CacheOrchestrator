@@ -53,17 +53,19 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 
 | Project | Responsibility |
 |---------|----------------|
-| `CacheOrchestrator.Core` | Domains, Version, portable `DataCache` / nested settings, entity footprint, `ICacheOrchestrator`, invalidation and cluster **contracts**, diagnostics |
+| `CacheOrchestrator.Core` | Domains, Version, portable `DataCache` settings, entity footprint, `ICacheOrchestrator`, invalidation and cluster **contracts**, diagnostics |
 | `CacheOrchestrator.FusionCache` | ZiggyCreatures Fusion as `IDataCacheProvider`; JSON `FusionCache` knobs |
 | `CacheOrchestrator.HybridCache` | Microsoft HybridCache as `IDataCacheProvider` |
-| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, vary, Admin API, `IDomainDataCache`, host `AddCacheOrchestrator` |
+| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP vary/diagnostics/Admin settings, Admin HTTP API, `IDomainDataCache`, host `AddCacheOrchestrator` |
 | `CacheOrchestrator` | Meta NuGet: AspNetCore + FusionCache |
 | `CacheOrchestrator.Redis` | Redis Output Cache store + Fusion L2 + backplane |
-| `CacheOrchestrator.HttpBus` | HTTP cluster command bus + Static / ServiceDiscovery membership |
+| `CacheOrchestrator.HttpBus` | HTTP cluster command bus + transport, authentication, Static / ServiceDiscovery membership settings |
 | `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation — [ef-core-invalidation.md](../reference/ef-core-invalidation.md) |
 | `CacheOrchestrator.AdminConsole` | Admin Console App (operator UI); not a NuGet package |
 
 Dependency rule: arrows point at **Core**. Core never references ASP.NET, Fusion, Hybrid, Redis, HttpBus, or EF. Details: [packages.md](../guide/packages.md).
+
+The user-facing JSON remains one `Cache` tree, but each package binds its own internal projection. Core's public snapshot does not expose Output Cache, Client Cache, HTTP Admin credentials, metrics labels, or HttpBus transport configuration.
 
 ## Public API surface
 

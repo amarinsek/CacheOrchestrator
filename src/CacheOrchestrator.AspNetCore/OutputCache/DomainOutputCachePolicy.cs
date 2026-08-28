@@ -26,7 +26,7 @@ namespace CacheOrchestrator.OutputCache;
 /// <remarks>
 /// Instances are created as endpoint metadata (not via DI). The logger and options are resolved from
 /// <see cref="HttpContext.RequestServices"/> at request time.
-/// Diagnostic headers honour <see cref="CacheOrchestratorOptions.EmitDiagnosticsHeaders"/> (default on).
+/// Diagnostic headers honour <c>Cache:EmitDiagnosticsHeaders</c> (default on).
 /// </remarks>
 public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadata
 {
@@ -159,11 +159,31 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     /// Used by <see cref="DataCache.IDomainDataCache"/> when domain options are not yet on the request.
     /// </summary>
     /// <param name="http">Current HTTP context.</param>
-    /// <returns>Domain name, or empty if unresolved.</returns>
+    /// <returns>
+    /// Domain name, or empty when a dynamic result is unresolved or is not declared under
+    /// <c>Cache:Domains</c>.
+    /// </returns>
     public string ResolveDomain(HttpContext http)
     {
         ArgumentNullException.ThrowIfNull(http);
-        return _domainProvider(http) ?? string.Empty;
+        string resolved = _domainProvider(http) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(resolved) || FixedDomain is not null)
+            return resolved;
+
+        string normalized = DomainName.Normalize(resolved);
+        IOptionsMonitor<CacheOrchestratorOptions>? options =
+            http.RequestServices.GetService<IOptionsMonitor<CacheOrchestratorOptions>>();
+        if (options?.CurrentValue.Domains.ContainsKey(normalized) == true)
+            return normalized;
+
+        ILogger<DomainOutputCachePolicy> logger = GetLogger(http);
+        if (logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning(
+                "Dynamic cache domain '{Domain}' is not configured; caching is bypassed for this request.",
+                normalized);
+        }
+        return string.Empty;
     }
 
     private static string? NormalizeConfiguredEntityKind(string? entityKind, bool requireEntity)
@@ -206,11 +226,12 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     {
         HttpContext http = context.HttpContext;
 
-        string domain = _domainProvider(http);
+        string domain = ResolveDomain(http);
         if (string.IsNullOrWhiteSpace(domain))
         {
-            // Dynamic/template domain unresolved: do not leave the ASP.NET base policy enabled.
+            // Dynamic/template domain unresolved or unconfigured: fail closed.
             context.EnableOutputCaching = false;
+            http.Response.Headers.CacheControl = "no-store";
             return;
         }
 
@@ -305,6 +326,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         context.CacheVaryByRules.VaryByHost = opts.OutputCacheVaryByHost;
         context.CacheVaryByRules.QueryKeys = CacheVaryMaterializer.CollectQueryKeysForOutputCache(http.Request.Query, opts);
         context.CacheVaryByRules.CacheKeyPrefix = opts.OutputCacheNamespace;
+        context.CacheVaryByRules.VaryByValues["cache-domain"] = opts.Domain;
         context.CacheVaryByRules.VaryByValues["data-version"] = opts.VersionHex;
 
         foreach ((string key, string value) in vary.Values)
@@ -568,6 +590,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         CacheOrchestratorMetricsHttpExtensions.ResolveEndpointKeys(
             httpContext,
             forAdminStats: adminOn,
+            forMetrics: CacheOrchestratorMetrics.IsOutputCacheEnabled,
             out string? endpointKey,
             out string? metricsRoute);
         CacheOrchestratorMetrics.RecordOutput(config.Domain, ocMetric, metricsRoute);
@@ -651,13 +674,13 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     }
 
     /// <summary>
-    /// Reads <see cref="CacheOrchestratorOptions.EmitDiagnosticsHeaders"/> from DI when available.
+    /// Reads <c>Cache:EmitDiagnosticsHeaders</c> from ASP.NET Core options when available.
     /// Defaults to <see langword="true"/> if options are not registered (unit tests / edge hosts).
     /// </summary>
     private static bool ShouldEmitDiagnosticsHeaders(HttpContext httpContext)
     {
-        IOptionsMonitor<CacheOrchestratorOptions>? monitor =
-            httpContext.RequestServices.GetService<IOptionsMonitor<CacheOrchestratorOptions>>();
+        IOptionsMonitor<CacheOrchestratorHttpOptions>? monitor =
+            httpContext.RequestServices.GetService<IOptionsMonitor<CacheOrchestratorHttpOptions>>();
         return monitor?.CurrentValue.EmitDiagnosticsHeaders ?? true;
     }
 

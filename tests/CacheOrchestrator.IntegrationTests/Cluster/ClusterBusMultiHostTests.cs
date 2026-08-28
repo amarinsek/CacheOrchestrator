@@ -100,7 +100,7 @@ public class ClusterBusMultiHostTests
             ["Cache:Cluster:Bus:Membership"] = membership,
             ["Cache:Cluster:Bus:PeerTimeoutMs"] = "5000",
             ["Cache:Cluster:Bus:MaxParallelism"] = "8",
-            ["Cache:Cluster:Bus:DedupeWindowSeconds"] = "120",
+            ["Cache:Cluster:Bus:DedupeWindowSeconds"] = "330",
             ["Cache:Admin:Enabled"] = adminEnabled ? "true" : "false",
             ["Cache:Admin:RoutePrefix"] = "/cache-admin/local",
             [$"Cache:Domains:{domain}:Version"] = "v1",
@@ -116,6 +116,10 @@ public class ClusterBusMultiHostTests
         {
             configValues["Cache:Cluster:Bus:ApiKey"] = apiKey;
             configValues["Cache:Admin:ApiKey"] = apiKey;
+        }
+        else
+        {
+            configValues["Cache:Cluster:Bus:AllowUnauthenticated"] = "true";
         }
 
         for (int i = 0; i < peers.Count; i++)

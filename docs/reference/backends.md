@@ -81,6 +81,7 @@ Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
 2. Prefer `context.RegisterStore(() => …)` for store packages that must run **after** `AddOutputCache`  
    (e.g. `AddStackExchangeRedisOutputCache`).  
 3. Implement this interface only when the provider has an ASP.NET Output Cache adapter. A Fusion-only provider implements only `IFusionCacheBackendRegistrar`.
+4. Use `context.OutputCacheNamespace` for store key isolation; the ASP.NET Core package owns and resolves Output Cache configuration.
 
 ### Fusion L2 rules (multi-instance safe)
 

@@ -30,7 +30,7 @@ public class FailSafeStaleTests
                 ["Cache:Domains:stale:FusionCache:JitterSeconds"] = "0",
                 ["Cache:Domains:stale:FusionCache:EagerRefreshRatio"] = "0",
                 ["Cache:Domains:stale:FusionCache:FactorySoftTimeoutSeconds"] = "5",
-                ["Cache:Domains:stale:DataCache:FactoryHardTimeoutSeconds"] = "10",
+                ["Cache:Domains:stale:FusionCache:FactoryHardTimeoutSeconds"] = "10",
             })
             .Build();
 

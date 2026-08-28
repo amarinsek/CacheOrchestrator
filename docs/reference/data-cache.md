@@ -17,6 +17,8 @@ The **Data Cache** stores **application objects** from your factory (DTOs, tiles
 
 Register exactly one provider. Meta `AddCacheOrchestrator` = AspNetCore + Fusion.
 
+If Data Cache remains enabled but no provider package is registered, startup logs a warning and factories run uncached. The CacheOrchestrator health check reports the configured failure status with `data_cache_provider: Null`. Output-Cache-only hosts should explicitly set `DomainDefaults:DataCache:Enabled` to `false`.
+
 **Hybrid instead of Fusion:** call `AddHybridCache()`, then `AddCacheOrchestratorAspNetCore`, then `AddCacheOrchestratorHybridCache` (replaces any prior `IDataCacheProvider`). Nested `FusionCache.*` domain knobs are ignored. Full sample: [composition §5](../how-to/composition.md#scenario-5).
 
 Package READMEs: [FusionCache](../../src/CacheOrchestrator.FusionCache/README.md), [HybridCache](../../src/CacheOrchestrator.HybridCache/README.md). Domain resolution, keys, entity identity, and `dc=` results below are **shared** across providers.
@@ -220,6 +222,10 @@ Admin Console's exclusive pipeline mix is **Output Cache hit + fresh Data Cache 
 
 Stampede protection and fail-safe stale serve come from FusionCache itself. Nested JSON schema: [configuration.md](configuration.md#fusioncache-fusion-package-only).
 
+Effective Fusion settings are merged and cached per normalized domain and runtime-override stamp. Prepared `FusionCacheEntryOptions` are also reused while the Core and Fusion snapshots are unchanged, so a normal L1 hit does not traverse Configuration Binder or rebuild entry options. Configuration reload and Admin overrides replace the cached snapshots.
+
+The provider stores a small typed envelope around the application value so it can distinguish a value materialized by the current call from a cached or fail-safe stale value. This is an internal v3 storage format; all nodes sharing an L2 store must be upgraded together.
+
 ---
 
 ## HybridCache provider
@@ -233,9 +239,13 @@ builder.Services.AddCacheOrchestratorHybridCache();
 ```
 
 - Uses portable **`DataCache.TtlSeconds`** (expiration / local expiration).
+- Applies the resolved `DataCacheNamespace` to physical keys and tags, including optional distributed HybridCache storage.
+- Supports only `DataCacheInstances:default`; startup validation rejects named instances instead of allowing them to share one DI HybridCache.
 - Nested **`FusionCache`** settings are ignored (no fail-safe / hard TTL / factory timeouts / named Fusion instances).
 - Optional L2: configure HybridCache / `IDistributedCache` as usual (outside this package) — not Fusion `AddRedisBackend`.
 - Prefer **Fusion** when you need fail-safe, eager refresh, or the full Fusion surface.
+
+Like the Fusion provider, HybridCache stores an internal typed envelope used to report whether this call materialized the returned value. Upgrade nodes that share its distributed storage together.
 
 Package README: [CacheOrchestrator.HybridCache](../../src/CacheOrchestrator.HybridCache/README.md).
 

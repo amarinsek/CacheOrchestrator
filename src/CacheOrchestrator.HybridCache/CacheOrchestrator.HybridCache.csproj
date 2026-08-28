@@ -32,5 +32,6 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="CacheOrchestrator.HybridCache.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Benchmarks" />
 	</ItemGroup>
 </Project>

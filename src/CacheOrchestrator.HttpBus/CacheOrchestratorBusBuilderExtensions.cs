@@ -1,5 +1,4 @@
 using CacheOrchestrator.Cluster;
-using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +38,11 @@ public static class CacheOrchestratorBusBuilderExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(configSection);
 
         builder.Services.AddHttpClient(HttpClusterCommandBus.HttpClientName);
+        builder.Services.AddOptions<HttpBusOptions>()
+            .Bind(builder.Configuration.GetSection(configSection))
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<HttpBusOptions>, HttpBusOptionsValidator>());
 
         // Only wire ServiceDiscovery when configured — avoids requiring that assembly for Null/Static hosts.
         string membership = builder.Configuration[$"{configSection}:Cluster:Bus:Membership"] ?? "Null";
@@ -63,7 +67,7 @@ public static class CacheOrchestratorBusBuilderExtensions
     /// </summary>
     private static IClusterMembership CreateMembership(IServiceProvider sp)
     {
-        CacheOrchestratorOptions opts = sp.GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
+        HttpBusOptions opts = sp.GetRequiredService<IOptions<HttpBusOptions>>().Value;
         string membership = opts.Cluster.Bus.Membership ?? "Null";
 
         if (string.Equals(membership, "Static", StringComparison.OrdinalIgnoreCase))

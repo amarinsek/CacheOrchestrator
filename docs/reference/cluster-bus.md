@@ -85,8 +85,10 @@ Root identity and bus options live under **`Cache`**:
         "Membership": "Static",
         "PeerTimeoutMs": 2000,
         "MaxParallelism": 32,
-        "DedupeWindowSeconds": 60,
-        "ApiKey": "",
+        "DedupeWindowSeconds": 330,
+        "CommandMaxAgeSeconds": 300,
+        "ClockSkewSeconds": 30,
+        "ApiKey": "use-a-strong-secret",
         "Static": {
           "Instances": [
             { "Id": "app1-a", "Url": "http://10.0.0.1:8080" },
@@ -117,8 +119,11 @@ Root identity and bus options live under **`Cache`**:
 | `Membership` | `Null` | `Null` · `Static` · `ServiceDiscovery` |
 | `PeerTimeoutMs` | `2000` | Per-peer HTTP timeout |
 | `MaxParallelism` | `32` | Max concurrent peer deliveries |
-| `DedupeWindowSeconds` | `60` | Receive-side `CommandId` window; `0` disables |
-| `ApiKey` | empty | Auth for receive endpoints; falls back to `Cache:Admin:ApiKey` |
+| `DedupeWindowSeconds` | `330` | Receive-side `CommandId` window; must be at least `CommandMaxAgeSeconds + ClockSkewSeconds` |
+| `ApiKey` | empty | Auth for receive endpoints; falls back to `Cache:Admin:ApiKey`; required when the bus is enabled unless `AllowUnauthenticated` is true |
+| `AllowUnauthenticated` | `false` | Explicitly allow open receive endpoints; isolated development networks only |
+| `CommandMaxAgeSeconds` | `300` | Reject commands older than this; valid range 1–86400 |
+| `ClockSkewSeconds` | `30` | Accept commands this many seconds into the future; valid range 0–3600 |
 | `Static.Instances` | `[]` | `{ Id, Url }` peers (Static membership) |
 | `ServiceDiscovery.ServiceName` | empty | Logical service name for SD |
 | `ServiceDiscovery.DefaultScheme` | `http` | Scheme when building peer URLs / query |
@@ -236,9 +241,9 @@ Header **`X-Cache-Admin-Key`** (same as Admin API):
 
 1. `Cache:Cluster:Bus:ApiKey` if set  
 2. Else `Cache:Admin:ApiKey`  
-3. Else open (dev only; warning log)
+3. Else startup validation fails, unless `AllowUnauthenticated: true` explicitly opens the endpoints
 
-Prefer private network and/or mTLS in front of instances for production.
+Authentication uses a constant-time key comparison. Receive handling also rejects commands older than `CommandMaxAgeSeconds` or further in the future than `ClockSkewSeconds`; `CommandId` deduplication then blocks repeated delivery inside its window. Prefer TLS plus a private network or mTLS in front of instances for production.
 
 ### Partial failure
 
@@ -309,8 +314,9 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 
 ## Security checklist
 
-- [ ] Set `Cluster:Bus:ApiKey` or `Admin:ApiKey` outside local dev  
+- [ ] Set `Cluster:Bus:ApiKey` or `Admin:ApiKey`; never use `AllowUnauthenticated` on a reachable production network
 - [ ] Restrict peer HTTP to private networks / mesh  
+- [ ] Use TLS or mTLS between peers
 - [ ] Treat apply endpoints as admin-level (can purge cache)  
 - [ ] Do not expose Admin API / cluster routes on the public internet without auth  
 

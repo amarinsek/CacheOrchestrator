@@ -4,25 +4,49 @@ namespace CacheOrchestrator.Configuration;
 
 internal sealed class CacheOrchestratorHttpOptionsValidator : IValidateOptions<CacheOrchestratorHttpOptions>
 {
+    private readonly HashSet<string>? _validOutputProviders;
+
+    public CacheOrchestratorHttpOptionsValidator(IEnumerable<string>? validOutputProviders = null)
+    {
+        _validOutputProviders = validOutputProviders is null
+            ? null
+            : new HashSet<string>(validOutputProviders, StringComparer.OrdinalIgnoreCase);
+    }
+
     public ValidateOptionsResult Validate(string? name, CacheOrchestratorHttpOptions options)
     {
         List<string> failures = [];
-        Validate("DomainDefaults", options.DomainDefaults, failures);
+        if (_validOutputProviders is not null
+            && !_validOutputProviders.Contains(options.OutputCache.Provider))
+        {
+            failures.Add(
+                $"Unsupported OutputCache provider '{options.OutputCache.Provider}'. " +
+                $"Registered providers: {string.Join(", ", _validOutputProviders)}.");
+        }
+        Validate("DomainDefaults", options.DomainDefaults, options.DomainDefaults, failures);
         foreach ((string domain, DomainHttpCacheSettings settings) in options.Domains)
         {
-            Validate($"Domain '{domain}'", settings, failures);
+            Validate($"Domain '{domain}'", settings, options.DomainDefaults, failures);
         }
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 
-    private static void Validate(string label, DomainHttpCacheSettings settings, List<string> failures)
+    private static void Validate(
+        string label,
+        DomainHttpCacheSettings settings,
+        DomainHttpCacheSettings defaults,
+        List<string> failures)
     {
         NonNegative(label, "OutputCache.TtlSeconds", settings.OutputCache?.TtlSeconds, failures);
         NonNegative(label, "ClientCache.TtlSeconds", settings.ClientCache?.TtlSeconds, failures);
         NonNegative(label, "ClientCache.TtlMinSeconds", settings.ClientCache?.TtlMinSeconds, failures);
-        if (settings.ClientCache?.TtlSeconds is int ttl
-            && settings.ClientCache.TtlMinSeconds is int min
-            && min > ttl)
+        int ttl = settings.ClientCache?.TtlSeconds
+            ?? defaults.ClientCache?.TtlSeconds
+            ?? 3600;
+        int min = settings.ClientCache?.TtlMinSeconds
+            ?? defaults.ClientCache?.TtlMinSeconds
+            ?? 60;
+        if (ttl > 0 && min > ttl)
         {
             failures.Add($"{label}: ClientCache.TtlMinSeconds must be <= ClientCache.TtlSeconds.");
         }

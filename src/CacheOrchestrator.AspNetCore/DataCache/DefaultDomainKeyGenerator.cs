@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.IO.Hashing;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -28,7 +29,6 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
     private static readonly byte[] PrefixScheme = "|s:"u8.ToArray();
     private static readonly byte[] PrefixHost = "|h:"u8.ToArray();
     private static readonly byte[] EqualsSign = "="u8.ToArray();
-    private static readonly byte[] Comma = ","u8.ToArray();
     private static readonly byte[] Colon = ":"u8.ToArray();
 
     private readonly CacheVaryMaterializer _materializer;
@@ -93,17 +93,19 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                     AppendPublicAddress(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
                 ulong resourceHash = hasher.GetCurrentHashAsUInt64();
+                string encodedEntityKind = EncodeVisibleSegment(entityKind);
+                string encodedResourceId = EncodeVisibleSegment(resourceId);
                 return string.Create(
                     null,
                     stackalloc char[256],
-                    $"{opts.Domain}:{opts.VersionHex}:id:{entityKind}:{resourceId}:{resourceHash:x16}");
+                    $"{opts.Domain}:{opts.VersionHex}:id:{encodedEntityKind}:{encodedResourceId}:{resourceHash:x16}");
             }
 
             // 1. Route / path
             if (http.GetEndpoint() is RouteEndpoint endpoint)
             {
                 AppendRaw(hasher, PrefixRoute);
-                AppendString(hasher, endpoint.RoutePattern.RawText, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
+                AppendString(hasher, endpoint.RoutePattern.RawText, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
 
                 foreach (RoutePatternParameterPart p in endpoint.RoutePattern.Parameters)
                 {
@@ -112,16 +114,16 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                     if (http.Request.RouteValues.TryGetValue(p.Name, out object? value) && value is not null)
                     {
                         if (value is string s)
-                            AppendString(hasher, s, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
+                            AppendString(hasher, s, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
                         else
-                            AppendString(hasher, value.ToString(), ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
+                            AppendString(hasher, value.ToString(), ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
                     }
                 }
             }
             else
             {
                 AppendRaw(hasher, PrefixPath);
-                AppendString(hasher, http.Request.Path.Value, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
+                AppendString(hasher, http.Request.Path.Value, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
             }
 
             // 2. Query + header/auth/custom vary (+ encoding via materializer)
@@ -236,7 +238,7 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                     {
                         string key = keys[i];
                         AppendRaw(hasher, PrefixQuery);
-                        AppendString(hasher, key, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
+                        AppendString(hasher, key, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
                         AppendRaw(hasher, EqualsSign);
                         AppendStringValues(hasher, query[key], ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
                     }
@@ -290,6 +292,8 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void AppendRaw(XxHash3 hasher, ReadOnlySpan<byte> data) => hasher.Append(data);
 
+    private static string EncodeVisibleSegment(string value) => Uri.EscapeDataString(value);
+
     private static void AppendString(
         XxHash3 hasher,
         string? value,
@@ -299,8 +303,13 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
         ref char[]? rentedChars,
         bool lowercase)
     {
-        if (string.IsNullOrEmpty(value))
+        if (value is null)
+        {
+            Span<byte> nullLength = stackalloc byte[sizeof(int)];
+            BinaryPrimitives.WriteInt32LittleEndian(nullLength, -1);
+            hasher.Append(nullLength);
             return;
+        }
 
         ReadOnlySpan<char> source = value.AsSpan();
 
@@ -328,6 +337,9 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
         }
 
         int bytesWritten = Encoding.UTF8.GetBytes(source, byteBuffer);
+        Span<byte> length = stackalloc byte[sizeof(int)];
+        BinaryPrimitives.WriteInt32LittleEndian(length, bytesWritten);
+        hasher.Append(length);
         hasher.Append(byteBuffer[..bytesWritten]);
     }
 
@@ -339,20 +351,13 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
         ref Span<char> charBuffer,
         ref char[]? rentedChars)
     {
-        if (values.Count == 0)
-            return;
-
-        if (values.Count == 1)
-        {
-            AppendString(hasher, values[0], ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
-            return;
-        }
+        Span<byte> count = stackalloc byte[sizeof(int)];
+        BinaryPrimitives.WriteInt32LittleEndian(count, values.Count);
+        hasher.Append(count);
 
         for (int i = 0; i < values.Count; i++)
         {
-            if (i > 0)
-                AppendRaw(hasher, Comma);
-            AppendString(hasher, values[i], ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: true);
+            AppendString(hasher, values[i], ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
         }
     }
 }

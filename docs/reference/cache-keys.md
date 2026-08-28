@@ -46,10 +46,11 @@ Default: `app-cache`. Effective store prefixes:
 | **Output Cache Redis store** | Yes | `InstanceName` = effective Output Cache namespace |
 | **Data Cache logical key** (`DefaultDomainKeyGenerator`) | **No** | Key is `{domain}:{versionHex}:{hash}` only |
 | **Fusion `CacheKeyPrefix`** | Yes | Effective Data Cache namespace + `:` (e.g. `my-app-fc:`) on every named Fusion instance |
+| **HybridCache key and tags** | Yes | The provider prefixes both with the effective default Data Cache namespace + `:` |
 | **Fusion Redis L2** | Yes (via Fusion) | Redis `InstanceName` is **not** set; Fusion prefix is the single isolation layer (do not also set `InstanceName` to the same namespace) |
 | **Fusion backplane** | Yes | Channel prefix `{dcNamespace}:backplane` |
 
-Logical Data Cache keys stay `{domain}:{versionHex}:{hash}` — Namespace is applied only via Fusion `CacheKeyPrefix` / backplane, not inside the CO key string.
+Logical Data Cache keys stay `{domain}:{versionHex}:{hash}` — Namespace is applied by the provider (Fusion `CacheKeyPrefix` / backplane or the Hybrid provider prefix), not inside the CO key string.
 
 ---
 
@@ -88,7 +89,7 @@ store:a1b2c3d4e5f60708:id:products:42:9c8b7a6d5e4f3210
 
 | Input | Included when | Notes |
 |-------|---------------|--------|
-| Route pattern + route parameter values | Endpoint is a `RouteEndpoint` | Pattern text + each route value (lowercased) |
+| Route pattern + route parameter values | Endpoint is a `RouteEndpoint` | Pattern text + each route value with value casing preserved |
 | Path | No route endpoint | Full path |
 | Query string | Per `VaryByQueryKeys` / `IgnoreQueryKeys` | Default: all non-tracking keys sorted; tracking params excluded (`utm_*`, `gclid`, `fbclid`, …) |
 | `Accept-Encoding` | `DataCache.VaryOnEncoding` | Domain setting |
@@ -100,6 +101,7 @@ store:a1b2c3d4e5f60708:id:products:42:9c8b7a6d5e4f3210
 | Endpoint cache identity | Identity metadata on the endpoint and material resolved for this method | Sorted `co-id:{name}` segments from `CacheIdentityMaterial` (named contract or content-hash). Absent / Url-only identity adds nothing. See [cache-identity.md](cache-identity.md). |
 
 Order of query keys does not matter: `?a=1&b=2` and `?b=2&a=1` produce the same hash.
+Value casing remains significant for path, route, query, header, and custom vary values. String components are UTF-8 length-prefixed, and multi-value query/header inputs include an explicit count, so boundaries cannot collapse (`["a,b"]` is different from `["a", "b"]`). Protocol-insensitive material such as scheme, host, and header names is canonicalized separately.
 
 #### Entity keys (`GetOrSetEntityAsync`)
 
@@ -107,13 +109,13 @@ Primary kind and resource id come from the request (`[CacheDomain]` / `CacheOutp
 
 | Input | Included |
 |-------|----------|
-| Normalized `entityKind` + `resourceId` | Always (visible as the `id:{entityKind}:{resourceId}` segment) |
+| Normalized `entityKind` + opaque `resourceId` | Always (visible as percent-encoded `id:{entityKind}:{resourceId}` segments) |
 | Accept-Encoding / scheme+host | Same flags as above |
 | Path / query / route | **Not** used for the key |
 
 `GetOrSetEntitySetAsync` and URL-shaped `GetOrSetAsync` temporarily ignore stamped entity identity while building the key so a request that also has primary kind/id (from Output Cache or `SetEntityIdentity`) still gets a path/query key. Entity tags for collections come from `EntitySet`, not from the lookup key.
 
-Unusable kind or id (whitespace, or only punctuation such as `!!!`) does **not** become `default`; invalidators skip those values. `GetOrSetEntityAsync(http, factory)` throws if identity is missing on the request.
+An unusable kind or id (null/whitespace) does **not** become `default`; invalidators skip it. Resource ids are otherwise opaque, so punctuation such as `!!!`, separators, and case are preserved. GUIDs are the exception and use canonical lowercase `D` format. `GetOrSetEntityAsync(http, factory)` throws if identity is missing on the request.
 
 Use entity keys for CRUD-style resources so invalidation can target `entity:{domain}:{entityKind}:{id}` without depending on the full URL shape. Wire the matching Output Cache route with `resourceRouteKey` **and** `entityKind`, or kind-only for collections ([invalidation.md](invalidation.md#wiring-entity-tags)).
 
@@ -130,7 +132,7 @@ never share an entry even if path and query are identical.
 
 ### Tags (Fusion)
 
-Every stored entry is also tagged `domain:{name}` (and `entity:{domain}:{entityKind}:{id}` + `entitykind:{domain}:{entityKind}` when entity identity was used). Tags are for `ICacheOrchestratorInvalidator`, not for lookup.
+Every stored entry is also tagged `domain:{name}` (and `entity:{domain}:{entityKind}:{id}` + `entitykind:{domain}:{entityKind}` when entity identity was used). Each tag segment is percent-encoded independently, so `:` or `/` inside an opaque id cannot change tag structure. Tags are for `ICacheOrchestratorInvalidator`, not for lookup.
 
 ---
 

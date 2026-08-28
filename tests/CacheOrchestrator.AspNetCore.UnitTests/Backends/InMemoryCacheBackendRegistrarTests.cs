@@ -1,5 +1,4 @@
 using CacheOrchestrator.Backends;
-using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,10 +17,9 @@ public class InMemoryCacheBackendRegistrarTests
     {
         var services = new ServiceCollection();
         IConfigurationRoot configuration = new ConfigurationBuilder().Build();
-        var options = new CacheOrchestratorOptions();
         List<Action<OutputCacheOptions>> configurators = [];
         var context = new OutputCacheRegistrationContext(
-            services, configuration, options, "Cache", "InMemory", configurators);
+            services, configuration, "test-oc", "Cache", "InMemory", configurators);
 
         _sut.RegisterOutputCache(context);
 

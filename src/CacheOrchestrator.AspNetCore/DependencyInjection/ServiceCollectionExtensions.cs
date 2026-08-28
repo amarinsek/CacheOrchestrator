@@ -69,7 +69,9 @@ public static class ServiceCollectionExtensions
         // Allow consumers to add/override providers (e.g. o => o.AddRedisBackend())
         configure?.Invoke(builder);
 
-        CacheOrchestratorOptions opts = BindAndValidateOptions(services, configuration, configSection, builder);
+        CacheOrchestratorOptions coreOptions = BindAndValidateOptions(services, configuration, configSection);
+        CacheOrchestratorHttpOptions httpOptions = new();
+        configuration.GetSection(configSection).Bind(httpOptions);
 
         CacheOrchestratorCoreServiceCollectionExtensions.AddCoreServices(
             services,
@@ -79,17 +81,17 @@ public static class ServiceCollectionExtensions
         services.AddOptions<CacheOrchestratorHttpOptions>()
             .Bind(configuration.GetSection(configSection))
             .ValidateOnStart();
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IValidateOptions<CacheOrchestratorHttpOptions>, CacheOrchestratorHttpOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<CacheOrchestratorHttpOptions>>(
+            new CacheOrchestratorHttpOptionsValidator(builder.GetRegisteredProviderNames())));
         RegisterAspNetCoreServices(services);
-        RegisterAdminServices(services, opts.Admin);
+        RegisterAdminServices(services, coreOptions.Admin, httpOptions.Admin);
 
         if (enableMvcConvention)
             RegisterControllerConvention(services);
 
         // Register Output Cache (single provider)
-        IOutputCacheBackendRegistrar outputRegistrar = builder.ResolveRegistrar(opts.OutputCache.Provider);
-        RegisterOutputCache(services, configuration, opts, configSection, outputRegistrar, builder);
+        IOutputCacheBackendRegistrar outputRegistrar = builder.ResolveRegistrar(httpOptions.OutputCache.Provider);
+        RegisterOutputCache(services, configuration, httpOptions.OutputNamespace, configSection, outputRegistrar, builder);
 
         return services;
     }
@@ -97,19 +99,16 @@ public static class ServiceCollectionExtensions
     private static CacheOrchestratorOptions BindAndValidateOptions(
         IServiceCollection services,
         IConfiguration configuration,
-        string configSection,
-        DefaultCacheOrchestratorBuilder builder)
+        string configSection)
     {
         // Single Bind across AspNetCore + Fusion/Hybrid — a second Bind appends list properties
         // (e.g. Cluster:Bus:Static:Instances).
         CacheOrchestratorOptionsBinding.EnsureBound(services, configuration, configSection)
             .ValidateOnStart();
 
-        HashSet<string> validProviders = new(builder.GetRegisteredProviderNames(), StringComparer.OrdinalIgnoreCase);
         services.AddSingleton<IValidateOptions<CacheOrchestratorOptions>>(sp =>
             new CacheOrchestratorOptionsValidator(
-                validProviders,
-                sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()
+                logger: sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()
                     ?.CreateLogger(typeof(CacheOrchestratorOptionsValidator).FullName
                         ?? nameof(CacheOrchestratorOptionsValidator))));
 
@@ -148,9 +147,10 @@ public static class ServiceCollectionExtensions
 
     private static void RegisterAdminServices(
         IServiceCollection services,
-        CacheOrchestratorOptions.AdminOptions admin)
+        CacheOrchestratorOptions.AdminOptions admin,
+        HttpAdminOptions httpAdmin)
     {
-        if (admin.Enabled)
+        if (admin.Enabled || httpAdmin.Enabled)
         {
             services.RemoveAll<IDomainRuntimeOverrideStore>();
             services.RemoveAll<IAdminStatsCollector>();
@@ -181,7 +181,7 @@ public static class ServiceCollectionExtensions
     private static void RegisterOutputCache(
         IServiceCollection services,
         IConfiguration configuration,
-        CacheOrchestratorOptions opts,
+        string outputCacheNamespace,
         string configSection,
         IOutputCacheBackendRegistrar registrar,
         DefaultCacheOrchestratorBuilder builder)
@@ -194,7 +194,7 @@ public static class ServiceCollectionExtensions
         OutputCacheRegistrationContext context = new(
             services,
             configuration,
-            opts,
+            outputCacheNamespace,
             configSection,
             registrar.Name,
             optionConfigurators);

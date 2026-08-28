@@ -1,11 +1,13 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.DependencyInjection;
@@ -45,6 +47,8 @@ public static class CacheOrchestratorCoreServiceCollectionExtensions
         services.TryAddSingleton(configuration);
         CacheOrchestratorOptionsBinding.EnsureBound(services, configuration, configSection)
             .ValidateOnStart();
+        services.AddOptions<ClusterCommandHandlingOptions>()
+            .Bind(configuration.GetSection($"{configSection}:Cluster:Bus"));
 
         if (registerCoreValidator)
         {
@@ -55,11 +59,9 @@ public static class CacheOrchestratorCoreServiceCollectionExtensions
                 services.AddSingleton<CacheOrchestratorCoreValidatorMarker>();
                 services.AddSingleton<IValidateOptions<CacheOrchestratorOptions>>(sp =>
                     new CacheOrchestratorOptionsValidator(
-                        validProviders: [],
                         logger: sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()
                             ?.CreateLogger(typeof(CacheOrchestratorOptionsValidator).FullName
-                                ?? nameof(CacheOrchestratorOptionsValidator)),
-                        validateOutputCacheProvider: false));
+                                ?? nameof(CacheOrchestratorOptionsValidator))));
             }
         }
 
@@ -73,6 +75,8 @@ public static class CacheOrchestratorCoreServiceCollectionExtensions
         services.TryAddSingleton<IClusterMembership>(_ => NullClusterMembership.Instance);
         services.TryAddSingleton<IClusterCommandHandler, DefaultClusterCommandHandler>();
         services.TryAddSingleton<IDataCacheProvider>(_ => NullDataCacheProvider.Instance);
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, DataCacheProviderStartupDiagnostic>());
         services.TryAddSingleton<IDomainCacheOptionsProvider, DomainCacheOptionsProvider>();
         services.TryAddSingleton<IAdminEndpointCatalog>(_ => NullAdminEndpointCatalog.Instance);
         services.TryAddSingleton<IAdminDomainConfigProvider, CoreAdminDomainConfigProvider>();

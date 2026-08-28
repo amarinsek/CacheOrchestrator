@@ -1,5 +1,4 @@
 using CacheOrchestrator.Cluster;
-using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -27,7 +26,7 @@ internal sealed class HttpClusterCommandBus : IClusterCommandBus
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IClusterMembership _membership;
     private readonly IInstanceIdProvider _instanceId;
-    private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
+    private readonly IOptionsMonitor<HttpBusOptions> _options;
     private readonly ILogger<HttpClusterCommandBus> _logger;
 
     /// <summary>
@@ -37,7 +36,7 @@ internal sealed class HttpClusterCommandBus : IClusterCommandBus
         IHttpClientFactory httpClientFactory,
         IClusterMembership membership,
         IInstanceIdProvider instanceId,
-        IOptionsMonitor<CacheOrchestratorOptions> options,
+        IOptionsMonitor<HttpBusOptions> options,
         ILogger<HttpClusterCommandBus> logger)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactory);
@@ -64,7 +63,7 @@ internal sealed class HttpClusterCommandBus : IClusterCommandBus
         if (!IsEnabled)
             return ClusterPublishResult.Empty;
 
-        CacheOrchestratorOptions.ClusterBusOptions bus = _options.CurrentValue.Cluster.Bus;
+        HttpBusTransportOptions bus = _options.CurrentValue.Cluster.Bus;
         int timeoutMs = Math.Clamp(bus.PeerTimeoutMs, 100, 120_000);
         int parallelism = Math.Clamp(bus.MaxParallelism, 1, 64);
 
@@ -181,13 +180,13 @@ internal sealed class HttpClusterCommandBus : IClusterCommandBus
         return new Uri(baseStr + prefix + "/cluster/apply", UriKind.Absolute);
     }
 
-    internal static string ResolveRoutePrefix(CacheOrchestratorOptions options)
+    internal static string ResolveRoutePrefix(HttpBusOptions options)
     {
         string? prefix = options.Admin.RoutePrefix;
         return string.IsNullOrWhiteSpace(prefix) ? "/cache-admin/local" : prefix.TrimEnd('/');
     }
 
-    internal static string? ResolveApiKey(CacheOrchestratorOptions options)
+    internal static string? ResolveApiKey(HttpBusOptions options)
     {
         if (!string.IsNullOrEmpty(options.Cluster.Bus.ApiKey))
             return options.Cluster.Bus.ApiKey;

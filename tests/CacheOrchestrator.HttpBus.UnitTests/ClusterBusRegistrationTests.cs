@@ -3,6 +3,7 @@ using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.HttpBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.HttpBus.UnitTests;
 
@@ -19,6 +20,7 @@ public class ClusterBusRegistrationTests
             ["Cache:OutputCache:Provider"] = "InMemory",
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Cluster:Bus:Enabled"] = "true",
+            ["Cache:Cluster:Bus:ApiKey"] = "test-key",
             ["Cache:Cluster:Bus:Membership"] = "Static",
             ["Cache:Cluster:Bus:Static:Instances:0:Id"] = "a",
             ["Cache:Cluster:Bus:Static:Instances:0:Url"] = "http://127.0.0.1:5001",
@@ -42,6 +44,11 @@ public class ClusterBusRegistrationTests
         IReadOnlyList<ClusterPeer> peers =
             await membership.GetPeersAsync(TestContext.Current.CancellationToken);
         peers.Should().HaveCount(2);
+
+        HttpBusOptions transport = sp.GetRequiredService<IOptions<HttpBusOptions>>().Value;
+        transport.Cluster.Bus.Enabled.Should().BeTrue();
+        transport.Cluster.Bus.Membership.Should().Be("Static");
+        transport.Cluster.Bus.Static.Instances.Should().HaveCount(2);
     }
 
     [Fact]
@@ -53,6 +60,7 @@ public class ClusterBusRegistrationTests
             ["Cache:OutputCache:Provider"] = "InMemory",
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Cluster:Bus:Enabled"] = "true",
+            ["Cache:Cluster:Bus:ApiKey"] = "test-key",
             ["Cache:Cluster:Bus:Membership"] = "ServiceDiscovery",
             ["Cache:Cluster:Bus:ServiceDiscovery:ServiceName"] = "app1"
         }).Build();
@@ -95,6 +103,7 @@ public class ClusterBusRegistrationTests
             ["Cache:OutputCache:Provider"] = "InMemory",
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Cluster:Bus:Enabled"] = "true",
+            ["Cache:Cluster:Bus:ApiKey"] = "test-key",
             ["Cache:Cluster:Bus:Membership"] = "Null"
         }).Build();
 

@@ -352,12 +352,8 @@ CacheOrchestrator.Configuration.CacheOrchestratorOptions.Admin.get -> CacheOrche
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.Admin.set -> void
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.AdminOptions() -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.ApiKey.get -> string?
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.ApiKey.set -> void
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.Enabled.get -> bool
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.Enabled.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.RoutePrefix.get -> string!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.RoutePrefix.set -> void
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.TrackEndpoints.get -> bool
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.TrackEndpoints.set -> void
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.TrackLatency.get -> bool
@@ -365,30 +361,6 @@ CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.TrackLaten
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.TrackResultSize.get -> bool
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.AdminOptions.TrackResultSize.set -> void
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.CacheOrchestratorOptions() -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.Cluster.get -> CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterOptions!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.Cluster.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.ApiKey.get -> string?
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.ApiKey.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.ClusterBusOptions() -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.DedupeWindowSeconds.get -> int
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.DedupeWindowSeconds.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.Enabled.get -> bool
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.Enabled.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.MaxParallelism.get -> int
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.MaxParallelism.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.Membership.get -> string!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.Membership.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.PeerTimeoutMs.get -> int
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.PeerTimeoutMs.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.ServiceDiscovery.get -> CacheOrchestrator.Configuration.CacheOrchestratorOptions.ServiceDiscoveryMembershipOptions!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.ServiceDiscovery.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.Static.get -> CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterMembershipOptions!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions.Static.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterOptions
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterOptions.Bus.get -> CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterBusOptions!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterOptions.Bus.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ClusterOptions.ClusterOptions() -> void
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.DataCacheInstanceOptions
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.DataCacheInstanceOptions.DataCacheInstanceOptions() -> void
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.DataCacheInstanceOptions.GetNamespace(string! instanceName, CacheOrchestrator.Configuration.CacheOrchestratorOptions! root) -> string!
@@ -410,46 +382,11 @@ CacheOrchestrator.Configuration.CacheOrchestratorOptions.DomainDefaults.get -> C
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.DomainDefaults.set -> void
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.Domains.get -> System.Collections.Generic.Dictionary<string!, CacheOrchestrator.Configuration.CacheOrchestratorOptions.DomainCacheSettings!>!
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.Domains.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.EmitDiagnosticsHeaders.get -> bool
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.EmitDiagnosticsHeaders.set -> void
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.GetEffectiveDistributedResilience() -> CacheOrchestrator.Configuration.DistributedResilienceOptions!
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.InstanceId.get -> string?
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.InstanceId.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.Metrics.get -> CacheOrchestrator.Configuration.CacheOrchestratorOptions.MetricsOptions!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.Metrics.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.MetricsOptions
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.MetricsOptions.IncludeEndpointLabel.get -> bool
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.MetricsOptions.IncludeEndpointLabel.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.MetricsOptions.MetricsOptions() -> void
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.Namespace.get -> string?
 CacheOrchestrator.Configuration.CacheOrchestratorOptions.Namespace.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.OutputCache.get -> CacheOrchestrator.Configuration.CacheOrchestratorOptions.ProviderOptions!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.OutputCache.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.OutputNamespace.get -> string!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ProviderOptions
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ProviderOptions.Namespace.get -> string?
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ProviderOptions.Namespace.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ProviderOptions.Provider.get -> string!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ProviderOptions.Provider.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ProviderOptions.ProviderOptions() -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ServiceDiscoveryMembershipOptions
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ServiceDiscoveryMembershipOptions.CacheSeconds.get -> int
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ServiceDiscoveryMembershipOptions.CacheSeconds.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ServiceDiscoveryMembershipOptions.DefaultScheme.get -> string!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ServiceDiscoveryMembershipOptions.DefaultScheme.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ServiceDiscoveryMembershipOptions.ServiceDiscoveryMembershipOptions() -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ServiceDiscoveryMembershipOptions.ServiceName.get -> string?
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.ServiceDiscoveryMembershipOptions.ServiceName.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterMembershipOptions
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterMembershipOptions.Instances.get -> System.Collections.Generic.List<CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterPeerOptions!>!
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterMembershipOptions.Instances.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterMembershipOptions.StaticClusterMembershipOptions() -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterPeerOptions
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterPeerOptions.Id.get -> string?
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterPeerOptions.Id.set -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterPeerOptions.StaticClusterPeerOptions() -> void
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterPeerOptions.Url.get -> string?
-CacheOrchestrator.Configuration.CacheOrchestratorOptions.StaticClusterPeerOptions.Url.set -> void
 CacheOrchestrator.Configuration.CacheTags
 CacheOrchestrator.Configuration.DistributedResilienceOptions
 CacheOrchestrator.Configuration.DistributedResilienceOptions.CircuitBreakerSeconds.get -> int
@@ -661,7 +598,6 @@ CacheOrchestrator.Orchestration.ICacheOrchestrator.GetOrCreateEntityAsync<T>(str
 CacheOrchestrator.Orchestration.ICacheOrchestrator.GetOrCreateEntitySetAsync<T>(string! domain, string! logicalKey, string! entityKind, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<CacheOrchestrator.Entity.EntitySet<T>!>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<T>!>
 CacheOrchestrator.Orchestration.ICacheOrchestrator.GetOrCreateWithFootprintAsync<T>(CacheOrchestrator.Orchestration.CacheEntryRequest! request, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<CacheOrchestrator.Orchestration.FootprintCacheBox<T?>!>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<CacheOrchestrator.Orchestration.FootprintCacheBox<T?>!>
 CacheOrchestrator.Orchestration.IDataCacheProvider
-CacheOrchestrator.Orchestration.IDataCacheProvider.GetOrCreateAsync<T>(CacheOrchestrator.Orchestration.DataCacheProviderRequest! request, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T>
 CacheOrchestrator.Orchestration.IDataCacheProvider.InvalidateAsync(CacheOrchestrator.Orchestration.DataCacheInvalidationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 CacheOrchestrator.Orchestration.IDataCacheProvider.Name.get -> string!
 CacheOrchestrator.Orchestration.IDataCacheProvider.SetAsync<T>(CacheOrchestrator.Orchestration.DataCacheProviderRequest! request, T value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask

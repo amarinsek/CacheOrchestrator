@@ -30,17 +30,19 @@ public static class CacheOrchestratorMetricsHttpExtensions
     /// </summary>
     /// <param name="http">Current HTTP context.</param>
     /// <param name="forAdminStats">When true, always resolve the key for Local Admin counters.</param>
+    /// <param name="forMetrics">When true, resolve the route label if endpoint labeling is enabled.</param>
     /// <param name="endpointKey">Admin counter key when <paramref name="forAdminStats"/> is true.</param>
     /// <param name="metricsRoute">Route tag when IncludeEndpointLabel is enabled.</param>
     internal static void ResolveEndpointKeys(
         HttpContext http,
         bool forAdminStats,
+        bool forMetrics,
         out string? endpointKey,
         out string? metricsRoute)
     {
         endpointKey = null;
         metricsRoute = null;
-        bool includeRoute = IsEndpointLabelEnabled(http);
+        bool includeRoute = forMetrics && IsEndpointLabelEnabled(http);
         if (!forAdminStats && !includeRoute)
             return;
 
@@ -55,6 +57,6 @@ public static class CacheOrchestratorMetricsHttpExtensions
     }
 
     private static bool IsEndpointLabelEnabled(HttpContext http) =>
-        http.RequestServices?.GetService<IOptions<CacheOrchestratorOptions>>()?.Value
+        http.RequestServices?.GetService<IOptions<CacheOrchestratorHttpOptions>>()?.Value
             is { Metrics.IncludeEndpointLabel: true };
 }

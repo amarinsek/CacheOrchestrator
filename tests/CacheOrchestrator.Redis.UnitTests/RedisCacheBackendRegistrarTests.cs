@@ -27,7 +27,6 @@ public class RedisCacheBackendRegistrarTests
     public void RegisterOutputCache_WhenConnectionStringPresent_DoesNotThrow()
     {
         var services = new ServiceCollection();
-        var options = new CacheOrchestratorOptions { OutputCache = { Provider = "Redis" } };
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -36,7 +35,7 @@ public class RedisCacheBackendRegistrarTests
             .Build();
         List<Action<OutputCacheOptions>> configurators = [];
         var context = new OutputCacheRegistrationContext(
-            services, configuration, options, "Cache", "Redis", configurators);
+            services, configuration, "app-cache-oc", "Cache", "Redis", configurators);
 
         Action act = () => _sut.RegisterOutputCache(context);
         act.Should().NotThrow();

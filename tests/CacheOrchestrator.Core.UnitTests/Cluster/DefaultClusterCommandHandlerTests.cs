@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Admin;
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Invalidation;
@@ -13,6 +13,9 @@ public class DefaultClusterCommandHandlerTests
     private readonly IDomainRuntimeOverrideStore _overrides = Substitute.For<IDomainRuntimeOverrideStore>();
     private readonly IInstanceIdProvider _instanceId = Substitute.For<IInstanceIdProvider>();
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
+    private readonly IOptionsMonitor<ClusterCommandHandlingOptions> _clusterOptions =
+        new FixedOptionsMonitor<ClusterCommandHandlingOptions>(
+            new ClusterCommandHandlingOptions { DedupeWindowSeconds = 60 });
     private readonly ClusterCommandDedupeStore _dedupe;
     private readonly DefaultClusterCommandHandler _sut;
 
@@ -21,10 +24,9 @@ public class DefaultClusterCommandHandlerTests
         _instanceId.InstanceId.Returns("local-1");
         _options.CurrentValue.Returns(new CacheOrchestratorOptions
         {
-            Namespace = "app1",
-            Cluster = { Bus = { DedupeWindowSeconds = 60 } }
+            Namespace = "app1"
         });
-        _dedupe = new ClusterCommandDedupeStore(_options);
+        _dedupe = new ClusterCommandDedupeStore(_clusterOptions);
         _sut = new DefaultClusterCommandHandler(
             _invalidator,
             _overrides,

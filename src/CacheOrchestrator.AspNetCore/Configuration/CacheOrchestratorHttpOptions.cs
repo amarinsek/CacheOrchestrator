@@ -3,12 +3,45 @@ namespace CacheOrchestrator.Configuration;
 /// <summary>ASP.NET Core domain policy bound from the same root Cache section as Core options.</summary>
 internal sealed class CacheOrchestratorHttpOptions
 {
+    public string? Namespace { get; set; } = "app-cache";
+
+    public bool EmitDiagnosticsHeaders { get; set; } = true;
+
+    public HttpMetricsOptions Metrics { get; set; } = new();
+
+    public HttpOutputCacheProviderOptions OutputCache { get; set; } = new();
+
+    public HttpAdminOptions Admin { get; set; } = new();
+
     /// <summary>Global HTTP defaults applied to every domain.</summary>
     public DomainHttpCacheSettings DomainDefaults { get; set; } = new();
 
     /// <summary>Per-domain HTTP overrides.</summary>
     public Dictionary<string, DomainHttpCacheSettings> Domains { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
+
+    public string OutputNamespace => OutputCache.Namespace ?? (Namespace + "-oc");
+}
+
+internal sealed class HttpMetricsOptions
+{
+    public bool IncludeEndpointLabel { get; set; } = true;
+}
+
+internal sealed class HttpOutputCacheProviderOptions
+{
+    public string? Namespace { get; set; }
+
+    public string Provider { get; set; } = "InMemory";
+}
+
+internal sealed class HttpAdminOptions
+{
+    public bool Enabled { get; set; }
+
+    public string? ApiKey { get; set; }
+
+    public string RoutePrefix { get; set; } = "/cache-admin/local";
 }
 
 /// <summary>HTTP-specific policy for a domain or the global defaults.</summary>

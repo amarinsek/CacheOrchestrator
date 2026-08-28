@@ -1,6 +1,8 @@
 using CacheOrchestrator.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
+using System.Collections.Concurrent;
 
 namespace CacheOrchestrator.FusionCache;
 
@@ -8,11 +10,13 @@ namespace CacheOrchestrator.FusionCache;
 /// Reads <c>Cache:DomainDefaults:FusionCache</c> and <c>Cache:Domains:{name}:FusionCache</c>,
 /// then merges Admin runtime overlays from <see cref="IFusionDomainRuntimeOverrideStore"/>.
 /// </summary>
-internal sealed class FusionDomainSettingsProvider : IFusionDomainSettingsProvider
+internal sealed class FusionDomainSettingsProvider : IFusionDomainSettingsProvider, IDisposable
 {
     private readonly IConfiguration _configuration;
     private readonly IFusionDomainRuntimeOverrideStore _runtimeOverrides;
     private readonly string _configSection;
+    private readonly ConcurrentDictionary<string, CachedSettings> _cache = new(StringComparer.Ordinal);
+    private readonly IDisposable _reloadRegistration;
 
     public FusionDomainSettingsProvider(
         IConfiguration configuration,
@@ -26,12 +30,41 @@ internal sealed class FusionDomainSettingsProvider : IFusionDomainSettingsProvid
         _configuration = configuration;
         _runtimeOverrides = runtimeOverrides ?? NullFusionDomainRuntimeOverrideStore.Instance;
         _configSection = string.IsNullOrWhiteSpace(configSection) ? "Cache" : configSection;
+        _reloadRegistration = ChangeToken.OnChange(
+            _configuration.GetReloadToken,
+            _cache.Clear);
     }
+
+    private sealed class CachedSettings
+    {
+        public required DomainFusionCacheSettings Settings { get; init; }
+        public required int OverrideStamp { get; init; }
+    }
+
+    public void Dispose() => _reloadRegistration.Dispose();
 
     /// <inheritdoc />
     public DomainFusionCacheSettings Get(string domain)
     {
         domain = DomainName.Normalize(domain);
+        int overrideStamp = _runtimeOverrides.GetStamp(domain);
+        if (_cache.TryGetValue(domain, out CachedSettings? cached)
+            && cached.OverrideStamp == overrideStamp)
+        {
+            return cached.Settings;
+        }
+
+        DomainFusionCacheSettings settings = CreateSettings(domain);
+        _cache[domain] = new CachedSettings
+        {
+            Settings = settings,
+            OverrideStamp = overrideStamp
+        };
+        return settings;
+    }
+
+    private DomainFusionCacheSettings CreateSettings(string domain)
+    {
 
         DomainFusionCacheSettings defaults = BindSection($"{_configSection}:DomainDefaults:FusionCache");
         DomainFusionCacheSettings specific = BindSection($"{_configSection}:Domains:{domain}:FusionCache");

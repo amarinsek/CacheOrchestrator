@@ -139,6 +139,7 @@ builder.Services.AddSingleton<ICacheOrchestratorHealthProbe, SearchClusterCacheP
 | `RegisterOutputCache(OutputCacheRegistrationContext)` | Configure `OutputCacheOptions` and register the store |
 
 Use `context.Configure(...)` instead of calling `AddOutputCache` yourself. Use `context.RegisterStore(...)` when an adapter must register after the shared Output Cache services. Backend-specific configuration is available at `context.BackendSection` under `{root}:OutputCache:{Provider}`.
+`context.OutputCacheNamespace` is the effective namespace already resolved by the ASP.NET Core host; a store adapter should use it instead of binding root options itself.
 
 Register it through `ICacheOrchestratorBuilder.AddOutputCacheBackend`:
 
@@ -169,7 +170,7 @@ Implement `IDataCacheProvider` only when adding a complete engine alongside Fusi
 | Member | Contract |
 |--------|----------|
 | `Name` | Stable provider name used in diagnostics |
-| `GetOrCreateAsync<T>` | Read or produce a value using the complete `DataCacheProviderRequest` |
+| `GetOrCreateAsync<T>` | Read or produce a value and return `DataCacheProviderResult<T>` with the actual outcome |
 | `SetAsync<T>` | Overwrite the value and final tags after footprint expansion |
 | `InvalidateAsync` | Remove all requested tags from one named instance, or from all instances when `InstanceName` is `null` |
 
@@ -182,9 +183,33 @@ Implement `IDataCacheProvider` only when adding a complete engine alongside Fusi
 | `Tags` | Domain, entity, entity-kind, and custom tags |
 | `DomainOptions` | Resolved portable policy snapshot |
 
-The provider must preserve generic values, cancellation, null/negative-cache payloads, named-instance isolation, and tag invalidation. It must not rebuild HTTP vary material.
+`DataCacheProviderResult<T>.Outcome` must be `Materialized` only when the returned value came from this call's completed factory invocation. Return `Cached` for an existing value and for a stale value returned while a refresh runs in the background. The orchestrator uses this distinction to decide whether a factory-expanded entity footprint may replace stored tags.
+
+The provider must preserve generic values, cancellation, null/negative-cache payloads, named-instance isolation, and tag invalidation. It must not rebuild HTTP vary material. A provider that cannot support named instances should reject non-default `DataCacheInstances` during options validation instead of silently sharing one store.
 
 `DataCacheInvalidationRequest` deliberately groups `Tags` and optional `InstanceName` into one operation. New optional provider features should be introduced as separate capability interfaces instead of growing `IDataCacheProvider` with unrelated members.
+
+Two such optional interfaces are built in:
+
+| Interface | Purpose |
+|-----------|---------|
+| `IDataCacheProviderCapabilities` | Publishes a stable `DataCacheProviderCapabilities` descriptor for diagnostics and management clients |
+| `IDataCacheBatchInvalidator` | Accepts invalidation requests for several named instances in one call, so a provider can bound or combine backend work |
+
+Implementing neither interface remains valid. CacheOrchestrator reports all optional capabilities as unsupported and falls back to calling `InvalidateAsync` once per named instance. A batch implementation must complete only after every request has completed, propagate cancellation, and throw when any requested invalidation fails.
+
+The descriptor says what the registered provider implementation can support, not whether every optional backend is configured in the current process:
+
+| Capability | FusionCache provider | HybridCache provider |
+|------------|----------------------|----------------------|
+| Named instances | Yes | No |
+| Fail-safe / stale fallback | Yes | No |
+| Eager refresh | Yes | No |
+| Backplane integration | Yes | No |
+| Entry-size limit | Yes | No |
+| Batch invalidation | Yes | Yes |
+
+Provider name and capabilities are exposed in health-check data and the Local Admin health response. Inspect effective configuration and provider health probes as well when you need to know whether a supported distributed store or backplane is actually active.
 
 Register exactly one provider. Core registration uses `TryAddSingleton`, so an application-owned provider can be registered first:
 

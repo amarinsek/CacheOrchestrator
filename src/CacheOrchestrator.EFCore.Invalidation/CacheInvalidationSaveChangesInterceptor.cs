@@ -75,8 +75,10 @@ public sealed class CacheInvalidationSaveChangesInterceptor : SaveChangesInterce
         int result,
         CancellationToken cancellationToken = default)
     {
-        await InvalidateAsync(eventData.Context, cancellationToken).ConfigureAwait(false);
-        return await base.SavedChangesAsync(eventData, result, cancellationToken).ConfigureAwait(false);
+        // The database write has already completed. Caller cancellation must not turn a committed
+        // save into a canceled result or skip post-commit invalidation.
+        await InvalidateAsync(eventData.Context, CancellationToken.None).ConfigureAwait(false);
+        return await base.SavedChangesAsync(eventData, result, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -142,9 +144,15 @@ public sealed class CacheInvalidationSaveChangesInterceptor : SaveChangesInterce
         if (pending.Count == 0 || !_options.CurrentValue.Enabled)
             return;
 
-        Dictionary<(string Domain, string EntityKind), List<string>> groups = [];
+        EfCoreInvalidationOptions opts = _options.CurrentValue;
+        Dictionary<(string Domain, string EntityKind), PendingInvalidationGroup> groups = [];
         foreach (PendingChange change in pending)
         {
+            (string Domain, string EntityKind) key = (change.Mapping.Domain, change.Mapping.EntityKind);
+            groups.TryGetValue(key, out PendingInvalidationGroup? group);
+            if (group?.BulkThresholdReached == true)
+                continue;
+
             string? id = change.State == EntityState.Deleted
                 ? change.ResourceIdAtCapture
                 : EntityResourceIdFormatter.TryFormat(change.Entry);
@@ -161,26 +169,34 @@ public sealed class CacheInvalidationSaveChangesInterceptor : SaveChangesInterce
                 continue;
             }
 
-            (string Domain, string EntityKind) key = (change.Mapping.Domain, change.Mapping.EntityKind);
-            if (!groups.TryGetValue(key, out List<string>? ids))
+            if (group is null)
             {
-                ids = [];
-                groups[key] = ids;
+                group = new PendingInvalidationGroup();
+                groups[key] = group;
             }
 
-            if (!ids.Contains(id, StringComparer.Ordinal))
-                ids.Add(id);
+            if (group.Add(id)
+                && opts.OnBulk != EfCoreOnBulk.Entities
+                && opts.BulkThreshold > 0
+                && group.Ids.Count >= opts.BulkThreshold)
+            {
+                group.BulkThresholdReached = true;
+            }
         }
 
-        EfCoreInvalidationOptions opts = _options.CurrentValue;
-        foreach (KeyValuePair<(string Domain, string EntityKind), List<string>> group in groups)
+        foreach (KeyValuePair<(string Domain, string EntityKind), PendingInvalidationGroup> group in groups)
         {
             try
             {
-                await InvalidateGroupAsync(opts, group.Key.Domain, group.Key.EntityKind, group.Value, cancellationToken)
+                await InvalidateGroupAsync(
+                        opts,
+                        group.Key.Domain,
+                        group.Key.EntityKind,
+                        group.Value.Ids,
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex)
             {
                 _logger.LogWarning(
                     ex,
@@ -237,5 +253,36 @@ public sealed class CacheInvalidationSaveChangesInterceptor : SaveChangesInterce
         public EntityCacheMapping Mapping { get; } = mapping;
         public EntityState State { get; } = state;
         public string? ResourceIdAtCapture { get; } = resourceIdAtCapture;
+    }
+
+    private sealed class PendingInvalidationGroup
+    {
+        private const int HashSetThreshold = 4;
+        private HashSet<string>? _seen;
+
+        public List<string> Ids { get; } = [];
+        public bool BulkThresholdReached { get; set; }
+
+        public bool Add(string id)
+        {
+            if (_seen is not null)
+            {
+                if (!_seen.Add(id))
+                    return false;
+            }
+            else
+            {
+                if (Ids.Contains(id, StringComparer.Ordinal))
+                    return false;
+
+                if (Ids.Count == HashSetThreshold)
+                {
+                    _seen = new HashSet<string>(Ids, StringComparer.Ordinal) { id };
+                }
+            }
+
+            Ids.Add(id);
+            return true;
+        }
     }
 }
