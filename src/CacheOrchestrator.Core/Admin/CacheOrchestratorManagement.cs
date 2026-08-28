@@ -1,45 +1,75 @@
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.Invalidation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.Admin;
 
 /// <summary>
-/// Assembles Local Admin read models (stats, domain config) from live counters + options.
+/// Implements transport-independent management operations from Core services and host adapters.
 /// Canonical path is raw (v2); fat (v1) is projected via <see cref="AdminStatsV1Mapper"/>.
 /// </summary>
-internal sealed class AdminQueryService
+internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
 {
     private readonly IAdminStatsCollector _stats;
     private readonly IAdminEndpointCatalog _endpoints;
-    private readonly IRequestDomainCacheOptions _domainOptions;
+    private readonly IAdminDomainConfigProvider _domainConfig;
     private readonly IDomainRuntimeOverrideStore _overrides;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly TimeProvider _time;
     private readonly ICacheOrchestratorHealthProbe[] _probes;
+    private readonly ICacheOrchestratorInvalidator _invalidator;
+    private readonly IClusterCommandBus _bus;
+    private readonly IClusterMembership _membership;
+    private readonly IInstanceIdProvider _instanceId;
+    private readonly ClusterCommandFactory _commands;
+    private readonly IDomainSettingsPatchContributor[] _settingsContributors;
+    private readonly ILogger<CacheOrchestratorManagement> _logger;
 
-    public AdminQueryService(
+    public CacheOrchestratorManagement(
         IAdminStatsCollector stats,
         IAdminEndpointCatalog endpoints,
-        IRequestDomainCacheOptions domainOptions,
+        IAdminDomainConfigProvider domainConfig,
         IDomainRuntimeOverrideStore overrides,
         IOptionsMonitor<CacheOrchestratorOptions> options,
+        ICacheOrchestratorInvalidator invalidator,
+        IClusterCommandBus bus,
+        IClusterMembership membership,
+        IInstanceIdProvider instanceId,
+        ClusterCommandFactory commands,
+        ILogger<CacheOrchestratorManagement>? logger = null,
         TimeProvider? timeProvider = null,
-        IEnumerable<ICacheOrchestratorHealthProbe>? probes = null)
+        IEnumerable<ICacheOrchestratorHealthProbe>? probes = null,
+        IEnumerable<IDomainSettingsPatchContributor>? settingsContributors = null)
     {
         ArgumentNullException.ThrowIfNull(stats);
         ArgumentNullException.ThrowIfNull(endpoints);
-        ArgumentNullException.ThrowIfNull(domainOptions);
+        ArgumentNullException.ThrowIfNull(domainConfig);
         ArgumentNullException.ThrowIfNull(overrides);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(invalidator);
+        ArgumentNullException.ThrowIfNull(bus);
+        ArgumentNullException.ThrowIfNull(membership);
+        ArgumentNullException.ThrowIfNull(instanceId);
+        ArgumentNullException.ThrowIfNull(commands);
 
         _stats = stats;
         _endpoints = endpoints;
-        _domainOptions = domainOptions;
+        _domainConfig = domainConfig;
         _overrides = overrides;
         _options = options;
+        _invalidator = invalidator;
+        _bus = bus;
+        _membership = membership;
+        _instanceId = instanceId;
+        _commands = commands;
+        _logger = logger ?? NullLogger<CacheOrchestratorManagement>.Instance;
         _time = timeProvider ?? TimeProvider.System;
         _probes = probes is null ? [] : [.. probes];
+        _settingsContributors = settingsContributors is null ? [] : [.. settingsContributors];
     }
 
     public async Task<AdminHealthDto> GetHealthAsync(CancellationToken cancellationToken = default)
@@ -76,6 +106,10 @@ internal sealed class AdminQueryService
                 cts.CancelAfter(TimeSpan.FromSeconds(2));
                 await probe.ProbeAsync(cts.Token).ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch
             {
                 probesOk = false;
@@ -91,6 +125,25 @@ internal sealed class AdminQueryService
             StartedAtUtc = started,
             UptimeSeconds = uptimeSeconds,
             Requests = requests
+        };
+    }
+
+    public async Task<AdminClusterInfoDto> GetClusterInfoAsync(CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<ClusterPeer> peers =
+            await _membership.GetPeersAsync(cancellationToken).ConfigureAwait(false);
+
+        return new AdminClusterInfoDto
+        {
+            InstanceId = _instanceId.InstanceId,
+            Namespace = _options.CurrentValue.Namespace ?? string.Empty,
+            BusEnabled = _bus.IsEnabled,
+            Membership = _membership.Kind,
+            Peers = [.. peers.Select(peer => new AdminClusterPeerDto
+            {
+                Id = peer.Id,
+                Url = peer.BaseUrl.ToString()
+            })]
         };
     }
 
@@ -156,8 +209,7 @@ internal sealed class AdminQueryService
         List<AdminDomainCountersDto> domains = [];
         foreach (string name in domainNames.OrderBy(n => n, StringComparer.Ordinal))
         {
-            DomainHttpCacheOptions opts = _domainOptions.GetOrCreateDomainOptions(name);
-            DomainRuntimeOverride? ov = _overrides.Get(name);
+            AdminDomainConfigDto domainConfig = _domainConfig.GetDomainConfig(name);
             rawDomains.TryGetValue(name, out AdminDomainCountersDto? counters);
 
             if (!byDomain.TryGetValue(name, out List<AdminEndpointCountersDto>? epList))
@@ -181,8 +233,7 @@ internal sealed class AdminQueryService
             AdminDomainCountersDto row = BuildDomainRow(
                 name,
                 instanceId,
-                opts,
-                ov,
+                domainConfig,
                 counters,
                 epList);
 
@@ -229,53 +280,172 @@ internal sealed class AdminQueryService
         foreach (AdminDomainCountersDto d in _stats.GetRawSnapshot().Domains)
             names.Add(d.Name);
 
-        return [.. names.OrderBy(n => n, StringComparer.Ordinal).Select(GetDomainConfig)];
+        return [.. names.OrderBy(n => n, StringComparer.Ordinal).Select(_domainConfig.GetDomainConfig)];
     }
 
     public AdminDomainConfigDto? GetDomain(string domain)
     {
         if (string.IsNullOrWhiteSpace(domain))
             return null;
-        return GetDomainConfig(DomainName.Normalize(domain));
+        return _domainConfig.GetDomainConfig(DomainName.Normalize(domain));
     }
 
-    public AdminDomainConfigDto GetDomainConfig(string normalizedDomain)
-    {
-        DomainHttpCacheOptions opts = _domainOptions.GetOrCreateDomainOptions(normalizedDomain);
-        DomainRuntimeOverride? ov = _overrides.Get(normalizedDomain);
-
-        return new AdminDomainConfigDto
+    public AdminDomainSettingsCatalogDto GetDomainSettingsCatalog() =>
+        new()
         {
-            Name = normalizedDomain,
-            Version = opts.Version,
-            VersionIsRuntimeOverride = ov?.Version is not null,
-            OutputCacheEnabled = opts.OutputCacheEnabled,
-            DataCacheEnabled = opts.DataCacheEnabled,
-            DataCacheInstanceName = opts.DataCacheInstanceName,
-            OutputCacheTtlSeconds = (int)opts.OutputTtl.TotalSeconds,
-            DataCacheTtlSeconds = (int)opts.DataCacheTtl.TotalSeconds,
-            ClientTtlSeconds = opts.ClientTtlSeconds,
-            ClientTtlMinSeconds = opts.ClientTtlMinSeconds,
-            ScheduledUpdateUtc = opts.ScheduledUpdateUtc,
-            SchedulePhase = ResolveSchedulePhase(opts),
-            RuntimeOverrides = ov is null
-                ? null
-                : new AdminRuntimeOverrideFlagsDto
-                {
-                    Version = ov.Version is not null,
-                    OutputCacheTtl = ov.OutputCacheTtl is not null,
-                    DataCacheTtl = ov.DataCacheTtl is not null,
-                    ClientTtl = ov.ClientTtl is not null,
-                    ClientTtlMin = ov.ClientTtlMin is not null
-                }
+            Settings = DomainSettingCatalog.GetEntries()
         };
+
+    public async Task<CacheInvalidationResult> InvalidateAsync(
+        AdminInvalidateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        string scope = (request.Scope ?? "domain").Trim().ToLowerInvariant();
+        using IDisposable? localOnly = request.Distribute ? null : ClusterCommandScope.EnterLocalOnly();
+
+        return scope switch
+        {
+            "domain" when string.IsNullOrWhiteSpace(request.Domain) =>
+                throw new ArgumentException("domain is required for scope=domain.", nameof(request)),
+            "domain" => await _invalidator.InvalidateDomainAsync(request.Domain, cancellationToken)
+                .ConfigureAwait(false),
+            "entity" when string.IsNullOrWhiteSpace(request.Domain)
+                || string.IsNullOrWhiteSpace(request.EntityKind)
+                || string.IsNullOrWhiteSpace(request.EntityId) =>
+                throw new ArgumentException(
+                    "domain, entityKind, and entityId are required for scope=entity.",
+                    nameof(request)),
+            "entity" => await _invalidator.InvalidateEntityAsync(
+                    request.Domain,
+                    request.EntityKind,
+                    request.EntityId,
+                    cancellationToken)
+                .ConfigureAwait(false),
+            "entitykind" when string.IsNullOrWhiteSpace(request.Domain)
+                || string.IsNullOrWhiteSpace(request.EntityKind) =>
+                throw new ArgumentException(
+                    "domain and entityKind are required for scope=entityKind.",
+                    nameof(request)),
+            "entitykind" => await _invalidator.InvalidateEntityKindAsync(
+                    request.Domain,
+                    request.EntityKind,
+                    cancellationToken)
+                .ConfigureAwait(false),
+            "tags" when request.Tags is null || request.Tags.Length == 0 =>
+                throw new ArgumentException("tags are required for scope=tags.", nameof(request)),
+            "tags" => await _invalidator.InvalidateTagsAsync(request.Tags, cancellationToken)
+                .ConfigureAwait(false),
+            _ => throw new ArgumentException(
+                "scope must be domain, entity, entityKind, or tags.",
+                nameof(request))
+        };
+    }
+
+    public async Task<AdminDomainMutationResultDto> SetVersionAsync(
+        string domain,
+        AdminVersionRequest? request = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+
+        string normalizedDomain = DomainName.Normalize(domain);
+        string? requested = request?.Version;
+        string version = string.IsNullOrWhiteSpace(requested)
+            ? "rt-" + _time.GetUtcNow().UtcTicks.ToString("x")
+            : requested.Trim();
+
+        _overrides.SetVersion(normalizedDomain, version);
+
+        ClusterPublishResult? clusterPublish = null;
+        if (request?.Distribute == true && _bus.IsEnabled)
+        {
+            clusterPublish = await PublishMutationAsync(
+                    _commands.CreateVersionBump(normalizedDomain, version),
+                    nameof(VersionBumpCommand),
+                    normalizedDomain,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        return new AdminDomainMutationResultDto
+        {
+            Domain = normalizedDomain,
+            Effective = _domainConfig.GetDomainConfig(normalizedDomain),
+            ClusterPublish = clusterPublish
+        };
+    }
+
+    public async Task<AdminDomainMutationResultDto> PatchSettingsAsync(
+        string domain,
+        AdminSettingsPatchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.Settings is null || request.Settings.Count == 0)
+            throw new ArgumentException("settings must contain at least one entry.", nameof(request));
+
+        string normalizedDomain = DomainName.Normalize(domain);
+        DomainSettingsPatchApplicator.Apply(
+            normalizedDomain,
+            request.Settings,
+            _overrides,
+            _settingsContributors);
+
+        ClusterPublishResult? clusterPublish = null;
+        if (request.Distribute && _bus.IsEnabled)
+        {
+            clusterPublish = await PublishMutationAsync(
+                    _commands.CreateSettingsPatch(normalizedDomain, request.Settings),
+                    nameof(SettingsPatchCommand),
+                    normalizedDomain,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        return new AdminDomainMutationResultDto
+        {
+            Domain = normalizedDomain,
+            Effective = _domainConfig.GetDomainConfig(normalizedDomain),
+            ClusterPublish = clusterPublish
+        };
+    }
+
+    private async Task<ClusterPublishResult> PublishMutationAsync(
+        ClusterCommand command,
+        string metricName,
+        string domain,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            ClusterPublishResult published = await _bus.PublishAsync(command, cancellationToken)
+                .ConfigureAwait(false);
+            CacheOrchestratorMetrics.RecordClusterPublished(metricName);
+            return published;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            CacheOrchestratorMetrics.RecordClusterPublishFailure("exception");
+            _logger.LogWarning(ex, "Cluster publish failed for {Command} on domain {Domain}", metricName, domain);
+            return new ClusterPublishResult(
+            [
+                new ClusterPeerPublishOutcome
+                {
+                    PeerId = "(bus)",
+                    Succeeded = false,
+                    Error = ex.Message
+                }
+            ]);
+        }
     }
 
     private AdminDomainCountersDto BuildDomainRow(
         string name,
         string instanceId,
-        DomainHttpCacheOptions opts,
-        DomainRuntimeOverride? ov,
+        AdminDomainConfigDto domainConfig,
         AdminDomainCountersDto? counters,
         List<AdminEndpointCountersDto> epList)
     {
@@ -350,9 +520,9 @@ internal sealed class AdminQueryService
         {
             Name = name,
             InstanceId = instanceId,
-            Version = opts.Version,
-            VersionIsRuntimeOverride = ov?.Version is not null,
-            SchedulePhase = ResolveSchedulePhase(opts),
+            Version = domainConfig.Version,
+            VersionIsRuntimeOverride = domainConfig.VersionIsRuntimeOverride,
+            SchedulePhase = domainConfig.SchedulePhase,
             LastInvalidationUtc = counters?.LastInvalidationUtc,
             Invalidations = counters?.Invalidations ?? 0,
             OutputCacheHits = ocH,
@@ -371,16 +541,6 @@ internal sealed class AdminQueryService
             FactoryResultSizeCount = sizeCount,
             Endpoints = epList
         };
-    }
-
-    private string? ResolveSchedulePhase(DomainHttpCacheOptions opts)
-    {
-        if (opts.ScheduledUpdateUtc is null)
-            return null;
-
-        ClientCacheHeaderGenerator.Result built = ClientCacheHeaderGenerator.Build(opts, _time.GetUtcNow());
-        string phase = XCacheHeaderFormatter.PhaseToString(built.Phase);
-        return phase == "n/a" ? null : phase;
     }
 
     private static AdminEndpointCountersDto CloneEndpoint(

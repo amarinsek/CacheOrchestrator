@@ -1,4 +1,3 @@
-using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Utilities;
 using Microsoft.AspNetCore.Http;
@@ -17,10 +16,10 @@ namespace CacheOrchestrator.Vary;
 public sealed class CacheVaryMaterializer
 {
     /// <summary>Maximum entries allowed in <c>VaryByHeaders</c>.</summary>
-    public const int MaxVaryByHeaders = DomainSettingsPatchMapper.MaxVaryByHeaders;
+    public const int MaxVaryByHeaders = 8;
 
     /// <summary>Maximum entries allowed in <c>VaryByCookies</c>.</summary>
-    public const int MaxVaryByCookies = DomainSettingsPatchMapper.MaxVaryByCookies;
+    public const int MaxVaryByCookies = 8;
 
     private static readonly string[] SensitiveHeaderNames =
     [

@@ -216,13 +216,13 @@ Stages climb from a single in-memory playground to a dual Redis + HTTP bus archi
 
 ## Packages and applications
 
-The library is **modular**. The Core package provides the foundational policies and the `ICacheOrchestrator` interface. From there, you can opt into specific packages to match your stack: FusionCache or HybridCache for Data Cache, the ASP.NET Core host for Output Cache and Client Cache, Redis, an HTTP cluster bus, and EF Core invalidation. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
+The library is **modular**. The Core package provides the foundational policies, `ICacheOrchestrator`, and the transport-independent management API. From there, you can opt into specific packages to match your stack: FusionCache or HybridCache for Data Cache, the ASP.NET Core host for Output Cache and Client Cache, Redis, an HTTP cluster bus, and EF Core invalidation. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
 
 | Package | Purpose |
 |---------|---------|
 | [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package: AspNetCore + FusionCache (for typical web apps). |
-| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Domain models, `ICacheOrchestrator`, and invalidation contracts (no ASP.NET dependency). |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, HTTP helpers, and embedded Local Admin. |
+| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Domain models, orchestration, invalidation, and management contracts (no ASP.NET dependency). |
+| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, HTTP helpers, and the Local Admin HTTP adapter. |
 | [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | ZiggyCreatures FusionCache Data Cache provider. |
 | [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache Data Cache provider. |
 | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Meta Redis: Output Cache store and Fusion L2 / backplane (`AddRedisBackend`). |

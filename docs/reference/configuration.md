@@ -257,7 +257,7 @@ Optional. Requires package **`CacheOrchestrator.EFCore.Invalidation`**. Type →
 
 ## Validation
 
-`CacheOrchestratorOptionsValidator` runs on start (`ValidateOnStart`):
+Package-owned validators run on start (`ValidateOnStart`). Core validates portable domain and Data Cache configuration; ASP.NET Core validates Output Cache, Client Cache, HTTP Data Cache behavior, authentication, vary, and ETag settings; provider packages validate their own sections.
 
 - `DataCacheInstances` must contain **`default`**
 - Each domain `DataCache.Instance` must name a registered instance (default `"default"`)
@@ -288,6 +288,14 @@ Nested JSON seconds map to:
 | `ClientCache.Cacheability` | `DomainHttpCacheOptions.ClientCacheability` |
 
 Fusion-only knobs stay on `DomainFusionCacheSettings` (Fusion package), not on Core `DomainCacheOptions`.
+
+The JSON shape remains unified. `Cache:DomainDefaults` and `Cache:Domains:{domain}` are bound to package-owned models from the same configuration section:
+
+- Core owns `Version` and portable `DataCache.Enabled`, `Instance`, and `TtlSeconds`.
+- ASP.NET Core owns `OutputCache`, `ClientCache`, authentication/vary/ETag settings, and HTTP-only `DataCache.RespectNoStore`, `VaryOnPublicAddress`, and `VaryOnEncoding`.
+- FusionCache owns the nested `FusionCache` tuning section.
+
+This split does not change any `appsettings.json` key.
 
 ## Domain name normalization
 

@@ -1,3 +1,4 @@
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -52,7 +53,7 @@ public class DomainCacheConfigProviderTests
     [Fact]
     public void EnsureConfig_ReturnsSameInstance_WithinSameRequest()
     {
-        IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions
+        IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions(), new CacheOrchestratorHttpOptions
         {
             Domains = { ["products"] = new() { OutputCache = new() { TtlSeconds = 100 } } }
         });
@@ -71,8 +72,15 @@ public class DomainCacheConfigProviderTests
         {
             Domains =
             {
-                ["products"] = new() { OutputCache = new() { TtlSeconds = 100 }, Version = "p1" },
-                ["catalog"] = new() { OutputCache = new() { TtlSeconds = 200 }, Version = "c1" }
+                ["products"] = new() { Version = "p1" },
+                ["catalog"] = new() { Version = "c1" }
+            }
+        }, new CacheOrchestratorHttpOptions
+        {
+            Domains =
+            {
+                ["products"] = new() { OutputCache = new() { TtlSeconds = 100 } },
+                ["catalog"] = new() { OutputCache = new() { TtlSeconds = 200 } }
             }
         });
         var http = new DefaultHttpContext();
@@ -91,7 +99,7 @@ public class DomainCacheConfigProviderTests
     [Fact]
     public void EnsureConfig_UsesDomainSpecificSettings()
     {
-        IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions
+        IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions(), new CacheOrchestratorHttpOptions
         {
             DomainDefaults = new() { OutputCache = new() { TtlSeconds = 60 } },
             Domains = { ["products"] = new() { OutputCache = new() { TtlSeconds = 120 } } }
@@ -110,9 +118,11 @@ public class DomainCacheConfigProviderTests
         {
             DomainDefaults = new()
             {
-                OutputCache = new() { TtlSeconds = 90 },
                 DataCache = new() { TtlSeconds = 300 }
             }
+        }, new CacheOrchestratorHttpOptions
+        {
+            DomainDefaults = new() { OutputCache = new() { TtlSeconds = 90 } }
         });
 
         DomainHttpCacheOptions cfg = provider.EnsureDomainOptions(new DefaultHttpContext(), "unknown-domain");
@@ -158,7 +168,7 @@ public class DomainCacheConfigProviderTests
     [Fact]
     public void EnsureConfig_CachesPerDomain_AcrossDifferentHttpContexts()
     {
-        IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions
+        IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions(), new CacheOrchestratorHttpOptions
         {
             Domains = { ["products"] = new() { OutputCache = new() { TtlSeconds = 150 } } }
         });
@@ -269,7 +279,6 @@ public class DomainCacheConfigProviderTests
                 ["catalog"] = new()
                 {
                     Version = "v1",
-                    OutputCache = new() { TtlSeconds = 60 },
                     DataCache = new() { TtlSeconds = 120 }
                 }
             }
@@ -279,7 +288,6 @@ public class DomainCacheConfigProviderTests
 
         DomainHttpCacheOptions before = provider.GetOrCreateDomainOptions("catalog");
         before.Version.Should().Be("v1");
-        before.OutputTtl.Should().Be(TimeSpan.FromSeconds(60));
         string versionHexBefore = before.VersionHex;
 
         // Same process cache hit (L2)
@@ -292,7 +300,6 @@ public class DomainCacheConfigProviderTests
                 ["catalog"] = new()
                 {
                     Version = "v2",
-                    OutputCache = new() { TtlSeconds = 90 },
                     DataCache = new() { TtlSeconds = 300 }
                 }
             }
@@ -306,7 +313,6 @@ public class DomainCacheConfigProviderTests
         after.Should().NotBeSameAs(before, "global snapshot cache must be cleared on options change");
         after.Version.Should().Be("v2");
         after.VersionHex.Should().NotBe(versionHexBefore);
-        after.OutputTtl.Should().Be(TimeSpan.FromSeconds(90));
         after.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(300));
 
         // Subsequent calls share the new snapshot
@@ -404,22 +410,71 @@ public class DomainCacheConfigProviderTests
         b2.Version.Should().Be("b2");
     }
 
+    [Fact]
+    public void CoreRuntimeOverride_RebuildsComposedHttpSnapshot()
+    {
+        var coreMonitor = new TestOptionsMonitor(new CacheOrchestratorOptions());
+        var httpMonitor = new HttpTestOptionsMonitor(new CacheOrchestratorHttpOptions());
+        var coreOverrides = new DomainRuntimeOverrideStore();
+        DomainCacheOptionsProvider inner = new(
+            coreMonitor,
+            NullLogger<DomainCacheOptionsProvider>.Instance,
+            coreOverrides);
+        using var provider = new RequestDomainCacheOptionsProvider(
+            inner,
+            coreMonitor,
+            httpMonitor,
+            NullLogger<RequestDomainCacheOptionsProvider>.Instance,
+            coreOverrides,
+            new HttpDomainRuntimeOverrideStore());
+
+        DomainHttpCacheOptions before = provider.GetOrCreateDomainOptions("products");
+        coreOverrides.PatchSettings("products", new DomainSettingsPatch
+        {
+            DataCacheTtl = TimeSpan.FromSeconds(17)
+        });
+
+        DomainHttpCacheOptions after = provider.GetOrCreateDomainOptions("products");
+
+        after.Should().NotBeSameAs(before);
+        after.DataCacheTtl.Should().Be(TimeSpan.FromSeconds(17));
+    }
+
     // =========================
     // Helpers
     // =========================
 
     private static IRequestDomainCacheOptions CreateProvider(CacheOrchestratorOptions options)
+        => CreateProvider(options, new CacheOrchestratorHttpOptions());
+
+    private static IRequestDomainCacheOptions CreateProvider(
+        CacheOrchestratorOptions options,
+        CacheOrchestratorHttpOptions httpOptions)
     {
         var monitor = new TestOptionsMonitor(options);
+        var httpMonitor = new HttpTestOptionsMonitor(httpOptions);
         DomainCacheOptionsProvider inner = new(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
-        return new RequestDomainCacheOptionsProvider(inner, monitor, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
+        return new RequestDomainCacheOptionsProvider(
+            inner,
+            monitor,
+            httpMonitor,
+            NullLogger<RequestDomainCacheOptionsProvider>.Instance,
+            new DomainRuntimeOverrideStore(),
+            new HttpDomainRuntimeOverrideStore());
     }
 
     private static IRequestDomainCacheOptions CreateProvider(CacheOrchestratorOptions options, out TestOptionsMonitor monitor)
     {
         monitor = new TestOptionsMonitor(options);
+        var httpMonitor = new HttpTestOptionsMonitor(new CacheOrchestratorHttpOptions());
         DomainCacheOptionsProvider inner = new(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
-        return new RequestDomainCacheOptionsProvider(inner, monitor, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
+        return new RequestDomainCacheOptionsProvider(
+            inner,
+            monitor,
+            httpMonitor,
+            NullLogger<RequestDomainCacheOptionsProvider>.Instance,
+            new DomainRuntimeOverrideStore(),
+            new HttpDomainRuntimeOverrideStore());
     }
 
     private sealed class TestOptionsMonitor : IOptionsMonitor<CacheOrchestratorOptions>
@@ -447,6 +502,33 @@ public class DomainCacheConfigProviderTests
         }
 
         private sealed class Subscription(Action dispose) : IDisposable
+        {
+            public void Dispose() => dispose();
+        }
+    }
+
+    private sealed class HttpTestOptionsMonitor : IOptionsMonitor<CacheOrchestratorHttpOptions>
+    {
+        private event Action<CacheOrchestratorHttpOptions, string?>? _onChange;
+
+        public HttpTestOptionsMonitor(CacheOrchestratorHttpOptions current) => CurrentValue = current;
+
+        public CacheOrchestratorHttpOptions CurrentValue { get; private set; }
+        public CacheOrchestratorHttpOptions Get(string? name) => CurrentValue;
+
+        public IDisposable OnChange(Action<CacheOrchestratorHttpOptions, string?> listener)
+        {
+            _onChange += listener;
+            return new HttpSubscription(() => _onChange -= listener);
+        }
+
+        public void TriggerChange(CacheOrchestratorHttpOptions newOptions)
+        {
+            CurrentValue = newOptions;
+            _onChange?.Invoke(newOptions, null);
+        }
+
+        private sealed class HttpSubscription(Action dispose) : IDisposable
         {
             public void Dispose() => dispose();
         }

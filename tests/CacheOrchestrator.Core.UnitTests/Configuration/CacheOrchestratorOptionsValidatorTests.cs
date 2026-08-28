@@ -209,18 +209,6 @@ public class CacheOrchestratorOptionsValidatorTests
     }
 
     [Fact]
-    public void Validate_NegativeDomainDefaults_OutputCacheTtl_Fails()
-    {
-        CacheOrchestratorOptions options = CreateValidOptions();
-        options.DomainDefaults.OutputCache = new() { TtlSeconds = -1 };
-
-        ValidateOptionsResult result = _sut.Validate(null, options);
-
-        result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("outputCache.ttlSeconds", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
     public void Validate_NegativeDomainDefaults_DataCacheTtl_Fails()
     {
         CacheOrchestratorOptions options = CreateValidOptions();
@@ -233,68 +221,14 @@ public class CacheOrchestratorOptionsValidatorTests
     }
 
     [Fact]
-    public void Validate_NegativeDomainSpecific_OutputCacheTtl_Fails()
-    {
-        CacheOrchestratorOptions options = CreateValidOptions();
-        options.Domains["products"] = new CacheOrchestratorOptions.DomainCacheSettings
-        {
-            OutputCache = new() { TtlSeconds = -3 }
-        };
-
-        ValidateOptionsResult result = _sut.Validate(null, options);
-
-        result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f =>
-            f.Contains("products", StringComparison.OrdinalIgnoreCase) &&
-            f.Contains("outputCache.ttlSeconds", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
     public void Validate_ZeroTtls_AreAllowed()
     {
         CacheOrchestratorOptions options = CreateValidOptions();
-        options.DomainDefaults.OutputCache = new() { TtlSeconds = 0 };
         options.DomainDefaults.DataCache = new() { TtlSeconds = 0 };
-        options.DomainDefaults.ClientCache = new() { TtlSeconds = 0 };
 
         ValidateOptionsResult result = _sut.Validate(null, options);
 
         result.Succeeded.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Validate_NegativeClientTtl_Fails()
-    {
-        CacheOrchestratorOptions options = CreateValidOptions();
-        options.DomainDefaults.ClientCache = new() { TtlSeconds = -1 };
-
-        ValidateOptionsResult result = _sut.Validate(null, options);
-
-        result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("clientCache.ttlSeconds", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public void Validate_EmptyVaryByHeaders_Succeeds()
-    {
-        CacheOrchestratorOptions options = CreateValidOptions();
-        options.DomainDefaults.VaryByHeaders = [];
-
-        ValidateOptionsResult result = _sut.Validate(null, options);
-
-        result.Succeeded.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Validate_WhitespaceVaryByHeadersEntry_Fails()
-    {
-        CacheOrchestratorOptions options = CreateValidOptions();
-        options.DomainDefaults.VaryByHeaders = ["Accept", "  "];
-
-        ValidateOptionsResult result = _sut.Validate(null, options);
-
-        result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("VaryByHeaders[1]", StringComparison.OrdinalIgnoreCase));
     }
 
     [Theory]

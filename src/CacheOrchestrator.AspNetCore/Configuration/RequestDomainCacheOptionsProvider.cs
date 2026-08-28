@@ -14,50 +14,73 @@ internal sealed class RequestDomainCacheOptionsProvider : IRequestDomainCacheOpt
     private static readonly string[] DefaultAcceptNormalization = ["application/json", "application/xml"];
 
     private readonly IDomainCacheOptionsProvider _coreOptions;
-    private readonly IOptionsMonitor<CacheOrchestratorOptions> _optionsMonitor;
-    private readonly IDomainRuntimeOverrideStore _runtimeOverrides;
+    private readonly IOptionsMonitor<CacheOrchestratorOptions> _coreOptionsMonitor;
+    private readonly IOptionsMonitor<CacheOrchestratorHttpOptions> _httpOptionsMonitor;
+    private readonly IDomainRuntimeOverrideStore _coreRuntimeOverrides;
+    private readonly IHttpDomainRuntimeOverrideStore _httpRuntimeOverrides;
     private readonly ILogger<RequestDomainCacheOptionsProvider> _logger;
     private readonly ConcurrentDictionary<string, CachedHttpOptions> _globalCache = new(StringComparer.Ordinal);
-    private readonly IDisposable? _changeRegistration;
+    private readonly IDisposable? _coreChangeRegistration;
+    private readonly IDisposable? _httpChangeRegistration;
 
     public RequestDomainCacheOptionsProvider(
         IDomainCacheOptionsProvider coreOptions,
-        IOptionsMonitor<CacheOrchestratorOptions> optionsMonitor,
+        IOptionsMonitor<CacheOrchestratorOptions> coreOptionsMonitor,
+        IOptionsMonitor<CacheOrchestratorHttpOptions> httpOptionsMonitor,
         ILogger<RequestDomainCacheOptionsProvider> logger,
-        IDomainRuntimeOverrideStore? runtimeOverrides = null)
+        IDomainRuntimeOverrideStore coreRuntimeOverrides,
+        IHttpDomainRuntimeOverrideStore httpRuntimeOverrides)
     {
         ArgumentNullException.ThrowIfNull(coreOptions);
-        ArgumentNullException.ThrowIfNull(optionsMonitor);
+        ArgumentNullException.ThrowIfNull(coreOptionsMonitor);
+        ArgumentNullException.ThrowIfNull(httpOptionsMonitor);
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(coreRuntimeOverrides);
+        ArgumentNullException.ThrowIfNull(httpRuntimeOverrides);
 
         _coreOptions = coreOptions;
-        _optionsMonitor = optionsMonitor;
+        _coreOptionsMonitor = coreOptionsMonitor;
+        _httpOptionsMonitor = httpOptionsMonitor;
         _logger = logger;
-        _runtimeOverrides = runtimeOverrides ?? NullDomainRuntimeOverrideStore.Instance;
-        _changeRegistration = _optionsMonitor.OnChange(_ => _globalCache.Clear());
+        _coreRuntimeOverrides = coreRuntimeOverrides;
+        _httpRuntimeOverrides = httpRuntimeOverrides;
+        _coreChangeRegistration = _coreOptionsMonitor.OnChange(_ => _globalCache.Clear());
+        _httpChangeRegistration = _httpOptionsMonitor.OnChange(_ => _globalCache.Clear());
     }
 
     private sealed class CachedHttpOptions
     {
         public required DomainHttpCacheOptions Options { get; init; }
-        public int OverrideStamp { get; init; }
+        public int CoreOverrideStamp { get; init; }
+        public int HttpOverrideStamp { get; init; }
     }
 
-    public void Dispose() => _changeRegistration?.Dispose();
+    public void Dispose()
+    {
+        _coreChangeRegistration?.Dispose();
+        _httpChangeRegistration?.Dispose();
+    }
 
     public DomainHttpCacheOptions GetOrCreateDomainOptions(string domain)
     {
         string normalized = DomainName.Normalize(domain);
-        int stamp = _runtimeOverrides.GetStamp(normalized);
+        int coreStamp = _coreRuntimeOverrides.GetStamp(normalized);
+        int httpStamp = _httpRuntimeOverrides.GetStamp(normalized);
 
         if (_globalCache.TryGetValue(normalized, out CachedHttpOptions? cached)
-            && cached.OverrideStamp == stamp)
+            && cached.CoreOverrideStamp == coreStamp
+            && cached.HttpOverrideStamp == httpStamp)
         {
             return cached.Options;
         }
 
         DomainHttpCacheOptions options = CreateDomainOptions(normalized);
-        _globalCache[normalized] = new CachedHttpOptions { Options = options, OverrideStamp = stamp };
+        _globalCache[normalized] = new CachedHttpOptions
+        {
+            Options = options,
+            CoreOverrideStamp = coreStamp,
+            HttpOverrideStamp = httpStamp
+        };
         return options;
     }
 
@@ -96,12 +119,13 @@ internal sealed class RequestDomainCacheOptionsProvider : IRequestDomainCacheOpt
     private DomainHttpCacheOptions CreateDomainOptions(string domain)
     {
         DomainCacheOptions core = _coreOptions.GetOrCreateDomainOptions(domain);
-        CacheOrchestratorOptions options = _optionsMonitor.CurrentValue;
-        CacheOrchestratorOptions.DomainCacheSettings defaults = options.DomainDefaults;
-        DomainRuntimeOverride? overlay = _runtimeOverrides.Get(domain);
+        CacheOrchestratorOptions coreRoot = _coreOptionsMonitor.CurrentValue;
+        CacheOrchestratorHttpOptions options = _httpOptionsMonitor.CurrentValue;
+        DomainHttpCacheSettings defaults = options.DomainDefaults;
+        HttpDomainRuntimeOverride? overlay = _httpRuntimeOverrides.Get(domain);
 
-        if (!options.Domains.TryGetValue(domain, out CacheOrchestratorOptions.DomainCacheSettings? domainSettings))
-            domainSettings = new CacheOrchestratorOptions.DomainCacheSettings();
+        if (!options.Domains.TryGetValue(domain, out DomainHttpCacheSettings? domainSettings))
+            domainSettings = new DomainHttpCacheSettings();
 
         static T Pick<T>(T? specific, T? global, T fallback) where T : struct =>
             specific ?? global ?? fallback;
@@ -186,7 +210,7 @@ internal sealed class RequestDomainCacheOptionsProvider : IRequestDomainCacheOpt
                     defaults.ClientCache?.MustRevalidateNearUpdate,
                     false),
             OutputTtl = outputTtl < TimeSpan.Zero ? TimeSpan.Zero : outputTtl,
-            OutputCacheNamespace = options.OutputNamespace,
+            OutputCacheNamespace = coreRoot.OutputNamespace,
             DataCacheRespectNoStore = overlay?.DataCacheRespectNoStore
                 ?? Pick(domainSettings.DataCache?.RespectNoStore, defaults.DataCache?.RespectNoStore, true),
             DataCacheVaryOnPublicAddress = overlay?.DataCacheVaryOnPublicAddress
@@ -212,9 +236,9 @@ internal sealed class RequestDomainCacheOptionsProvider : IRequestDomainCacheOpt
     }
 
     private static AuthBypassMode ResolveAuthBypassMode(
-        DomainRuntimeOverride? overlay,
-        CacheOrchestratorOptions.DomainCacheSettings domain,
-        CacheOrchestratorOptions.DomainCacheSettings defaults) =>
+        HttpDomainRuntimeOverride? overlay,
+        DomainHttpCacheSettings domain,
+        DomainHttpCacheSettings defaults) =>
         overlay?.AuthBypassMode
         ?? domain.AuthBypassMode
         ?? defaults.AuthBypassMode

@@ -535,6 +535,38 @@ public sealed class AdminHealthDto
     public long Requests { get; init; }
 }
 
+/// <summary>Cluster identity and membership snapshot for the current instance.</summary>
+public sealed class AdminClusterInfoDto
+{
+    /// <summary>Current instance id.</summary>
+    public required string InstanceId { get; init; }
+
+    /// <summary>Cache namespace used to isolate cluster commands.</summary>
+    public required string Namespace { get; init; }
+
+    /// <summary>Whether a cluster command bus is enabled.</summary>
+    public bool BusEnabled { get; init; }
+
+    /// <summary>Membership provider kind.</summary>
+    public required string Membership { get; init; }
+
+    /// <summary>Number of peers returned by membership discovery.</summary>
+    public int PeerCount => Peers.Count;
+
+    /// <summary>Discovered peers.</summary>
+    public required IReadOnlyList<AdminClusterPeerDto> Peers { get; init; }
+}
+
+/// <summary>One peer in a management cluster snapshot.</summary>
+public sealed class AdminClusterPeerDto
+{
+    /// <summary>Peer id.</summary>
+    public required string Id { get; init; }
+
+    /// <summary>Transport address exposed by membership discovery.</summary>
+    public required string Url { get; init; }
+}
+
 /// <summary>Invalidate request body.</summary>
 public sealed class AdminInvalidateRequest
 {
@@ -604,4 +636,10 @@ public sealed class AdminDomainMutationResultDto
 
     /// <summary>Effective configuration after the change.</summary>
     public required AdminDomainConfigDto Effective { get; init; }
+
+    /// <summary>
+    /// Cluster delivery result when distribution was requested and the bus was enabled;
+    /// null when the mutation remained local.
+    /// </summary>
+    public Cluster.ClusterPublishResult? ClusterPublish { get; init; }
 }

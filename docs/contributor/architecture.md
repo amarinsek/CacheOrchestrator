@@ -74,16 +74,17 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | `AddCacheOrchestratorCore` / `ICacheOrchestrator` / `IDataCacheProvider` (**Core**) | Core host registration / orchestrator / provider boundary |
 | `AddCacheOrchestrator` / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` / `ICacheOrchestratorBuilder` | ASP.NET Core composition and `DefaultCacheOrchestratorBuilder` |
 | `IDomainDataCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainDataCacheService` |
-| `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainName`, options types (**Core**) | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator` |
-| `IRequestDomainCacheOptions`, `DomainHttpCacheOptions`, `ICacheOrchestratorFeature` (**AspNetCore**) | `RequestDomainCacheOptionsProvider`, `CacheOrchestratorFeature` |
+| `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainDataCacheSettings`, `DomainName` (**Core**) | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator` |
+| `IRequestDomainCacheOptions`, `DomainHttpCacheOptions`, HTTP domain setting types, `ICacheOrchestratorFeature` (**AspNetCore**) | `RequestDomainCacheOptionsProvider`, `CacheOrchestratorHttpOptions`, `CacheOrchestratorHttpOptionsValidator`, `CacheOrchestratorFeature` |
 | `ICacheOrchestratorInvalidator`, `CacheInvalidationResult`, `ICacheInvalidationObserver`, `CacheTags` | `CacheOrchestratorInvalidator` |
 | `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records (`InvalidateCommand`, `VersionBumpCommand`, `SettingsPatchCommand`, …) | `DefaultClusterCommandHandler` |
 | `NullClusterCommandBus`, `NullClusterMembership` | — |
 | `ICacheBackendRegistrar`, `InMemoryCacheBackendRegistrar` | — |
 | Redis: `AddRedisBackend` / `RedisCacheBackendRegistrar` (**CacheOrchestrator.Redis**) | `RedisCacheHealthProbe` |
 | HttpBus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` / `HttpClusterCommandBus` (**CacheOrchestrator.HttpBus**) | `ClusterEndpointAuth` |
-| `MapCacheOrchestratorAdmin`, `AdminLocalApi`, Admin API DTOs | `InMemoryAdminStatsCollector` |
-| `AuthBypassMode`, `DomainAuthEvaluator` | — |
+| `ICacheOrchestratorManagement`, management DTOs and host adapter contracts (**Core**) | `CacheOrchestratorManagement`, `CoreAdminDomainConfigProvider` |
+| `MapCacheOrchestratorAdmin`, `AdminLocalApi` (**AspNetCore HTTP adapter**) | `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
+| `AuthBypassMode`, `ETagMode`, `ClientCacheability`, `DomainAuthEvaluator` (**AspNetCore**) | — |
 | `ICacheVaryContributor`, `CacheVaryMaterializer`, `ICacheVaryBuilder` | — |
 | `DomainOutputCachePolicy`, `[CacheDomain]`, `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheDomainConvention` |
 | Identity: `.WithCacheIdentity` / `.WithContentHashCacheIdentity`, `[CacheIdentity]` / `[ContentHashCacheIdentity]`, `ICacheIdentityContract`, `AddCacheIdentityContract<T>()`, `CacheIdentities.Url` | `CacheIdentityResolutionHostedService`, binding applicators |

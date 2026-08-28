@@ -83,9 +83,10 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | `IDomainDataCache` | `CacheOrchestrator.DataCache` (HTTP API in AspNetCore) |
 | `EntityCache` / `EntitySet` / `EntityFootprint` | `CacheOrchestrator.Entity` (Core) |
 | `ICacheVaryContributor` / `CacheVaryMaterializer` / `ICacheVaryBuilder` | `CacheOrchestrator.Vary` |
-| `AuthBypassMode` / `DomainAuthEvaluator` | `CacheOrchestrator.Configuration` |
+| `AuthBypassMode` / `ETagMode` / `ClientCacheability` / `DomainAuthEvaluator` (AspNetCore) | `CacheOrchestrator.Configuration` |
 | `IDomainCacheOptionsProvider` / `DomainCacheOptions` / `DomainName` (Core); `IRequestDomainCacheOptions` / `DomainHttpCacheOptions` (AspNetCore) | `CacheOrchestrator.Configuration` |
 | `ICacheOrchestratorInvalidator` / `ICacheInvalidationObserver` / `CacheInvalidationResult` | `CacheOrchestrator.Invalidation` |
+| `ICacheOrchestratorManagement` / `IAdminDomainConfigProvider` / `IAdminEndpointCatalog` | `CacheOrchestrator.Admin` (Core) |
 | `CacheTags` | `CacheOrchestrator.Configuration` |
 | Health: `AddCacheOrchestrator` on `IHealthChecksBuilder` | `CacheOrchestrator.Diagnostics` |
 | `MapCacheOrchestratorAdmin` / Admin API | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Admin` |
@@ -129,7 +130,7 @@ Do not rename config property names without a breaking-change plan (bound from a
 ## Folder map
 
 ```
-src/CacheOrchestrator.Core/         Http-free: options, Entity footprint, orchestration, invalidation, cluster contracts
+src/CacheOrchestrator.Core/         Http-free: options, Entity footprint, orchestration, invalidation, management, cluster contracts
 src/CacheOrchestrator.FusionCache/  Fusion IDataCacheProvider + named Ziggy instances + L2 registrars
 src/CacheOrchestrator.HybridCache/  HybridCache IDataCacheProvider
 src/CacheOrchestrator.AspNetCore/   HTTP: OutputCache, Vary, Admin API, IDomainDataCache (Core only)

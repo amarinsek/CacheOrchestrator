@@ -12,7 +12,7 @@ Choose packages by capability first. Choose InMemory, Redis, and multi-instance 
 |-------------------|------------------|------------------|
 | Typical ASP.NET Core app using FusionCache | `CacheOrchestrator` | Meta package: ASP.NET Core host + FusionCache data provider |
 | ASP.NET Core app assembling its own data engine | `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, `IDomainDataCache`, diagnostics, and Admin API |
-| Reusable class library | `CacheOrchestrator.Core` | HTTP-free domain models, `ICacheOrchestrator`, entity footprint, and invalidation contracts |
+| Reusable class library | `CacheOrchestrator.Core` | HTTP-free domain models, orchestration, invalidation, and management contracts |
 | Standalone worker host | `CacheOrchestrator.Core` + one provider package | HTTP-free orchestrator plus FusionCache or HybridCache |
 
 For most web applications, start here:
@@ -112,6 +112,7 @@ Use these public abstractions at application boundaries:
 | API | Use it from |
 |-----|-------------|
 | `ICacheOrchestrator` + `CacheDomainContext` | Class libraries and workers |
+| `ICacheOrchestratorManagement` | Secured worker commands, operational services, and custom management transports |
 | `IDomainDataCache` | ASP.NET Core request handlers |
 | `ICacheOrchestratorInvalidator` | Write paths and application services |
 

@@ -242,7 +242,9 @@ These contracts are public for host and satellite-package integration. Ordinary 
 | `IRequestDomainCacheOptions` | Resolve and attach `DomainHttpCacheOptions` to `HttpContext` | Endpoint metadata or explicit `IDomainDataCache` domain overload |
 | `ICacheOrchestratorFeature` | Per-request options, identity, disposition, and staged footprint | `HttpContext.GetDomainCacheOptions()` and Data Cache helpers |
 | `IHttpCacheInvalidationSink` | HTTP-free bridge from Core invalidation to Output Cache | `ICacheOrchestratorInvalidator` |
-| `IAdminStatsCollector` / `IAdminEndpointCatalog` | Local Admin instrumentation | Admin API and metrics |
+| `ICacheOrchestratorManagement` | Transport-independent management queries and operations | Inject from Core; expose through a host-appropriate secured adapter |
+| `IAdminDomainConfigProvider` | Enrich the Core domain view with host-specific policy | Built-in Core Data Cache view or ASP.NET Core HTTP view |
+| `IAdminStatsCollector` / `IAdminEndpointCatalog` | Management instrumentation and host resource discovery | Admin API and metrics |
 | `IFusionDomainSettingsProvider` / `IFusionDomainRuntimeOverrideStore` | Fusion package policy and overlay integration | Domain configuration and Admin PATCH |
 
 Replacing one of these contracts means taking responsibility for its caching, normalization, concurrency, reload, and lifecycle semantics.

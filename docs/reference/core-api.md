@@ -42,6 +42,24 @@ builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 
 Use `AddCacheOrchestratorHybridCache` instead of FusionCache when HybridCache is the chosen provider. Web hosts usually install the `CacheOrchestrator` meta package. See [package composition](../how-to/composition.md#scenario-7).
 
+## Management without HTTP
+
+The same registration provides `ICacheOrchestratorManagement`. It is the application-level management boundary for health and cluster information, domain inspection, invalidation, runtime Version/settings changes, and the settings catalog. It can be called from a worker command, CLI adapter, gRPC service, message consumer, or another secured transport without installing ASP.NET Core.
+
+```csharp
+using CacheOrchestrator.Admin;
+
+ICacheOrchestratorManagement management =
+    services.GetRequiredService<ICacheOrchestratorManagement>();
+
+AdminDomainMutationResultDto changed = await management.SetVersionAsync(
+    "catalog",
+    new AdminVersionRequest { Version = "2" },
+    cancellationToken);
+```
+
+Core reports portable Data Cache configuration and has no resource endpoints to discover by default. A host can implement `IAdminEndpointCatalog` and `IAdminDomainConfigProvider` to add its resource inventory and host-specific policy. `CacheOrchestrator.AspNetCore` provides those adapters and maps the existing Local Admin HTTP routes onto the same management contract. See [Admin](admin.md#core-management-contract).
+
 ## `ICacheOrchestrator` surface
 
 | API | Key shape | Footprint |

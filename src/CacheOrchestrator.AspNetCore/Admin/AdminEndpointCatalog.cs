@@ -94,15 +94,3 @@ internal sealed class AdminEndpointCatalog : IAdminEndpointCatalog
         return route.DisplayName;
     }
 }
-
-/// <summary>Empty catalog when Admin is disabled.</summary>
-internal sealed class NullAdminEndpointCatalog : IAdminEndpointCatalog
-{
-    public static readonly NullAdminEndpointCatalog Instance = new();
-
-    private NullAdminEndpointCatalog()
-    {
-    }
-
-    public IReadOnlyList<AdminEndpointInfoDto> GetEndpoints() => [];
-}

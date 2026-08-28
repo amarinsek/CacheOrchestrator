@@ -153,20 +153,6 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
         List<string> failures)
     {
         ValidateNonNegSeconds(label, "DataCache.TtlSeconds", settings.DataCache?.TtlSeconds, failures);
-        ValidateNonNegSeconds(label, "OutputCache.TtlSeconds", settings.OutputCache?.TtlSeconds, failures);
-        ValidateNonNegSeconds(label, "ClientCache.TtlSeconds", settings.ClientCache?.TtlSeconds, failures);
-        ValidateNonNegSeconds(label, "ClientCache.TtlMinSeconds", settings.ClientCache?.TtlMinSeconds, failures);
-
-        ValidateAllowlist(label, "VaryByHeaders", settings.VaryByHeaders, Admin.DomainSettingsPatchMapper.MaxVaryByHeaders, failures, allowEmpty: true);
-        ValidateAllowlist(label, "VaryByCookies", settings.VaryByCookies, Admin.DomainSettingsPatchMapper.MaxVaryByCookies, failures, allowEmpty: true);
-        ValidateAllowlist(label, "VaryByQueryKeys", settings.VaryByQueryKeys, max: 32, failures, allowEmpty: true);
-        ValidateAllowlist(label, "IgnoreQueryKeys", settings.IgnoreQueryKeys, max: 32, failures, allowEmpty: true);
-        ValidateAllowlist(label, "VaryByAuthClaims", settings.VaryByAuthClaims, max: 16, failures, allowEmpty: true);
-        ValidateAllowlist(label, "AcceptNormalizationList", settings.AcceptNormalizationList, max: 16, failures, allowEmpty: true);
-        ValidateAllowlist(label, "AcceptLanguageNormalizationList", settings.AcceptLanguageNormalizationList, max: 16, failures, allowEmpty: true);
-
-        if (settings.AuthBypassMode is AuthBypassMode mode && !Enum.IsDefined(mode))
-            failures.Add($"{label}: AuthBypassMode value '{mode}' is not defined.");
     }
 
     private static void ValidateNonNegSeconds(

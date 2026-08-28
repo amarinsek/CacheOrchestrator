@@ -1,3 +1,4 @@
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.Orchestration;
@@ -30,8 +31,22 @@ public sealed class CoreWorkerRegistrationTests
             new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
 
         ICacheOrchestrator cache = provider.GetRequiredService<ICacheOrchestrator>();
+        ICacheOrchestratorManagement management =
+            provider.GetRequiredService<ICacheOrchestratorManagement>();
         provider.GetRequiredService<IDataCacheProvider>().Name.Should().Be("FusionCache");
         provider.GetRequiredService<ICacheOrchestratorInvalidator>().Should().NotBeNull();
+
+        AdminDomainConfigDto initial = management.GetDomain("catalog")!;
+        initial.DataCacheEnabled.Should().BeTrue();
+        initial.DataCacheTtlSeconds.Should().Be(300);
+        initial.OutputCacheEnabled.Should().BeFalse();
+
+        AdminDomainMutationResultDto version = await management.SetVersionAsync(
+            "catalog",
+            new AdminVersionRequest { Version = "worker-v2" },
+            TestContext.Current.CancellationToken);
+        version.Effective.Version.Should().Be("worker-v2");
+        version.Effective.VersionIsRuntimeOverride.Should().BeTrue();
 
         int factoryRuns = 0;
         async ValueTask<string?> Factory(CancellationToken cancellationToken)

@@ -55,6 +55,8 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
+        RegisterHttpDomainSettingCatalog();
+
         // Backend registrars and options monitors resolve IConfiguration from DI.
         // Host builders usually register it; bare ServiceCollection unit tests do not.
         services.TryAddSingleton(configuration);
@@ -74,6 +76,11 @@ public static class ServiceCollectionExtensions
             configuration,
             configSection,
             registerCoreValidator: false);
+        services.AddOptions<CacheOrchestratorHttpOptions>()
+            .Bind(configuration.GetSection(configSection))
+            .ValidateOnStart();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<CacheOrchestratorHttpOptions>, CacheOrchestratorHttpOptionsValidator>());
         RegisterAspNetCoreServices(services);
         RegisterAdminServices(services, opts.Admin);
 
@@ -130,7 +137,12 @@ public static class ServiceCollectionExtensions
 
     private static void RegisterAspNetCoreServices(IServiceCollection services)
     {
+        services.TryAddSingleton<IHttpDomainRuntimeOverrideStore, HttpDomainRuntimeOverrideStore>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IDomainSettingsPatchContributor, HttpDomainSettingsPatchContributor>());
         services.TryAddSingleton<IRequestDomainCacheOptions, RequestDomainCacheOptionsProvider>();
+        services.RemoveAll<IAdminDomainConfigProvider>();
+        services.AddSingleton<IAdminDomainConfigProvider, HttpAdminDomainConfigProvider>();
         services.TryAddSingleton<IDomainDataCache, DomainDataCacheService>();
         services.RemoveAll<IHttpCacheInvalidationSink>();
         services.AddSingleton<IHttpCacheInvalidationSink, OutputCacheInvalidationSink>();
@@ -141,6 +153,14 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<CacheIdentityContractCatalog>(sp =>
             new CacheIdentityContractCatalog(sp.GetServices<ICacheIdentityContract>()));
         services.AddHostedService<CacheIdentityResolutionHostedService>();
+    }
+
+    private static void RegisterHttpDomainSettingCatalog()
+    {
+        DomainSettingCatalog.RegisterSection(typeof(DomainHttpCacheSettings), "", "");
+        DomainSettingCatalog.RegisterSection(typeof(DomainHttpDataCacheSettings), "dataCache", "DataCache");
+        DomainSettingCatalog.RegisterSection(typeof(DomainOutputCacheSettings), "outputCache", "OutputCache");
+        DomainSettingCatalog.RegisterSection(typeof(DomainClientCacheSettings), "clientCache", "ClientCache");
     }
 
     private static void RegisterAdminServices(
@@ -161,13 +181,12 @@ public static class ServiceCollectionExtensions
                     instanceId,
                     sp.GetService<TimeProvider>());
             });
+            services.RemoveAll<IAdminEndpointCatalog>();
             services.AddSingleton<IAdminEndpointCatalog, AdminEndpointCatalog>();
-            services.AddSingleton<AdminQueryService>();
             services.AddSingleton<AdminApiKeyEndpointFilter>();
         }
         else
         {
-            services.TryAddSingleton<IDomainRuntimeOverrideStore>(_ => NullDomainRuntimeOverrideStore.Instance);
             services.TryAddSingleton<IAdminStatsCollector>(_ => NoOpAdminStatsCollector.Instance);
             services.TryAddSingleton<IAdminEndpointCatalog>(_ => NullAdminEndpointCatalog.Instance);
         }

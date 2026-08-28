@@ -12,8 +12,23 @@ public class MultiInstanceOptionsTests
         IOptionsMonitor<CacheOrchestratorOptions> monitor = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
         monitor.CurrentValue.Returns(opts);
         monitor.OnChange(Arg.Any<Action<CacheOrchestratorOptions, string?>>()).Returns((IDisposable?)null);
+        IOptionsMonitor<CacheOrchestratorHttpOptions> httpMonitor =
+            new FixedOptionsMonitor<CacheOrchestratorHttpOptions>(new CacheOrchestratorHttpOptions());
         DomainCacheOptionsProvider inner = new(monitor, NullLogger<DomainCacheOptionsProvider>.Instance);
-        return new RequestDomainCacheOptionsProvider(inner, monitor, NullLogger<RequestDomainCacheOptionsProvider>.Instance);
+        return new RequestDomainCacheOptionsProvider(
+            inner,
+            monitor,
+            httpMonitor,
+            NullLogger<RequestDomainCacheOptionsProvider>.Instance,
+            new CacheOrchestrator.Admin.DomainRuntimeOverrideStore(),
+            new HttpDomainRuntimeOverrideStore());
+    }
+
+    private sealed class FixedOptionsMonitor<T>(T value) : IOptionsMonitor<T>
+    {
+        public T CurrentValue { get; } = value;
+        public T Get(string? name) => CurrentValue;
+        public IDisposable? OnChange(Action<T, string?> listener) => null;
     }
 
     private static CacheOrchestratorOptions TwoInstanceOptions() => new()

@@ -52,7 +52,7 @@ The reference describes exact configuration paths, API contracts, key material, 
 
 ### Cache layers and freshness
 
-- [Core API](reference/core-api.md) — HTTP-free `ICacheOrchestrator`, domain contexts, keys, and entity operations
+- [Core API](reference/core-api.md) — HTTP-free orchestration, management, domain contexts, keys, and entity operations
 - [Output Cache](reference/output-cache.md) — policy selection, endpoint metadata, status rules, headers, and authentication
 - [Data Cache](reference/data-cache.md) — providers, domain resolution, key generation, results, and entity reads
 - [Client Cache Schedule algorithm](reference/client-cache-schedule-algorithm.md) — exact phase and `max-age` calculation

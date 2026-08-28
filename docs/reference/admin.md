@@ -2,14 +2,15 @@
 
 > **Reference.** Product overview: [root README](../../README.md). Orientation: [operations](../guide/operations.md). Catalog: [documentation index](../README.md).
 
-Two surfaces for operators:
+The management model has three layers:
 
 | Piece | What it is | Where it runs |
 |-------|------------|----------------|
-| **Admin API** | Opt-in HTTP on each app instance | AspNetCore package (`Cache:Admin` + `MapCacheOrchestratorAdmin`) |
-| **Admin Console App** | Dashboard that fans out to those APIs | Separate process / Docker image — not a NuGet package |
+| **Management API** | Transport-independent queries and operations through `ICacheOrchestratorManagement` | Core package; available to web apps, workers, command handlers, and custom adapters |
+| **Admin HTTP adapter** | Opt-in HTTP routes that delegate to the Management API | AspNetCore package (`Cache:Admin` + `MapCacheOrchestratorAdmin`) |
+| **Admin Console App** | Dashboard that fans out to the HTTP adapters | Separate process / Docker image — not a NuGet package |
 
-Use the API alone for scripts. Use the Console for multi-instance UI. **Traffic charts need Prometheus.** Security matters: these endpoints mutate cache state.
+Use the Core contract from application code or a custom transport. Use the HTTP adapter for scripts and the Console for multi-instance UI. **Traffic charts need Prometheus.** Security matters: management operations mutate cache state.
 
 Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Admin Console README](../../src/CacheOrchestrator.AdminConsole/README.md).
 
@@ -38,7 +39,8 @@ Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Ad
 
 | Piece | How users get it |
 |-------|------------------|
-| Admin API | Ships inside **`CacheOrchestrator`** NuGet. No extra package. Default **disabled** (`Cache:Admin:Enabled` = false). |
+| Management API | Ships in **`CacheOrchestrator.Core`** and is registered by `AddCacheOrchestratorCore`. |
+| Admin HTTP adapter | Ships inside **`CacheOrchestrator`** / **`CacheOrchestrator.AspNetCore`**. No extra package. Routes default to disabled (`Cache:Admin:Enabled` = false). |
 | Admin Console App | Source in repo; `dotnet run` / `dotnet publish`; **Docker image** on GHCR with each GitHub Release. Not published to nuget.org. |
 
 | Image | |
@@ -52,6 +54,34 @@ Run the Admin Console App as an internal ops service (Docker or Helm, VPN only).
 ---
 
 ## Admin API (library)
+
+### Core management contract
+
+`AddCacheOrchestratorCore` registers `ICacheOrchestratorManagement`. The contract does not reference ASP.NET Core and supports:
+
+- health, cluster identity, domain configuration, host resource discovery, and diagnostic statistics;
+- domain, entity, entity-kind, and tag invalidation;
+- runtime Version and settings changes, with optional cluster distribution;
+- the domain settings catalog used to validate runtime patches.
+
+```csharp
+using CacheOrchestrator.Admin;
+
+public sealed class CacheOperations(ICacheOrchestratorManagement management)
+{
+    public Task<AdminDomainMutationResultDto> MoveCatalogToVersionAsync(
+        string version,
+        CancellationToken cancellationToken) =>
+        management.SetVersionAsync(
+            "catalog",
+            new AdminVersionRequest { Version = version, Distribute = true },
+            cancellationToken);
+}
+```
+
+Core supplies a Data Cache domain view and an empty resource catalog. Host packages can enrich these through `IAdminDomainConfigProvider` and `IAdminEndpointCatalog`; the ASP.NET Core package supplies both adapters. `Admin:Enabled` controls HTTP route exposure and live Admin counters, not whether application code can resolve the Core management contract.
+
+Mutation methods validate input with `ArgumentException`. A distributed Version or settings result carries `ClusterPublish`; adapters decide how to represent partial peer failure. The built-in HTTP adapter returns `409 Conflict` after the local change has already been applied.
 
 ### Enable (each app instance)
 
