@@ -507,7 +507,7 @@ await inv.InvalidateDomainAsync("catalog", cancellationToken);
 
 ## Related
 
-- [Data Cache](data-cache.md) — API overview and obsolete overload migration
+- [Data Cache](data-cache.md) — API overview and request identity
 - [invalidation.md](invalidation.md) — tag purge wiring
 - [cache-keys.md](cache-keys.md) — entity vs URL key shapes
 - [ef-core-invalidation.md](ef-core-invalidation.md) — SaveChanges → same tags

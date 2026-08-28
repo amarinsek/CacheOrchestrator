@@ -6,7 +6,7 @@ namespace CacheOrchestrator.Admin;
 /// <summary>
 /// Applies a sparse Admin settings dictionary to Core overlays and optional package contributors.
 /// </summary>
-public static class DomainSettingsPatchApplicator
+internal static class DomainSettingsPatchApplicator
 {
     /// <summary>
     /// Validates catalog ids, routes Core keys through <see cref="DomainSettingsPatchMapper"/>,

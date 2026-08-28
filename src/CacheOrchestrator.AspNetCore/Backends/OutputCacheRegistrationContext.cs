@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CacheOrchestrator.Backends;
 
 /// <summary>
-/// Context passed to <see cref="ICacheBackendRegistrar.RegisterOutputCache"/> so backends can
+/// Context passed to <see cref="IOutputCacheBackendRegistrar.RegisterOutputCache"/> so backends can
 /// configure shared <see cref="OutputCacheOptions"/> and/or register a store implementation.
 /// </summary>
 public sealed class OutputCacheRegistrationContext
@@ -42,7 +42,7 @@ public sealed class OutputCacheRegistrationContext
     /// <summary>Configuration section name (default <c>Cache</c>).</summary>
     public string ConfigSection { get; }
 
-    /// <summary>Provider name for this registration (same as <see cref="ICacheBackendRegistrar.Name"/>).</summary>
+    /// <summary>Provider name for this registration (same as <see cref="IOutputCacheBackendRegistrar.Name"/>).</summary>
     public string ProviderName { get; }
 
     /// <summary>

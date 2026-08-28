@@ -14,9 +14,6 @@ public class InMemoryCacheBackendRegistrarTests
     public void Name_IsInMemory() => _sut.Name.Should().Be("InMemory");
 
     [Fact]
-    public void SupportsOutputCacheStore_IsTrue() => _sut.SupportsOutputCacheStore.Should().BeTrue();
-
-    [Fact]
     public void RegisterOutputCache_ConfiguresInMemorySizeLimits()
     {
         var services = new ServiceCollection();
@@ -34,19 +31,5 @@ public class InMemoryCacheBackendRegistrarTests
 
         oc.SizeLimit.Should().Be(512 * 1024 * 1024);
         oc.MaximumBodySize.Should().Be(32 * 1024 * 1024);
-    }
-
-    [Fact]
-    public void RegisterHealthProbes_DoesNotThrow()
-    {
-        var services = new ServiceCollection();
-        IConfigurationRoot configuration = new ConfigurationBuilder().Build();
-        var options = new CacheOrchestratorOptions();
-        var context = new BackendHealthRegistrationContext(
-            services, configuration, "Cache", "oc", "InMemory", options,
-            new CacheOrchestratorOptions.DataCacheInstanceOptions());
-
-        Action act = () => _sut.RegisterHealthProbes(context);
-        act.Should().NotThrow();
     }
 }

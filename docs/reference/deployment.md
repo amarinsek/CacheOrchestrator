@@ -52,7 +52,7 @@ The simplest topology. One process, no Redis, no cross-process coordination.
 
 ## Multiple instances with Redis
 
-Redis is the distributed backend that ships with the library (`CacheOrchestrator.Redis`). For another store, use the contract for the required surface: `ICacheBackendRegistrar` for Output Cache, `IFusionCacheBackendRegistrar` for FusionCache L2/backplane, or `IDataCacheProvider` for a complete Data Cache engine. [Backends](backends.md) includes a Fusion L2 example for SQL Server; [Extensibility](extensibility.md) defines every boundary.
+Redis is the distributed backend that ships with the library (`CacheOrchestrator.Redis`). For another store, use the contract for the required surface: `IOutputCacheBackendRegistrar` for Output Cache, `IFusionCacheBackendRegistrar` for FusionCache L2/backplane, or `IDataCacheProvider` for a complete Data Cache engine. [Backends](backends.md) includes a Fusion L2 example for SQL Server; [Extensibility](extensibility.md) defines every boundary.
 
 Multiple replicas share both Output Cache data and Fusion Data Cache entries through Redis.
 Fusion also receives **backplane** invalidation signals so L1 (in-memory) is cleared on all nodes

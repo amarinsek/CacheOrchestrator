@@ -10,7 +10,7 @@ namespace CacheOrchestrator.Admin;
 
 /// <summary>
 /// Implements transport-independent management operations from Core services and host adapters.
-/// Canonical path is raw (v2); fat (v1) is projected via <see cref="AdminStatsV1Mapper"/>.
+/// Statistics are exposed as canonical raw counters; presentation metrics belong to consumers.
 /// </summary>
 internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
 {
@@ -151,8 +151,7 @@ internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
     /// Raw process-lifetime counters (internal / diagnostics).
     /// Prefer OTEL meter <c>CacheOrchestrator</c> + Prometheus for analytics.
     /// </summary>
-    [Obsolete("Prefer OTEL/Prometheus. Process-lifetime raw stats are for diagnostics only.")]
-    public AdminLiveStatsRawSnapshot GetStatsRaw()
+    public AdminLiveStatsRawSnapshot GetStats()
     {
         string instanceId = AdminInstanceId.Resolve(_options.CurrentValue);
         AdminLiveStatsRawSnapshot raw = _stats.GetRawSnapshot();
@@ -251,16 +250,6 @@ internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
             Endpoints = allEndpoints
         };
     }
-
-    /// <summary>
-    /// Process-lifetime fat stats (Admin API <c>GET …/stats</c>).
-    /// Obsolete for analytics — prefer OTEL/Prometheus. Kept for API compatibility.
-    /// </summary>
-    [Obsolete("Prefer OTEL/Prometheus for analytics. GET …/stats is process-lifetime diagnostics only.")]
-    public AdminLiveStatsSnapshot GetStats() =>
-#pragma warning disable CS0618
-        AdminStatsV1Mapper.ToLiveSnapshot(GetStatsRaw());
-#pragma warning restore CS0618
 
     public IReadOnlyList<AdminEndpointInfoDto> GetEndpoints() => _endpoints.GetEndpoints();
 
@@ -464,7 +453,7 @@ internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
         long? sizeSum = counters?.FactoryResultSizeSumBytes;
         long sizeCount = counters?.FactoryResultSizeCount ?? 0;
 
-        long domainRequests = AdminStatsMath.Requests(ocH, ocM, ocB, fcH, fcM, fcS, fcB, outputCacheOff, runs);
+        long domainRequests = AdminCounterMath.Requests(ocH, ocM, ocB, fcH, fcM, fcS, fcB, outputCacheOff, runs);
 
         // If domain counters empty but endpoints have traffic, rebuild from endpoint sums.
         if (domainRequests == 0 && epList.Count > 0)
@@ -577,13 +566,13 @@ internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
         };
 
     private static long RequestDenominator(AdminDomainCountersDto d) =>
-        AdminStatsMath.Requests(
+        AdminCounterMath.Requests(
             d.OutputCacheHits, d.OutputCacheMisses, d.OutputCacheBypass,
             d.DataCacheHits, d.DataCacheMisses, d.DataCacheStale, d.DataCacheBypass,
             d.OutputCacheOff, d.FactoryRuns);
 
     private static long RequestDenominator(AdminEndpointCountersDto e) =>
-        AdminStatsMath.Requests(
+        AdminCounterMath.Requests(
             e.OutputCacheHits, e.OutputCacheMisses, e.OutputCacheBypass,
             e.DataCacheHits, e.DataCacheMisses, e.DataCacheStale, e.DataCacheBypass,
             e.OutputCacheOff, e.FactoryRuns);

@@ -5,7 +5,7 @@ namespace CacheOrchestrator.Redis;
 /// <summary>
 /// Builds StackExchange.Redis <see cref="ConfigurationOptions"/> from <see cref="RedisConnectionOptions"/>.
 /// </summary>
-public static class RedisConfigurationOptionsFactory
+internal static class RedisConfigurationOptionsFactory
 {
     /// <summary>
     /// Parses the connection string and applies timeout / keep-alive settings.

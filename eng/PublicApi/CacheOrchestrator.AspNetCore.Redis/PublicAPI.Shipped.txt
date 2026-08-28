@@ -1,0 +1,3 @@
+#nullable enable
+CacheOrchestrator.Redis.CacheOrchestratorAspNetCoreRedisBuilderExtensions
+static CacheOrchestrator.Redis.CacheOrchestratorAspNetCoreRedisBuilderExtensions.AddRedisOutputCacheBackend(this CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder! builder, string! configSection = "Cache") -> CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder!

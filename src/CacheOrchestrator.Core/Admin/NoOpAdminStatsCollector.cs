@@ -44,13 +44,4 @@ internal sealed class NoOpAdminStatsCollector : IAdminStatsCollector
             Endpoints = []
         };
 
-    public AdminLiveStatsSnapshot GetSnapshot() =>
-        new()
-        {
-            InstanceId = string.Empty,
-            CollectedAtUtc = DateTimeOffset.UtcNow,
-            Domains = [],
-            UnassignedEndpoints = [],
-            Endpoints = []
-        };
 }

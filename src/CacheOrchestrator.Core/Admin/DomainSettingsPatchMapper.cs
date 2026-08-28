@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace CacheOrchestrator.Admin;
 
 /// <summary>Maps portable Core domain settings from the management wire shape.</summary>
-public static class DomainSettingsPatchMapper
+internal static class DomainSettingsPatchMapper
 {
     /// <summary>Builds a Core patch from portable settings.</summary>
     public static DomainSettingsPatch FromDictionary(IReadOnlyDictionary<string, JsonElement> settings)

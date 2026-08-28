@@ -76,13 +76,13 @@ Effective namespaces:
 
 | Property | Description |
 |----------|-------------|
-| `Provider` | Must match a registered backend (`InMemory` always; `Redis` after `AddRedisBackend()`; custom via `AddBackend`) |
+| `Provider` | Must match a registered backend (`InMemory` always; `Redis` after `AddRedisBackend()`; custom via `AddOutputCacheBackend` or `AddFusionCacheBackend`) |
 | `Namespace` | Optional key prefix override |
 | `{Backend}.*` | Backend-specific block (read by the backend package, e.g. `Redis`, `SqlServer`) |
 
 ## Redis connection (`CacheOrchestrator.Redis` package)
 
-Bound **only** when you call `AddRedisBackend()`. Types: `RedisConnectionOptions` / `RedisConfiguration` in assembly **CacheOrchestrator.Redis**.
+Read **only** after a Redis backend is registered. The binding implementation lives in the transitive `CacheOrchestrator.Redis.Shared` support package and is intentionally not public API.
 
 | Section | Role |
 |---------|------|
@@ -261,8 +261,8 @@ Package-owned validators run on start (`ValidateOnStart`). Core validates portab
 
 - `DataCacheInstances` must contain **`default`**
 - Each domain `DataCache.Instance` must name a registered instance (default `"default"`)
-- Provider must be a registered backend (`InMemory`, `Redis` after `AddRedisBackend()`, custom via `AddBackend`)
-- Output Cache provider must support an Output Cache store (`SupportsOutputCacheStore`)
+- Output Cache provider must match an `IOutputCacheBackendRegistrar` (`InMemory`, `Redis`, or custom via `AddOutputCacheBackend`)
+- Fusion instance providers must match an `IFusionCacheBackendRegistrar` (`InMemory`, `Redis`, or custom via `AddFusionCacheBackend`)
 - Redis provider requires a connection string (`Cache:Redis:Configuration` or the scoped `OutputCache:Redis` / `DataCacheInstances:{name}:Redis` override)
 - Negative TTLs fail; `FusionCache.EagerRefreshRatio` must be in `[0, 1)` when present
 - Allowlists have max lengths (headers, cookies, query, claims, Accept lists)

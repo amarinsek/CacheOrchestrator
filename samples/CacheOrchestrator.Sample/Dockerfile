@@ -10,8 +10,10 @@ WORKDIR /src
 COPY Directory.Build.props ./
 COPY PACKAGE_RELEASE_NOTES.md ./
 COPY docs/assets/logo-small.png docs/assets/logo-small.png
+COPY eng/PublicApi/ eng/PublicApi/
 
 # Project graph first for better layer caching (v3 package split + Redis leaf packages).
+COPY src/CacheOrchestrator.Analyzers/CacheOrchestrator.Analyzers.csproj src/CacheOrchestrator.Analyzers/
 COPY src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj src/CacheOrchestrator.Core/
 COPY src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj src/CacheOrchestrator.FusionCache/
 COPY src/CacheOrchestrator.AspNetCore/CacheOrchestrator.AspNetCore.csproj src/CacheOrchestrator.AspNetCore/
@@ -24,6 +26,7 @@ COPY samples/CacheOrchestrator.Sample/CacheOrchestrator.Sample.csproj samples/Ca
 
 RUN dotnet restore samples/CacheOrchestrator.Sample/CacheOrchestrator.Sample.csproj
 
+COPY src/CacheOrchestrator.Analyzers/ src/CacheOrchestrator.Analyzers/
 COPY src/CacheOrchestrator.Core/ src/CacheOrchestrator.Core/
 COPY src/CacheOrchestrator.FusionCache/ src/CacheOrchestrator.FusionCache/
 COPY src/CacheOrchestrator.AspNetCore/ src/CacheOrchestrator.AspNetCore/

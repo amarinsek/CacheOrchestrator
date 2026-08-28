@@ -52,7 +52,7 @@ Domain (config name)
 Happy path: **no** manual `EnsureDomainOptions` when OC domain is on the endpoint.  
 **Data-cache-only** endpoints: use domain overload or `EnsureDomainOptions`.
 
-**Entity identity:** declare once on `.CacheOutputWithDomain` / `[CacheDomain]` (`resourceRouteKey` + `entityKind` for detail, or `entityKind` alone for collections). `GetOrSetEntityAsync(http, factory)` / `GetOrSetEntitySetAsync` consume it. Extend tags with `EntityCache` / `EntitySet`. Data-cache-only: `SetEntityIdentity`. Explicit kind/id overloads are obsolete.
+**Entity identity:** declare once on `.CacheOutputWithDomain` / `[CacheDomain]` (`resourceRouteKey` + `entityKind` for detail, or `entityKind` alone for collections). `GetOrSetEntityAsync(http, factory)` / `GetOrSetEntitySetAsync` consume it. Extend tags with `EntityCache` / `EntitySet`. Data-cache-only: `SetEntityIdentity`.
 
 **Endpoint cache identity (HTTP method → key material):** without identity metadata, OC is GET/HEAD + Url. Opt in with `.WithCacheIdentity(methods, contractName)` / `.WithContentHashCacheIdentity(methods, …)` (or MVC attributes). A method is Output Cached only when it has a binding. Named contracts are resolved onto endpoint metadata at host start (not per request). Duplicate method bindings fail at registration / analyzer `COIDENTITY001`. Reference: `docs/reference/cache-identity.md`.
 
@@ -71,10 +71,10 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 | API | Namespace |
 |-----|-----------|
 | `AddCacheOrchestratorCore` / `AddCacheOrchestrator` (meta = AspNet + Fusion) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` | `CacheOrchestrator.DependencyInjection` |
-| `ICacheOrchestratorBuilder` / `ICacheBackendRegistrar` (OC) | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
+| `ICacheOrchestratorBuilder` / `IOutputCacheBackendRegistrar` (OC) | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.Backends` |
 | `AddCacheOrchestratorFusionCache` / `IFusionCacheBackendRegistrar` | `CacheOrchestrator.DependencyInjection` / `CacheOrchestrator.FusionCache.Backends` |
 | `AddCacheOrchestratorHybridCache` | `CacheOrchestrator.DependencyInjection` (HybridCache package) |
-| `AddRedisBackend` / `RedisCacheBackendRegistrar` (meta) | `CacheOrchestrator.Redis` |
+| `AddRedisBackend` (meta Redis composition) | `CacheOrchestrator.Redis` |
 | `AddRedisOutputCacheBackend` | `CacheOrchestrator.AspNetCore.Redis` |
 | `AddRedisFusionCacheBackend` | `CacheOrchestrator.FusionCache.Redis` |
 | `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheOrchestrator.OutputCache` |

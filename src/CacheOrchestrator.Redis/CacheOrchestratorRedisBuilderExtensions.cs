@@ -31,7 +31,7 @@ public static class CacheOrchestratorRedisBuilderExtensions
             new RedisProviderOptionsValidator(builder.Configuration, configSection));
 
         RedisCacheBackendRegistrar registrar = new();
-        builder.AddBackend(registrar);
+        builder.AddOutputCacheBackend(registrar);
         FusionCacheBackendRegistrarRegistry.GetOrCreate(builder.Services).Add(registrar);
         return builder;
     }

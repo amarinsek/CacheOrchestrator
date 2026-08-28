@@ -78,12 +78,12 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | `IRequestDomainCacheOptions`, `DomainHttpCacheOptions`, HTTP domain setting types, `ICacheOrchestratorFeature` (**AspNetCore**) | `RequestDomainCacheOptionsProvider`, `CacheOrchestratorHttpOptions`, `CacheOrchestratorHttpOptionsValidator`, `CacheOrchestratorFeature` |
 | `ICacheOrchestratorInvalidator`, `CacheInvalidationResult`, `ICacheInvalidationObserver`, `CacheTags` | `CacheOrchestratorInvalidator` |
 | `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records (`InvalidateCommand`, `VersionBumpCommand`, `SettingsPatchCommand`, …) | `DefaultClusterCommandHandler` |
-| `NullClusterCommandBus`, `NullClusterMembership` | — |
-| `ICacheBackendRegistrar`, `InMemoryCacheBackendRegistrar` | — |
-| Redis: `AddRedisBackend` / `RedisCacheBackendRegistrar` (**CacheOrchestrator.Redis**) | `RedisCacheHealthProbe` |
-| HttpBus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` / `HttpClusterCommandBus` (**CacheOrchestrator.HttpBus**) | `ClusterEndpointAuth` |
+| — | `NullClusterCommandBus`, `NullClusterMembership` |
+| `IOutputCacheBackendRegistrar` | `InMemoryCacheBackendRegistrar` |
+| Redis: `AddRedisBackend` (**CacheOrchestrator.Redis**) | `RedisCacheBackendRegistrar`, `RedisCacheHealthProbe`, all `Redis.Shared` implementation types |
+| HttpBus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` (**CacheOrchestrator.HttpBus**) | `HttpClusterCommandBus`, versioned HTTP wire DTOs, `ClusterEndpointAuth` |
 | `ICacheOrchestratorManagement`, management DTOs and host adapter contracts (**Core**) | `CacheOrchestratorManagement`, `CoreAdminDomainConfigProvider` |
-| `MapCacheOrchestratorAdmin`, `AdminLocalApi` (**AspNetCore HTTP adapter**) | `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
+| `MapCacheOrchestratorAdmin` (**AspNetCore HTTP adapter**) | `AdminLocalApi`, `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
 | `AuthBypassMode`, `ETagMode`, `ClientCacheability`, `DomainAuthEvaluator` (**AspNetCore**) | — |
 | `ICacheVaryContributor`, `CacheVaryMaterializer`, `ICacheVaryBuilder` | — |
 | `DomainOutputCachePolicy`, `[CacheDomain]`, `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheDomainConvention` |
@@ -125,7 +125,7 @@ See [Data Cache](../reference/data-cache.md) for HTTP resolution order and entit
 | `Redis` | **`CacheOrchestrator.Redis`** | StackExchange Redis store | Keyed L2 + Redis backplane per instance |
 | *(Custom)* | Your app | Custom | Keyed L2 recommended for multi-instance |
 
-Register Redis with `AddRedisBackend()` (see [backends.md](../reference/backends.md)). Custom backends use `ICacheBackendRegistrar` + `AddBackend`.
+Register Redis with `AddRedisBackend()` (see [backends.md](../reference/backends.md)). Custom backends use `IOutputCacheBackendRegistrar` + `AddBackend`.
 
 Output Cache and Data Cache providers can differ (for example, InMemory Output Cache with Fusion Redis).
 

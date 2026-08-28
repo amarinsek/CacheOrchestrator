@@ -44,13 +44,8 @@ public interface IAdminStatsCollector
     void RecordInvalidation(string domain);
 
     /// <summary>
-    /// Canonical raw counter snapshot (Admin stats v2). Prefer this over <see cref="GetSnapshot"/>.
+    /// Canonical raw counter snapshot.
     /// </summary>
     AdminLiveStatsRawSnapshot GetRawSnapshot();
 
-    /// <summary>
-    /// Legacy fat snapshot (Admin stats v1). Projects from <see cref="GetRawSnapshot"/> via
-    /// <see cref="AdminStatsV1Mapper"/>. Prefer <see cref="GetRawSnapshot"/> for new code.
-    /// </summary>
-    AdminLiveStatsSnapshot GetSnapshot();
 }

@@ -17,6 +17,7 @@ using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CacheOrchestrator.IntegrationTests.Cluster;
 
@@ -187,12 +188,14 @@ public class ClusterBusMultiHostTests
 
     private static readonly JsonSerializerOptions CommandJson = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     private static StringContent CreateCommandContent(ClusterCommand command)
     {
-        string json = JsonSerializer.Serialize(command, typeof(ClusterCommand), CommandJson);
+        string json = JsonSerializer.Serialize(ClusterCommandEnvelopeV1.FromCommand(command), CommandJson);
         return new StringContent(json, Encoding.UTF8, "application/json");
     }
 

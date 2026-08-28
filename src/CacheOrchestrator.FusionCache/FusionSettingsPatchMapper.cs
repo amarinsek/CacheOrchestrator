@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace CacheOrchestrator.FusionCache;
 
 /// <summary>Maps <c>fusionCache.*</c> Admin overlay keys onto <see cref="IFusionDomainRuntimeOverrideStore"/>.</summary>
-public static class FusionSettingsPatchMapper
+internal static class FusionSettingsPatchMapper
 {
     /// <summary>Applies owned Fusion overlay keys for <paramref name="domain"/>.</summary>
     public static void Apply(

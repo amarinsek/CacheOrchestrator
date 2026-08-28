@@ -1,0 +1,5 @@
+#nullable enable
+CacheOrchestrator.HttpBus.ApplicationBuilderExtensions
+CacheOrchestrator.HttpBus.CacheOrchestratorBusBuilderExtensions
+static CacheOrchestrator.HttpBus.ApplicationBuilderExtensions.MapCacheOrchestratorHttpBus(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
+static CacheOrchestrator.HttpBus.CacheOrchestratorBusBuilderExtensions.AddHttpClusterBus(this CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder! builder, string! configSection = "Cache") -> CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder!

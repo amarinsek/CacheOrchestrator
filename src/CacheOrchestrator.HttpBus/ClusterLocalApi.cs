@@ -15,13 +15,14 @@ namespace CacheOrchestrator.HttpBus;
 /// <summary>
 /// Maps cluster receive endpoints (independent of Local Admin <c>Enabled</c>).
 /// </summary>
-public static class ClusterLocalApi
+internal static class ClusterLocalApi
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     /// <summary>
@@ -66,20 +67,20 @@ public static class ClusterLocalApi
             IOptionsMonitor<CacheOrchestratorOptions> options,
             CancellationToken cancellationToken) =>
         {
-            ClusterCommand? command;
+            ClusterCommand command;
             try
             {
-                command = await JsonSerializer
-                    .DeserializeAsync<ClusterCommand>(request.Body, JsonOptions, cancellationToken)
+                ClusterCommandEnvelopeV1? envelope = await JsonSerializer
+                    .DeserializeAsync<ClusterCommandEnvelopeV1>(request.Body, JsonOptions, cancellationToken)
                     .ConfigureAwait(false);
+                if (envelope is null)
+                    return Results.BadRequest(new { error = "Request body is required." });
+                command = envelope.ToCommand();
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                return Results.BadRequest(new { error = "Invalid cluster command JSON." });
+                return Results.BadRequest(new { error = ex.Message });
             }
-
-            if (command is null)
-                return Results.BadRequest(new { error = "Request body is required." });
 
             if (string.IsNullOrWhiteSpace(command.OriginInstanceId)
                 || string.IsNullOrWhiteSpace(command.Namespace))

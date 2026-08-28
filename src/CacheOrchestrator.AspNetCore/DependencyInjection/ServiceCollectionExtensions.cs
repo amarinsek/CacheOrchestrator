@@ -31,7 +31,7 @@ public static class ServiceCollectionExtensions
     /// <param name="configuration">Application configuration (binds the cache section).</param>
     /// <param name="configure">
     /// Optional builder callback (e.g. <c>o =&gt; o.AddRedisBackend()</c>,
-    /// <c>o.ConfigureOutputCache(...)</c>, <c>o.AddBackend(custom)</c>).
+    /// <c>o.ConfigureOutputCache(...)</c>, <c>o.AddOutputCacheBackend(custom)</c>).
     /// </param>
     /// <param name="configSection">Configuration section name. Default: <c>Cache</c>.</param>
     /// <param name="enableMvcConvention">
@@ -64,7 +64,7 @@ public static class ServiceCollectionExtensions
         DefaultCacheOrchestratorBuilder builder = new(services, configuration);
 
         // Built-in InMemory only. Redis: install CacheOrchestrator.Redis and call AddRedisBackend().
-        builder.AddBackend(new InMemoryCacheBackendRegistrar());
+        builder.AddOutputCacheBackend(new InMemoryCacheBackendRegistrar());
 
         // Allow consumers to add/override providers (e.g. o => o.AddRedisBackend())
         configure?.Invoke(builder);
@@ -88,17 +88,8 @@ public static class ServiceCollectionExtensions
             RegisterControllerConvention(services);
 
         // Register Output Cache (single provider)
-        ICacheBackendRegistrar outputRegistrar = builder.ResolveRegistrar(opts.OutputCache.Provider);
+        IOutputCacheBackendRegistrar outputRegistrar = builder.ResolveRegistrar(opts.OutputCache.Provider);
         RegisterOutputCache(services, configuration, opts, configSection, outputRegistrar, builder);
-
-        outputRegistrar.RegisterHealthProbes(new BackendHealthRegistrationContext(
-            services,
-            configuration,
-            configSection,
-            instanceName: "oc",
-            providerName: outputRegistrar.Name,
-            rootOptions: opts,
-            instanceOptions: new CacheOrchestratorOptions.DataCacheInstanceOptions()));
 
         return services;
     }
@@ -115,17 +106,9 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
 
         HashSet<string> validProviders = new(builder.GetRegisteredProviderNames(), StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, bool> outputCacheSupport = new(StringComparer.OrdinalIgnoreCase);
-        foreach (string name in builder.GetRegisteredProviderNames())
-        {
-            ICacheBackendRegistrar reg = builder.ResolveRegistrar(name);
-            outputCacheSupport[name] = reg.SupportsOutputCacheStore;
-        }
-
         services.AddSingleton<IValidateOptions<CacheOrchestratorOptions>>(sp =>
             new CacheOrchestratorOptionsValidator(
                 validProviders,
-                outputCacheSupport,
                 sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()
                     ?.CreateLogger(typeof(CacheOrchestratorOptionsValidator).FullName
                         ?? nameof(CacheOrchestratorOptionsValidator))));
@@ -200,18 +183,9 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         CacheOrchestratorOptions opts,
         string configSection,
-        ICacheBackendRegistrar registrar,
+        IOutputCacheBackendRegistrar registrar,
         DefaultCacheOrchestratorBuilder builder)
     {
-        if (!registrar.SupportsOutputCacheStore)
-        {
-            throw new InvalidOperationException(
-                $"OutputCache.Provider is '{registrar.Name}', but that backend does not support an Output Cache store " +
-                $"(SupportsOutputCacheStore = false). Use a provider that supports Output Cache " +
-                $"(e.g. InMemory, or Redis via CacheOrchestrator.Redis), " +
-                $"and keep '{registrar.Name}' only under DataCacheInstances.");
-        }
-
         List<Action<OutputCacheOptions>> optionConfigurators = [];
 
         // Base policy: no cache. Output Cache is opt-in via .CacheOutputWithDomain / [CacheDomain].

@@ -112,35 +112,18 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
     }
 
     /// <inheritdoc />
-    public ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
-        return _cache.RemoveByTagAsync(tag, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public ValueTask RemoveByTagAsync(
-        string instanceName,
-        string tag,
+    public async ValueTask InvalidateAsync(
+        DataCacheInvalidationRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(instanceName);
-        // Single HybridCache registration — instance name is not a separate store.
-        return RemoveByTagAsync(tag, cancellationToken);
-    }
+        ArgumentNullException.ThrowIfNull(request);
 
-    /// <inheritdoc />
-    public async ValueTask RemoveByTagsAsync(
-        IEnumerable<string> tags,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(tags);
-
-        foreach (string? tag in tags)
+        foreach (string tag in request.Tags)
         {
-            if (string.IsNullOrWhiteSpace(tag))
-                continue;
-            await RemoveByTagAsync(tag, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(tag))
+            {
+                await _cache.RemoveByTagAsync(tag, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 }

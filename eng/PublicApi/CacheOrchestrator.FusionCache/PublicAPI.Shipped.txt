@@ -1,0 +1,89 @@
+#nullable enable
+CacheOrchestrator.DependencyInjection.CacheOrchestratorFusionCacheServiceExtensions
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext.BackendSection.get -> Microsoft.Extensions.Configuration.IConfigurationSection!
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext.ConfigSection.get -> string!
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext.Configuration.get -> Microsoft.Extensions.Configuration.IConfiguration!
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext.DistributedResilience.get -> CacheOrchestrator.Configuration.DistributedResilienceOptions!
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext.FusionBuilder.get -> ZiggyCreatures.Caching.Fusion.IFusionCacheBuilder!
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext.InstanceName.get -> string!
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext.InstanceOptions.get -> CacheOrchestrator.Configuration.CacheOrchestratorOptions.DataCacheInstanceOptions!
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext.ProviderName.get -> string!
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext.RootOptions.get -> CacheOrchestrator.Configuration.CacheOrchestratorOptions!
+CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext.Services.get -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+CacheOrchestrator.FusionCache.Backends.IFusionCacheBackendRegistrar
+CacheOrchestrator.FusionCache.Backends.IFusionCacheBackendRegistrar.Name.get -> string!
+CacheOrchestrator.FusionCache.Backends.IFusionCacheBackendRegistrar.RegisterFusionCache(CacheOrchestrator.FusionCache.Backends.FusionCacheRegistrationContext! context) -> void
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.AllowBackgroundBackplane.get -> bool?
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.AllowBackgroundBackplane.set -> void
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.AllowBackgroundDistributed.get -> bool?
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.AllowBackgroundDistributed.set -> void
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.DomainFusionCacheSettings() -> void
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.EagerRefreshRatio.get -> double?
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.EagerRefreshRatio.set -> void
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.FactoryHardTimeoutSeconds.get -> int?
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.FactoryHardTimeoutSeconds.set -> void
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.FactorySoftTimeoutSeconds.get -> int?
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.FactorySoftTimeoutSeconds.set -> void
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.FailSafeSeconds.get -> int?
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.FailSafeSeconds.set -> void
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.HardTtlSeconds.get -> int?
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.HardTtlSeconds.set -> void
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.JitterSeconds.get -> int?
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.JitterSeconds.set -> void
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.MaxItemBytes.get -> int?
+CacheOrchestrator.FusionCache.DomainFusionCacheSettings.MaxItemBytes.set -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.AllowBackgroundBackplane.get -> bool?
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.AllowBackgroundBackplane.init -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.AllowBackgroundDistributed.get -> bool?
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.AllowBackgroundDistributed.init -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.EagerRefreshRatio.get -> double?
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.EagerRefreshRatio.init -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.FactoryHardTimeout.get -> System.TimeSpan?
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.FactoryHardTimeout.init -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.FactorySoftTimeout.get -> System.TimeSpan?
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.FactorySoftTimeout.init -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.FailSafe.get -> System.TimeSpan?
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.FailSafe.init -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.FusionDomainRuntimeOverride() -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.HardTtl.get -> System.TimeSpan?
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.HardTtl.init -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.HasAny.get -> bool
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.Jitter.get -> System.TimeSpan?
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.Jitter.init -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.MaxItemBytes.get -> int?
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.MaxItemBytes.init -> void
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.Stamp.get -> int
+CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride.Stamp.init -> void
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.AllowBackgroundBackplane.get -> bool?
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.AllowBackgroundBackplane.init -> void
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.AllowBackgroundDistributed.get -> bool?
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.AllowBackgroundDistributed.init -> void
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.EagerRefreshRatio.get -> double?
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.EagerRefreshRatio.init -> void
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.FactoryHardTimeout.get -> System.TimeSpan?
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.FactoryHardTimeout.init -> void
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.FactorySoftTimeout.get -> System.TimeSpan?
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.FactorySoftTimeout.init -> void
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.FailSafe.get -> System.TimeSpan?
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.FailSafe.init -> void
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.FusionDomainSettingsPatch() -> void
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.HardTtl.get -> System.TimeSpan?
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.HardTtl.init -> void
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.HasAny.get -> bool
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.Jitter.get -> System.TimeSpan?
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.Jitter.init -> void
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.MaxItemBytes.get -> int?
+CacheOrchestrator.FusionCache.FusionDomainSettingsPatch.MaxItemBytes.init -> void
+CacheOrchestrator.FusionCache.IFusionDomainRuntimeOverrideStore
+CacheOrchestrator.FusionCache.IFusionDomainRuntimeOverrideStore.Clear(string! domain) -> bool
+CacheOrchestrator.FusionCache.IFusionDomainRuntimeOverrideStore.Get(string! domain) -> CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride?
+CacheOrchestrator.FusionCache.IFusionDomainRuntimeOverrideStore.GetStamp(string! domain) -> int
+CacheOrchestrator.FusionCache.IFusionDomainRuntimeOverrideStore.PatchSettings(string! domain, CacheOrchestrator.FusionCache.FusionDomainSettingsPatch! patch) -> CacheOrchestrator.FusionCache.FusionDomainRuntimeOverride!
+CacheOrchestrator.FusionCache.IFusionDomainSettingsProvider
+CacheOrchestrator.FusionCache.IFusionDomainSettingsProvider.Get(string! domain) -> CacheOrchestrator.FusionCache.DomainFusionCacheSettings!
+static CacheOrchestrator.DependencyInjection.CacheOrchestratorFusionCacheServiceExtensions.AddCacheOrchestratorFusionCache(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration? configuration = null, string! configSection = "Cache") -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static CacheOrchestrator.DependencyInjection.CacheOrchestratorFusionCacheServiceExtensions.AddFusionCacheBackend(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, CacheOrchestrator.FusionCache.Backends.IFusionCacheBackendRegistrar! registrar) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

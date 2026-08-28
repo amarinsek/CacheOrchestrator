@@ -5,26 +5,22 @@ namespace CacheOrchestrator.Configuration;
 
 /// <summary>
 /// Validates core <see cref="CacheOrchestratorOptions"/> at startup (provider names, TTLs,
-/// data-cache instance references, Output Cache capability).
+/// data-cache instance references, and Output Cache provider names).
 /// Provider-specific connection rules (e.g. Redis) are validated by the corresponding package.
 /// </summary>
 internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<CacheOrchestratorOptions>
 {
     private readonly HashSet<string> _validProviders;
-    private readonly IReadOnlyDictionary<string, bool> _supportsOutputCache;
     private readonly ILogger? _logger;
     private readonly bool _validateOutputCacheProvider;
 
     public CacheOrchestratorOptionsValidator(
         IEnumerable<string> validProviders,
-        IReadOnlyDictionary<string, bool>? supportsOutputCache = null,
         ILogger? logger = null,
         bool validateOutputCacheProvider = true)
     {
         ArgumentNullException.ThrowIfNull(validProviders);
         _validProviders = new HashSet<string>(validProviders, StringComparer.OrdinalIgnoreCase);
-        _supportsOutputCache = supportsOutputCache
-            ?? new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
         _validateOutputCacheProvider = validateOutputCacheProvider;
     }
@@ -42,16 +38,6 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
                 $"OutputCache.Provider must be one of: {string.Join(", ", _validProviders)}. " +
                 $"Current value: '{options.OutputCache.Provider}'.");
         }
-        else if (_validateOutputCacheProvider
-                 && _supportsOutputCache.TryGetValue(options.OutputCache.Provider, out bool supportsOc)
-                 && !supportsOc)
-        {
-            failures.Add(
-                $"OutputCache.Provider '{options.OutputCache.Provider}' does not support an Output Cache store " +
-                $"(SupportsOutputCacheStore = false). Use a provider that implements an Output Cache store " +
-                $"(e.g. InMemory, or Redis via CacheOrchestrator.Redis).");
-        }
-
         if (options.DataCacheInstances.Count == 0)
         {
             failures.Add("DataCacheInstances must contain at least one entry named 'default'.");

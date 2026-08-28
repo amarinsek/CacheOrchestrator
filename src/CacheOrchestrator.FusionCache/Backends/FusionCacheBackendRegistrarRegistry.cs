@@ -6,7 +6,7 @@ namespace CacheOrchestrator.FusionCache.Backends;
 /// <summary>
 /// Mutable registry of <see cref="IFusionCacheBackendRegistrar"/> instances used during DI setup.
 /// </summary>
-public sealed class FusionCacheBackendRegistrarRegistry
+internal sealed class FusionCacheBackendRegistrarRegistry
 {
     private readonly Dictionary<string, IFusionCacheBackendRegistrar> _registrars =
         new(StringComparer.OrdinalIgnoreCase);

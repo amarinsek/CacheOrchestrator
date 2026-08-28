@@ -1,14 +1,9 @@
-using System.Text.Json.Serialization;
-
 namespace CacheOrchestrator.Cluster;
 
 /// <summary>
-/// Base type for cluster-wide CacheOrchestrator commands (never carries cache payloads).
+/// Transport-independent operation published to cluster peers (never carries cache payloads).
+/// Transport packages own their wire format and protocol versioning.
 /// </summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "commandType")]
-[JsonDerivedType(typeof(InvalidateCommand), "invalidate")]
-[JsonDerivedType(typeof(VersionBumpCommand), "versionBump")]
-[JsonDerivedType(typeof(SettingsPatchCommand), "settingsPatch")]
 public abstract record ClusterCommand
 {
     /// <summary>Unique id for this command instance (idempotency / diagnostics).</summary>

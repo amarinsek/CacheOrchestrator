@@ -30,7 +30,7 @@ Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Ad
 ```
 
 - Admin Console App is **never** on the end-user caching hot path.  
-- **Console traffic stats** come only from the OTEL meter scraped into Prometheus (`increase()` over the selected Range per domain/route/`instance_id`). Local Admin `/stats` is process-lifetime diagnostics only (obsolete for analytics).  
+- **Console traffic stats** come only from the OTEL meter scraped into Prometheus (`increase()` over the selected Range per domain/route/`instance_id`). Local Admin `/stats` is a compact process-lifetime raw snapshot for diagnostics.
 - Runtime **Version** and **TTL** overlays are **process-local** on each node unless the optional [cluster bus](cluster-bus.md) publishes them (`distribute: true` / Admin Console App **bus-distribute**). Without bus, Admin Console App **fan-out** must hit every instance that should change.
 
 ---
@@ -164,7 +164,7 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 |--------|------|---------|
 | GET | `/health` | `Healthy` (probes + counters), `InstanceId`, `StartedAtUtc`, `UptimeSeconds`, `Requests` |
 | GET | `/cluster/info` | Bus/membership snapshot (mapped even **without** the Bus package) |
-| GET | `/stats` | **Obsolete** process-lifetime fat DTO (shares + rates) — diagnostics / external tools only; Admin Console does **not** use this for the stats UI |
+| GET | `/stats` | Process-lifetime raw counters — diagnostics / external tools only; Admin Console does **not** use this for the traffic UI |
 | GET | `/endpoints` | Discovered + counted routes |
 | GET | `/domains` | Effective domain options snapshot |
 | GET | `/domains/{name}` | One domain; **404** if unknown |
@@ -175,7 +175,7 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 
 Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
-**Removed:** `GET …/stats/v2` (raw snapshot endpoint). Analytics should use the OTEL meter `CacheOrchestrator` (Prometheus) and Console `GET /api/stats/window`.
+The management contract and HTTP endpoint expose the same `AdminLiveStatsRawSnapshot` shape. Time-window analytics should use the OTEL meter `CacheOrchestrator` (Prometheus) and Console `GET /api/stats/window`.
 
 ### Mutation request bodies
 
@@ -237,13 +237,13 @@ Use `GET /domain-settings/catalog` as the canonical list. A setting is writable 
 
 A successful Version or settings mutation returns the normalized `domain` and complete effective domain snapshot. With `distribute: true`, a peer failure returns `409` with `localApplied: true`, command metadata, and `peerFailures`; the local mutation is not rolled back.
 
-### Local Admin `/stats` (process-lifetime, obsolete for analytics)
+### Local Admin `/stats` (process-lifetime raw snapshot)
 
-Still available for curl/scripts: process-lifetime counters projected into a fat DTO (shares + rates). When `Cache:Admin:TrackLatency` / `TrackResultSize` are on, factory duration and result-size sums are included.
+Designed for curl/scripts and management adapters: process-lifetime counters without presentation shares or rates. When `Cache:Admin:TrackLatency` / `TrackResultSize` are on, factory duration and result-size sums are included.
 
 **Prefer** Prometheus for multi-instance and time windows. Admin Console traffic UI is Prom-only.
 
-Request denominator (same model as window rows):
+The Admin Console derives presentation shares and rates from Prometheus window counters, not from the local raw snapshot. Its request denominator is:
 
 ```text
 requests = (outputCacheHits+outputCacheMisses+outputCacheBypass) if > 0

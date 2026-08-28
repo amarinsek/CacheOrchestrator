@@ -179,7 +179,7 @@ Peer `Id` values are synthetic (`app1-0`, …); anti-echo still uses `OriginInst
 
 ## Commands
 
-Wire type is polymorphic JSON (`commandType` discriminator):
+Core command records are transport-independent semantic operations. `CacheOrchestrator.HttpBus` maps them to an internal, versioned JSON envelope with `protocolVersion: 1` and a `commandType` discriminator:
 
 | `commandType` | Type | ApplyLocal effect |
 |---------------|------|-------------------|
@@ -193,6 +193,7 @@ Every command also carries the common envelope below:
 
 | Field | Contract |
 |-------|----------|
+| `protocolVersion` | HTTP wire protocol version; v1 receivers reject unsupported versions |
 | `commandId` | Globally unique id used for receive-side deduplication |
 | `originInstanceId` | Stable origin process id; receivers use it for anti-echo |
 | `namespace` | Cache isolation boundary; a mismatch is rejected |
@@ -201,7 +202,7 @@ Every command also carries the common envelope below:
 
 `InvalidateCommand` adds `kind`, human-readable `scope`, final `tags`, and optional domain/entity fields. `VersionBumpCommand` adds `domain` and `version`. `SettingsPatchCommand` adds `domain` and the same sparse setting dictionary accepted by the Admin PATCH endpoint.
 
-For a custom transport or discovery integration, implement the Core contracts rather than emulating the HTTP routes: `IClusterMembership` discovers `ClusterPeer` records, `IClusterCommandBus` publishes and returns per-peer outcomes, and the receive path calls `IClusterCommandHandler.ApplyLocalAsync`. Preserve the envelope, report individual peer failures in `ClusterPublishResult`, and never re-publish a received command. See [Extensibility](extensibility.md#cluster-contracts).
+For a custom transport or discovery integration, implement the Core contracts rather than reusing the HTTP JSON: `IClusterMembership` discovers `ClusterPeer` records, `IClusterCommandBus` publishes and returns per-peer outcomes, and the receive path calls `IClusterCommandHandler.ApplyLocalAsync`. Define and version that transport's own wire contract, preserve semantic command metadata, report individual peer failures in `ClusterPublishResult`, and never re-publish a received command. See [Extensibility](extensibility.md#cluster-contracts).
 
 ### Who publishes
 
@@ -213,7 +214,7 @@ For a custom transport or discovery integration, implement the Core contracts ra
 | Admin `PATCH …/domains/{d}/settings` | `distribute: true` → `settingsPatch` |
 | Peer `POST …/cluster/apply` | **Never** (ApplyLocal only) |
 
-`ClusterCommandScope`:
+Internally, command application uses two scopes:
 
 - **Remote** — receive path; suppresses re-publish  
 - **LocalOnly** — Admin without distribute; local apply only  

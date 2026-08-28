@@ -217,11 +217,11 @@ It is not a domain and does not replace entity identity. Keep it stable for one 
 
 Yes, but the extension point depends on what the storage system does:
 
-- implement `ICacheBackendRegistrar` for an ASP.NET Core Output Cache store;
+- implement `IOutputCacheBackendRegistrar` for an ASP.NET Core Output Cache store;
 - implement `IFusionCacheBackendRegistrar` for FusionCache L2 storage or a backplane;
 - implement `IDataCacheProvider` only for a complete Data Cache engine.
 
-The same provider name may have separate registrars for the first two surfaces. `ICacheBackendRegistrar` does not configure `DataCacheInstances`.
+The same provider name may have separate registrars for the first two surfaces. `IOutputCacheBackendRegistrar` does not configure `DataCacheInstances`.
 
 See [Cache backends](../reference/backends.md) and the complete [extensibility catalog](../reference/extensibility.md).
 

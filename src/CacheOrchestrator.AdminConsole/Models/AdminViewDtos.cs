@@ -1,0 +1,425 @@
+namespace CacheOrchestrator.Admin;
+
+/// <summary>OC layer counters with layer rates and request shares.</summary>
+public sealed class AdminLayerDto
+{
+    /// <summary>Cache hits.</summary>
+    public long Hits { get; init; }
+
+    /// <summary>Cache misses.</summary>
+    public long Misses { get; init; }
+
+    /// <summary>Bypassed requests (auth / no-store; not counted in layer hit rate).</summary>
+    public long Bypass { get; init; }
+
+    /// <summary>Output Cache disabled for the domain (not a request-level bypass).</summary>
+    public long Off { get; init; }
+
+    /// <summary><c>hits + misses</c> — sample size for layer rates.</summary>
+    public long LayerSampleSize { get; init; }
+
+    /// <summary>Layer rate: <c>hits / (hits + misses)</c>.</summary>
+    public double? HitRate { get; init; }
+
+    /// <summary>Layer rate: <c>misses / (hits + misses)</c>.</summary>
+    public double? MissRate { get; init; }
+
+    /// <summary>Request share: <c>hits / requests</c>.</summary>
+    public double? HitShare { get; init; }
+
+    /// <summary>Request share: <c>misses / requests</c>.</summary>
+    public double? MissShare { get; init; }
+
+    /// <summary>Request share: <c>bypass / requests</c> (auth / no-store).</summary>
+    public double? BypassShare { get; init; }
+
+    /// <summary>Request share: <c>off / requests</c> (layer disabled).</summary>
+    public double? OffShare { get; init; }
+
+    /// <summary>
+    /// True when the <strong>layer</strong> sample (hits+misses) is positive but below
+    /// <see cref="AdminStatsMath.LowSampleThreshold"/>. Use for <see cref="HitRate"/> / <see cref="MissRate"/>,
+    /// not for request shares (use <see cref="LowRequestSample"/>).
+    /// </summary>
+    public bool LowSample { get; init; }
+
+    /// <summary>
+    /// True when total request denominator is positive but below
+    /// <see cref="AdminStatsMath.LowSampleThreshold"/>. Use for request <c>*Share</c> fields.
+    /// </summary>
+    public bool LowRequestSample { get; init; }
+}
+
+/// <summary>Data-cache layer counters with layer rates and request shares (wire <c>dc</c>).</summary>
+public sealed class AdminDataCacheLayerDto
+{
+    /// <summary>Cache hits.</summary>
+    public long Hits { get; init; }
+
+    /// <summary>Cache misses (factory ran).</summary>
+    public long Misses { get; init; }
+
+    /// <summary>Bypassed requests.</summary>
+    public long Bypass { get; init; }
+
+    /// <summary>Fail-safe stale serves.</summary>
+    public long Stale { get; init; }
+
+    /// <summary>Times the value factory ran.</summary>
+    public long FactoryRuns { get; init; }
+
+    /// <summary>Times the value factory threw.</summary>
+    public long FactoryFailures { get; init; }
+
+    /// <summary><c>hits + misses</c> for layer rates.</summary>
+    public long LayerSampleSize { get; init; }
+
+    /// <summary>Layer rate: hits / (hits + misses).</summary>
+    public double? HitRate { get; init; }
+
+    /// <summary>Layer rate: misses / (hits + misses).</summary>
+    public double? MissRate { get; init; }
+
+    /// <summary>Stale / (hits + misses + stale).</summary>
+    public double? StaleRate { get; init; }
+
+    /// <summary>Request share: hits / requests.</summary>
+    public double? HitShare { get; init; }
+
+    /// <summary>Request share: misses / requests.</summary>
+    public double? MissShare { get; init; }
+
+    /// <summary>Request share: stale / requests.</summary>
+    public double? StaleShare { get; init; }
+
+    /// <summary>Request share: bypass / requests.</summary>
+    public double? BypassShare { get; init; }
+
+    /// <summary>
+    /// Request share: factoryRuns / requests (data-cache factory / miss path).
+    /// Also known as origin share in CDN terms.
+    /// </summary>
+    public double? FactoryShare { get; init; }
+
+    /// <summary>
+    /// True when the data-cache <strong>layer</strong> sample (hits+misses) is positive but below
+    /// <see cref="AdminStatsMath.LowSampleThreshold"/>. Use for layer rates only.
+    /// </summary>
+    public bool LowSample { get; init; }
+
+    /// <summary>
+    /// True when total request denominator is positive but below
+    /// <see cref="AdminStatsMath.LowSampleThreshold"/>. Use for request shares
+    /// (including <see cref="FactoryShare"/> / FC hit share).
+    /// </summary>
+    public bool LowRequestSample { get; init; }
+}
+
+/// <summary>
+/// Approximate pipeline breakdown of requests (shares of the same denominator).
+/// Exclusive serving mix: OC hit + FC fresh hit + factory invocations (FA run).
+/// FC stale is an overlay (subset of factory runs), not a fourth exclusive segment.
+/// Bypass is a layer skip reason (auth / no-store), not a mix bucket.
+/// </summary>
+public sealed class AdminPipelineDto
+{
+    /// <summary>Served entirely from Output Cache.</summary>
+    public double? OutputCacheHitShare { get; init; }
+
+    /// <summary>Served from data cache without factory (fresh hit).</summary>
+    public double? DataCacheHitShare { get; init; }
+
+    /// <summary>
+    /// Fail-safe stale serve share of requests (<c>stale / requests</c>).
+    /// Overlay only — stale is also counted in <see cref="FactoryShare"/>.
+    /// </summary>
+    public double? StaleShare { get; init; }
+
+    /// <summary>
+    /// Factory callback share of requests (factoryRuns / requests), including data cache disabled.
+    /// Also known as origin share. Exclusive mix sibling of OC hit and FC hit.
+    /// </summary>
+    public double? FactoryShare { get; init; }
+
+    /// <summary>
+    /// Auth / no-store bypass share (layer skip overlay; not part of the exclusive mix).
+    /// </summary>
+    public double? BypassShare { get; init; }
+
+    /// <summary>
+    /// Residual after OC hit + FC hit + factory runs (should be ~0 when factory is counted on off/bypass).
+    /// </summary>
+    public double? OtherShare { get; init; }
+}
+
+/// <summary>Rule-based operational hint (recommendations engine).</summary>
+public sealed class AdminHintDto
+{
+    /// <summary><c>Info</c>, <c>Warning</c>, or <c>Critical</c>.</summary>
+    public required string Severity { get; init; }
+
+    /// <summary>Stable machine-readable code (e.g. <c>low-fc-hit-rate</c>).</summary>
+    public required string Code { get; init; }
+
+    /// <summary>Optional table-chip label (at most 3 characters) from the rule definition.</summary>
+    public string? Badge { get; init; }
+
+    /// <summary>Human-readable suggestion.</summary>
+    public required string Message { get; init; }
+}
+
+/// <summary>
+/// Aggregated hint counts for cluster / instance header chips.
+/// Highest severity present drives urgency styling.
+/// </summary>
+public sealed class AdminHintSummaryDto
+{
+    /// <summary>Info count.</summary>
+    public int Info { get; init; }
+
+    /// <summary>Warning count.</summary>
+    public int Warning { get; init; }
+
+    /// <summary>Critical count.</summary>
+    public int Critical { get; init; }
+
+    /// <summary>Total hints.</summary>
+    public int Total => Info + Warning + Critical;
+
+    /// <summary>Highest severity present: Critical, Warning, Info, or None.</summary>
+    public string MaxSeverity =>
+        Critical > 0 ? "Critical" : Warning > 0 ? "Warning" : Info > 0 ? "Info" : "None";
+}
+
+/// <summary>Spread of a ratio across instances (heterogeneity signal).</summary>
+public sealed class AdminShareSpreadDto
+{
+    /// <summary>Minimum observed ratio.</summary>
+    public double? Min { get; init; }
+
+    /// <summary>Maximum observed ratio.</summary>
+    public double? Max { get; init; }
+
+    /// <summary>Arithmetic mean across instances that reported a value.</summary>
+    public double? Mean { get; init; }
+
+    /// <summary>Population stdev; null when fewer than 2 samples.</summary>
+    public double? Stdev { get; init; }
+
+    /// <summary>Number of instance values included.</summary>
+    public int SampleCount { get; init; }
+}
+
+/// <summary>Optional per-metric instance spreads for a cluster aggregate row.</summary>
+public sealed class AdminInstanceSpreadDto
+{
+    /// <summary>OC hit share across instances.</summary>
+    public AdminShareSpreadDto? OutputCacheHitShare { get; init; }
+
+    /// <summary>FC hit share across instances.</summary>
+    public AdminShareSpreadDto? DataCacheHitShare { get; init; }
+
+    /// <summary>FC miss share across instances.</summary>
+    public AdminShareSpreadDto? DataCacheMissShare { get; init; }
+
+    /// <summary>Factory share across instances (also known as origin share).</summary>
+    public AdminShareSpreadDto? FactoryShare { get; init; }
+
+    /// <summary>OC layer hit rate across instances.</summary>
+    public AdminShareSpreadDto? OutputCacheHitRate { get; init; }
+
+    /// <summary>FC layer hit rate across instances.</summary>
+    public AdminShareSpreadDto? DataCacheHitRate { get; init; }
+}
+
+/// <summary>Full live stats payload from one instance.</summary>
+public sealed class AdminLiveStatsSnapshot
+{
+    /// <summary>Instance identifier.</summary>
+    public required string InstanceId { get; init; }
+
+    /// <summary>UTC collection time.</summary>
+    public DateTimeOffset CollectedAtUtc { get; init; }
+
+    /// <summary>Per-domain aggregates (may include nested endpoints).</summary>
+    public required IReadOnlyList<AdminDomainStatsDto> Domains { get; init; }
+
+    /// <summary>Endpoints without a known domain.</summary>
+    public required IReadOnlyList<AdminEndpointStatsDto> UnassignedEndpoints { get; init; }
+
+    /// <summary>
+    /// Flat endpoint list (all domains + unassigned) for EP-first consumers.
+    /// </summary>
+    public IReadOnlyList<AdminEndpointStatsDto> Endpoints { get; init; } = [];
+}
+
+/// <summary>Domain-level live stats.</summary>
+public sealed class AdminDomainStatsDto
+{
+    /// <summary>Normalized domain name.</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Instance id when this row is instance-scoped; null for aggregates.</summary>
+    public string? InstanceId { get; init; }
+
+    /// <summary>Effective Version.</summary>
+    public required string Version { get; init; }
+
+    /// <summary>True when Version is a runtime override.</summary>
+    public bool VersionIsRuntimeOverride { get; init; }
+
+    /// <summary>Client Cache Schedule phase wire value.</summary>
+    public string? SchedulePhase { get; init; }
+
+    /// <summary>Last successful invalidation UTC.</summary>
+    public DateTimeOffset? LastInvalidationUtc { get; init; }
+
+    /// <summary>Successful invalidation count (process lifetime on instance; sum on cluster).</summary>
+    public long Invalidations { get; init; }
+
+    /// <summary>Request denominator for shares.</summary>
+    public long Requests { get; init; }
+
+    /// <summary>
+    /// Peak OC request rate (req/s) in the selected window when filled by Admin Console
+    /// from Prometheus <c>max_over_time(rate(...[1m]))</c>. Null when unknown.
+    /// </summary>
+    public double? PeakRequestRate { get; init; }
+
+    /// <summary>Output Cache counters + rates/shares.</summary>
+    public required AdminLayerDto OutputCache { get; init; }
+
+    /// <summary>Data-cache counters + rates/shares (wire <c>dc</c>).</summary>
+    public required AdminDataCacheLayerDto DataCache { get; init; }
+
+    /// <summary>Pipeline shares of requests.</summary>
+    public AdminPipelineDto Pipeline { get; init; } = new();
+
+    /// <summary>Endpoints attributed to this domain.</summary>
+    public IReadOnlyList<AdminEndpointStatsDto> Endpoints { get; init; } = [];
+
+    /// <summary>Per-instance rows when cluster view groups by instance.</summary>
+    public IReadOnlyList<AdminDomainStatsDto>? ByInstance { get; init; }
+
+    /// <summary>Spread of key shares/rates across instances (cluster only).</summary>
+    public AdminInstanceSpreadDto? InstanceSpread { get; init; }
+
+    /// <summary>Rule-based recommendations for this domain.</summary>
+    public IReadOnlyList<AdminHintDto> Hints { get; init; } = [];
+
+    /// <summary>
+    /// Optional impact KPIs (factory avoidance, time saved, benefit/candidate).
+    /// Local Admin leaves this null; Admin Console fills after derive.
+    /// </summary>
+    public CacheImpactKpiDto? Impact { get; init; }
+}
+
+/// <summary>Endpoint-level live stats (fundamental unit).</summary>
+public sealed class AdminEndpointStatsDto
+{
+    /// <summary>e.g. <c>GET /api/products/{id}</c>.</summary>
+    public required string Route { get; init; }
+
+    /// <summary>Instance id when row is instance-scoped.</summary>
+    public string? InstanceId { get; init; }
+
+    /// <summary>Configured or runtime domain, if known.</summary>
+    public string? ConfiguredDomain { get; init; }
+
+    /// <summary>Request denominator for shares.</summary>
+    public long Requests { get; init; }
+
+    /// <summary>
+    /// Peak OC request rate (req/s) in the selected window when filled by Admin Console
+    /// from Prometheus. Null when unknown.
+    /// </summary>
+    public double? PeakRequestRate { get; init; }
+
+    /// <summary>Output Cache layer.</summary>
+    public required AdminLayerDto OutputCache { get; init; }
+
+    /// <summary>Data-cache layer (wire <c>dc</c>).</summary>
+    public required AdminDataCacheLayerDto DataCache { get; init; }
+
+    /// <summary>Pipeline shares.</summary>
+    public AdminPipelineDto Pipeline { get; init; } = new();
+
+    /// <summary>Per-instance breakdown when clustered.</summary>
+    public IReadOnlyList<AdminEndpointStatsDto>? ByInstance { get; init; }
+
+    /// <summary>Spread across instances.</summary>
+    public AdminInstanceSpreadDto? InstanceSpread { get; init; }
+
+    /// <summary>Rule-based recommendations for this endpoint.</summary>
+    public IReadOnlyList<AdminHintDto> Hints { get; init; } = [];
+
+    /// <summary>
+    /// Optional impact KPIs. Local Admin leaves null; Admin Console fills after derive.
+    /// </summary>
+    public CacheImpactKpiDto? Impact { get; init; }
+}
+
+/// <summary>
+/// Console-oriented cache impact KPIs derived from raw counters (not produced by Local Admin).
+/// </summary>
+public sealed class CacheImpactKpiDto
+{
+    /// <summary><c>1 - factoryRuns/requests</c> when requests &gt; 0.</summary>
+    public double? FactoryAvoidance { get; init; }
+
+    /// <summary><c>factoryRuns/requests</c> when requests &gt; 0.</summary>
+    public double? FactoryShare { get; init; }
+
+    /// <summary>Average factory-path duration in milliseconds.</summary>
+    public double? AvgFactoryDurationMs { get; init; }
+
+    /// <summary>Estimated factory time saved: avoided calls × avg factory duration (ms).</summary>
+    public double? EstFactoryTimeSavedMs { get; init; }
+
+    /// <summary>
+    /// Approximate time-saved ratio:
+    /// <c>timeSaved / (timeSaved + factoryDurationSum)</c>.
+    /// </summary>
+    public double? TimeSavedRatio { get; init; }
+
+    /// <summary>Sum of factory-path durations (ms).</summary>
+    public double? FactoryDurationSumMs { get; init; }
+
+    /// <summary>Factory-path duration sample count.</summary>
+    public long FactoryDurationCount { get; init; }
+
+    /// <summary>Average measured factory result size in bytes.</summary>
+    public double? AvgFactoryResultSizeBytes { get; init; }
+
+    /// <summary>
+    /// Estimated payload offload: avoided factory calls × avg result size (bytes).
+    /// </summary>
+    public double? EstPayloadOffloadBytes { get; init; }
+
+    /// <summary>Sum of measured factory result sizes (bytes).</summary>
+    public long? FactoryResultSizeSumBytes { get; init; }
+
+    /// <summary>Factory result size sample count.</summary>
+    public long FactoryResultSizeCount { get; init; }
+
+    /// <summary>True when result-size samples are missing or too few.</summary>
+    public bool LowSizeSample { get; init; }
+
+    /// <summary>
+    /// Benefit band: <c>HIGH</c>, <c>MEDIUM</c>, <c>LOW_GAIN</c>, <c>AT_RISK</c>, <c>LOW</c>, <c>UNKNOWN</c>.
+    /// </summary>
+    public required string Benefit { get; init; }
+
+    /// <summary>
+    /// Cache-candidate / worthiness:
+    /// <c>STRONG</c>, <c>VOLUME</c>, <c>LIMITED</c>, <c>POOR</c>, <c>NEEDS_TUNING</c>, <c>INSUFFICIENT_DATA</c>.
+    /// </summary>
+    public required string Candidate { get; init; }
+
+    /// <summary>True when request sample is too small for strong claims.</summary>
+    public bool LowRequestSample { get; init; }
+
+    /// <summary>True when factory duration samples are missing or too few.</summary>
+    public bool LowDurationSample { get; init; }
+}
+

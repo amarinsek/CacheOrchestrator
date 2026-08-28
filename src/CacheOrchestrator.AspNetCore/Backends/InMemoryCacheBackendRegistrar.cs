@@ -3,13 +3,10 @@ namespace CacheOrchestrator.Backends;
 /// <summary>
 /// Registers the in-process memory Output Cache store.
 /// </summary>
-public sealed class InMemoryCacheBackendRegistrar : ICacheBackendRegistrar
+internal sealed class InMemoryCacheBackendRegistrar : IOutputCacheBackendRegistrar
 {
     /// <inheritdoc />
     public string Name => "InMemory";
-
-    /// <inheritdoc />
-    public bool SupportsOutputCacheStore => true;
 
     /// <inheritdoc />
     public void RegisterOutputCache(OutputCacheRegistrationContext context)
@@ -24,9 +21,4 @@ public sealed class InMemoryCacheBackendRegistrar : ICacheBackendRegistrar
         });
     }
 
-    /// <inheritdoc />
-    public void RegisterHealthProbes(BackendHealthRegistrationContext context)
-    {
-        // In-process memory has no external dependency to probe.
-    }
 }

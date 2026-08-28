@@ -7,7 +7,7 @@ namespace CacheOrchestrator.Utilities;
 /// Cheap, optional size estimation for factory results. Returns null when size is unknown
 /// without expensive serialization.
 /// </summary>
-public static class FactoryResultSize
+internal static class FactoryResultSize
 {
     /// <summary>
     /// Estimates payload size in bytes for known shapes (string UTF-8, byte buffers, seekable streams).

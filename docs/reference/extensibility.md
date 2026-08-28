@@ -16,7 +16,7 @@ This page distinguishes supported application extension points from provider- an
 | Replace the complete HTTP Data Cache key algorithm | `IDomainKeyGenerator` | Application, advanced |
 | Audit invalidations or send a webhook | `ICacheInvalidationObserver` | Application |
 | Add a readiness probe | `ICacheOrchestratorHealthProbe` | Application or provider |
-| Add an Output Cache store | `ICacheBackendRegistrar` | Backend package |
+| Add an Output Cache store | `IOutputCacheBackendRegistrar` | Backend package |
 | Add FusionCache L2 or a backplane | `IFusionCacheBackendRegistrar` | Backend package |
 | Add a complete Data Cache engine | `IDataCacheProvider` | Provider package |
 | Add provider-specific runtime settings | `DomainSettingCatalog` + `IDomainSettingsPatchContributor` | Provider package |
@@ -127,27 +127,25 @@ public sealed class SearchClusterCacheProbe : ICacheOrchestratorHealthProbe
 builder.Services.AddSingleton<ICacheOrchestratorHealthProbe, SearchClusterCacheProbe>();
 ```
 
-`AddCacheOrchestrator` on `IHealthChecksBuilder` runs all registered probes. Provider registrars can add probes through their health registration context. See [observability](observability.md#health-checks).
+`AddCacheOrchestrator` on `IHealthChecksBuilder` runs all registered probes. Provider registrars add probes through `context.Services` in their main registration method. See [observability](observability.md#health-checks).
 
-## Output Cache store: `ICacheBackendRegistrar`
+## Output Cache store: `IOutputCacheBackendRegistrar`
 
-`ICacheBackendRegistrar` configures **only the Output Cache storage surface**. Its `Name` matches `Cache:OutputCache:Provider`.
+`IOutputCacheBackendRegistrar` configures **only the Output Cache storage surface**. Its `Name` matches `Cache:OutputCache:Provider`.
 
 | Member | Purpose |
 |--------|---------|
 | `Name` | Provider name used in configuration |
-| `SupportsOutputCacheStore` | Whether the provider may be selected for Output Cache |
 | `RegisterOutputCache(OutputCacheRegistrationContext)` | Configure `OutputCacheOptions` and register the store |
-| `RegisterHealthProbes(BackendHealthRegistrationContext)` | Add backend readiness probes |
 
 Use `context.Configure(...)` instead of calling `AddOutputCache` yourself. Use `context.RegisterStore(...)` when an adapter must register after the shared Output Cache services. Backend-specific configuration is available at `context.BackendSection` under `{root}:OutputCache:{Provider}`.
 
-Register it through `ICacheOrchestratorBuilder.AddBackend`:
+Register it through `ICacheOrchestratorBuilder.AddOutputCacheBackend`:
 
 ```csharp
 builder.Services.AddCacheOrchestratorAspNetCore(
     builder.Configuration,
-    options => options.AddBackend(new MyOutputCacheRegistrar()));
+    options => options.AddOutputCacheBackend(new MyOutputCacheRegistrar()));
 ```
 
 ## FusionCache L2/backplane: `IFusionCacheBackendRegistrar`
@@ -173,8 +171,7 @@ Implement `IDataCacheProvider` only when adding a complete engine alongside Fusi
 | `Name` | Stable provider name used in diagnostics |
 | `GetOrCreateAsync<T>` | Read or produce a value using the complete `DataCacheProviderRequest` |
 | `SetAsync<T>` | Overwrite the value and final tags after footprint expansion |
-| `RemoveByTagAsync` | Remove one tag from all instances or one named instance |
-| `RemoveByTagsAsync` | Remove several tags from all instances |
+| `InvalidateAsync` | Remove all requested tags from one named instance, or from all instances when `InstanceName` is `null` |
 
 `DataCacheProviderRequest` contains:
 
@@ -186,6 +183,8 @@ Implement `IDataCacheProvider` only when adding a complete engine alongside Fusi
 | `DomainOptions` | Resolved portable policy snapshot |
 
 The provider must preserve generic values, cancellation, null/negative-cache payloads, named-instance isolation, and tag invalidation. It must not rebuild HTTP vary material.
+
+`DataCacheInvalidationRequest` deliberately groups `Tags` and optional `InstanceName` into one operation. New optional provider features should be introduced as separate capability interfaces instead of growing `IDataCacheProvider` with unrelated members.
 
 Register exactly one provider. Core registration uses `TryAddSingleton`, so an application-owned provider can be registered first:
 
@@ -214,7 +213,7 @@ FusionCache uses this mechanism for `fusionCache.hardTtlSeconds`, fail-safe, jit
 
 ## Satellite-package builders
 
-`ICacheOrchestratorServiceBuilder` exposes `Services` and `Configuration` to packages that add host services without depending on Output Cache registration. `ICacheOrchestratorBuilder` extends it with `AddBackend` and `ConfigureOutputCache` for ASP.NET Core composition.
+`ICacheOrchestratorServiceBuilder` exposes `Services` and `Configuration` to packages that add host services without depending on Output Cache registration. `ICacheOrchestratorBuilder` extends it with `AddOutputCacheBackend` and `ConfigureOutputCache` for ASP.NET Core composition.
 
 Integration packages should add focused extension methods on the narrowest builder they require. The EF Core invalidation and HttpBus packages follow this pattern. Applications normally use the shipped extension methods rather than implement either builder.
 
@@ -227,7 +226,7 @@ Integration packages should add focused extension methods on the narrowest build
 | `IClusterCommandHandler` | Apply a received command locally without re-publishing | Built-in handler |
 | `IInstanceIdProvider` | Stable local process id for Admin and anti-echo | `Cache:InstanceId`, then machine name |
 
-Custom transports should publish commands without cache payloads, preserve `CommandId`, namespace, origin, timestamp, and correlation id, and return individual peer failures in `ClusterPublishResult`. A received command must be applied through `IClusterCommandHandler.ApplyLocalAsync` so remote scope suppresses echo.
+Custom transports should publish commands without cache payloads, preserve `CommandId`, namespace, origin, timestamp, and correlation id, and return individual peer failures in `ClusterPublishResult`. A received command must be applied through `IClusterCommandHandler.ApplyLocalAsync` so remote scope suppresses echo. Command records are semantic Core contracts, not a prescribed serialized form; each transport owns and versions its wire protocol.
 
 Use the shipped `CacheOrchestrator.HttpBus` unless another transport or discovery system is a firm infrastructure requirement. See [cluster command bus](cluster-bus.md).
 

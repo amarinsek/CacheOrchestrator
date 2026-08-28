@@ -13,7 +13,7 @@ namespace CacheOrchestrator.Backends;
 /// <item><c>{section}:DataCacheInstances:{instance}:{Provider}</c> — e.g. <c>Cache:DataCacheInstances:default:SqlServer</c></item>
 /// </list>
 /// </remarks>
-public static class BackendConfiguration
+internal static class BackendConfiguration
 {
     /// <summary>
     /// Section for Output Cache backend settings: <c>{configSection}:OutputCache:{providerName}</c>.

@@ -14,9 +14,8 @@ public interface ICacheOrchestratorManagement
     /// <summary>Returns local cluster identity, membership, and peers.</summary>
     Task<AdminClusterInfoDto> GetClusterInfoAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Returns process-lifetime diagnostic statistics.</summary>
-    [Obsolete("Prefer OTEL/Prometheus for analytics. Process-lifetime stats are for diagnostics only.")]
-    AdminLiveStatsSnapshot GetStats();
+    /// <summary>Returns canonical raw process-lifetime diagnostic counters.</summary>
+    AdminLiveStatsRawSnapshot GetStats();
 
     /// <summary>Returns resources discovered by the current host adapter.</summary>
     IReadOnlyList<AdminEndpointInfoDto> GetEndpoints();

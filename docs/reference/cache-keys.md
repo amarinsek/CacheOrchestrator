@@ -103,7 +103,7 @@ Order of query keys does not matter: `?a=1&b=2` and `?b=2&a=1` produce the same 
 
 #### Entity keys (`GetOrSetEntityAsync`)
 
-Primary kind and resource id come from the request (`[CacheDomain]` / `CacheOutputWithDomain` with `resourceRouteKey`, or `SetEntityIdentity`). Obsolete explicit overloads still set Items for the duration of the call and restore afterwards.
+Primary kind and resource id come from the request (`[CacheDomain]` / `CacheOutputWithDomain` with `resourceRouteKey`, or `SetEntityIdentity`).
 
 | Input | Included |
 |-------|----------|
@@ -113,7 +113,7 @@ Primary kind and resource id come from the request (`[CacheDomain]` / `CacheOutp
 
 `GetOrSetEntitySetAsync` and URL-shaped `GetOrSetAsync` temporarily ignore stamped entity identity while building the key so a request that also has primary kind/id (from Output Cache or `SetEntityIdentity`) still gets a path/query key. Entity tags for collections come from `EntitySet`, not from the lookup key.
 
-Unusable kind or id (whitespace, or only punctuation such as `!!!`) does **not** become `default`. Explicit overloads throw; invalidators skip those values. Happy-path `GetOrSetEntityAsync(http, factory)` throws if identity is missing on the request.
+Unusable kind or id (whitespace, or only punctuation such as `!!!`) does **not** become `default`; invalidators skip those values. `GetOrSetEntityAsync(http, factory)` throws if identity is missing on the request.
 
 Use entity keys for CRUD-style resources so invalidation can target `entity:{domain}:{entityKind}:{id}` without depending on the full URL shape. Wire the matching Output Cache route with `resourceRouteKey` **and** `entityKind`, or kind-only for collections ([invalidation.md](invalidation.md#wiring-entity-tags)).
 

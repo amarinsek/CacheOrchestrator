@@ -60,4 +60,15 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
     <PackageReference Include="MinVer" Version="6.0.0" PrivateAssets="All" />
   </ItemGroup>
+
+  <!-- Public API baselines are release contracts for every packable library. -->
+  <PropertyGroup>
+    <_PublicApiProjectNames>;CacheOrchestrator;CacheOrchestrator.AspNetCore;CacheOrchestrator.AspNetCore.Redis;CacheOrchestrator.Core;CacheOrchestrator.EFCore.Invalidation;CacheOrchestrator.FusionCache;CacheOrchestrator.FusionCache.Redis;CacheOrchestrator.HttpBus;CacheOrchestrator.HybridCache;CacheOrchestrator.Redis;CacheOrchestrator.Redis.Shared;</_PublicApiProjectNames>
+    <_IsPublicApiProject>$([System.String]::Copy('$(_PublicApiProjectNames)').Contains(';$(MSBuildProjectName);'))</_IsPublicApiProject>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(_IsPublicApiProject)' == 'true'">
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" PrivateAssets="All" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)eng/PublicApi/$(MSBuildProjectName)/PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)eng/PublicApi/$(MSBuildProjectName)/PublicAPI.Unshipped.txt" />
+  </ItemGroup>
 </Project>

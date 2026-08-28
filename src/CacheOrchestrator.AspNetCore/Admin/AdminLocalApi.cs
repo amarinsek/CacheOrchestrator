@@ -67,11 +67,9 @@ public static class AdminLocalApi
             CancellationToken cancellationToken) =>
             Results.Ok(await management.GetClusterInfoAsync(cancellationToken).ConfigureAwait(false)));
 
-        // Obsolete: process-lifetime counters. Prefer OTEL/Prometheus for analytics.
+        // Process-lifetime raw counters. Prefer OTEL/Prometheus for time-window analytics.
         // Kept for external tools; Admin Console stats UI uses Prometheus only.
-#pragma warning disable CS0618
         group.MapGet("/stats", (ICacheOrchestratorManagement management) => Results.Ok(management.GetStats()));
-#pragma warning restore CS0618
 
         group.MapGet("/endpoints", (ICacheOrchestratorManagement management) =>
             Results.Ok(management.GetEndpoints()));

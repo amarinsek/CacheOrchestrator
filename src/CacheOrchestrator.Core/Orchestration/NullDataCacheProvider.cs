@@ -4,7 +4,7 @@ namespace CacheOrchestrator.Orchestration;
 /// Pass-through data-cache provider used when no Fusion/Hybrid package is registered
 /// (Output Cache–only hosts). Factories always run; tag removes are no-ops.
 /// </summary>
-public sealed class NullDataCacheProvider : IDataCacheProvider
+internal sealed class NullDataCacheProvider : IDataCacheProvider
 {
     /// <summary>Shared instance for DI and tests.</summary>
     public static readonly NullDataCacheProvider Instance = new();
@@ -38,27 +38,11 @@ public sealed class NullDataCacheProvider : IDataCacheProvider
     }
 
     /// <inheritdoc />
-    public ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
-        return ValueTask.CompletedTask;
-    }
-
-    /// <inheritdoc />
-    public ValueTask RemoveByTagAsync(
-        string instanceName,
-        string tag,
+    public ValueTask InvalidateAsync(
+        DataCacheInvalidationRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(instanceName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
-        return ValueTask.CompletedTask;
-    }
-
-    /// <inheritdoc />
-    public ValueTask RemoveByTagsAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(tags);
+        ArgumentNullException.ThrowIfNull(request);
         return ValueTask.CompletedTask;
     }
 }

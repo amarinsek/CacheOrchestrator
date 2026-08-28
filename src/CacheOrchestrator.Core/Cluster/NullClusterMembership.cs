@@ -3,7 +3,7 @@ namespace CacheOrchestrator.Cluster;
 /// <summary>
 /// Empty membership — local-only process (default).
 /// </summary>
-public sealed class NullClusterMembership : IClusterMembership
+internal sealed class NullClusterMembership : IClusterMembership
 {
     /// <summary>Shared instance for DI and tests.</summary>
     public static readonly NullClusterMembership Instance = new();

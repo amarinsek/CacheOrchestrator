@@ -29,6 +29,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="CacheOrchestrator.HttpBus.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.IntegrationTests" />
 	</ItemGroup>
 
 	<!-- Align with host TFM: 9.x ships net8 assets; 10.x for net10 (standalone sample host). -->

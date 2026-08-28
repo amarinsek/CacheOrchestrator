@@ -115,7 +115,7 @@ builder.Services.AddHealthChecks()
 
 All arguments shown are the defaults. `timeout` is the health-check registration timeout for the combined probe run. Register additional provider or application probes as `ICacheOrchestratorHealthProbe`; each has a stable `Name` and throws when its dependency is unavailable.
 
-- Runs health probes registered by the active backend providers (via `ICacheBackendRegistrar.RegisterHealthProbes`)
+- Runs health probes registered by active backend providers through their registration context
 - Redis backend registers a probe that pings `IConnectionMultiplexer`  
 - InMemory registers no external probe (healthy if none registered)  
 - Custom backends (e.g., SQL Server) can register their own specific database probes

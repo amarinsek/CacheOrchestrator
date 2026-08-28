@@ -6,7 +6,7 @@ namespace CacheOrchestrator.Backends;
 /// <remarks>
 /// <para>
 /// Implement this interface for custom Output Cache providers (SQL Server, Redis, …).
-/// Register with <c>AddCacheOrchestrator(config, o =&gt; o.AddBackend(new MyRegistrar()))</c>.
+/// Register with <c>AddCacheOrchestrator(config, o =&gt; o.AddOutputCacheBackend(new MyRegistrar()))</c>.
 /// The <see cref="Name"/> must match the <c>Provider</c> value in configuration.
 /// </para>
 /// <para>
@@ -14,7 +14,7 @@ namespace CacheOrchestrator.Backends;
 /// (<c>IFusionCacheBackendRegistrar</c>). Redis registers both surfaces via <c>AddRedisBackend</c>.
 /// </para>
 /// </remarks>
-public interface ICacheBackendRegistrar
+public interface IOutputCacheBackendRegistrar
 {
     /// <summary>
     /// Backend name. Must match the value used in configuration (<c>Provider</c> property).
@@ -22,20 +22,10 @@ public interface ICacheBackendRegistrar
     string Name { get; }
 
     /// <summary>
-    /// When <see langword="false"/>, this backend cannot be selected as <c>OutputCache.Provider</c>.
-    /// Default: <see langword="true"/>.
-    /// </summary>
-    bool SupportsOutputCacheStore => true;
-
-    /// <summary>
     /// Configures Output Cache options and/or registers the Output Cache store for this backend.
     /// </summary>
     /// <param name="context">Registration context (services, config paths, option callbacks).</param>
     void RegisterOutputCache(OutputCacheRegistrationContext context);
 
-    /// <summary>
-    /// Registers health probes for this backend (typically Output Cache key <c>oc</c>).
-    /// </summary>
-    /// <param name="context">Health registration context.</param>
-    void RegisterHealthProbes(BackendHealthRegistrationContext context);
 }
+

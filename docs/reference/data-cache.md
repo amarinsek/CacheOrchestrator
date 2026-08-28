@@ -111,10 +111,6 @@ The same footprint model also covers lists, references, aggregates, nested colle
 
 Also: [domain-profiles.md](../guide/domain-profiles.md), [invalidation.md](invalidation.md), [cache-keys.md](cache-keys.md).
 
-#### Migration (obsolete overloads)
-
-`GetOrSetEntityAsync(http, entityKind, resourceId, …)` and `GetOrSetEntityAsync(http, domain, entityKind, resourceId, …)` are obsolete. Prefer endpoint identity or `SetEntityIdentity`. They remain as thin wrappers until the next major.
-
 For a Data-Cache-only endpoint, set a natural typed ID through the generic extension:
 
 ```csharp

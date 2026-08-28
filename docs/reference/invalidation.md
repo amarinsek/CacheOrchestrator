@@ -152,7 +152,7 @@ Observers are **audit/webhooks on this process only**. Cross-instance purge is t
 
 1. Normalize domain / resource id  
 2. Resolve the Data Cache instance from domain options for domain and entity APIs
-3. `IDataCacheProvider.RemoveByTagAsync`
+3. `IDataCacheProvider.InvalidateAsync` with the complete tag set and target instance
 4. `IOutputCacheStore.EvictByTagAsync`  
 5. Best-effort failures → warnings + `CacheInvalidationResult.Errors`  
 6. Metrics `cache_orchestrator.invalidate` only when **both** layers succeed for that scope  

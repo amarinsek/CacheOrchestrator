@@ -13,7 +13,7 @@ namespace CacheOrchestrator.Redis;
 /// <item>Global <c>{configSection}:Redis</c></item>
 /// </list>
 /// </remarks>
-public static class RedisConfiguration
+internal static class RedisConfiguration
 {
     public const string ProviderName = "Redis";
 

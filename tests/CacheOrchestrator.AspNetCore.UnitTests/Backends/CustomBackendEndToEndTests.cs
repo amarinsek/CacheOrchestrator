@@ -15,7 +15,7 @@ using ZiggyCreatures.Caching.Fusion;
 namespace CacheOrchestrator.AspNetCore.UnitTests.Backends;
 
 /// <summary>
-/// End-to-end proof that a custom <see cref="ICacheBackendRegistrar"/> can supply Fusion L2
+/// End-to-end proof that a custom <see cref="IFusionCacheBackendRegistrar"/> can supply Fusion L2
 /// (keyed <see cref="IDistributedCache"/>) and that values survive a new host / empty L1.
 /// </summary>
 public class CustomBackendEndToEndTests
@@ -76,7 +76,7 @@ public class CustomBackendEndToEndTests
     /// <summary>
     /// Fusion-only custom backend (like a SQL L2 with no Output Cache store).
     /// </summary>
-    private sealed class FakeDbBackendRegistrar : ICacheBackendRegistrar, IFusionCacheBackendRegistrar
+    private sealed class FakeDbBackendRegistrar : IFusionCacheBackendRegistrar
     {
         private readonly ConcurrentDictionary<string, DictionaryDistributedCache> _cachesByInstance;
 
@@ -86,11 +86,6 @@ public class CustomBackendEndToEndTests
         }
 
         public string Name => ProviderName;
-        public bool SupportsOutputCacheStore => false;
-
-        public void RegisterOutputCache(OutputCacheRegistrationContext context) =>
-            throw new InvalidOperationException($"{ProviderName} does not support Output Cache.");
-
         public void RegisterFusionCache(FusionCacheRegistrationContext context)
         {
             DictionaryDistributedCache cache = _cachesByInstance.GetOrAdd(
@@ -99,14 +94,6 @@ public class CustomBackendEndToEndTests
 
             context.Services.TryAddKeyedSingleton<IDistributedCache>(context.InstanceName, cache);
             context.FusionBuilder.WithRegisteredKeyedDistributedCache(context.InstanceName);
-        }
-
-        public void RegisterHealthProbes(BackendHealthRegistrationContext context)
-        {
-        }
-
-        public void RegisterHealthProbes(FusionBackendHealthRegistrationContext context)
-        {
             context.Services.TryAddEnumerable(
                 ServiceDescriptor.Singleton<ICacheOrchestratorHealthProbe, FakeDbHealthProbe>());
         }
@@ -210,28 +197,5 @@ public class CustomBackendEndToEndTests
             sp.GetServices<ICacheOrchestratorHealthProbe>();
 
         probes.Should().Contain(p => p.Name == "fake-db");
-    }
-
-    [Fact]
-    public void CustomBackend_CannotBeUsedAsOutputCacheProvider()
-    {
-        IConfigurationRoot config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Cache:OutputCache:Provider"] = ProviderName,
-                ["Cache:DataCacheInstances:default:Provider"] = "InMemory"
-            })
-            .Build();
-
-        var services = new ServiceCollection();
-        services.AddLogging();
-        var shared = new ConcurrentDictionary<string, DictionaryDistributedCache>(StringComparer.OrdinalIgnoreCase);
-
-        Func<IServiceCollection> act = () => services.AddCacheOrchestratorAspNetCore(
-            config,
-            o => o.AddBackend(new FakeDbBackendRegistrar(shared)));
-
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*does not support an Output Cache store*");
     }
 }

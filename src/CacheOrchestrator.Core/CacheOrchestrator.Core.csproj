@@ -42,10 +42,12 @@
 		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Redis.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.HttpBus.UnitTests" />
+		<InternalsVisibleTo Include="CacheOrchestrator.IntegrationTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.EFCore.Invalidation.UnitTests" />
 		<InternalsVisibleTo Include="CacheOrchestrator.Benchmarks" />
 		<InternalsVisibleTo Include="CacheOrchestrator.HttpBus" />
 		<InternalsVisibleTo Include="CacheOrchestrator.AspNetCore" />
 		<InternalsVisibleTo Include="CacheOrchestrator.FusionCache" />
+		<InternalsVisibleTo Include="CacheOrchestrator.Redis.Shared" />
 	</ItemGroup>
 </Project>

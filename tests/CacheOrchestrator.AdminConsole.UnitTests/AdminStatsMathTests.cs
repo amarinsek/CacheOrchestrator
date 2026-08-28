@@ -1,6 +1,6 @@
 using CacheOrchestrator.Admin;
 
-namespace CacheOrchestrator.Core.UnitTests.Admin;
+namespace CacheOrchestrator.AdminConsole.UnitTests;
 
 public class AdminStatsMathTests
 {
@@ -106,3 +106,4 @@ public class AdminStatsMathTests
         pipe.FactoryShare.Should().BeApproximately(1.0, 0.0001);
     }
 }
+

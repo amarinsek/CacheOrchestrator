@@ -143,6 +143,7 @@ Project-level rules that are easy to miss:
 - Interfaces live next to implementations (there is **no** separate `CacheOrchestrator.Abstractions` assembly).
 - Library code: **`ConfigureAwait(false)`** on awaits; prefer **`sealed`** public concrete types where practical.
 - Keep public API surface small: apps depend on interfaces + DI; default services stay **internal**.
+- Packable projects declare their contract in `eng/PublicApi/{Project}/PublicAPI.Shipped.txt`. New API belongs in `PublicAPI.Unshipped.txt`; removals or signature changes fail the build through `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Move reviewed entries to `Shipped` as part of a release baseline.
 
 ## Documentation
 

@@ -16,9 +16,6 @@ public class RedisOutputCacheBackendRegistrarTests
     public void Name_IsRedis() => _sut.Name.Should().Be("Redis");
 
     [Fact]
-    public void SupportsOutputCacheStore_IsTrue() => _sut.SupportsOutputCacheStore.Should().BeTrue();
-
-    [Fact]
     public void RegisterOutputCache_WhenNoConnectionString_Throws()
     {
         var services = new ServiceCollection();
@@ -51,19 +48,6 @@ public class RedisOutputCacheBackendRegistrarTests
 
         Action act = () => _sut.RegisterOutputCache(context);
         act.Should().NotThrow();
-    }
-
-    [Fact]
-    public void RegisterHealthProbes_AddsProbeForInstance()
-    {
-        var services = new ServiceCollection();
-        var options = new CacheOrchestratorOptions();
-        var instanceOpts = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" };
-        IConfigurationRoot configuration = new ConfigurationBuilder().Build();
-        var context = new BackendHealthRegistrationContext(
-            services, configuration, "Cache", "pii", "Redis", options, instanceOpts);
-
-        _sut.RegisterHealthProbes(context);
         services.Should().Contain(d => d.ServiceType == typeof(ICacheOrchestratorHealthProbe));
     }
 
@@ -71,13 +55,6 @@ public class RedisOutputCacheBackendRegistrarTests
     public void RegisterOutputCache_WhenContextIsNull_Throws()
     {
         Action act = () => _sut.RegisterOutputCache(null!);
-        act.Should().Throw<ArgumentNullException>();
-    }
-
-    [Fact]
-    public void RegisterHealthProbes_WhenContextIsNull_Throws()
-    {
-        Action act = () => _sut.RegisterHealthProbes(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 

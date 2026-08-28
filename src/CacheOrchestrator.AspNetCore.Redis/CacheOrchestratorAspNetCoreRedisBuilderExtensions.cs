@@ -22,7 +22,7 @@ public static class CacheOrchestratorAspNetCoreRedisBuilderExtensions
 
         builder.Services.AddSingleton<IValidateOptions<CacheOrchestratorOptions>>(
             new RedisOutputCacheProviderOptionsValidator(builder.Configuration, configSection));
-        builder.AddBackend(new RedisOutputCacheBackendRegistrar());
+        builder.AddOutputCacheBackend(new RedisOutputCacheBackendRegistrar());
         return builder;
     }
 }

@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Backends;
+using CacheOrchestrator.Backends;
 using CacheOrchestrator.DependencyInjection;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Configuration;
@@ -25,7 +25,7 @@ public class DefaultCacheOrchestratorBuilderTests
     {
         var builder = new DefaultCacheOrchestratorBuilder(_services, _configuration);
 
-        Func<ICacheOrchestratorBuilder> act = () => builder.AddBackend(null!);
+        Func<ICacheOrchestratorBuilder> act = () => builder.AddOutputCacheBackend(null!);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("registrar");
     }
@@ -37,10 +37,10 @@ public class DefaultCacheOrchestratorBuilderTests
     public void AddBackend_WhenNameIsNullOrWhiteSpace_ThrowsArgumentException(string? name)
     {
         var builder = new DefaultCacheOrchestratorBuilder(_services, _configuration);
-        ICacheBackendRegistrar mockRegistrar = Substitute.For<ICacheBackendRegistrar>();
+        IOutputCacheBackendRegistrar mockRegistrar = Substitute.For<IOutputCacheBackendRegistrar>();
         mockRegistrar.Name.Returns(name);
 
-        Func<ICacheOrchestratorBuilder> act = () => builder.AddBackend(mockRegistrar);
+        Func<ICacheOrchestratorBuilder> act = () => builder.AddOutputCacheBackend(mockRegistrar);
 
         act.Should().Throw<ArgumentException>()
            .WithMessage("*Registrar Name cannot be null or empty*")
@@ -51,10 +51,10 @@ public class DefaultCacheOrchestratorBuilderTests
     public void AddBackend_RegistersBackend()
     {
         var builder = new DefaultCacheOrchestratorBuilder(_services, _configuration);
-        ICacheBackendRegistrar mockRegistrar = Substitute.For<ICacheBackendRegistrar>();
+        IOutputCacheBackendRegistrar mockRegistrar = Substitute.For<IOutputCacheBackendRegistrar>();
         mockRegistrar.Name.Returns("CustomDB");
 
-        builder.AddBackend(mockRegistrar);
+        builder.AddOutputCacheBackend(mockRegistrar);
 
         IEnumerable<string> names = builder.GetRegisteredProviderNames();
         names.Should().ContainSingle().Which.Should().Be("CustomDB");
@@ -64,12 +64,12 @@ public class DefaultCacheOrchestratorBuilderTests
     public void ResolveRegistrar_WhenRegistered_ReturnsInstance()
     {
         var builder = new DefaultCacheOrchestratorBuilder(_services, _configuration);
-        ICacheBackendRegistrar mockRegistrar = Substitute.For<ICacheBackendRegistrar>();
+        IOutputCacheBackendRegistrar mockRegistrar = Substitute.For<IOutputCacheBackendRegistrar>();
         mockRegistrar.Name.Returns("CustomDB");
 
-        builder.AddBackend(mockRegistrar);
+        builder.AddOutputCacheBackend(mockRegistrar);
 
-        ICacheBackendRegistrar resolved = builder.ResolveRegistrar("CustomDB");
+        IOutputCacheBackendRegistrar resolved = builder.ResolveRegistrar("CustomDB");
 
         resolved.Should().BeSameAs(mockRegistrar);
     }
@@ -79,7 +79,7 @@ public class DefaultCacheOrchestratorBuilderTests
     {
         var builder = new DefaultCacheOrchestratorBuilder(_services, _configuration);
 
-        Func<ICacheBackendRegistrar> act = () => builder.ResolveRegistrar("MissingDB");
+        Func<IOutputCacheBackendRegistrar> act = () => builder.ResolveRegistrar("MissingDB");
 
         act.Should().Throw<InvalidOperationException>()
            .WithMessage("*Unsupported cache provider 'MissingDB'*");

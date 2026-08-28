@@ -69,10 +69,10 @@ Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
 
 | Responsibility | Package / interface | How |
 |----------------|---------------------|-----|
-| **Output Cache store** | AspNetCore `ICacheBackendRegistrar` | `SupportsOutputCacheStore = true`, implement `RegisterOutputCache` |
+| **Output Cache store** | AspNetCore `IOutputCacheBackendRegistrar` | Implement `RegisterOutputCache` |
 | **Data Cache L2 (Fusion)** | FusionCache `IFusionCacheBackendRegistrar` | `RegisterFusionCache` — **keyed** `IDistributedCache` per instance name; register via `AddFusionCacheBackend` or Redis `AddRedisBackend` |
 | **Complete Data Cache engine** | Core `IDataCacheProvider` | Implement get/create, set, named-instance isolation, generic values, and tag invalidation; register exactly one provider |
-| **Health probes** | Both (optional) | `RegisterHealthProbes` → `ICacheOrchestratorHealthProbe`. Redis registers probes for Output Cache (`oc`) and each Fusion instance. |
+| **Health probes** | Both (optional) | Register `ICacheOrchestratorHealthProbe` from the registrar's main registration method. Redis does this for Output Cache (`oc`) and each Fusion instance. |
 
 ### Output Cache registration rules
 
@@ -80,7 +80,7 @@ Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
    Do **not** call `services.AddOutputCache` yourself — the host does that once.  
 2. Prefer `context.RegisterStore(() => …)` for store packages that must run **after** `AddOutputCache`  
    (e.g. `AddStackExchangeRedisOutputCache`).  
-3. If the store has no ASP.NET Output Cache adapter, set `SupportsOutputCacheStore` to `false` and use that provider only for Fusion L2. Keep Output Cache on `InMemory` or `Redis`. The SQL Server example below does this.
+3. Implement this interface only when the provider has an ASP.NET Output Cache adapter. A Fusion-only provider implements only `IFusionCacheBackendRegistrar`.
 
 ### Fusion L2 rules (multi-instance safe)
 
@@ -91,15 +91,14 @@ Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
 5. Bind settings from `context.BackendSection`  
    (`Cache:DataCacheInstances:{instance}:{Provider}`).
 
-### Config path convention (`BackendConfiguration`)
+### Config path convention
 
 | Surface | Path |
 |---------|------|
 | Output backend | `{section}:OutputCache:{Provider}` e.g. `Cache:OutputCache:SqlServer` |
 | Data Cache backend | `{section}:DataCacheInstances:{instance}:{Provider}` e.g. `Cache:DataCacheInstances:default:SqlServer` |
 
-Helpers: `BackendConfiguration.GetOutputBackendSection` / `GetFusionBackendSection`,  
-or `context.BackendSection` on registration contexts. (`GetFusionBackendSection` reads **`DataCacheInstances`**.)
+Use `context.BackendSection` on the registration context. The Fusion path always reads **`DataCacheInstances`**.
 
 ### Distributed resilience (L2)
 
@@ -147,12 +146,7 @@ public sealed class SqlServerFusionBackendRegistrar : IFusionCacheBackendRegistr
 
         context.FusionBuilder.WithRegisteredKeyedDistributedCache(context.InstanceName);
         // No Redis-style backplane unless you add one yourself.
-    }
-
-    public void RegisterHealthProbes(FusionBackendHealthRegistrationContext context)
-    {
-        // Optional: register a SQL connectivity probe via ICacheOrchestratorHealthProbe
-        // or Microsoft.Extensions.Diagnostics.HealthChecks.
+        // Optional: register ICacheOrchestratorHealthProbe through context.Services.
     }
 }
 ```
@@ -196,11 +190,11 @@ Config:
 
 | API | Purpose |
 |-----|---------|
-| `AddBackend(ICacheBackendRegistrar)` | Register / replace a provider by `Name` |
+| `AddOutputCacheBackend(IOutputCacheBackendRegistrar)` | Register / replace a provider by `Name` |
 | `AddRedisBackend()` | From `CacheOrchestrator.Redis` |
 | `ConfigureOutputCache(Action<OutputCacheOptions>)` | App-level Output Cache options (after backend defaults) |
 
-`AddBackend` is an Output Cache builder API. Fusion registrars use `AddFusionCacheBackend`; complete Data Cache engines are DI providers. See [Extensibility](extensibility.md#data-cache-engine-idatacacheprovider) for the full contracts and registration rules.
+`AddOutputCacheBackend` is specifically an Output Cache builder API. Fusion registrars use `AddFusionCacheBackend`; complete Data Cache engines are DI providers. See [Extensibility](extensibility.md#data-cache-engine-idatacacheprovider) for the full contracts and registration rules.
 
 ## Related
 
