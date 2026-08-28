@@ -238,8 +238,11 @@ Without the package, core registers a Null bus (no peer traffic). Details: **[cl
 | `Membership` | `Null` | `Null` · `Static` · `ServiceDiscovery` |
 | `PeerTimeoutMs` | `2000` | Per-peer HTTP timeout (clamped **100–120_000** ms at publish) |
 | `MaxParallelism` | `32` | Max concurrent peer deliveries (clamped **1–64**) |
-| `DedupeWindowSeconds` | `60` | Receive-side `CommandId` window (`0` = off) |
-| `ApiKey` | empty | `X-Cache-Admin-Key` for receive endpoints; falls back to `Admin:ApiKey` |
+| `DedupeWindowSeconds` | `330` | Receive-side `CommandId` window; must cover `CommandMaxAgeSeconds + ClockSkewSeconds` while HttpBus is enabled |
+| `ApiKey` | empty | `X-Cache-Admin-Key` for receive endpoints; falls back to `Admin:ApiKey`; required when enabled unless unauthenticated mode is explicitly allowed |
+| `AllowUnauthenticated` | `false` | Explicit opt-in for an open bus on an isolated development network |
+| `CommandMaxAgeSeconds` | `300` | Reject commands older than this receive-side freshness window |
+| `ClockSkewSeconds` | `30` | Maximum accepted future clock skew |
 | `Static.Instances[]` | `[]` | `{ Id, Url }` peers when Membership is Static |
 | `ServiceDiscovery.ServiceName` | empty | Logical name for SD (normalized to `http://{name}` when bare) |
 | `ServiceDiscovery.DefaultScheme` | `http` | Scheme for peer URLs |
@@ -266,7 +269,10 @@ Package-owned validators run on start (`ValidateOnStart`). Core validates portab
 - Output Cache provider must match an `IOutputCacheBackendRegistrar` (`InMemory`, `Redis`, or custom via `AddOutputCacheBackend`)
 - Fusion instance providers must match an `IFusionCacheBackendRegistrar` (`InMemory`, `Redis`, or custom via `AddFusionCacheBackend`)
 - Redis provider requires a connection string (`Cache:Redis:Configuration` or the scoped `OutputCache:Redis` / `DataCacheInstances:{name}:Redis` override)
-- Negative TTLs fail; `FusionCache.EagerRefreshRatio` must be in `[0, 1)` when present
+- Negative TTLs and Fusion durations fail; `FusionCache.EagerRefreshRatio` must be in `[0, 1)` when present
+- Effective Fusion factory timeouts must be positive with soft &lt; hard; fail-safe must be disabled (`0`) or cover the effective Data Cache duration
+- Effective `ClientCache.TtlMinSeconds` must not exceed `TtlSeconds`, including inherited default/domain combinations
+- An enabled HttpBus requires an API key unless unauthenticated mode is explicitly allowed; command freshness and clock-skew windows must be valid
 - Allowlists have max lengths (headers, cookies, query, claims, Accept lists)
 - `AuthBypassMode` must be a defined enum value  
 

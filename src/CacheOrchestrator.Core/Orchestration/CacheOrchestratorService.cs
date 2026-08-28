@@ -284,14 +284,18 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
     internal static string BuildPhysicalKey(DomainCacheOptions opts, string logicalKey)
         => string.Concat(opts.Domain, ":", opts.VersionHex, ":", logicalKey);
 
-    internal static IReadOnlyList<string> BuildTags(
+    internal static string[] BuildTags(
         string normalizedDomain,
         EntityFootprint? footprint,
         IReadOnlyList<string>? additionalTags)
     {
-        List<string> tags = footprint is null || ReferenceEquals(footprint, EntityFootprint.Empty)
-            ? [CacheTags.Domain(normalizedDomain)]
-            : [.. footprint.ToTags(normalizedDomain)];
+        bool hasFootprint = footprint is not null && !ReferenceEquals(footprint, EntityFootprint.Empty);
+        if (!hasFootprint && additionalTags is not { Count: > 0 })
+            return [CacheTags.Domain(normalizedDomain)];
+
+        List<string> tags = hasFootprint
+            ? [.. footprint!.ToTags(normalizedDomain)]
+            : [CacheTags.Domain(normalizedDomain)];
 
         if (additionalTags is { Count: > 0 })
         {
@@ -306,7 +310,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
             }
         }
 
-        return tags;
+        return [.. tags];
     }
 
     private static DataCacheProviderRequest CreateProviderRequest(DomainCacheOptions opts, CacheEntryRequest request)

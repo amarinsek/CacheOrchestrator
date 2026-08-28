@@ -23,22 +23,30 @@ internal sealed class CacheOrchestratorHttpOptionsValidator : IValidateOptions<C
                 $"Unsupported OutputCache provider '{options.OutputCache.Provider}'. " +
                 $"Registered providers: {string.Join(", ", _validOutputProviders)}.");
         }
-        Validate("DomainDefaults", options.DomainDefaults, failures);
+        Validate("DomainDefaults", options.DomainDefaults, options.DomainDefaults, failures);
         foreach ((string domain, DomainHttpCacheSettings settings) in options.Domains)
         {
-            Validate($"Domain '{domain}'", settings, failures);
+            Validate($"Domain '{domain}'", settings, options.DomainDefaults, failures);
         }
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 
-    private static void Validate(string label, DomainHttpCacheSettings settings, List<string> failures)
+    private static void Validate(
+        string label,
+        DomainHttpCacheSettings settings,
+        DomainHttpCacheSettings defaults,
+        List<string> failures)
     {
         NonNegative(label, "OutputCache.TtlSeconds", settings.OutputCache?.TtlSeconds, failures);
         NonNegative(label, "ClientCache.TtlSeconds", settings.ClientCache?.TtlSeconds, failures);
         NonNegative(label, "ClientCache.TtlMinSeconds", settings.ClientCache?.TtlMinSeconds, failures);
-        if (settings.ClientCache?.TtlSeconds is int ttl
-            && settings.ClientCache.TtlMinSeconds is int min
-            && min > ttl)
+        int ttl = settings.ClientCache?.TtlSeconds
+            ?? defaults.ClientCache?.TtlSeconds
+            ?? 3600;
+        int min = settings.ClientCache?.TtlMinSeconds
+            ?? defaults.ClientCache?.TtlMinSeconds
+            ?? 60;
+        if (min > ttl)
         {
             failures.Add($"{label}: ClientCache.TtlMinSeconds must be <= ClientCache.TtlSeconds.");
         }

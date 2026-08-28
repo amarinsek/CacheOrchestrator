@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
+    <ProjectReference Include="..\..\src\CacheOrchestrator.HybridCache\CacheOrchestrator.HybridCache.csproj" />
   </ItemGroup>
 
   <ItemGroup>

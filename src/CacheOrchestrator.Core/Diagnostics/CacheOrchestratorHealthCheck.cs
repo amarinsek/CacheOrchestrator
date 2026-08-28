@@ -1,4 +1,5 @@
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
@@ -11,19 +12,23 @@ internal sealed class CacheOrchestratorHealthCheck : IHealthCheck
 {
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly IEnumerable<ICacheOrchestratorHealthProbe> _probes;
+    private readonly IDataCacheProvider _dataCacheProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CacheOrchestratorHealthCheck"/> class.
     /// </summary>
     public CacheOrchestratorHealthCheck(
         IOptionsMonitor<CacheOrchestratorOptions> options,
-        IEnumerable<ICacheOrchestratorHealthProbe> probes)
+        IEnumerable<ICacheOrchestratorHealthProbe> probes,
+        IDataCacheProvider dataCacheProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(probes);
+        ArgumentNullException.ThrowIfNull(dataCacheProvider);
 
         _options = options;
         _probes = probes;
+        _dataCacheProvider = dataCacheProvider;
     }
 
     /// <inheritdoc />
@@ -32,16 +37,31 @@ internal sealed class CacheOrchestratorHealthCheck : IHealthCheck
         CancellationToken cancellationToken = default)
     {
         CacheOrchestratorOptions opts = _options.CurrentValue;
-        Dictionary<string, object> data = [];
+        Dictionary<string, object> data =
+            new() { ["data_cache_provider"] = _dataCacheProvider.Name };
 
         foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOpts) in opts.DataCacheInstances)
             data[$"data_cache_instance:{instanceName}"] = instanceOpts.Provider ?? "InMemory";
 
         List<ICacheOrchestratorHealthProbe> probes = [.. _probes];
-        if (probes.Count == 0)
-            return HealthCheckResult.Healthy("No cache health probes registered.", data);
-
         List<string> failures = [];
+        if (_dataCacheProvider is NullDataCacheProvider
+            && DataCacheProviderStartupDiagnostic.IsDataCacheEnabled(opts))
+        {
+            data["data_cache_provider:error"] = "Data Cache is enabled without a provider.";
+            failures.Add("Data Cache is enabled, but no Data Cache provider is registered.");
+        }
+
+        if (probes.Count == 0)
+        {
+            if (failures.Count == 0)
+                return HealthCheckResult.Healthy("No cache health probes registered.", data);
+
+            return new HealthCheckResult(
+                context.Registration.FailureStatus,
+                failures[0],
+                data: data);
+        }
 
         foreach (ICacheOrchestratorHealthProbe probe in probes)
         {

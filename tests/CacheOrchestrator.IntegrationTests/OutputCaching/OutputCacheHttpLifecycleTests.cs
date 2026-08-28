@@ -105,7 +105,6 @@ public class OutputCacheHttpLifecycleTests
 
     private static Dictionary<string, string?> DefaultsOnlyConfig(Action<Dictionary<string, string?>>? extra = null)
     {
-        // Dynamic / template domains fall back to DomainDefaults when not listed under Domains.
         Dictionary<string, string?> d = new()
         {
             ["Cache:OutputCache:Provider"] = "InMemory",
@@ -676,7 +675,11 @@ public class OutputCacheHttpLifecycleTests
     public async Task DomainTemplate_HostToken_PartitionsByHostAndDomain()
     {
         // tenant-{host} → normalized domain e.g. tenant-shop1-example-com
-        Dictionary<string, string?> config = DefaultsOnlyConfig();
+        Dictionary<string, string?> config = DefaultsOnlyConfig(d =>
+        {
+            d["Cache:Domains:tenant-shop1-example-com:Version"] = "v1";
+            d["Cache:Domains:tenant-shop2-example-com:Version"] = "v1";
+        });
 
         (HttpClient? client, WebApplication? app) = await StartAsync(config, a =>
         {
@@ -721,7 +724,11 @@ public class OutputCacheHttpLifecycleTests
     [Fact]
     public async Task DynamicDomainFunc_FromQuery_UsesResolvedDomain()
     {
-        Dictionary<string, string?> config = DefaultsOnlyConfig();
+        Dictionary<string, string?> config = DefaultsOnlyConfig(d =>
+        {
+            d["Cache:Domains:dyn-acme:Version"] = "v1";
+            d["Cache:Domains:dyn-globex:Version"] = "v1";
+        });
 
         (HttpClient? client, WebApplication? app) = await StartAsync(config, a =>
         {

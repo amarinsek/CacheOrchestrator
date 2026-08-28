@@ -39,7 +39,10 @@ public static class CacheOrchestratorBusBuilderExtensions
 
         builder.Services.AddHttpClient(HttpClusterCommandBus.HttpClientName);
         builder.Services.AddOptions<HttpBusOptions>()
-            .Bind(builder.Configuration.GetSection(configSection));
+            .Bind(builder.Configuration.GetSection(configSection))
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<HttpBusOptions>, HttpBusOptionsValidator>());
 
         // Only wire ServiceDiscovery when configured — avoids requiring that assembly for Null/Static hosts.
         string membership = builder.Configuration[$"{configSection}:Cluster:Bus:Membership"] ?? "Null";

@@ -1,4 +1,5 @@
 using CacheOrchestrator.DependencyInjection;
+using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -166,7 +167,9 @@ public class HttpPipelineContractTests
     [Fact]
     public async Task EmptyTemplateDomain_DoesNotStore_ResolvedTenantCaches()
     {
-        (HttpClient? client, WebApplication? app) = await StartAsync(DefaultsOnlyConfig(), a =>
+        Dictionary<string, string?> config = DefaultsOnlyConfig();
+        config["Cache:Domains:acme:Version"] = "v1";
+        (HttpClient? client, WebApplication? app) = await StartAsync(config, a =>
         {
             a.MapGet("/t", (HitCounter hits) =>
             {
@@ -191,6 +194,49 @@ public class HttpPipelineContractTests
             miss.IsSuccessStatusCode.Should().BeTrue();
             hit.IsSuccessStatusCode.Should().BeTrue();
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(3);
+        }
+        finally
+        {
+            await app.StopAsync(TestContext.Current.CancellationToken);
+            await app.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task UnconfiguredDynamicDomain_FailsClosed()
+    {
+        (HttpClient? client, WebApplication? app) = await StartAsync(DefaultsOnlyConfig(), a =>
+        {
+            a.MapGet("/unconfigured", async (
+                HttpContext http,
+                IDomainDataCache cache,
+                HitCounter hits,
+                CancellationToken cancellationToken) =>
+            {
+                string body = await cache.GetOrSetAsync(
+                    http,
+                    _ =>
+                    {
+                        hits.Increment();
+                        return Task.FromResult("body");
+                    },
+                    cancellationToken);
+                return Results.Text(body);
+            }).CacheOutputWithDomain(http => http.Request.Query["tenant"].ToString());
+        });
+
+        try
+        {
+            (HttpResponseMessage first, string firstCache, string _) =
+                await GetAsync(client, "/unconfigured?tenant=unknown");
+            (HttpResponseMessage second, string secondCache, string _) =
+                await GetAsync(client, "/unconfigured?tenant=unknown");
+
+            first.Headers.CacheControl?.NoStore.Should().BeTrue();
+            second.Headers.CacheControl?.NoStore.Should().BeTrue();
+            firstCache.Should().NotContain("oc=hit");
+            secondCache.Should().NotContain("oc=hit");
+            app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
         finally
         {

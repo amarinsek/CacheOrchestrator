@@ -3,6 +3,7 @@ using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 
 namespace CacheOrchestrator.HybridCache;
 
@@ -20,6 +21,7 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
     private readonly Microsoft.Extensions.Caching.Hybrid.HybridCache _cache;
     private readonly ILogger<HybridDataCacheProvider> _logger;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
+    private readonly ConcurrentDictionary<string, string> _namespacePrefixes = new(StringComparer.Ordinal);
 
     public HybridDataCacheProvider(
         Microsoft.Extensions.Caching.Hybrid.HybridCache cache,
@@ -160,7 +162,7 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
         return instance.GetNamespace(name, current);
     }
 
-    private static string[] PrefixTags(string cacheNamespace, IReadOnlyList<string> tags)
+    private string[] PrefixTags(string cacheNamespace, IReadOnlyList<string> tags)
     {
         string[] result = new string[tags.Count];
         for (int i = 0; i < tags.Count; i++)
@@ -168,8 +170,13 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
         return result;
     }
 
-    private static string Prefix(string cacheNamespace, string value) =>
-        string.IsNullOrWhiteSpace(cacheNamespace)
-            ? value
-            : Uri.EscapeDataString(cacheNamespace) + ":" + value;
+    private string Prefix(string cacheNamespace, string value)
+    {
+        string prefix = _namespacePrefixes.GetOrAdd(
+            cacheNamespace,
+            static value => string.IsNullOrWhiteSpace(value)
+                ? string.Empty
+                : Uri.EscapeDataString(value) + ":");
+        return prefix.Length == 0 ? value : string.Concat(prefix, value);
+    }
 }

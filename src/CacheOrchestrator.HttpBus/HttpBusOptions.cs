@@ -21,8 +21,12 @@ internal sealed class HttpBusClusterOptions
 internal sealed class HttpBusTransportOptions
 {
     public bool Enabled { get; set; }
+    public bool AllowUnauthenticated { get; set; }
     public int PeerTimeoutMs { get; set; } = 2000;
     public int MaxParallelism { get; set; } = 32;
+    public int DedupeWindowSeconds { get; set; } = 330;
+    public int CommandMaxAgeSeconds { get; set; } = 300;
+    public int ClockSkewSeconds { get; set; } = 30;
     public string Membership { get; set; } = "Null";
     public string? ApiKey { get; set; }
     public HttpBusStaticMembershipOptions Static { get; set; } = new();

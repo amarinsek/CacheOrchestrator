@@ -20,6 +20,7 @@ public class ClusterBusRegistrationTests
             ["Cache:OutputCache:Provider"] = "InMemory",
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Cluster:Bus:Enabled"] = "true",
+            ["Cache:Cluster:Bus:ApiKey"] = "test-key",
             ["Cache:Cluster:Bus:Membership"] = "Static",
             ["Cache:Cluster:Bus:Static:Instances:0:Id"] = "a",
             ["Cache:Cluster:Bus:Static:Instances:0:Url"] = "http://127.0.0.1:5001",
@@ -59,6 +60,7 @@ public class ClusterBusRegistrationTests
             ["Cache:OutputCache:Provider"] = "InMemory",
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Cluster:Bus:Enabled"] = "true",
+            ["Cache:Cluster:Bus:ApiKey"] = "test-key",
             ["Cache:Cluster:Bus:Membership"] = "ServiceDiscovery",
             ["Cache:Cluster:Bus:ServiceDiscovery:ServiceName"] = "app1"
         }).Build();
@@ -101,6 +103,7 @@ public class ClusterBusRegistrationTests
             ["Cache:OutputCache:Provider"] = "InMemory",
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
             ["Cache:Cluster:Bus:Enabled"] = "true",
+            ["Cache:Cluster:Bus:ApiKey"] = "test-key",
             ["Cache:Cluster:Bus:Membership"] = "Null"
         }).Build();
 

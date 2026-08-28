@@ -101,4 +101,29 @@ public class HttpConfigurationOwnershipTests
         result.Succeeded.Should().BeFalse();
         result.Failures.Should().Contain(message => message.Contains("Redis", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void HttpValidator_RejectsInheritedClientTtlRelationship()
+    {
+        CacheOrchestratorHttpOptions options = new()
+        {
+            DomainDefaults = new()
+            {
+                ClientCache = new() { TtlSeconds = 30, TtlMinSeconds = 10 }
+            },
+            Domains =
+            {
+                ["products"] = new()
+                {
+                    ClientCache = new() { TtlMinSeconds = 40 }
+                }
+            }
+        };
+
+        ValidateOptionsResult result = new CacheOrchestratorHttpOptionsValidator().Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(message =>
+            message.Contains("ClientCache.TtlMinSeconds", StringComparison.Ordinal));
+    }
 }

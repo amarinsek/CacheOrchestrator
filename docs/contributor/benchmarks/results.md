@@ -20,6 +20,8 @@ dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *
 dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *ClientCache*
 dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *HttpHelper*
 dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *Policy*
+dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *ProviderHit*
+dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *MetricsRecording*
 ```
 
 All classes use a shared short job (`[ShortJob]`: net10.0, warmup 1 / iteration 3 / launch 1) for consistent local runs. Artifacts default under `_local/BenchmarkDotNet.Artifacts` (not committed).
@@ -38,6 +40,8 @@ All classes use a shared short job (`[ShortJob]`: net10.0, warmup 1 / iteration 
 | `DomainCacheOptionsProviderBenchmarks` | Core domain snapshot process-cache hit paths |
 | `DomainTemplateCompilerBenchmarks` | Template `GetOrAdd` + per-request resolve |
 | `DomainOutputCachePolicyBenchmarks` | `CacheRequestAsync` + **`CollectQueryKeysForOutputCache`** (real Output Cache query-key path) |
+| `DataCacheProviderHitBenchmarks` | End-to-end Fusion and Hybrid L1 hits; includes a control that reproduces the former per-call Fusion configuration binding |
+| `MetricsRecordingBenchmarks` | Data Cache metric recording with no listener and with an active listener |
 
 ## Performance engineering notes (library)
 
@@ -45,7 +49,10 @@ These are intentional hot-path choices in the library (not full BDN numbers):
 
 | Area | Approach |
 |------|----------|
-| Fusion entry options | `FusionEntryOptionsFactory` combines the Core snapshot with package-owned `DomainFusionCacheSettings` |
+| Fusion entry options | Effective package settings and prepared entry options are cached by snapshot/override identity; configuration reload invalidates the cache |
+| Vary material | Lists, sets, and dictionaries are allocated lazily; small header sets use a bounded linear duplicate check before promoting to a `HashSet` |
+| Data Cache timing | `Stopwatch.GetTimestamp` avoids allocating a `Stopwatch` object per operation |
+| Metrics | Instrument-enabled guards avoid tag and route-label work when no listener is subscribed |
 | Tracking query params | `HttpHelper.IsTrackingParameter` uses a fixed prefix array + manual loop (no LINQ/`HashSet` enumerator) |
 | `Cache-Control: no-store` | `HttpHelper.ContainsCacheDirective` scans `StringValues` without `ToString()` |
 | Domain templates | Parse plans cached per template; resolvers without custom providers are shared; **custom providers are never stored under the template-only key** (avoids provider poisoning) |

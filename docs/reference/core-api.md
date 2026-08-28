@@ -2,7 +2,7 @@
 
 > **Reference.** Product overview: [root README](../../README.md). Orientation: [packages](../guide/packages.md). Catalog: [documentation index](../README.md). HTTP API: [Data Cache](data-cache.md).
 
-`CacheOrchestrator.Core` is the HTTP-free application API for class libraries, workers, message handlers, gRPC services, and other hosts that should not depend on ASP.NET Core. The primary abstraction is `ICacheOrchestrator`; a registered `IDataCacheProvider` owns physical storage.
+`CacheOrchestrator.Core` is the HTTP-free application API for class libraries, workers, message handlers, gRPC services, and other hosts that should not depend on ASP.NET Core. The primary abstraction is `ICacheOrchestrator`; a registered `IDataCacheProvider` owns physical storage. If Data Cache is enabled without a provider, the host logs a startup warning and the health check reports the configured failure status instead of silently appearing configured.
 
 The caller supplies a **domain** and a stable **logical key**. CacheOrchestrator resolves the domain policy, adds the domain `Version`, attaches invalidation tags, and delegates the operation to the provider.
 

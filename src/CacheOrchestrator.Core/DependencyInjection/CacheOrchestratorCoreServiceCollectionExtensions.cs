@@ -1,11 +1,13 @@
 using CacheOrchestrator.Admin;
 using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.DependencyInjection;
@@ -73,6 +75,8 @@ public static class CacheOrchestratorCoreServiceCollectionExtensions
         services.TryAddSingleton<IClusterMembership>(_ => NullClusterMembership.Instance);
         services.TryAddSingleton<IClusterCommandHandler, DefaultClusterCommandHandler>();
         services.TryAddSingleton<IDataCacheProvider>(_ => NullDataCacheProvider.Instance);
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, DataCacheProviderStartupDiagnostic>());
         services.TryAddSingleton<IDomainCacheOptionsProvider, DomainCacheOptionsProvider>();
         services.TryAddSingleton<IAdminEndpointCatalog>(_ => NullAdminEndpointCatalog.Instance);
         services.TryAddSingleton<IAdminDomainConfigProvider, CoreAdminDomainConfigProvider>();

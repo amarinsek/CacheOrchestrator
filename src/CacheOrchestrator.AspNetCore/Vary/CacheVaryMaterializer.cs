@@ -3,6 +3,7 @@ using CacheOrchestrator.Utilities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO.Hashing;
 using System.Text;
@@ -272,12 +273,15 @@ public sealed class CacheVaryMaterializer
 
     private sealed class Builder : ICacheVaryBuilder
     {
+        private const int HeaderSetThreshold = 4;
+        private static readonly IReadOnlyDictionary<string, string> EmptyValues =
+            new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal));
+
         private readonly HttpContext _http;
-        private readonly List<string> _headers = [];
-        private readonly HashSet<string> _headerSet = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
-        private readonly List<string> _responseVary = [];
-        private readonly HashSet<string> _responseVarySet = new(StringComparer.OrdinalIgnoreCase);
+        private List<string>? _headers;
+        private HashSet<string>? _headerSet;
+        private Dictionary<string, string>? _values;
+        private List<string>? _responseVary;
         private IReadOnlyList<string> _queryKeys = Array.Empty<string>();
 
         public Builder(HttpContext http)
@@ -301,19 +305,37 @@ public sealed class CacheVaryMaterializer
                 return;
             }
 
-            if (!_headerSet.Add(headerName))
-                return;
+            if (_headerSet is not null)
+            {
+                if (!_headerSet.Add(headerName))
+                    return;
+            }
+            else if (_headers is not null)
+            {
+                for (int i = 0; i < _headers.Count; i++)
+                {
+                    if (string.Equals(_headers[i], headerName, StringComparison.OrdinalIgnoreCase))
+                        return;
+                }
 
-            _headers.Add(headerName);
-            if (_responseVarySet.Add(headerName))
-                _responseVary.Add(headerName);
+                if (_headers.Count == HeaderSetThreshold)
+                {
+                    _headerSet = new HashSet<string>(_headers, StringComparer.OrdinalIgnoreCase)
+                    {
+                        headerName
+                    };
+                }
+            }
+
+            (_headers ??= []).Add(headerName);
+            (_responseVary ??= []).Add(headerName);
         }
 
         public void AddValue(string key, string value)
         {
             if (string.IsNullOrWhiteSpace(key))
                 return;
-            _values[key.Trim()] = value ?? string.Empty;
+            (_values ??= new Dictionary<string, string>(StringComparer.Ordinal))[key.Trim()] = value ?? string.Empty;
         }
 
         public void AddHashedValue(string key, string raw) =>
@@ -323,10 +345,10 @@ public sealed class CacheVaryMaterializer
 
         public CacheVaryMaterial ToMaterial() => new()
         {
-            HeaderNames = _headers,
-            Values = _values,
+            HeaderNames = (IReadOnlyList<string>?)_headers ?? Array.Empty<string>(),
+            Values = _values ?? EmptyValues,
             QueryKeys = _queryKeys,
-            ResponseVaryHeaderNames = _responseVary,
+            ResponseVaryHeaderNames = (IReadOnlyList<string>?)_responseVary ?? Array.Empty<string>(),
         };
     }
 }

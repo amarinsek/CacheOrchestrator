@@ -2,6 +2,7 @@ using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace CacheOrchestrator.FusionCache;
@@ -15,6 +16,7 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
     private readonly IFusionDomainSettingsProvider _fusionDomainSettings;
     private readonly ILogger<FusionDataCacheProvider> _logger;
+    private readonly ConcurrentDictionary<string, CachedEntryOptions> _entryOptions = new(StringComparer.Ordinal);
 
     public FusionDataCacheProvider(
         IFusionCacheProvider fusionProvider,
@@ -36,6 +38,13 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
     /// <inheritdoc />
     public string Name => "FusionCache";
 
+    private sealed class CachedEntryOptions
+    {
+        public required DomainCacheOptions DomainOptions { get; init; }
+        public required DomainFusionCacheSettings FusionSettings { get; init; }
+        public required FusionCacheEntryOptions EntryOptions { get; init; }
+    }
+
     /// <inheritdoc />
     public async ValueTask<DataCacheProviderResult<T>> GetOrCreateAsync<T>(
         DataCacheProviderRequest request,
@@ -46,8 +55,7 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         ArgumentNullException.ThrowIfNull(factory);
 
         IFusionCache fusion = _fusionProvider.GetCache(request.InstanceName);
-        DomainFusionCacheSettings fusionSettings = _fusionDomainSettings.Get(request.DomainOptions.Domain);
-        FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(request.DomainOptions, fusionSettings);
+        FusionCacheEntryOptions entryOptions = GetEntryOptions(request.DomainOptions);
         string[] tags = request.Tags as string[] ?? [.. request.Tags];
 
         var materializationId = Guid.NewGuid();
@@ -81,8 +89,7 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         ArgumentNullException.ThrowIfNull(request);
 
         IFusionCache fusion = _fusionProvider.GetCache(request.InstanceName);
-        DomainFusionCacheSettings fusionSettings = _fusionDomainSettings.Get(request.DomainOptions.Domain);
-        FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(request.DomainOptions, fusionSettings);
+        FusionCacheEntryOptions entryOptions = GetEntryOptions(request.DomainOptions);
         string[] tags = request.Tags as string[] ?? [.. request.Tags];
 
         await fusion.SetAsync(
@@ -123,5 +130,26 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
                 }
             }
         }
+    }
+
+    private FusionCacheEntryOptions GetEntryOptions(DomainCacheOptions domainOptions)
+    {
+        string domain = domainOptions.Domain;
+        DomainFusionCacheSettings fusionSettings = _fusionDomainSettings.Get(domain);
+        if (_entryOptions.TryGetValue(domain, out CachedEntryOptions? cached)
+            && ReferenceEquals(cached.DomainOptions, domainOptions)
+            && ReferenceEquals(cached.FusionSettings, fusionSettings))
+        {
+            return cached.EntryOptions;
+        }
+
+        FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(domainOptions, fusionSettings);
+        _entryOptions[domain] = new CachedEntryOptions
+        {
+            DomainOptions = domainOptions,
+            FusionSettings = fusionSettings,
+            EntryOptions = entryOptions
+        };
+        return entryOptions;
     }
 }

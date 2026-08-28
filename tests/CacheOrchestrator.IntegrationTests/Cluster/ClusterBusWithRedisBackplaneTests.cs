@@ -110,7 +110,7 @@ public class ClusterBusWithRedisBackplaneTests
             ["Cache:Cluster:Bus:Membership"] = "Static",
             ["Cache:Cluster:Bus:PeerTimeoutMs"] = "5000",
             ["Cache:Cluster:Bus:MaxParallelism"] = "8",
-            ["Cache:Cluster:Bus:DedupeWindowSeconds"] = "120",
+            ["Cache:Cluster:Bus:DedupeWindowSeconds"] = "330",
             ["Cache:Cluster:Bus:ApiKey"] = "bus-redis-key",
             ["Cache:Admin:Enabled"] = adminEnabled ? "true" : "false",
             ["Cache:Admin:ApiKey"] = "bus-redis-key",

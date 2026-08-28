@@ -43,14 +43,15 @@ internal static class ClusterLocalApi
 
         string prefix = HttpClusterCommandBus.ResolveRoutePrefix(opts);
 
-        if (string.IsNullOrEmpty(HttpClusterCommandBus.ResolveApiKey(opts)))
+        if (string.IsNullOrEmpty(HttpClusterCommandBus.ResolveApiKey(opts))
+            && opts.Cluster.Bus.AllowUnauthenticated)
         {
             ILogger? logger = endpoints.ServiceProvider.GetService<ILoggerFactory>()
                 ?.CreateLogger("CacheOrchestrator.HttpBus");
             logger?.LogWarning(
-                "CacheOrchestrator cluster bus is enabled without ApiKey. " +
+                "CacheOrchestrator cluster bus explicitly allows unauthenticated commands. " +
                 "Receive endpoints at '{Prefix}/cluster' are open. " +
-                "Set Cache:Cluster:Bus:ApiKey or Cache:Admin:ApiKey for non-local environments.",
+                "Use this only on an isolated development network.",
                 prefix);
         }
 
@@ -65,6 +66,8 @@ internal static class ClusterLocalApi
             IClusterCommandHandler handler,
             IInstanceIdProvider instanceId,
             IOptionsMonitor<CacheOrchestratorOptions> options,
+            IOptionsMonitor<HttpBusOptions> busOptions,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             ClusterCommand command;
@@ -86,6 +89,17 @@ internal static class ClusterLocalApi
                 || string.IsNullOrWhiteSpace(command.Namespace))
             {
                 return Results.BadRequest(new { error = "originInstanceId and namespace are required." });
+            }
+
+            HttpBusTransportOptions transport = busOptions.CurrentValue.Cluster.Bus;
+            DateTimeOffset now = timeProvider.GetUtcNow();
+            if (command.TimestampUtc < now - TimeSpan.FromSeconds(transport.CommandMaxAgeSeconds))
+            {
+                return Results.BadRequest(new { error = "Command timestamp is too old." });
+            }
+            if (command.TimestampUtc > now + TimeSpan.FromSeconds(transport.ClockSkewSeconds))
+            {
+                return Results.BadRequest(new { error = "Command timestamp is too far in the future." });
             }
 
             string localNs = options.CurrentValue.Namespace ?? string.Empty;

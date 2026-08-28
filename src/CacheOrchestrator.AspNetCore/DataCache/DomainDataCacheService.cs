@@ -10,6 +10,7 @@ using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace CacheOrchestrator.DataCache;
 
@@ -265,7 +266,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         EntityFootprint early = BuildEarlyFootprint(http, useEntityKey);
         bool materialized = false;
         bool factoryFailed = false;
-        var sw = Stopwatch.StartNew();
+        long started = Stopwatch.GetTimestamp();
 
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
         activity?.SetTag("domain", opts.Domain);
@@ -330,14 +331,14 @@ internal sealed class DomainDataCacheService : IDomainDataCache
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             if (factoryFailed)
             {
-                sw.Stop();
+                GetElapsed(started, out long failureTicks, out long failureMs);
                 RecordDataCacheAndAdmin(
                     http,
                     opts.Domain,
                     opts.Domain,
                     "fail",
-                    sw.ElapsedMilliseconds,
-                    sw.ElapsedTicks);
+                    failureMs,
+                    failureTicks);
                 if (_logger.IsEnabled(LogLevel.Warning))
                     _logger.LogWarning(ex, "Data cache ERROR Key={Key}, Error={Error}", key, ex.Message);
             }
@@ -347,14 +348,14 @@ internal sealed class DomainDataCacheService : IDomainDataCache
 
         EntityFootprintStaging.Stage(http, box.Footprint);
 
-        sw.Stop();
+        GetElapsed(started, out long elapsedTicks, out long elapsedMs);
         DataCacheResult dataResult = factoryFailed
             ? DataCacheResult.Stale
             : materialized
                 ? DataCacheResult.Miss
                 : DataCacheResult.Hit;
 
-        SetData(http, dataResult, sw.ElapsedMilliseconds);
+        SetData(http, dataResult, elapsedMs);
         string resultCode = DataToMetric(dataResult);
         activity?.SetTag("cache.result", resultCode);
 
@@ -367,21 +368,21 @@ internal sealed class DomainDataCacheService : IDomainDataCache
             opts.Domain,
             opts.Domain,
             resultCode,
-            sw.ElapsedMilliseconds,
-            sw.ElapsedTicks,
+            elapsedMs,
+            elapsedTicks,
             resultSizeBytes);
 
         if (dataResult == DataCacheResult.Stale)
         {
             if (_logger.IsEnabled(LogLevel.Information))
-                _logger.LogInformation("Data cache STALE Key={Key}, Elapsed={ElapsedMs} ms", key, sw.ElapsedMilliseconds);
+                _logger.LogInformation("Data cache STALE Key={Key}, Elapsed={ElapsedMs} ms", key, elapsedMs);
         }
         else if (_logger.IsEnabled(LogLevel.Debug))
         {
             if (dataResult == DataCacheResult.Miss)
-                _logger.LogDebug("Data cache MISS Key={Key}, Elapsed={ElapsedMs} ms", key, sw.ElapsedMilliseconds);
+                _logger.LogDebug("Data cache MISS Key={Key}, Elapsed={ElapsedMs} ms", key, elapsedMs);
             else
-                _logger.LogDebug("Data cache HIT Key={Key}, Elapsed={ElapsedMs} ms", key, sw.ElapsedMilliseconds);
+                _logger.LogDebug("Data cache HIT Key={Key}, Elapsed={ElapsedMs} ms", key, elapsedMs);
         }
 
         return box.IsMiss ? default : box.Value;
@@ -532,7 +533,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
 
         bool materialized = false;
         bool factoryFailed = false;
-        var sw = Stopwatch.StartNew();
+        long started = Stopwatch.GetTimestamp();
 
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.dc.get_or_set");
         activity?.SetTag("domain", opts.Domain);
@@ -582,14 +583,14 @@ internal sealed class DomainDataCacheService : IDomainDataCache
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             if (factoryFailed)
             {
-                sw.Stop();
+                GetElapsed(started, out long failureTicks, out long failureMs);
                 RecordDataCacheAndAdmin(
                     http,
                     opts.Domain,
                     opts.Domain,
                     "fail",
-                    durationMs: sw.ElapsedMilliseconds,
-                    elapsedTicks: sw.ElapsedTicks,
+                    durationMs: failureMs,
+                    elapsedTicks: failureTicks,
                     resultSizeBytes: null);
                 if (_logger.IsEnabled(LogLevel.Warning))
                     _logger.LogWarning(ex, "Data cache ERROR Key={Key}, Error={Error}", key, ex.Message);
@@ -598,8 +599,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
             throw;
         }
 
-        sw.Stop();
-        long elapsed = sw.ElapsedMilliseconds;
+        GetElapsed(started, out long elapsedTicks, out long elapsed);
 
         DataCacheResult dataResult = factoryFailed
             ? DataCacheResult.Stale
@@ -622,7 +622,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
             opts.Domain,
             resultCode,
             durationMs: elapsed,
-            elapsedTicks: sw.ElapsedTicks,
+            elapsedTicks: elapsedTicks,
             resultSizeBytes: resultSizeBytes);
 
         if (dataResult == DataCacheResult.Stale)
@@ -798,7 +798,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         Func<CancellationToken, Task<T>> factory,
         CancellationToken cancellationToken)
     {
-        var sw = Stopwatch.StartNew();
+        long started = Stopwatch.GetTimestamp();
         T result;
         try
         {
@@ -810,28 +810,35 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         }
         catch
         {
-            sw.Stop();
+            GetElapsed(started, out long failureTicks, out long failureMs);
             RecordDataCacheAndAdmin(
                 http,
                 metricsDomain,
                 adminDomain,
                 "fail",
-                sw.ElapsedMilliseconds,
-                sw.ElapsedTicks);
+                failureMs,
+                failureTicks);
             throw;
         }
 
-        sw.Stop();
-        SetData(http, dataResult, sw.ElapsedMilliseconds);
+        GetElapsed(started, out long elapsedTicks, out long elapsedMs);
+        SetData(http, dataResult, elapsedMs);
         RecordDataCacheAndAdmin(
             http,
             metricsDomain,
             adminDomain,
             metricResult,
-            sw.ElapsedMilliseconds,
-            sw.ElapsedTicks,
+            elapsedMs,
+            elapsedTicks,
             FactoryResultSize.TryEstimateBytes(result));
         return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void GetElapsed(long started, out long elapsedTicks, out long elapsedMilliseconds)
+    {
+        elapsedTicks = Stopwatch.GetTimestamp() - started;
+        elapsedMilliseconds = (long)(elapsedTicks * 1000d / Stopwatch.Frequency);
     }
 
     private static void SetData(HttpContext http, DataCacheResult data, long? ms = null)
@@ -872,6 +879,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         CacheOrchestratorMetricsHttpExtensions.ResolveEndpointKeys(
             http,
             forAdminStats: _adminStats.IsEnabled,
+            forMetrics: CacheOrchestratorMetrics.IsDataCacheEnabled,
             out string? endpointKey,
             out string? metricsRoute);
         CacheOrchestratorMetrics.RecordDataCache(

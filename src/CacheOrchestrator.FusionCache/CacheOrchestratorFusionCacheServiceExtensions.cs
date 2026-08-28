@@ -48,6 +48,15 @@ public static class CacheOrchestratorFusionCacheServiceExtensions
         if (configuration is not null)
             services.TryAddSingleton(configuration);
 
+        if (!services.Any(descriptor => descriptor.ServiceType == typeof(FusionCacheValidatorMarker)))
+        {
+            services.AddSingleton<FusionCacheValidatorMarker>();
+            services.AddSingleton<IValidateOptions<CacheOrchestratorOptions>>(sp =>
+                new FusionCacheConfigurationValidator(
+                    configuration ?? sp.GetService<IConfiguration>(),
+                    section));
+        }
+
         // Prefer the IConfiguration instance passed to this method. WebApplication.CreateBuilder
         // already registers host IConfiguration; TryAddSingleton above would not replace it, and
         // reading FusionCache:* from the host config would miss test/lab overlays.

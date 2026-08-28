@@ -1,5 +1,6 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
@@ -9,12 +10,18 @@ public class CacheOrchestratorHealthCheckTests
 {
     private static (CacheOrchestratorHealthCheck Sut, HealthCheckContext Ctx) Create(
         IEnumerable<ICacheOrchestratorHealthProbe> probes,
-        HealthStatus failureStatus = HealthStatus.Degraded)
+        HealthStatus failureStatus = HealthStatus.Degraded,
+        IDataCacheProvider? dataCacheProvider = null)
     {
         IOptionsMonitor<CacheOrchestratorOptions> monitor = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
         monitor.CurrentValue.Returns(new CacheOrchestratorOptions());
 
-        var sut = new CacheOrchestratorHealthCheck(monitor, probes);
+        if (dataCacheProvider is null)
+        {
+            dataCacheProvider = Substitute.For<IDataCacheProvider>();
+            dataCacheProvider.Name.Returns("Test");
+        }
+        var sut = new CacheOrchestratorHealthCheck(monitor, probes, dataCacheProvider);
         var ctx = new HealthCheckContext
         {
             Registration = new HealthCheckRegistration(
@@ -67,5 +74,20 @@ public class CacheOrchestratorHealthCheckTests
         result.Status.Should().Be(HealthStatus.Degraded);
         result.Description.Should().Contain("redis");
         result.Data["probe:redis"].Should().Be("fail");
+    }
+
+    [Fact]
+    public async Task CheckHealth_WhenDataCacheEnabledWithoutProvider_ReturnsConfiguredFailureStatus()
+    {
+        (CacheOrchestratorHealthCheck sut, HealthCheckContext ctx) = Create(
+            [],
+            failureStatus: HealthStatus.Degraded,
+            dataCacheProvider: NullDataCacheProvider.Instance);
+
+        HealthCheckResult result = await sut.CheckHealthAsync(ctx, TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(HealthStatus.Degraded);
+        result.Description.Should().Contain("no Data Cache provider");
+        result.Data["data_cache_provider"].Should().Be("Null");
     }
 }
