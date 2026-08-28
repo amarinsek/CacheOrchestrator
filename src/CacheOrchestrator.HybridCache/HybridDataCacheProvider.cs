@@ -29,7 +29,16 @@ internal sealed class HybridDataCacheProvider :
     private readonly Microsoft.Extensions.Caching.Hybrid.HybridCache _cache;
     private readonly ILogger<HybridDataCacheProvider> _logger;
     private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
-    private readonly ConcurrentDictionary<string, string> _namespacePrefixes = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, PreparedDomainOptions> _preparedOptions = new(StringComparer.Ordinal);
+
+    private sealed class PreparedDomainOptions
+    {
+        public required DomainCacheOptions DomainOptions { get; init; }
+
+        public required HybridCacheEntryOptions EntryOptions { get; init; }
+
+        public required string NamespacePrefix { get; init; }
+    }
 
     public HybridDataCacheProvider(
         Microsoft.Extensions.Caching.Hybrid.HybridCache cache,
@@ -68,15 +77,9 @@ internal sealed class HybridDataCacheProvider :
                 request.InstanceName);
         }
 
-        // Fusion MaxItemBytes / fail-safe / hard TTL / eager refresh are not mapped (capability subset).
-        HybridCacheEntryOptions entryOptions = new()
-        {
-            Expiration = request.DomainOptions.DataCacheTtl,
-            LocalCacheExpiration = request.DomainOptions.DataCacheTtl,
-        };
-
-        string physicalKey = Prefix(request.DomainOptions.DataCacheNamespace, request.Key);
-        string[] tags = PrefixTags(request.DomainOptions.DataCacheNamespace, request.Tags);
+        PreparedDomainOptions prepared = GetPreparedOptions(request.DomainOptions);
+        string physicalKey = Prefix(prepared.NamespacePrefix, request.Key);
+        string[] tags = PrefixTags(prepared.NamespacePrefix, request.Tags);
 
         // Prefer the (key, state, factory) overload — a bare Func<CancellationToken, ValueTask<T>>
         // can bind to the state overload with the factory as TState.
@@ -89,7 +92,7 @@ internal sealed class HybridDataCacheProvider :
                     Value = await f(cancel).ConfigureAwait(false),
                     MaterializationId = materializationId
                 },
-                entryOptions,
+                prepared.EntryOptions,
                 tags,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -119,14 +122,9 @@ internal sealed class HybridDataCacheProvider :
                 request.InstanceName);
         }
 
-        HybridCacheEntryOptions entryOptions = new()
-        {
-            Expiration = request.DomainOptions.DataCacheTtl,
-            LocalCacheExpiration = request.DomainOptions.DataCacheTtl,
-        };
-
-        string physicalKey = Prefix(request.DomainOptions.DataCacheNamespace, request.Key);
-        string[] tags = PrefixTags(request.DomainOptions.DataCacheNamespace, request.Tags);
+        PreparedDomainOptions prepared = GetPreparedOptions(request.DomainOptions);
+        string physicalKey = Prefix(prepared.NamespacePrefix, request.Key);
+        string[] tags = PrefixTags(prepared.NamespacePrefix, request.Tags);
 
         await _cache.SetAsync(
                 physicalKey,
@@ -135,7 +133,7 @@ internal sealed class HybridDataCacheProvider :
                     Value = value,
                     MaterializationId = Guid.NewGuid()
                 },
-                entryOptions,
+                prepared.EntryOptions,
                 tags,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -167,11 +165,12 @@ internal sealed class HybridDataCacheProvider :
             ArgumentNullException.ThrowIfNull(request);
 
             string cacheNamespace = ResolveNamespace(request.InstanceName);
+            string namespacePrefix = BuildNamespacePrefix(cacheNamespace);
             for (int tagIndex = 0; tagIndex < request.Tags.Count; tagIndex++)
             {
                 string tag = request.Tags[tagIndex];
                 if (!string.IsNullOrWhiteSpace(tag))
-                    tags.Add(Prefix(cacheNamespace, tag));
+                    tags.Add(Prefix(namespacePrefix, tag));
             }
         }
 
@@ -207,21 +206,43 @@ internal sealed class HybridDataCacheProvider :
         return instance.GetNamespace(name, current);
     }
 
-    private string[] PrefixTags(string cacheNamespace, IReadOnlyList<string> tags)
+    private PreparedDomainOptions GetPreparedOptions(DomainCacheOptions domainOptions)
+    {
+        string domain = domainOptions.Domain;
+        if (_preparedOptions.TryGetValue(domain, out PreparedDomainOptions? cached)
+            && ReferenceEquals(cached.DomainOptions, domainOptions))
+        {
+            return cached;
+        }
+
+        var prepared = new PreparedDomainOptions
+        {
+            DomainOptions = domainOptions,
+            // Fusion MaxItemBytes / fail-safe / hard TTL / eager refresh are not mapped.
+            EntryOptions = new HybridCacheEntryOptions
+            {
+                Expiration = domainOptions.DataCacheTtl,
+                LocalCacheExpiration = domainOptions.DataCacheTtl,
+            },
+            NamespacePrefix = BuildNamespacePrefix(domainOptions.DataCacheNamespace)
+        };
+        _preparedOptions[domain] = prepared;
+        return prepared;
+    }
+
+    private static string[] PrefixTags(string namespacePrefix, IReadOnlyList<string> tags)
     {
         string[] result = new string[tags.Count];
         for (int i = 0; i < tags.Count; i++)
-            result[i] = Prefix(cacheNamespace, tags[i]);
+            result[i] = Prefix(namespacePrefix, tags[i]);
         return result;
     }
 
-    private string Prefix(string cacheNamespace, string value)
-    {
-        string prefix = _namespacePrefixes.GetOrAdd(
-            cacheNamespace,
-            static value => string.IsNullOrWhiteSpace(value)
-                ? string.Empty
-                : Uri.EscapeDataString(value) + ":");
-        return prefix.Length == 0 ? value : string.Concat(prefix, value);
-    }
+    private static string BuildNamespacePrefix(string cacheNamespace) =>
+        string.IsNullOrWhiteSpace(cacheNamespace)
+            ? string.Empty
+            : Uri.EscapeDataString(cacheNamespace) + ":";
+
+    private static string Prefix(string namespacePrefix, string value) =>
+        namespacePrefix.Length == 0 ? value : string.Concat(namespacePrefix, value);
 }

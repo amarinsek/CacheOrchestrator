@@ -56,6 +56,7 @@ These are intentional hot-path choices in the library (not full BDN numbers):
 | Area | Approach |
 |------|----------|
 | Fusion entry options | Effective package settings and prepared entry options are cached by snapshot/override identity; configuration reload invalidates the cache |
+| Hybrid entry options | Entry options and the encoded namespace prefix are prepared once per domain snapshot; a replacement snapshot refreshes both |
 | Vary material | Lists, sets, and dictionaries are allocated lazily; small header sets use a bounded linear duplicate check before promoting to a `HashSet` |
 | Data Cache timing | `Stopwatch.GetTimestamp` avoids allocating a `Stopwatch` object per operation |
 | Metrics | Instrument-enabled guards avoid tag and route-label work when no listener is subscribed |

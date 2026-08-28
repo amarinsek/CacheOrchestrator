@@ -93,6 +93,70 @@ public class HybridDataCacheProviderTests
     }
 
     [Fact]
+    public async Task GetOrCreateAsync_ReusesPreparedOptionsForSnapshot_AndRebuildsForNewSnapshot()
+    {
+        List<string> keys = [];
+        List<MsHybrid.HybridCacheEntryOptions?> entryOptions = [];
+        _cache
+            .GetOrCreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<Func<CancellationToken, ValueTask<string>>>(),
+                Arg.Any<Func<Func<CancellationToken, ValueTask<string>>, CancellationToken, ValueTask<HybridProviderCacheEntry<string>>>>(),
+                Arg.Any<MsHybrid.HybridCacheEntryOptions?>(),
+                Arg.Any<IEnumerable<string>?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                keys.Add(callInfo.ArgAt<string>(0));
+                entryOptions.Add(callInfo.ArgAt<MsHybrid.HybridCacheEntryOptions?>(3));
+                return ValueTask.FromResult(new HybridProviderCacheEntry<string>
+                {
+                    Value = "hit",
+                    MaterializationId = Guid.NewGuid()
+                });
+            });
+
+        DomainCacheOptions firstSnapshot = new()
+        {
+            Domain = "products",
+            DataCacheNamespace = "shop one",
+            DataCacheTtl = TimeSpan.FromMinutes(5)
+        };
+        DataCacheProviderRequest firstRequest = new()
+        {
+            Key = "products:v1:1",
+            InstanceName = "default",
+            Tags = ["domain:products"],
+            DomainOptions = firstSnapshot
+        };
+        DomainCacheOptions reloadedSnapshot = new()
+        {
+            Domain = "products",
+            DataCacheNamespace = "shop two",
+            DataCacheTtl = TimeSpan.FromMinutes(10)
+        };
+        DataCacheProviderRequest reloadedRequest = new()
+        {
+            Key = firstRequest.Key,
+            InstanceName = firstRequest.InstanceName,
+            Tags = firstRequest.Tags,
+            DomainOptions = reloadedSnapshot
+        };
+
+        await _sut.GetOrCreateAsync(firstRequest, Factory, TestContext.Current.CancellationToken);
+        await _sut.GetOrCreateAsync(firstRequest, Factory, TestContext.Current.CancellationToken);
+        await _sut.GetOrCreateAsync(reloadedRequest, Factory, TestContext.Current.CancellationToken);
+
+        entryOptions[0].Should().BeSameAs(entryOptions[1]);
+        entryOptions[2].Should().NotBeSameAs(entryOptions[0]);
+        entryOptions[2]!.Expiration.Should().Be(TimeSpan.FromMinutes(10));
+        keys.Should().Equal(
+            "shop%20one:products:v1:1",
+            "shop%20one:products:v1:1",
+            "shop%20two:products:v1:1");
+    }
+
+    [Fact]
     public async Task InvalidateAsync_DelegatesTagsToHybrid()
     {
         await _sut.InvalidateAsync(
@@ -130,4 +194,7 @@ public class HybridDataCacheProviderTests
         });
         return monitor;
     }
+
+    private static ValueTask<string> Factory(CancellationToken cancellationToken) =>
+        ValueTask.FromResult("fresh");
 }
