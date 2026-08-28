@@ -1,6 +1,7 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using MsHybrid = Microsoft.Extensions.Caching.Hybrid;
 
 namespace CacheOrchestrator.HybridCache.UnitTests.Orchestration;
@@ -14,6 +15,7 @@ public class HybridDataCacheProviderTests
     {
         _sut = new CacheOrchestrator.HybridCache.HybridDataCacheProvider(
             _cache,
+            CreateOptions(),
             NullLogger<CacheOrchestrator.HybridCache.HybridDataCacheProvider>.Instance);
     }
 
@@ -31,7 +33,7 @@ public class HybridDataCacheProviderTests
             .GetOrCreateAsync(
                 Arg.Any<string>(),
                 Arg.Any<Func<CancellationToken, ValueTask<string>>>(),
-                Arg.Any<Func<Func<CancellationToken, ValueTask<string>>, CancellationToken, ValueTask<string>>>(),
+                Arg.Any<Func<Func<CancellationToken, ValueTask<string>>, CancellationToken, ValueTask<HybridProviderCacheEntry<string>>>>(),
                 Arg.Any<MsHybrid.HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
@@ -40,7 +42,11 @@ public class HybridDataCacheProviderTests
                 passedKey = callInfo.ArgAt<string>(0);
                 passedOptions = callInfo.ArgAt<MsHybrid.HybridCacheEntryOptions?>(3);
                 passedTags = callInfo.ArgAt<IEnumerable<string>?>(4);
-                return ValueTask.FromResult("hit");
+                return ValueTask.FromResult(new HybridProviderCacheEntry<string>
+                {
+                    Value = "hit",
+                    MaterializationId = Guid.NewGuid()
+                });
             });
 
         DomainCacheOptions domain = new()
@@ -49,6 +55,7 @@ public class HybridDataCacheProviderTests
             VersionHex = "v",
             DataCacheTtl = TimeSpan.FromMinutes(5),
             DataCacheInstanceName = "default",
+            DataCacheNamespace = "shop-fc",
         };
 
         DataCacheProviderRequest request = new()
@@ -59,16 +66,17 @@ public class HybridDataCacheProviderTests
             DomainOptions = domain,
         };
 
-        string result = await _sut.GetOrCreateAsync(
+        DataCacheProviderResult<string> result = await _sut.GetOrCreateAsync(
             request,
             _ => ValueTask.FromResult("fresh"),
             TestContext.Current.CancellationToken);
 
-        result.Should().Be("hit");
-        passedKey.Should().Be("products:v:product:1");
+        result.Value.Should().Be("hit");
+        result.Outcome.Should().Be(DataCacheProviderOutcome.Cached);
+        passedKey.Should().Be("shop-fc:products:v:product:1");
         passedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(5));
         passedOptions.LocalCacheExpiration.Should().Be(TimeSpan.FromMinutes(5));
-        passedTags.Should().Equal("domain:products", "entity:products:product:1");
+        passedTags.Should().Equal("shop-fc:domain:products", "shop-fc:entity:products:product:1");
     }
 
     [Fact]
@@ -78,7 +86,7 @@ public class HybridDataCacheProviderTests
             new DataCacheInvalidationRequest { Tags = ["domain:products"] },
             TestContext.Current.CancellationToken);
 
-        await _cache.Received(1).RemoveByTagAsync("domain:products", Arg.Any<CancellationToken>());
+        await _cache.Received(1).RemoveByTagAsync("shop-fc:domain:products", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -92,6 +100,21 @@ public class HybridDataCacheProviderTests
             },
             TestContext.Current.CancellationToken);
 
-        await _cache.Received(1).RemoveByTagAsync("domain:products", Arg.Any<CancellationToken>());
+        await _cache.Received(1).RemoveByTagAsync("shop-fc-secondary:domain:products", Arg.Any<CancellationToken>());
+    }
+
+    private static IOptionsMonitor<CacheOrchestratorOptions> CreateOptions()
+    {
+        IOptionsMonitor<CacheOrchestratorOptions> monitor = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
+        monitor.CurrentValue.Returns(new CacheOrchestratorOptions
+        {
+            Namespace = "shop",
+            DataCacheInstances =
+            {
+                ["default"] = new(),
+                ["secondary"] = new()
+            }
+        });
+        return monitor;
     }
 }

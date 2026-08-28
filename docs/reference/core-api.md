@@ -243,7 +243,7 @@ Core and HTTP keys are not the same shape, but their domain and entity tags alig
 
 ## Provider boundary
 
-Applications should depend on `ICacheOrchestrator`, not `IDataCacheProvider`. Provider authors implement `IDataCacheProvider` and receive a fully formed `DataCacheProviderRequest` containing the physical key, instance name, tags, and the HTTP-free `DomainCacheOptions`. Provider-specific runtime settings are resolved by the provider package rather than added to the Core request contract. See [Extensibility](extensibility.md#data-cache-engine-idatacacheprovider).
+Applications should depend on `ICacheOrchestrator`, not `IDataCacheProvider`. Provider authors implement `IDataCacheProvider` and receive a fully formed `DataCacheProviderRequest` containing the physical key, instance name, tags, and the HTTP-free `DomainCacheOptions`. `GetOrCreateAsync<T>` returns `DataCacheProviderResult<T>` so the provider can distinguish a value materialized by this call from a cached or stale value. Provider-specific runtime settings are resolved by the provider package rather than added to the Core request contract. See [Extensibility](extensibility.md#data-cache-engine-idatacacheprovider).
 
 ## Related
 

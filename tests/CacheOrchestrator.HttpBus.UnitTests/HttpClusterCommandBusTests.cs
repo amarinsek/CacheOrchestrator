@@ -1,5 +1,4 @@
 using CacheOrchestrator.Cluster;
-using CacheOrchestrator.Configuration;
 using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Invalidation;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -41,10 +40,8 @@ public class HttpClusterCommandBusTests
         IInstanceIdProvider instanceId = Substitute.For<IInstanceIdProvider>();
         instanceId.InstanceId.Returns("a");
 
-        IOptionsMonitor<CacheOrchestratorOptions> options = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
-        options.CurrentValue.Returns(new CacheOrchestratorOptions
+        IOptionsMonitor<HttpBusOptions> options = new FixedOptionsMonitor<HttpBusOptions>(new HttpBusOptions
         {
-            Namespace = "app1",
             Admin = { RoutePrefix = "/cache-admin/local", ApiKey = "k" },
             Cluster =
             {
@@ -108,10 +105,8 @@ public class HttpClusterCommandBusTests
         IInstanceIdProvider instanceId = Substitute.For<IInstanceIdProvider>();
         instanceId.InstanceId.Returns("a");
 
-        IOptionsMonitor<CacheOrchestratorOptions> options = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
-        options.CurrentValue.Returns(new CacheOrchestratorOptions
+        IOptionsMonitor<HttpBusOptions> options = new FixedOptionsMonitor<HttpBusOptions>(new HttpBusOptions
         {
-            Namespace = "app1",
             Admin = { RoutePrefix = "/cache-admin/local", ApiKey = "k" },
             Cluster =
             {
@@ -234,7 +229,7 @@ public class HttpClusterCommandBusTests
     [InlineData("no-slash", "no-slash")]
     public void ResolveRoutePrefix_UsesAdminPrefixOrDefault(string? prefix, string expected)
     {
-        CacheOrchestratorOptions options = new();
+        HttpBusOptions options = new();
         options.Admin.RoutePrefix = prefix!;
         HttpClusterCommandBus.ResolveRoutePrefix(options).Should().Be(expected);
     }
@@ -242,7 +237,7 @@ public class HttpClusterCommandBusTests
     [Fact]
     public void ResolveApiKey_PrefersBusKeyOverAdmin()
     {
-        CacheOrchestratorOptions options = new();
+        HttpBusOptions options = new();
         options.Admin.ApiKey = "admin";
         options.Cluster.Bus.ApiKey = "bus";
         HttpClusterCommandBus.ResolveApiKey(options).Should().Be("bus");
@@ -251,11 +246,11 @@ public class HttpClusterCommandBusTests
     [Fact]
     public void ResolveApiKey_FallsBackToAdminThenNull()
     {
-        CacheOrchestratorOptions adminOnly = new();
+        HttpBusOptions adminOnly = new();
         adminOnly.Admin.ApiKey = "admin";
         HttpClusterCommandBus.ResolveApiKey(adminOnly).Should().Be("admin");
 
-        HttpClusterCommandBus.ResolveApiKey(new CacheOrchestratorOptions()).Should().BeNull();
+        HttpClusterCommandBus.ResolveApiKey(new HttpBusOptions()).Should().BeNull();
     }
 
     [Fact]
@@ -278,10 +273,8 @@ public class HttpClusterCommandBusTests
         IInstanceIdProvider instance = Substitute.For<IInstanceIdProvider>();
         instance.InstanceId.Returns(instanceId);
 
-        IOptionsMonitor<CacheOrchestratorOptions> options = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
-        options.CurrentValue.Returns(new CacheOrchestratorOptions
+        IOptionsMonitor<HttpBusOptions> options = new FixedOptionsMonitor<HttpBusOptions>(new HttpBusOptions
         {
-            Namespace = "app1",
             Admin = { RoutePrefix = "/cache-admin/local", ApiKey = "k" },
             Cluster = { Bus = { Enabled = enabled, PeerTimeoutMs = 2000, MaxParallelism = 8 } }
         });

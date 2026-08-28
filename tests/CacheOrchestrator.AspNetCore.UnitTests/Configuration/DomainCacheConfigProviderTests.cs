@@ -241,11 +241,12 @@ public class DomainCacheConfigProviderTests
     [InlineData("", "")]
     [InlineData("   ", "")]
     [InlineData("42", "42")]
-    [InlineData("ABC-1", "abc-1")]
-    [InlineData("!!!", "")]
-    [InlineData("---", "")]
+    [InlineData("ABC-1", "ABC-1")]
+    [InlineData("!!!", "!!!")]
+    [InlineData("---", "---")]
     [InlineData("default", "default")]
-    [InlineData("DEFAULT", "default")]
+    [InlineData("DEFAULT", "DEFAULT")]
+    [InlineData("  opaque/id  ", "opaque/id")]
     public void NormalizeResourceId_DoesNotCollapseGarbageToDefault(string? input, string expected)
     {
         DomainName.NormalizeResourceId(input).Should().Be(expected);

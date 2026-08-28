@@ -1,6 +1,8 @@
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.HybridCache;
 
@@ -17,15 +19,19 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
 {
     private readonly Microsoft.Extensions.Caching.Hybrid.HybridCache _cache;
     private readonly ILogger<HybridDataCacheProvider> _logger;
+    private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
 
     public HybridDataCacheProvider(
         Microsoft.Extensions.Caching.Hybrid.HybridCache cache,
+        IOptionsMonitor<CacheOrchestratorOptions> options,
         ILogger<HybridDataCacheProvider> logger)
     {
         ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(logger);
 
         _cache = cache;
+        _options = options;
         _logger = logger;
     }
 
@@ -33,7 +39,7 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
     public string Name => "HybridCache";
 
     /// <inheritdoc />
-    public async ValueTask<T> GetOrCreateAsync<T>(
+    public async ValueTask<DataCacheProviderResult<T>> GetOrCreateAsync<T>(
         DataCacheProviderRequest request,
         Func<CancellationToken, ValueTask<T>> factory,
         CancellationToken cancellationToken = default)
@@ -56,23 +62,32 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
             LocalCacheExpiration = request.DomainOptions.DataCacheTtl,
         };
 
-        string[] tags = request.Tags as string[] ?? [.. request.Tags];
+        string physicalKey = Prefix(request.DomainOptions.DataCacheNamespace, request.Key);
+        string[] tags = PrefixTags(request.DomainOptions.DataCacheNamespace, request.Tags);
 
         // Prefer the (key, state, factory) overload — a bare Func<CancellationToken, ValueTask<T>>
         // can bind to the state overload with the factory as TState.
-        T result = await _cache.GetOrCreateAsync(
-                request.Key,
+        var materializationId = Guid.NewGuid();
+        HybridProviderCacheEntry<T> entry = await _cache.GetOrCreateAsync(
+                physicalKey,
                 factory,
-                static async (f, cancel) => await f(cancel).ConfigureAwait(false),
+                async (f, cancel) => new HybridProviderCacheEntry<T>
+                {
+                    Value = await f(cancel).ConfigureAwait(false),
+                    MaterializationId = materializationId
+                },
                 entryOptions,
                 tags,
                 cancellationToken)
             .ConfigureAwait(false);
 
         if (_logger.IsEnabled(LogLevel.Debug))
-            _logger.LogDebug("HybridDataCacheProvider GetOrCreate Key={Key}", request.Key);
+            _logger.LogDebug("HybridDataCacheProvider GetOrCreate Key={Key}", physicalKey);
 
-        return result;
+        DataCacheProviderOutcome outcome = entry.MaterializationId == materializationId
+            ? DataCacheProviderOutcome.Materialized
+            : DataCacheProviderOutcome.Cached;
+        return new DataCacheProviderResult<T>(entry.Value, outcome);
     }
 
     /// <inheritdoc />
@@ -97,18 +112,23 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
             LocalCacheExpiration = request.DomainOptions.DataCacheTtl,
         };
 
-        string[] tags = request.Tags as string[] ?? [.. request.Tags];
+        string physicalKey = Prefix(request.DomainOptions.DataCacheNamespace, request.Key);
+        string[] tags = PrefixTags(request.DomainOptions.DataCacheNamespace, request.Tags);
 
         await _cache.SetAsync(
-                request.Key,
-                value,
+                physicalKey,
+                new HybridProviderCacheEntry<T>
+                {
+                    Value = value,
+                    MaterializationId = Guid.NewGuid()
+                },
                 entryOptions,
                 tags,
                 cancellationToken)
             .ConfigureAwait(false);
 
         if (_logger.IsEnabled(LogLevel.Debug))
-            _logger.LogDebug("HybridDataCacheProvider Set Key={Key}", request.Key);
+            _logger.LogDebug("HybridDataCacheProvider Set Key={Key}", physicalKey);
     }
 
     /// <inheritdoc />
@@ -118,12 +138,38 @@ internal sealed class HybridDataCacheProvider : IDataCacheProvider
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        string cacheNamespace = ResolveNamespace(request.InstanceName);
         foreach (string tag in request.Tags)
         {
             if (!string.IsNullOrWhiteSpace(tag))
             {
-                await _cache.RemoveByTagAsync(tag, cancellationToken).ConfigureAwait(false);
+                await _cache.RemoveByTagAsync(Prefix(cacheNamespace, tag), cancellationToken).ConfigureAwait(false);
             }
         }
     }
+
+    private string ResolveNamespace(string? instanceName)
+    {
+        string name = string.IsNullOrWhiteSpace(instanceName) ? "default" : instanceName;
+        CacheOrchestratorOptions current = _options.CurrentValue;
+        CacheOrchestratorOptions.DataCacheInstanceOptions instance = current.DataCacheInstances.TryGetValue(
+            name,
+            out CacheOrchestratorOptions.DataCacheInstanceOptions? configured)
+            ? configured
+            : new CacheOrchestratorOptions.DataCacheInstanceOptions();
+        return instance.GetNamespace(name, current);
+    }
+
+    private static string[] PrefixTags(string cacheNamespace, IReadOnlyList<string> tags)
+    {
+        string[] result = new string[tags.Count];
+        for (int i = 0; i < tags.Count; i++)
+            result[i] = Prefix(cacheNamespace, tags[i]);
+        return result;
+    }
+
+    private static string Prefix(string cacheNamespace, string value) =>
+        string.IsNullOrWhiteSpace(cacheNamespace)
+            ? value
+            : Uri.EscapeDataString(cacheNamespace) + ":" + value;
 }

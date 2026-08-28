@@ -8,7 +8,6 @@ CacheOrchestrator.Backends.OutputCacheRegistrationContext.BackendSection.get -> 
 CacheOrchestrator.Backends.OutputCacheRegistrationContext.ConfigSection.get -> string!
 CacheOrchestrator.Backends.OutputCacheRegistrationContext.Configuration.get -> Microsoft.Extensions.Configuration.IConfiguration!
 CacheOrchestrator.Backends.OutputCacheRegistrationContext.Configure(System.Action<Microsoft.AspNetCore.OutputCaching.OutputCacheOptions!>! configure) -> void
-CacheOrchestrator.Backends.OutputCacheRegistrationContext.Options.get -> CacheOrchestrator.Configuration.CacheOrchestratorOptions!
 CacheOrchestrator.Backends.OutputCacheRegistrationContext.ProviderName.get -> string!
 CacheOrchestrator.Backends.OutputCacheRegistrationContext.RegisterStore(System.Action! register) -> void
 CacheOrchestrator.Backends.OutputCacheRegistrationContext.Services.get -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

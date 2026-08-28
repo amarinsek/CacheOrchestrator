@@ -19,7 +19,7 @@ public interface IDataCacheProvider
     /// <typeparamref name="T"/> is the stored type (may itself be nullable, e.g. <c>string?</c>).
     /// Prefer this over a <c>T?</c> return so value-type entries stay <c>int</c> rather than <c>int?</c>.
     /// </remarks>
-    ValueTask<T> GetOrCreateAsync<T>(
+    ValueTask<DataCacheProviderResult<T>> GetOrCreateAsync<T>(
         DataCacheProviderRequest request,
         Func<CancellationToken, ValueTask<T>> factory,
         CancellationToken cancellationToken = default);

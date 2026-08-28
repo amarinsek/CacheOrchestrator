@@ -37,23 +37,25 @@ For “which package do I need?”, start with [packages](../guide/packages.md),
 }
 ```
 
-## Root properties (core package)
+## Root properties and package ownership
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `Namespace` | string | `app-cache` | Global key prefix; isolates multi-app shared stores **and** cluster command isolation |
-| `InstanceId` | string | machine name | Stable process id (Admin, cluster bus anti-echo, diagnostics) |
-| `EmitDiagnosticsHeaders` | bool | `true` | When `true`, emit client-visible diagnostic headers (currently `X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
-| `Metrics` | object | see below | Meter label options (OpenTelemetry / Prometheus) |
-| `Distributed` | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** Data Cache providers (Fusion Redis, …) |
-| `OutputCache` | object | Provider `InMemory` | Output Cache provider + optional namespace |
-| `DataCacheInstances` | map | `default` instance `InMemory` | Named Data Cache engines (Fusion L1±L2 today; Hybrid uses a single DI HybridCache) |
-| `DomainDefaults` | object | — | Fallbacks for every domain |
-| `Domains` | map | — | Per-domain overrides (keys are domain names) |
-| `Admin` | object | disabled | Admin API (see [admin.md](admin.md)) |
-| `Cluster` | object | bus disabled | Cluster command bus options (see below / [cluster-bus.md](cluster-bus.md)) |
+| Property | Owner | Type | Default | Description |
+|----------|-------|------|---------|-------------|
+| `Namespace` | Core + consuming adapters | string | `app-cache` | Global key prefix; isolates multi-app shared stores **and** cluster command isolation |
+| `InstanceId` | Core | string | machine name | Stable process id (management, cluster anti-echo, diagnostics) |
+| `EmitDiagnosticsHeaders` | ASP.NET Core | bool | `true` | When `true`, emit client-visible diagnostic headers (currently `X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
+| `Metrics` | ASP.NET Core | object | see below | HTTP meter label options (OpenTelemetry / Prometheus) |
+| `Distributed` | Core / Data Cache provider | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** Data Cache providers (Fusion Redis, …) |
+| `OutputCache` | ASP.NET Core | object | Provider `InMemory` | Output Cache provider + optional namespace |
+| `DataCacheInstances` | Core / Data Cache provider | map | `default` instance `InMemory` | Named Data Cache engines (Fusion L1±L2; Hybrid supports only `default`) |
+| `DomainDefaults` | Core + feature packages | object | — | Fallbacks for every domain; each package binds its owned nested settings |
+| `Domains` | Core + feature packages | map | — | Per-domain overrides (keys are domain names) |
+| `Admin` | Core + ASP.NET Core / HttpBus adapters | object | disabled | Management policy plus HTTP adapter route/auth settings (see [admin.md](admin.md)) |
+| `Cluster` | Core command handling + HttpBus transport | object | bus disabled | Cluster command and optional HttpBus settings (see below / [cluster-bus.md](cluster-bus.md)) |
 
-### Metrics (core package)
+The JSON tree is stable even though no single public Core options type owns every row. Core, ASP.NET Core, FusionCache, and HttpBus bind package-specific projections from the same section.
+
+### Metrics (ASP.NET Core package)
 
 Bound from `Cache:Metrics`. Controls labels on the `CacheOrchestrator` meter (not Admin Console App storage).
 
@@ -310,9 +312,9 @@ This split does not change any `appsettings.json` key.
 
 Case-only variants such as `MyStore` / `Products` still work: `Domains` is `OrdinalIgnoreCase`, and startup validation does **not** fail the host. Options validation logs a **warning** once at startup (and on options reload) recommending the normalized form. Keys that change beyond case after normalization (spaces, invalid characters, collapsed dashes) **fail** validation, because runtime lookup uses the normalized name and would miss that dictionary entry. Keys that normalize to `default` unintentionally (for example `!!!`) also fail.
 
-Resource ids: `DomainName.NormalizeResourceId` (same character rules; null/whitespace or values with no usable characters such as `!!!` → empty string, **not** `default`).
+Resource ids: `DomainName.NormalizeResourceId` trims surrounding whitespace but otherwise preserves opaque identity material, including case and punctuation. GUID input is canonicalized to lowercase `D` format. Null/whitespace becomes empty, **not** `default`. Visible key and tag segments are percent-encoded by their builders.
 
-Entity kinds: `DomainName.NormalizeEntityKind` (same as resource ids). Unusable kinds do not share the domain name `default`.
+Entity kinds: `DomainName.NormalizeEntityKind` uses the restricted normalized-name rules because kinds are schema names rather than opaque identifiers. Unusable kinds do not share the domain name `default`.
 
 ## Example domains
 

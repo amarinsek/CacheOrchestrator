@@ -3,6 +3,7 @@ using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.HttpBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.HttpBus.UnitTests;
 
@@ -42,6 +43,11 @@ public class ClusterBusRegistrationTests
         IReadOnlyList<ClusterPeer> peers =
             await membership.GetPeersAsync(TestContext.Current.CancellationToken);
         peers.Should().HaveCount(2);
+
+        HttpBusOptions transport = sp.GetRequiredService<IOptions<HttpBusOptions>>().Value;
+        transport.Cluster.Bus.Enabled.Should().BeTrue();
+        transport.Cluster.Bus.Membership.Should().Be("Static");
+        transport.Cluster.Bus.Static.Instances.Should().HaveCount(2);
     }
 
     [Fact]

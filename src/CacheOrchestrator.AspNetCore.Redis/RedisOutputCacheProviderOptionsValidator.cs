@@ -25,7 +25,8 @@ internal sealed class RedisOutputCacheProviderOptionsValidator : IValidateOption
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (!string.Equals(options.OutputCache.Provider, RedisConfiguration.ProviderName, StringComparison.OrdinalIgnoreCase))
+        string provider = _configuration[$"{_configSection}:OutputCache:Provider"] ?? "InMemory";
+        if (!string.Equals(provider, RedisConfiguration.ProviderName, StringComparison.OrdinalIgnoreCase))
             return ValidateOptionsResult.Success;
 
         RedisConnectionOptions redis = RedisConfiguration.ResolveForOutputCache(_configuration, _configSection);

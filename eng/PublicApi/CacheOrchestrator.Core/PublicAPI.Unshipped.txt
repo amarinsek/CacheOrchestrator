@@ -1,1 +1,10 @@
 #nullable enable
+CacheOrchestrator.Orchestration.DataCacheProviderOutcome
+CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Cached = 0 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
+CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Materialized = 1 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
+CacheOrchestrator.Orchestration.DataCacheProviderResult<T>
+CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.DataCacheProviderResult() -> void
+CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.DataCacheProviderResult(T value, CacheOrchestrator.Orchestration.DataCacheProviderOutcome outcome) -> void
+CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.Outcome.get -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
+CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.Value.get -> T
+CacheOrchestrator.Orchestration.IDataCacheProvider.GetOrCreateAsync<T>(CacheOrchestrator.Orchestration.DataCacheProviderRequest! request, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<CacheOrchestrator.Orchestration.DataCacheProviderResult<T>>

@@ -182,6 +182,31 @@ public class CacheInvalidationSaveChangesInterceptorTests
     }
 
     [Fact]
+    public async Task InvalidatorCancelsAfterCommit_SaveStillSucceeds()
+    {
+        ICacheOrchestratorInvalidator inv = CreateInvalidator();
+        inv.InvalidateEntitiesAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<IEnumerable<string>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromException<CacheInvalidationResult>(new OperationCanceledException("post-commit")));
+
+        await using TestDbContext db = CreateContext(CreateInterceptor(inv), "cancel-after-commit");
+        db.Products.Add(new Product { Name = "A" });
+
+        int written = await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        written.Should().Be(1);
+        db.Products.Should().ContainSingle();
+        await inv.Received(1).InvalidateEntitiesAsync(
+            "store",
+            "products",
+            Arg.Any<IEnumerable<string>>(),
+            Arg.Is<CancellationToken>(token => !token.CanBeCanceled));
+    }
+
+    [Fact]
     public async Task CompositeKey_FormatsJoinedResourceId()
     {
         (TestDbContext db, ICacheOrchestratorInvalidator inv) = CreateHarness();

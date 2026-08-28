@@ -1,1 +1,2 @@
 #nullable enable
+CacheOrchestrator.Backends.OutputCacheRegistrationContext.OutputCacheNamespace.get -> string!

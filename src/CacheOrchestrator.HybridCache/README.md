@@ -2,7 +2,7 @@
 
 [**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
-This package registers Microsoft **HybridCache** as the **`IDataCacheProvider`**. It uses portable **`DataCache.TtlSeconds`** only. Fusion-specific options (fail-safe, hard TTL, factory timeouts, named Data Cache instances) are not applied.
+This package registers Microsoft **HybridCache** as the **`IDataCacheProvider`**. It uses portable **`DataCache.TtlSeconds`** and the resolved Data Cache namespace. Fusion-specific options (fail-safe, hard TTL, factory timeouts) are not applied. HybridCache supports only `DataCacheInstances:default`; startup validation rejects named instances.
 
 ## Install
 
@@ -44,6 +44,8 @@ builder.Services.AddCacheOrchestratorHybridCache();
 ```
 
 Optional L2: configure HybridCache / `IDistributedCache` as usual (outside this package). Prefer **CacheOrchestrator.FusionCache** when you need fail-safe and the full Fusion surface.
+
+Keys and tags are namespaced before they reach HybridCache, so applications can safely share a distributed store when their `Cache:Namespace` values differ.
 
 ## Documentation
 

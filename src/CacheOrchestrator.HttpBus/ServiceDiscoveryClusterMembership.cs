@@ -1,5 +1,4 @@
 using CacheOrchestrator.Cluster;
-using CacheOrchestrator.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.ServiceDiscovery;
@@ -13,7 +12,7 @@ namespace CacheOrchestrator.HttpBus;
 internal sealed class ServiceDiscoveryClusterMembership : IClusterMembership
 {
     private readonly ServiceEndpointResolver _resolver;
-    private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
+    private readonly IOptionsMonitor<HttpBusOptions> _options;
     private readonly ILogger<ServiceDiscoveryClusterMembership> _logger;
     private readonly TimeProvider _time;
 #pragma warning disable IDE0330 // System.Threading.Lock is net9+; multi-target net8/net10 uses object.
@@ -27,7 +26,7 @@ internal sealed class ServiceDiscoveryClusterMembership : IClusterMembership
     /// </summary>
     public ServiceDiscoveryClusterMembership(
         ServiceEndpointResolver resolver,
-        IOptionsMonitor<CacheOrchestratorOptions> options,
+        IOptionsMonitor<HttpBusOptions> options,
         ILogger<ServiceDiscoveryClusterMembership> logger,
         TimeProvider? timeProvider = null)
     {
@@ -46,7 +45,7 @@ internal sealed class ServiceDiscoveryClusterMembership : IClusterMembership
     /// <inheritdoc />
     public async Task<IReadOnlyList<ClusterPeer>> GetPeersAsync(CancellationToken cancellationToken = default)
     {
-        CacheOrchestratorOptions.ServiceDiscoveryMembershipOptions sd =
+        HttpBusServiceDiscoveryOptions sd =
             _options.CurrentValue.Cluster.Bus.ServiceDiscovery;
 
         string? configuredName = sd.ServiceName;

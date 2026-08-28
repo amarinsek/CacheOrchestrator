@@ -110,7 +110,8 @@ public class ServiceRegistrationRedisTests
         sp.GetRequiredService<IFusionCacheProvider>().Should().NotBeNull();
 
         CacheOrchestratorOptions opts = sp.GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
-        opts.OutputCache.Provider.Should().Be("Redis");
+        CacheOrchestratorHttpOptions httpOpts = sp.GetRequiredService<IOptions<CacheOrchestratorHttpOptions>>().Value;
+        httpOpts.OutputCache.Provider.Should().Be("Redis");
         opts.DataCacheInstances["default"].Provider.Should().Be("Redis");
     }
 

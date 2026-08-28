@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Entity;
+using CacheOrchestrator.Entity;
 
 namespace CacheOrchestrator.Core.UnitTests.Fusion;
 
@@ -22,7 +22,7 @@ public class EntityFootprintTests
         tags.Should().Contain("entitykind:store:order-lines");
         tags.Should().Contain("entity:store:customers:9");
         tags.Should().Contain("entity:store:products:42");
-        tags.Should().Contain("entity:store:orders-by-number:a-5");
+        tags.Should().Contain("entity:store:orders-by-number:A-5");
     }
 
     [Fact]

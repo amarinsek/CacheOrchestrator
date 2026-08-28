@@ -104,7 +104,7 @@ builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration, o
 
 The HTTP / library cache path must use the **same** domain and `entityKind` as the mapping — see [packages.md §8–§9](../guide/packages.md).
 
-Primary keys: stringify each PK part with invariant culture, join composite keys with `:`, then `DomainName.NormalizeResourceId`. Route `resourceRouteKey` must produce the same string. Entity kinds use `DomainName.NormalizeEntityKind` (garbage such as `!!!` is empty, not `default`).
+Primary keys: stringify each PK part with invariant culture (`byte[]` uses lowercase hexadecimal), percent-encode each composite part independently, then join parts with `:`. The resulting resource id stays opaque; GUIDs use canonical lowercase `D` format. A route `resourceRouteKey` must produce the same string. Entity kinds use `DomainName.NormalizeEntityKind` and remain restricted normalized schema names.
 
 TPH: Fluent `CacheInvalidate` and `Map<T>` match the **exact** `ClrType` — map each concrete type (a base-type Fluent/`Map` entry does not cover derived types). **`[CacheEntity]` is inherited** (`Inherited = true`); an attribute on the base type **does** apply to derived CLR types.
 

@@ -37,7 +37,7 @@ internal static class EntityResourceIdFormatter
 
             if (i > 0)
                 raw.Append(':');
-            raw.Append(part);
+            raw.Append(Uri.EscapeDataString(part));
         }
 
         string normalized = DomainName.NormalizeResourceId(raw.ToString());
@@ -60,7 +60,7 @@ internal static class EntityResourceIdFormatter
             return null;
 
         if (value is byte[] bytes)
-            return Convert.ToHexString(bytes);
+            return Convert.ToHexString(bytes).ToLowerInvariant();
 
         string? text = Convert.ToString(value, CultureInfo.InvariantCulture);
         return string.IsNullOrEmpty(text) ? null : text;

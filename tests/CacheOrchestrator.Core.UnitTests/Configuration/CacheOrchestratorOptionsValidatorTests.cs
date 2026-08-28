@@ -6,7 +6,7 @@ namespace CacheOrchestrator.Core.UnitTests.Configuration;
 
 public class CacheOrchestratorOptionsValidatorTests
 {
-    private readonly CacheOrchestratorOptionsValidator _sut = new(["InMemory", "Redis", "SqlServer"]);
+    private readonly CacheOrchestratorOptionsValidator _sut = new();
 
     [Fact]
     public void Validate_DefaultValidOptions_ReturnsSuccess()
@@ -36,7 +36,6 @@ public class CacheOrchestratorOptionsValidatorTests
     {
         // Connection string validation lives in CacheOrchestrator.Redis package.
         CacheOrchestratorOptions options = CreateValidOptions();
-        options.OutputCache.Provider = "Redis";
         options.DataCacheInstances["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions
         {
             Provider = "Redis"
@@ -69,7 +68,6 @@ public class CacheOrchestratorOptionsValidatorTests
     public void Validate_CustomBackendProvider_ReturnsSuccess()
     {
         CacheOrchestratorOptions options = CreateValidOptions();
-        options.OutputCache.Provider = "SqlServer";
         options.DataCacheInstances["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions
         {
             Provider = "SqlServer"
@@ -106,37 +104,6 @@ public class CacheOrchestratorOptionsValidatorTests
 
         result.Succeeded.Should().BeFalse();
         result.Failures.Should().Contain(f => f.Contains("default", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData(" ")]
-    [InlineData("Memory")]
-    [InlineData("UnknownDB")]
-    public void Validate_InvalidOutputCacheProvider_Fails(string? provider)
-    {
-        CacheOrchestratorOptions options = CreateValidOptions();
-        options.OutputCache.Provider = provider!;
-
-        ValidateOptionsResult result = _sut.Validate(null, options);
-
-        result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains("OutputCache.Provider", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public void Validate_CoreOnlyHost_DoesNotRequireOutputCacheProvider()
-    {
-        CacheOrchestratorOptions options = CreateValidOptions();
-        options.OutputCache.Provider = "NotInstalledInWorker";
-        CacheOrchestratorOptionsValidator validator = new(
-            validProviders: [],
-            validateOutputCacheProvider: false);
-
-        ValidateOptionsResult result = validator.Validate(null, options);
-
-        result.Succeeded.Should().BeTrue();
     }
 
     [Theory]
@@ -255,7 +222,7 @@ public class CacheOrchestratorOptionsValidatorTests
     {
         ILogger logger = Substitute.For<ILogger>();
         logger.IsEnabled(LogLevel.Warning).Returns(true);
-        var sut = new CacheOrchestratorOptionsValidator(["InMemory", "Redis", "SqlServer"], logger: logger);
+        var sut = new CacheOrchestratorOptionsValidator(logger);
         CacheOrchestratorOptions options = CreateValidOptions();
         options.Domains[domain] = new CacheOrchestratorOptions.DomainCacheSettings();
 
@@ -359,7 +326,6 @@ public class CacheOrchestratorOptionsValidatorTests
     private static CacheOrchestratorOptions CreateValidOptions() =>
         new()
         {
-            OutputCache = { Provider = "InMemory" },
             DataCacheInstances = new Dictionary<string, CacheOrchestratorOptions.DataCacheInstanceOptions>(
                 StringComparer.OrdinalIgnoreCase)
             {

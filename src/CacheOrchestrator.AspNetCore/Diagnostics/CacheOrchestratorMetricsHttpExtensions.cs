@@ -55,6 +55,6 @@ public static class CacheOrchestratorMetricsHttpExtensions
     }
 
     private static bool IsEndpointLabelEnabled(HttpContext http) =>
-        http.RequestServices?.GetService<IOptions<CacheOrchestratorOptions>>()?.Value
+        http.RequestServices?.GetService<IOptions<CacheOrchestratorHttpOptions>>()?.Value
             is { Metrics.IncludeEndpointLabel: true };
 }

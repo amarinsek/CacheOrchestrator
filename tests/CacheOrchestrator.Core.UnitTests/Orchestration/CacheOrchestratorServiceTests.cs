@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Entity;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -60,7 +60,7 @@ public class CacheOrchestratorServiceTests
             .Returns(callInfo =>
             {
                 captured = callInfo.Arg<DataCacheProviderRequest>();
-                return ValueTask.FromResult<string?>("cached");
+                return Cached<string?>("cached");
             });
 
         string? value = await _sut.GetOrCreateAsync(
@@ -91,7 +91,7 @@ public class CacheOrchestratorServiceTests
             .Returns(callInfo =>
             {
                 captured = callInfo.Arg<DataCacheProviderRequest>();
-                return ValueTask.FromResult<int?>(1);
+                return Cached<int?>(1);
             });
 
         EntityFootprint footprint = new(new EntityRef("items", "42"));
@@ -127,7 +127,7 @@ public class CacheOrchestratorServiceTests
             .Returns(callInfo =>
             {
                 captured = callInfo.Arg<DataCacheProviderRequest>();
-                return ValueTask.FromResult<int?>(1);
+                return Cached<int?>(1);
             });
 
         await _sut.GetOrCreateAsync(
@@ -188,7 +188,7 @@ public class CacheOrchestratorServiceTests
             .Returns(callInfo =>
             {
                 captured = callInfo.Arg<DataCacheProviderRequest>();
-                return ValueTask.FromResult<string?>("cached");
+                return Cached<string?>("cached");
             });
 
         await _sut.GetOrCreateAsync(
@@ -223,7 +223,7 @@ public class CacheOrchestratorServiceTests
             {
                 Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>> factory =
                     callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1);
-                return factory(CancellationToken.None);
+                return Materialize(factory, CancellationToken.None);
             });
 
         DataCacheProviderRequest? setRequest = null;
@@ -284,7 +284,7 @@ public class CacheOrchestratorServiceTests
                 Arg.Any<DataCacheProviderRequest>(),
                 Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
                 Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult(cached));
+            .Returns(Cached(cached));
 
         FootprintCacheBox<string?> box = await _sut.GetOrCreateWithFootprintAsync<string>(
             new CacheEntryRequest { Domain = "store", Key = "k", Footprint = footprint },
@@ -297,6 +297,57 @@ public class CacheOrchestratorServiceTests
                 Arg.Any<DataCacheProviderRequest>(),
                 Arg.Any<FootprintCacheBox<string?>>(),
                 Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetOrCreateWithFootprintAsync_WhenRefreshStartsButCachedValueReturns_DoesNotPromoteCachedValue()
+    {
+        DomainCacheOptions opts = CreateOptions(enabled: true, domain: "store", versionHex: "v1");
+        _domainOptions.GetOrCreateDomainOptions("store").Returns(opts);
+
+        EntityFootprint footprint = new(new EntityRef("items", "1"));
+        var stale = new FootprintCacheBox<string?>
+        {
+            Value = "stale",
+            IsMiss = false,
+            Footprint = footprint
+        };
+        var completion = new TaskCompletionSource<FootprintCacheBox<string?>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<FootprintCacheBox<string?>>? backgroundFactory = null;
+
+        _dataCache
+            .GetOrCreateAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>> factory =
+                    callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1);
+                backgroundFactory = factory(CancellationToken.None).AsTask();
+                return Cached(stale);
+            });
+
+        FootprintCacheBox<string?> box = await _sut.GetOrCreateWithFootprintAsync<string>(
+            new CacheEntryRequest { Domain = "store", Key = "k", Footprint = footprint },
+            _ => new ValueTask<FootprintCacheBox<string?>>(completion.Task),
+            TestContext.Current.CancellationToken);
+
+        box.Value.Should().Be("stale");
+        await _dataCache.DidNotReceive()
+            .SetAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<FootprintCacheBox<string?>>(),
+                Arg.Any<CancellationToken>());
+
+        completion.SetResult(new FootprintCacheBox<string?>
+        {
+            Value = "fresh",
+            IsMiss = false,
+            Footprint = footprint
+        });
+        (await backgroundFactory!).Value.Should().Be("fresh");
     }
 
     [Fact]
@@ -316,7 +367,7 @@ public class CacheOrchestratorServiceTests
                 getRequest = callInfo.ArgAt<DataCacheProviderRequest>(0);
                 Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>> factory =
                     callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1);
-                return factory(CancellationToken.None);
+                return Materialize(factory, CancellationToken.None);
             });
 
         _dataCache
@@ -355,7 +406,7 @@ public class CacheOrchestratorServiceTests
             {
                 Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>> factory =
                     callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1);
-                return factory(CancellationToken.None);
+                return Materialize(factory, CancellationToken.None);
             });
 
         _dataCache
@@ -397,7 +448,7 @@ public class CacheOrchestratorServiceTests
             {
                 Func<CancellationToken, ValueTask<FootprintCacheBox<IReadOnlyList<string>?>>> factory =
                     callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<IReadOnlyList<string>?>>>>(1);
-                return factory(CancellationToken.None);
+                return Materialize(factory, CancellationToken.None);
             });
 
         _dataCache
@@ -443,6 +494,17 @@ public class CacheOrchestratorServiceTests
                 Arg.Any<DataCacheProviderRequest>(),
                 Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
                 Arg.Any<CancellationToken>());
+    }
+
+    private static ValueTask<DataCacheProviderResult<T>> Cached<T>(T value) =>
+        ValueTask.FromResult(new DataCacheProviderResult<T>(value, DataCacheProviderOutcome.Cached));
+
+    private static async ValueTask<DataCacheProviderResult<T>> Materialize<T>(
+        Func<CancellationToken, ValueTask<T>> factory,
+        CancellationToken cancellationToken)
+    {
+        T value = await factory(cancellationToken);
+        return new DataCacheProviderResult<T>(value, DataCacheProviderOutcome.Materialized);
     }
 
     private static DomainCacheOptions CreateOptions(

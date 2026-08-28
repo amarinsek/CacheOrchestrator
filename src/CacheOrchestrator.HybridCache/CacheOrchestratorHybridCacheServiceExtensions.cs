@@ -2,6 +2,7 @@ using CacheOrchestrator.HybridCache;
 using CacheOrchestrator.Orchestration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace CacheOrchestrator.DependencyInjection;
 
@@ -28,6 +29,8 @@ public static class CacheOrchestratorHybridCacheServiceExtensions
         // AspNetCore AddCacheOrchestrator registers Fusion via TryAdd — replace for Hybrid topology.
         services.RemoveAll<IDataCacheProvider>();
         services.AddSingleton<IDataCacheProvider, HybridDataCacheProvider>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<CacheOrchestrator.Configuration.CacheOrchestratorOptions>, HybridCacheOptionsValidator>());
         return services;
     }
 }

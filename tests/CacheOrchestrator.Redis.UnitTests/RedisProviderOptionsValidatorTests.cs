@@ -10,12 +10,9 @@ public class RedisProviderOptionsValidatorTests
     [Fact]
     public void Validate_RedisOutputWithoutConnection_Fails()
     {
-        IConfigurationRoot config = new ConfigurationBuilder().Build();
+        IConfigurationRoot config = ConfigurationWithOutputProvider("Cache", "Redis");
         var validator = new RedisProviderOptionsValidator(config, "Cache");
-        var options = new CacheOrchestratorOptions
-        {
-            OutputCache = { Provider = "Redis" }
-        };
+        var options = new CacheOrchestratorOptions();
 
         ValidateOptionsResult result = validator.Validate(null, options);
 
@@ -48,13 +45,13 @@ public class RedisProviderOptionsValidatorTests
         IConfigurationRoot config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Cache:Redis:Configuration"] = "localhost:6379"
+                ["Cache:Redis:Configuration"] = "localhost:6379",
+                ["Cache:OutputCache:Provider"] = "Redis"
             })
             .Build();
         var validator = new RedisProviderOptionsValidator(config, "Cache");
         var options = new CacheOrchestratorOptions
         {
-            OutputCache = { Provider = "Redis" },
             DataCacheInstances =
             {
                 ["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "Redis" }
@@ -72,7 +69,6 @@ public class RedisProviderOptionsValidatorTests
         var validator = new RedisProviderOptionsValidator(new ConfigurationBuilder().Build(), "Cache");
         var options = new CacheOrchestratorOptions
         {
-            OutputCache = { Provider = "InMemory" },
             DataCacheInstances =
             {
                 ["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions { Provider = "InMemory" }
@@ -85,8 +81,8 @@ public class RedisProviderOptionsValidatorTests
     [Fact]
     public void Validate_CustomSection_UsesThatPrefixInError()
     {
-        var validator = new RedisProviderOptionsValidator(new ConfigurationBuilder().Build(), "MyCache");
-        var options = new CacheOrchestratorOptions { OutputCache = { Provider = "Redis" } };
+        var validator = new RedisProviderOptionsValidator(ConfigurationWithOutputProvider("MyCache", "Redis"), "MyCache");
+        var options = new CacheOrchestratorOptions();
 
         ValidateOptionsResult result = validator.Validate(null, options);
 
@@ -108,4 +104,12 @@ public class RedisProviderOptionsValidatorTests
         Func<RedisProviderOptionsValidator> act = () => new RedisProviderOptionsValidator(new ConfigurationBuilder().Build(), " ");
         act.Should().Throw<ArgumentException>();
     }
+
+    private static IConfigurationRoot ConfigurationWithOutputProvider(string section, string provider) =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [$"{section}:OutputCache:Provider"] = provider
+            })
+            .Build();
 }

@@ -28,8 +28,8 @@ public static class AdminLocalApi
         ArgumentNullException.ThrowIfNull(endpoints);
 
         using IServiceScope scope = endpoints.ServiceProvider.CreateScope();
-        CacheOrchestratorOptions opts = scope.ServiceProvider
-            .GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
+        CacheOrchestratorHttpOptions opts = scope.ServiceProvider
+            .GetRequiredService<IOptions<CacheOrchestratorHttpOptions>>().Value;
 
         if (!opts.Admin.Enabled)
             return endpoints;

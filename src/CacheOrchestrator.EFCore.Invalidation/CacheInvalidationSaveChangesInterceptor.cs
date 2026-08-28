@@ -75,8 +75,10 @@ public sealed class CacheInvalidationSaveChangesInterceptor : SaveChangesInterce
         int result,
         CancellationToken cancellationToken = default)
     {
-        await InvalidateAsync(eventData.Context, cancellationToken).ConfigureAwait(false);
-        return await base.SavedChangesAsync(eventData, result, cancellationToken).ConfigureAwait(false);
+        // The database write has already completed. Caller cancellation must not turn a committed
+        // save into a canceled result or skip post-commit invalidation.
+        await InvalidateAsync(eventData.Context, CancellationToken.None).ConfigureAwait(false);
+        return await base.SavedChangesAsync(eventData, result, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -180,7 +182,7 @@ public sealed class CacheInvalidationSaveChangesInterceptor : SaveChangesInterce
                 await InvalidateGroupAsync(opts, group.Key.Domain, group.Key.EntityKind, group.Value, cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex)
             {
                 _logger.LogWarning(
                     ex,

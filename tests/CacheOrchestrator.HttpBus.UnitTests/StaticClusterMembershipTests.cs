@@ -1,5 +1,4 @@
 using CacheOrchestrator.Cluster;
-using CacheOrchestrator.Configuration;
 using CacheOrchestrator.HttpBus;
 using Microsoft.Extensions.Options;
 
@@ -11,7 +10,7 @@ public class StaticClusterMembershipTests
     public void Kind_IsStatic()
     {
         StaticClusterMembership membership = Create(
-            new CacheOrchestratorOptions.StaticClusterPeerOptions { Id = "a", Url = "http://127.0.0.1:5001" });
+            new HttpBusStaticPeerOptions { Id = "a", Url = "http://127.0.0.1:5001" });
         membership.Kind.Should().Be("Static");
     }
 
@@ -19,11 +18,11 @@ public class StaticClusterMembershipTests
     public async Task GetPeersAsync_SkipsEmptyIdUrlAndInvalidUri()
     {
         StaticClusterMembership membership = Create(
-            new CacheOrchestratorOptions.StaticClusterPeerOptions { Id = "a", Url = "http://127.0.0.1:5001" },
-            new CacheOrchestratorOptions.StaticClusterPeerOptions { Id = " ", Url = "http://127.0.0.1:5002" },
-            new CacheOrchestratorOptions.StaticClusterPeerOptions { Id = "b", Url = "   " },
-            new CacheOrchestratorOptions.StaticClusterPeerOptions { Id = "c", Url = "not-a-uri" },
-            new CacheOrchestratorOptions.StaticClusterPeerOptions { Id = "d", Url = "http://10.0.0.2:9" });
+            new HttpBusStaticPeerOptions { Id = "a", Url = "http://127.0.0.1:5001" },
+            new HttpBusStaticPeerOptions { Id = " ", Url = "http://127.0.0.1:5002" },
+            new HttpBusStaticPeerOptions { Id = "b", Url = "   " },
+            new HttpBusStaticPeerOptions { Id = "c", Url = "not-a-uri" },
+            new HttpBusStaticPeerOptions { Id = "d", Url = "http://10.0.0.2:9" });
 
         IReadOnlyList<ClusterPeer> peers = await membership.GetPeersAsync(TestContext.Current.CancellationToken);
 
@@ -48,13 +47,12 @@ public class StaticClusterMembershipTests
     }
 
     private static StaticClusterMembership Create(
-        params CacheOrchestratorOptions.StaticClusterPeerOptions[] instances)
+        params HttpBusStaticPeerOptions[] instances)
     {
-        IOptionsMonitor<CacheOrchestratorOptions> monitor = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
-        CacheOrchestratorOptions options = new();
-        foreach (CacheOrchestratorOptions.StaticClusterPeerOptions instance in instances)
+        HttpBusOptions options = new();
+        foreach (HttpBusStaticPeerOptions instance in instances)
             options.Cluster.Bus.Static.Instances.Add(instance);
-        monitor.CurrentValue.Returns(options);
+        IOptionsMonitor<HttpBusOptions> monitor = new FixedOptionsMonitor<HttpBusOptions>(options);
         return new StaticClusterMembership(monitor);
     }
 }

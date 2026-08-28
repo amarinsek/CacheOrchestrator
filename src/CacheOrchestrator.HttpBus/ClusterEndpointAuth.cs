@@ -1,4 +1,3 @@
-using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
@@ -15,9 +14,9 @@ internal sealed class ClusterEndpointAuth : IEndpointFilter
     /// <summary>Shared header name with Local Admin API.</summary>
     public const string HeaderName = "X-Cache-Admin-Key";
 
-    private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
+    private readonly IOptionsMonitor<HttpBusOptions> _options;
 
-    public ClusterEndpointAuth(IOptionsMonitor<CacheOrchestratorOptions> options)
+    public ClusterEndpointAuth(IOptionsMonitor<HttpBusOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;

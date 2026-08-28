@@ -1,4 +1,3 @@
-using CacheOrchestrator.Configuration;
 using CacheOrchestrator.HttpBus;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -60,10 +59,9 @@ public class ClusterEndpointAuthTests
 
     private static ClusterEndpointAuth Create(string? apiKey)
     {
-        IOptionsMonitor<CacheOrchestratorOptions> monitor = Substitute.For<IOptionsMonitor<CacheOrchestratorOptions>>();
-        CacheOrchestratorOptions options = new();
+        HttpBusOptions options = new();
         options.Cluster.Bus.ApiKey = apiKey;
-        monitor.CurrentValue.Returns(options);
+        IOptionsMonitor<HttpBusOptions> monitor = new FixedOptionsMonitor<HttpBusOptions>(options);
         return new ClusterEndpointAuth(monitor);
     }
 

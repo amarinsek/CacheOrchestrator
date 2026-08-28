@@ -26,7 +26,7 @@ namespace CacheOrchestrator.OutputCache;
 /// <remarks>
 /// Instances are created as endpoint metadata (not via DI). The logger and options are resolved from
 /// <see cref="HttpContext.RequestServices"/> at request time.
-/// Diagnostic headers honour <see cref="CacheOrchestratorOptions.EmitDiagnosticsHeaders"/> (default on).
+/// Diagnostic headers honour <c>Cache:EmitDiagnosticsHeaders</c> (default on).
 /// </remarks>
 public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadata
 {
@@ -305,6 +305,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         context.CacheVaryByRules.VaryByHost = opts.OutputCacheVaryByHost;
         context.CacheVaryByRules.QueryKeys = CacheVaryMaterializer.CollectQueryKeysForOutputCache(http.Request.Query, opts);
         context.CacheVaryByRules.CacheKeyPrefix = opts.OutputCacheNamespace;
+        context.CacheVaryByRules.VaryByValues["cache-domain"] = opts.Domain;
         context.CacheVaryByRules.VaryByValues["data-version"] = opts.VersionHex;
 
         foreach ((string key, string value) in vary.Values)
@@ -651,13 +652,13 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     }
 
     /// <summary>
-    /// Reads <see cref="CacheOrchestratorOptions.EmitDiagnosticsHeaders"/> from DI when available.
+    /// Reads <c>Cache:EmitDiagnosticsHeaders</c> from ASP.NET Core options when available.
     /// Defaults to <see langword="true"/> if options are not registered (unit tests / edge hosts).
     /// </summary>
     private static bool ShouldEmitDiagnosticsHeaders(HttpContext httpContext)
     {
-        IOptionsMonitor<CacheOrchestratorOptions>? monitor =
-            httpContext.RequestServices.GetService<IOptionsMonitor<CacheOrchestratorOptions>>();
+        IOptionsMonitor<CacheOrchestratorHttpOptions>? monitor =
+            httpContext.RequestServices.GetService<IOptionsMonitor<CacheOrchestratorHttpOptions>>();
         return monitor?.CurrentValue.EmitDiagnosticsHeaders ?? true;
     }
 

@@ -137,6 +137,17 @@ public class DefaultDomainKeyGeneratorTests
     }
 
     [Fact]
+    public void Generate_PathCase_IsPreserved()
+    {
+        DomainHttpCacheOptions cfg = CreateConfig();
+
+        string upper = _sut.Generate(cfg, CreateHttpContext(path: "/api/Products"));
+        string lower = _sut.Generate(cfg, CreateHttpContext(path: "/api/products"));
+
+        upper.Should().NotBe(lower);
+    }
+
+    [Fact]
     public void Generate_EmptyPath_DoesNotThrow()
     {
         DomainHttpCacheOptions cfg = CreateConfig();
@@ -160,6 +171,55 @@ public class DefaultDomainKeyGeneratorTests
         string key2 = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "2" }));
 
         key1.Should().NotBe(key2);
+    }
+
+    [Fact]
+    public void Generate_QueryValueCase_IsPreserved()
+    {
+        DomainHttpCacheOptions cfg = CreateConfig();
+
+        string upper = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "ABC" }));
+        string lower = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "abc" }));
+
+        upper.Should().NotBe(lower);
+    }
+
+    [Fact]
+    public void Generate_SingleCommaValue_DiffersFromTwoValues()
+    {
+        DomainHttpCacheOptions cfg = CreateConfig();
+
+        string single = _sut.Generate(cfg, CreateHttpContext(query: new() { ["id"] = "a,b" }));
+        string multiple = _sut.Generate(
+            cfg,
+            CreateHttpContext(query: new() { ["id"] = new StringValues(["a", "b"]) }));
+
+        single.Should().NotBe(multiple);
+    }
+
+    [Fact]
+    public void Generate_OpaqueResourceIds_RemainDistinctAndVisibleSegmentsAreEscaped()
+    {
+        DomainHttpCacheOptions cfg = CreateConfig(domain: "products");
+        DefaultHttpContext slash = CreateHttpContext();
+        slash.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature
+        {
+            EntityKind = "items",
+            ResourceId = "A/B"
+        });
+        DefaultHttpContext space = CreateHttpContext();
+        space.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature
+        {
+            EntityKind = "items",
+            ResourceId = "A B"
+        });
+
+        string slashKey = _sut.Generate(cfg, slash);
+        string spaceKey = _sut.Generate(cfg, space);
+
+        slashKey.Should().NotBe(spaceKey);
+        slashKey.Should().Contain(":id:items:A%2FB:");
+        spaceKey.Should().Contain(":id:items:A%20B:");
     }
 
     [Fact]

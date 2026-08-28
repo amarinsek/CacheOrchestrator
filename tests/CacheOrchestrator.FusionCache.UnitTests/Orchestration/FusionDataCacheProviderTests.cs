@@ -53,8 +53,8 @@ public class FusionDataCacheProviderTests
         _fusionCache
             .GetOrSetAsync(
                 Arg.Any<string>(),
-                Arg.Any<Func<FusionCacheFactoryExecutionContext<string>, CancellationToken, Task<string>>>(),
-                Arg.Any<MaybeValue<string>>(),
+                Arg.Any<Func<FusionCacheFactoryExecutionContext<FusionProviderCacheEntry<string>>, CancellationToken, Task<FusionProviderCacheEntry<string>>>>(),
+                Arg.Any<MaybeValue<FusionProviderCacheEntry<string>>>(),
                 Arg.Any<FusionCacheEntryOptions>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
@@ -62,7 +62,11 @@ public class FusionDataCacheProviderTests
             {
                 passedKey = callInfo.ArgAt<string>(0);
                 passedTags = callInfo.ArgAt<IEnumerable<string>?>(4);
-                return ValueTask.FromResult("hit");
+                return ValueTask.FromResult(new FusionProviderCacheEntry<string>
+                {
+                    Value = "hit",
+                    MaterializationId = Guid.NewGuid()
+                });
             });
 
         DataCacheProviderRequest request = new()
@@ -73,12 +77,13 @@ public class FusionDataCacheProviderTests
             DomainOptions = domain
         };
 
-        string result = await _sut.GetOrCreateAsync(
+        DataCacheProviderResult<string> result = await _sut.GetOrCreateAsync(
             request,
             _ => ValueTask.FromResult("fresh"),
             TestContext.Current.CancellationToken);
 
-        result.Should().Be("hit");
+        result.Value.Should().Be("hit");
+        result.Outcome.Should().Be(DataCacheProviderOutcome.Cached);
         passedKey.Should().Be("products:v:product:1");
         passedTags.Should().Equal("domain:products", "entity:products:product:1");
     }

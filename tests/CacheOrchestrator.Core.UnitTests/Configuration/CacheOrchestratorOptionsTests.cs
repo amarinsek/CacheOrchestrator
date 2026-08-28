@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Configuration;
 using Microsoft.Extensions.Configuration;
 
 namespace CacheOrchestrator.Core.UnitTests.Configuration;
@@ -11,38 +11,11 @@ public class CacheOrchestratorOptionsTests
         var opts = new CacheOrchestratorOptions();
 
         opts.Namespace.Should().Be("app-cache");
-        opts.EmitDiagnosticsHeaders.Should().BeTrue();
-        opts.OutputCache.Provider.Should().Be("InMemory");
         opts.DataCacheInstances["default"].Provider.Should().Be("InMemory");
         opts.Domains.Should().BeEmpty();
         opts.Distributed.SoftTimeoutSeconds.Should().Be(1);
         opts.Distributed.HardTimeoutSeconds.Should().Be(2);
         opts.Distributed.CircuitBreakerSeconds.Should().Be(5);
-    }
-
-    [Fact]
-    public void EmitDiagnosticsHeaders_BindsFromConfiguration()
-    {
-        IConfiguration config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Cache:EmitDiagnosticsHeaders"] = "false"
-            })
-            .Build();
-
-        var opts = new CacheOrchestratorOptions();
-        config.GetSection("Cache").Bind(opts);
-
-        opts.EmitDiagnosticsHeaders.Should().BeFalse();
-    }
-
-    [Fact]
-    public void OutputNamespace_WhenProviderNamespaceNull_UsesGlobalSuffix()
-    {
-        var opts = new CacheOrchestratorOptions { Namespace = "myapp" };
-        opts.OutputCache.Namespace = null;
-
-        opts.OutputNamespace.Should().Be("myapp-oc");
     }
 
     [Fact]
@@ -63,15 +36,6 @@ public class CacheOrchestratorOptionsTests
 
         opts.DataCacheInstances["default"].GetNamespace("default", opts).Should().Be("myapp-fc");
         opts.DataCacheInstances["default"].GetNamespace("Default", opts).Should().Be("myapp-fc");
-    }
-
-    [Fact]
-    public void OutputNamespace_WhenProviderNamespaceSet_UsesProviderNamespace()
-    {
-        var opts = new CacheOrchestratorOptions { Namespace = "myapp" };
-        opts.OutputCache.Namespace = "custom-oc";
-
-        opts.OutputNamespace.Should().Be("custom-oc");
     }
 
     [Fact]

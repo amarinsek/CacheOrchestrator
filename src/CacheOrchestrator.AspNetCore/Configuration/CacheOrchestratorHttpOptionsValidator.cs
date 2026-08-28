@@ -4,9 +4,25 @@ namespace CacheOrchestrator.Configuration;
 
 internal sealed class CacheOrchestratorHttpOptionsValidator : IValidateOptions<CacheOrchestratorHttpOptions>
 {
+    private readonly HashSet<string>? _validOutputProviders;
+
+    public CacheOrchestratorHttpOptionsValidator(IEnumerable<string>? validOutputProviders = null)
+    {
+        _validOutputProviders = validOutputProviders is null
+            ? null
+            : new HashSet<string>(validOutputProviders, StringComparer.OrdinalIgnoreCase);
+    }
+
     public ValidateOptionsResult Validate(string? name, CacheOrchestratorHttpOptions options)
     {
         List<string> failures = [];
+        if (_validOutputProviders is not null
+            && !_validOutputProviders.Contains(options.OutputCache.Provider))
+        {
+            failures.Add(
+                $"Unsupported OutputCache provider '{options.OutputCache.Provider}'. " +
+                $"Registered providers: {string.Join(", ", _validOutputProviders)}.");
+        }
         Validate("DomainDefaults", options.DomainDefaults, failures);
         foreach ((string domain, DomainHttpCacheSettings settings) in options.Domains)
         {

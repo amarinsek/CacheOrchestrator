@@ -436,7 +436,7 @@ public class HttpPipelineContractTests
     }
 
     [Fact]
-    public async Task InvalidateEntity_GarbageResourceId_IsSkipped_OutputCacheStaysHit()
+    public async Task InvalidateEntity_OpaqueResourceId_IsAccepted_AndDoesNotAffectOtherEntity()
     {
         string domain = "skip-id-" + Guid.NewGuid().ToString("N");
         (HttpClient? client, WebApplication? app) = await StartAsync(BaseConfig(domain), a =>
@@ -455,12 +455,12 @@ public class HttpPipelineContractTests
             xHit.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
 
-            CacheInvalidationResult skipped = await app.Services
+            CacheInvalidationResult invalidated = await app.Services
                 .GetRequiredService<ICacheOrchestratorInvalidator>()
                 .InvalidateEntityAsync(domain, "items", "!!!", TestContext.Current.CancellationToken);
 
-            skipped.IsSkipped.Should().BeTrue();
-            skipped.Succeeded.Should().BeFalse();
+            invalidated.IsSkipped.Should().BeFalse();
+            invalidated.Succeeded.Should().BeTrue();
 
             (HttpResponseMessage still, string xStill, string _) = await GetAsync(client, "/p/1");
             xStill.Should().Contain("oc=hit");

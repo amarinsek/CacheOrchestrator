@@ -1,4 +1,3 @@
-using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Diagnostics;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
@@ -12,12 +11,12 @@ namespace CacheOrchestrator.Cluster;
 internal sealed class ClusterCommandDedupeStore
 {
     private readonly ConcurrentDictionary<Guid, long> _seen = new();
-    private readonly IOptionsMonitor<CacheOrchestratorOptions> _options;
+    private readonly IOptionsMonitor<ClusterCommandHandlingOptions> _options;
     private readonly TimeProvider _time;
     private long _lastCleanupTicks;
 
     public ClusterCommandDedupeStore(
-        IOptionsMonitor<CacheOrchestratorOptions> options,
+        IOptionsMonitor<ClusterCommandHandlingOptions> options,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -34,7 +33,7 @@ internal sealed class ClusterCommandDedupeStore
         if (commandId == Guid.Empty)
             return true;
 
-        int windowSeconds = _options.CurrentValue.Cluster.Bus.DedupeWindowSeconds;
+        int windowSeconds = _options.CurrentValue.DedupeWindowSeconds;
         if (windowSeconds <= 0)
             return true;
 

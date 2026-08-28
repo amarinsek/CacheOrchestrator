@@ -1,4 +1,3 @@
-using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Invalidation;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
@@ -8,7 +7,7 @@ namespace CacheOrchestrator.Diagnostics;
 /// <summary>
 /// Domain-level metrics for CacheOrchestrator.
 /// Zero meaningful overhead when no MeterListener / OpenTelemetry is subscribed.
-/// Optional stable <c>route</c> tag when <see cref="CacheOrchestratorOptions.MetricsOptions"/>.<c>IncludeEndpointLabel</c> is true.
+/// Optional stable <c>route</c> tag when <c>Cache:Metrics:IncludeEndpointLabel</c> is true.
 /// </summary>
 public static class CacheOrchestratorMetrics
 {

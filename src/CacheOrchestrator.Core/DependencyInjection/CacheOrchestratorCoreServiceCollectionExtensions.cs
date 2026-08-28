@@ -45,6 +45,8 @@ public static class CacheOrchestratorCoreServiceCollectionExtensions
         services.TryAddSingleton(configuration);
         CacheOrchestratorOptionsBinding.EnsureBound(services, configuration, configSection)
             .ValidateOnStart();
+        services.AddOptions<ClusterCommandHandlingOptions>()
+            .Bind(configuration.GetSection($"{configSection}:Cluster:Bus"));
 
         if (registerCoreValidator)
         {
@@ -55,11 +57,9 @@ public static class CacheOrchestratorCoreServiceCollectionExtensions
                 services.AddSingleton<CacheOrchestratorCoreValidatorMarker>();
                 services.AddSingleton<IValidateOptions<CacheOrchestratorOptions>>(sp =>
                     new CacheOrchestratorOptionsValidator(
-                        validProviders: [],
                         logger: sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()
                             ?.CreateLogger(typeof(CacheOrchestratorOptionsValidator).FullName
-                                ?? nameof(CacheOrchestratorOptionsValidator)),
-                        validateOutputCacheProvider: false));
+                                ?? nameof(CacheOrchestratorOptionsValidator))));
             }
         }
 

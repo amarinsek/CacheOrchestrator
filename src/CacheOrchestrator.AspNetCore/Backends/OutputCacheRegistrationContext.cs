@@ -1,4 +1,3 @@
-using CacheOrchestrator.Configuration;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,14 +16,14 @@ public sealed class OutputCacheRegistrationContext
     internal OutputCacheRegistrationContext(
         IServiceCollection services,
         IConfiguration configuration,
-        CacheOrchestratorOptions options,
+        string outputCacheNamespace,
         string configSection,
         string providerName,
         List<Action<OutputCacheOptions>> optionConfigurators)
     {
         Services = services;
         Configuration = configuration;
-        Options = options;
+        OutputCacheNamespace = outputCacheNamespace;
         ConfigSection = configSection;
         ProviderName = providerName;
         _optionConfigurators = optionConfigurators;
@@ -36,8 +35,8 @@ public sealed class OutputCacheRegistrationContext
     /// <summary>Root application configuration.</summary>
     public IConfiguration Configuration { get; }
 
-    /// <summary>Bound orchestrator options (snapshot used at registration).</summary>
-    public CacheOrchestratorOptions Options { get; }
+    /// <summary>Effective namespace used to isolate Output Cache keys.</summary>
+    public string OutputCacheNamespace { get; }
 
     /// <summary>Configuration section name (default <c>Cache</c>).</summary>
     public string ConfigSection { get; }

@@ -37,7 +37,7 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
     public string Name => "FusionCache";
 
     /// <inheritdoc />
-    public async ValueTask<T> GetOrCreateAsync<T>(
+    public async ValueTask<DataCacheProviderResult<T>> GetOrCreateAsync<T>(
         DataCacheProviderRequest request,
         Func<CancellationToken, ValueTask<T>> factory,
         CancellationToken cancellationToken = default)
@@ -50,9 +50,14 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         FusionCacheEntryOptions entryOptions = FusionEntryOptionsFactory.Create(request.DomainOptions, fusionSettings);
         string[] tags = request.Tags as string[] ?? [.. request.Tags];
 
-        T result = await fusion.GetOrSetAsync<T>(
+        var materializationId = Guid.NewGuid();
+        FusionProviderCacheEntry<T> entry = await fusion.GetOrSetAsync<FusionProviderCacheEntry<T>>(
                 request.Key,
-                async (_, token) => await factory(token).ConfigureAwait(false),
+                async (_, token) => new FusionProviderCacheEntry<T>
+                {
+                    Value = await factory(token).ConfigureAwait(false),
+                    MaterializationId = materializationId
+                },
                 entryOptions,
                 tags: tags,
                 token: cancellationToken)
@@ -61,7 +66,10 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
         if (_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("FusionDataCacheProvider GetOrCreate Key={Key}", request.Key);
 
-        return result;
+        DataCacheProviderOutcome outcome = entry.MaterializationId == materializationId
+            ? DataCacheProviderOutcome.Materialized
+            : DataCacheProviderOutcome.Cached;
+        return new DataCacheProviderResult<T>(entry.Value, outcome);
     }
 
     /// <inheritdoc />
@@ -79,7 +87,11 @@ internal sealed class FusionDataCacheProvider : IDataCacheProvider
 
         await fusion.SetAsync(
                 request.Key,
-                value,
+                new FusionProviderCacheEntry<T>
+                {
+                    Value = value,
+                    MaterializationId = Guid.NewGuid()
+                },
                 entryOptions,
                 tags: tags,
                 token: cancellationToken)

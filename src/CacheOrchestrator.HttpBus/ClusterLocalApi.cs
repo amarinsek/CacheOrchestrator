@@ -34,8 +34,8 @@ internal static class ClusterLocalApi
         ArgumentNullException.ThrowIfNull(endpoints);
 
         using IServiceScope scope = endpoints.ServiceProvider.CreateScope();
-        CacheOrchestratorOptions opts = scope.ServiceProvider
-            .GetRequiredService<IOptions<CacheOrchestratorOptions>>().Value;
+        HttpBusOptions opts = scope.ServiceProvider
+            .GetRequiredService<IOptions<HttpBusOptions>>().Value;
 
         IClusterCommandBus bus = scope.ServiceProvider.GetRequiredService<IClusterCommandBus>();
         if (!opts.Cluster.Bus.Enabled || !bus.IsEnabled)

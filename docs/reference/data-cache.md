@@ -220,6 +220,8 @@ Admin Console's exclusive pipeline mix is **Output Cache hit + fresh Data Cache 
 
 Stampede protection and fail-safe stale serve come from FusionCache itself. Nested JSON schema: [configuration.md](configuration.md#fusioncache-fusion-package-only).
 
+The provider stores a small typed envelope around the application value so it can distinguish a value materialized by the current call from a cached or fail-safe stale value. This is an internal v3 storage format; all nodes sharing an L2 store must be upgraded together.
+
 ---
 
 ## HybridCache provider
@@ -233,9 +235,13 @@ builder.Services.AddCacheOrchestratorHybridCache();
 ```
 
 - Uses portable **`DataCache.TtlSeconds`** (expiration / local expiration).
+- Applies the resolved `DataCacheNamespace` to physical keys and tags, including optional distributed HybridCache storage.
+- Supports only `DataCacheInstances:default`; startup validation rejects named instances instead of allowing them to share one DI HybridCache.
 - Nested **`FusionCache`** settings are ignored (no fail-safe / hard TTL / factory timeouts / named Fusion instances).
 - Optional L2: configure HybridCache / `IDistributedCache` as usual (outside this package) — not Fusion `AddRedisBackend`.
 - Prefer **Fusion** when you need fail-safe, eager refresh, or the full Fusion surface.
+
+Like the Fusion provider, HybridCache stores an internal typed envelope used to report whether this call materialized the returned value. Upgrade nodes that share its distributed storage together.
 
 Package README: [CacheOrchestrator.HybridCache](../../src/CacheOrchestrator.HybridCache/README.md).
 

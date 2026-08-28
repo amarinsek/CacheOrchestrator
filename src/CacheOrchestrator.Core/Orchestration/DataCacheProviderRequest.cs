@@ -11,7 +11,10 @@ namespace CacheOrchestrator.Orchestration;
 /// </remarks>
 public sealed class DataCacheProviderRequest
 {
-    /// <summary>Fully formed cache key (includes domain + Version hex + logical key).</summary>
+    /// <summary>
+    /// Fully formed orchestrator key (includes domain + Version hex + logical key).
+    /// A provider still owns any engine-level namespace prefix.
+    /// </summary>
     public required string Key { get; init; }
 
     /// <summary>Named data-cache instance (from <c>Cache:DataCacheInstances</c>).</summary>

@@ -17,14 +17,15 @@ internal sealed class NullDataCacheProvider : IDataCacheProvider
     public string Name => "Null";
 
     /// <inheritdoc />
-    public async ValueTask<T> GetOrCreateAsync<T>(
+    public async ValueTask<DataCacheProviderResult<T>> GetOrCreateAsync<T>(
         DataCacheProviderRequest request,
         Func<CancellationToken, ValueTask<T>> factory,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(factory);
-        return await factory(cancellationToken).ConfigureAwait(false);
+        T value = await factory(cancellationToken).ConfigureAwait(false);
+        return new DataCacheProviderResult<T>(value, DataCacheProviderOutcome.Materialized);
     }
 
     /// <inheritdoc />

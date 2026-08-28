@@ -32,10 +32,7 @@ internal sealed class CacheOrchestratorHealthCheck : IHealthCheck
         CancellationToken cancellationToken = default)
     {
         CacheOrchestratorOptions opts = _options.CurrentValue;
-        Dictionary<string, object> data = new()
-        {
-            ["output_provider"] = opts.OutputCache.Provider ?? "InMemory"
-        };
+        Dictionary<string, object> data = [];
 
         foreach ((string? instanceName, CacheOrchestratorOptions.DataCacheInstanceOptions? instanceOpts) in opts.DataCacheInstances)
             data[$"data_cache_instance:{instanceName}"] = instanceOpts.Provider ?? "InMemory";
