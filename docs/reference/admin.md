@@ -14,6 +14,16 @@ Use the Core contract from application code or a custom transport. Use the HTTP 
 
 Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Admin Console README](../../src/CacheOrchestrator.AdminConsole/README.md).
 
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Distribution](#distribution)
+- [Admin API (library)](#admin-api-library)
+- [Admin Console App (process)](#admin-console-app-process)
+- [Security](#security)
+- [Common pitfalls](#common-pitfalls)
+- [Out of scope](#out-of-scope)
+
 ## Architecture
 
 ```
@@ -24,7 +34,7 @@ Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Ad
 │ (browser → open)    │ ──────────────────►  │ App instance B           │
 └─────────────────────┘                      └──────────────────────────┘
          ▲
-         │  no built-in login today
+         │  no built-in login
          │  protect with network / SSO proxy
       Operators
 ```
@@ -363,7 +373,7 @@ Dev stack (Playground + Prometheus + Admin Console labs): [samples/CacheOrchestr
 | Key | Default | Notes |
 |-----|---------|--------|
 | `Enabled` | `false` | Off → UI shows “not configured”, no probe |
-| `Provider` | `Prometheus` | Only Prometheus HTTP API v1 today |
+| `Provider` | `Prometheus` | Prometheus HTTP API v1 only |
 | `BaseUrl` | empty | Required when enabled |
 | `TimeoutMs` | `5000` | Probe / query timeout |
 | `DefaultRange` | `1h` | UI default (`15m` / `1h` / `6h` / `24h` / `7d`) |
@@ -443,7 +453,7 @@ Repo overview: [admin-hints.md](../contributor/admin-hints.md).
 
 Write responses include `distributionMode`, `distribute`, `distributionSummary`, optional `busOriginInstanceId`, and per-instance `results[]`.
 
-**Warning:** These `/api/*` routes currently have **no application-level authentication**. Anyone who can reach the Admin Console App can read stats and run operations. Protect the host (see [Security](#security)).
+**Warning:** These `/api/*` routes have **no application-level authentication**. Anyone who can reach the Admin Console App can read stats and run operations. Protect the host (see [Security](#security)).
 
 ---
 
@@ -453,7 +463,7 @@ API key is the **intended** machine-to-machine credential for Admin API — not 
 
 ### Two different trust boundaries
 
-| Path | Protected by today? |
+| Path | Protected by? |
 |------|---------------------|
 | **Admin Console App → Admin API** on each app | Optional shared secret `X-Cache-Admin-Key` (required in production) |
 | **Browser / user → Admin Console App** | **No built-in login** — network / reverse-proxy auth only |
@@ -482,8 +492,7 @@ So: the key stops strangers from calling `/cache-admin/local` on your apps **if*
    HTTPS for browser → Admin Console App and Admin Console App → instances so the key is not sent in clear text.
 
 5. **Least privilege & audit**  
-   Invalidate / version / TTL are **mutations**. Limit who can open Operations. Prefer platform logging of who accessed the admin host.  
-   Future hardening (optional): separate read vs write keys — not implemented today.
+   Invalidate / version / TTL are **mutations**. Limit who can open Operations. Prefer platform logging of who accessed the admin host.
 
 6. **Do not rely on**  
    - API key alone without network isolation  
@@ -515,7 +524,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 - Free-form PromQL from the browser (panels are allowlisted server-side).  
 - Redis topology management.  
 - Publishing Admin Console App as a NuGet library.  
-- Built-in OIDC login UI inside Admin Console App (use edge auth for now).
+- Built-in OIDC login UI inside Admin Console App (use edge / reverse-proxy auth).
 
 ---
 

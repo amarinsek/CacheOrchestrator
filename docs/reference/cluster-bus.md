@@ -8,6 +8,21 @@ Package README: [src/CacheOrchestrator.HttpBus/README.md](../../src/CacheOrchest
 
 ---
 
+## Table of Contents
+
+- [When to use it](#when-to-use-it)
+- [Install](#install)
+- [Register](#register)
+- [Configuration](#configuration)
+- [Membership](#membership)
+- [Commands](#commands)
+- [HTTP endpoints](#http-endpoints)
+- [Admin Console App interaction](#admin-console-app-interaction)
+- [Bus vs Redis backplane](#bus-vs-redis-backplane)
+- [Observability](#observability)
+- [Zero effect / performance](#zero-effect-performance)
+- [Security checklist](#security-checklist)
+
 ## When to use it
 
 | Situation | Prefer |

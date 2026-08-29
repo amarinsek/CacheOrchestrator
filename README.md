@@ -19,9 +19,7 @@ A request can pass through the following cache layers:
 - **Output Cache (OC)** — serves the stored HTTP response so the endpoint need not run.
 - **Data Cache (L1/L2)** — serves the stored object so the factory (your database or service) need not run.
 
-In real-world applications, these layers are often fragmented—for example, an in-memory Output Cache on one end and FusionCache with Redis L2 Data Cache on the other, all with varying TTLs. When these layers are not synchronized, they can work against each other. CacheOrchestrator unifies them within a single **domain** model, keeping their lifetimes and policies coordinated.
-
-Cache **invalidation** presents the same coordination problem. Clearing the Data Cache is not enough if Output Cache still serves an older HTTP response. CacheOrchestrator invalidates matching server-side representations together. A response already stored by a browser or CDN remains valid until its Client Cache lifetime expires, so that lifetime must reflect how quickly clients need to observe unscheduled changes.
+In real-world applications, caching layers are often fragmented. You might have an in-memory Output Cache on one end and a Redis-backed FusionCache on the other, each operating with different TTLs. When these isolated layers aren't synchronized, they easily work against each other. CacheOrchestrator unifies them under a **single domain** model to coordinate their lifecycles and policies. This is especially critical for cache **invalidation**: clearing the Data Cache is pointless if the Output Cache continues serving stale HTTP responses. By tying these layers together, CacheOrchestrator ensures that all corresponding server-side representations are invalidated simultaneously.
 
 ## Table of Contents
 
@@ -123,9 +121,7 @@ app.MapGet("/api/promotions", () => new
 .CacheOutputWithDomain("promotions");
 ```
 
-The `promotions` domain applies Output Cache and Client Cache without requiring Data Cache. Request the endpoint twice and inspect `X-Cache`: the first request is an Output Cache miss and the second can be a hit.
-
-Next, apply the `catalog` domain to a product endpoint. Declare entity identity once on the route (`resourceRouteKey` + `entityKind`); `IDomainDataCache` reuses the same domain policies:
+Next, apply the `catalog` domain to a product endpoint. Declare entity identity once on the route (`entityKind` + `resourceRouteKey`); `IDomainDataCache` reuses the same domain policies:
 
 ```csharp
 app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
@@ -191,9 +187,9 @@ This keeps Output Cache in memory and moves the Fusion Data Cache L2 and backpla
 
 ## Why domains
 
-A domain is a named set of cache rules: lifetimes, which layers to use, and how they are backed. Different types of data require different cache configurations. For example:
+A domain is a named set of cache rules: lifetimes, which layers to use, and how they are backed. For example, in a fleet tracking application, different types of data require different cache configurations:
 
-- **Static public assets** may change once a year. Long Output Cache and Client Cache lifetimes are enough; Data Cache is optional.
+- **Static mapping assets** may change once a year. Long Output Cache and Client Cache lifetimes are enough; Data Cache is optional.
 - **Map tiles and batched datasets** change on a published schedule. Client lifetimes can stay long during the calm period and automatically shorten as the cutover approaches. The [Client Cache Schedule](docs/guide/client-cache-schedule.md) coordinates that countdown without changing Output Cache or Data Cache TTLs.
 - **Fleet telemetry** ages in minutes. A short lifetime, in-memory Output Cache, and a shared Redis Data Cache with a backplane keep several instances consistent.
 - **Live vehicle positions** age in seconds. FusionCache locking and fail-safe stop a stampede when many callers miss at once; Output Cache stays off or very short.
@@ -243,13 +239,11 @@ The library is **modular**. The Core package provides the foundational policies,
 > [!NOTE]
 > **v3 is in prerelease (beta)**
 >
-> CacheOrchestrator **v3** is a **full redesign**. It is **not** API-compatible with **v1.0.0** or **v2.1.x**, and there is **no migration path** from those lines. Legacy packages remain on NuGet only for existing environments; they are not under active feature development.
+> This documentation describes **CacheOrchestrator v3**. Public APIs may change until the stable **v3.0.0** release. Install the prerelease with the Quick start above (`dotnet add package … --prerelease`).
 >
-> **Try v3 now** with the Quick start above (`dotnet add package … --prerelease`). Expect breaking changes until the stable **v3.0.0** release.
+> **Help test the prerelease.** Reports from real ASP.NET Core applications, standalone workers, Redis deployments, browsers, and playground labs are especially valuable. Successful results and confusing behavior are welcome too — see [Contributing](CONTRIBUTING.md#help-test-v3).
 >
-> **Help test v3.** Reports from real ASP.NET Core applications, standalone workers, Redis deployments, browsers, and playground labs are especially valuable. Successful results and confusing behavior are welcome too — see [Contributing](CONTRIBUTING.md#help-test-v3).
->
-> Prefer building from source or contributing code? Clone this repository — `main` tracks the same v3 work and may move faster than the latest beta package.
+> To build from source or contribute code, clone this repository — `main` tracks the same v3 work and may move faster than the latest beta package.
 
 ## Documentation
 

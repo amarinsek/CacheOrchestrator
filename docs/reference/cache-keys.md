@@ -4,7 +4,7 @@
 
 How the **Data Cache** and Output Cache decide that two requests are the **same** resource. That is lookup identity. Eviction — tags and Version — is [invalidation.md](invalidation.md).
 
-- **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` and `my-app-fc` (historical `-fc` suffix for Data Cache instances).
+- **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` (Output Cache) and `my-app-fc` (Data Cache default instance suffix).
 - **Domain** — the policy group (`products`, `product-detail`).
 - **Request material** — what varies inside a domain: path, route, query, host, encoding, resource id, and optional **endpoint cache identity** (`co-id:*`).
 
@@ -15,6 +15,17 @@ Lookup  → key identity (this document)
 Purge   → tags + optional Version bump ([invalidation.md](invalidation.md))
 Policy  → Core + HTTP domain snapshots resolved before store ([configuration.md](configuration.md))
 ```
+
+## Table of Contents
+
+- [Namespace (top-level classifier)](#namespace-top-level-classifier)
+- [Data Cache keys](#data-cache-keys)
+- [Core API keys](#core-api-keys)
+- [Output Cache keys](#output-cache-keys)
+- [Side-by-side](#side-by-side)
+- [Tracking query parameters](#tracking-query-parameters)
+- [Design rationale (summary)](#design-rationale-summary)
+- [Custom Data Cache keys](#custom-data-cache-keys)
 
 ## Namespace (top-level classifier)
 
@@ -50,7 +61,7 @@ Default: `app-cache`. Effective store prefixes:
 | **Fusion Redis L2** | Yes (via Fusion) | Redis `InstanceName` is **not** set; Fusion prefix is the single isolation layer (do not also set `InstanceName` to the same namespace) |
 | **Fusion backplane** | Yes | Channel prefix `{dcNamespace}:backplane` |
 
-Data Cache provider keys use the cutover format `co3:{escapedDomain}:{versionHex}:{logicalMaterial}`. The escaped domain makes segment boundaries unambiguous; Namespace is still applied by the provider (Fusion `CacheKeyPrefix` / backplane or the Hybrid provider prefix), not inside the CO key string.
+Data Cache provider keys use the Version-stamped form `co3:{escapedDomain}:{versionHex}:{logicalMaterial}`. The escaped domain makes segment boundaries unambiguous; Namespace is still applied by the provider (Fusion `CacheKeyPrefix` / backplane or the Hybrid provider prefix), not inside the CO key string.
 
 ---
 
@@ -74,8 +85,8 @@ Replace with a custom `IDomainKeyGenerator` when you must vary on dimensions the
 Examples:
 
 ```text
-products:a1b2c3d4e5f60708:7f3e9c1a2b4d6e08
-store:a1b2c3d4e5f60708:id:products:42:9c8b7a6d5e4f3210
+co3:products:a1b2c3d4e5f60708:7f3e9c1a2b4d6e08
+co3:store:a1b2c3d4e5f60708:id:products:42:9c8b7a6d5e4f3210
 ```
 
 - **`domain`** — normalized domain name from the Core `DomainCacheOptions` (explicit partition).
@@ -119,18 +130,18 @@ An unusable kind or id (null/whitespace) does **not** become `default`; invalida
 
 Use entity keys for CRUD-style resources so invalidation can target `entity:{domain}:{entityKind}:{id}` without depending on the full URL shape. Wire the matching Output Cache route with `resourceRouteKey` **and** `entityKind`, or kind-only for collections ([invalidation.md](invalidation.md#wiring-entity-tags)).
 
-### Why domain is in the Fusion key
+### Why domain is in the Data Cache provider key
 
-Fusion APIs accept an explicit domain (or resolve one per request). The same `HttpContext` can theoretically touch different domains, and domain is the primary policy partition (TTL, instance, Version). Embedding domain in the key guarantees:
+`IDomainDataCache` / `ICacheOrchestrator` accept an explicit domain (or resolve one per request). The same `HttpContext` can theoretically touch different domains, and domain is the primary policy partition (TTL, instance, Version). Embedding domain in the CacheOrchestrator provider key (`co3:…`) guarantees:
 
 ```text
-GetOrSetAsync(http, "products", …)  →  products:…
-GetOrSetAsync(http, "catalog",  …)  →  catalog:…
+GetOrSetAsync(http, "products", …)  →  co3:products:…
+GetOrSetAsync(http, "catalog",  …)  →  co3:catalog:…
 ```
 
-never share an entry even if path and query are identical.
+never share an entry even if path and query are identical. Fusion/Hybrid still apply their own instance namespace outside this key.
 
-### Tags (Fusion)
+### Tags (Data Cache)
 
 Every stored entry is also tagged `domain:{name}` (and `entity:{domain}:{entityKind}:{id}` + `entitykind:{domain}:{entityKind}` when entity identity was used). Each tag segment is percent-encoded independently, so `:` or `/` inside an opaque id cannot change tag structure. Tags are for `ICacheOrchestratorInvalidator`, not for lookup.
 
@@ -223,8 +234,8 @@ Version: v1
 
 | Layer | Identity (conceptually) |
 |-------|-------------------------|
-| Data Cache (URL-shaped) | `product-detail:{versionHex}:{hash(route id=42, query page=1)}` — `utm_source` ignored |
-| Data Cache (entity-shaped, kind `products`, id `42`) | `product-detail:{versionHex}:id:products:42:{hash}` |
+| Data Cache (URL-shaped) | `co3:product-detail:{versionHex}:{hash(route id=42, query page=1)}` — `utm_source` ignored |
+| Data Cache (entity-shaped, kind `products`, id `42`) | `co3:product-detail:{versionHex}:id:products:42:{hash}` |
 | Output Cache | prefix `…-oc` + path `/api/products/42` + query `page` + host + `data-version` — `utm_source` ignored |
 | Tags | `domain:product-detail`; with Output Cache `resourceRouteKey` + `entityKind`: also `entity:product-detail:products:42` and `entitykind:product-detail:products` |
 

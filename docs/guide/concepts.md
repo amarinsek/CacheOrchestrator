@@ -6,6 +6,17 @@ The getting-started tutorial used one domain to coordinate Client Cache, Output 
 
 CacheOrchestrator does not replace ASP.NET Core Output Caching, FusionCache, HybridCache, Redis, browsers, or CDNs. It gives those layers one policy model and one invalidation vocabulary.
 
+## Table of Contents
+
+- [A domain keeps policy out of the endpoint](#a-domain-keeps-policy-out-of-the-endpoint)
+- [A request can stop at three layers](#a-request-can-stop-at-three-layers)
+- [One request uses one resolved snapshot](#one-request-uses-one-resolved-snapshot)
+- [Freshness has three controls](#freshness-has-three-controls)
+- [Entity identity enables targeted invalidation](#entity-identity-enables-targeted-invalidation)
+- [Request identity prevents accidental sharing](#request-identity-prevents-accidental-sharing)
+- [Stores and namespaces belong below the domain](#stores-and-namespaces-belong-below-the-domain)
+- [Keep this mental model](#keep-this-mental-model)
+
 ## A domain keeps policy out of the endpoint
 
 A **domain** is a named group of cache rules such as `promotions`, `catalog`, or `map-tiles`. It defines:
@@ -32,18 +43,7 @@ A domain is not a cache store. Several domains can share one provider, and one a
 
 A cacheable request moves from the client toward the data source:
 
-```text
-Client / CDN
-    │  cached response still fresh? ──► return it; the server sees no request
-    ▼
-ASP.NET Output Cache
-    │  cached HTTP response found?  ──► return it; the endpoint does not run
-    ▼
-Endpoint + Data Cache
-    │  cached object found?         ──► build the HTTP response from that object
-    ▼
-Factory: database or remote service
-```
+<img src="../../docs/assets/drawing-01.svg" height="350" alt="A request passing through Client Cache, Output Cache, and Data Cache" />
 
 Each layer stores something different:
 
@@ -77,10 +77,7 @@ app.MapGet("/api/products/{id:int}", async (
 
     return product is null ? Results.NotFound() : Results.Json(product);
 })
-.CacheOutputWithDomain(
-    "catalog",
-    entityKind: "products",
-    resourceRouteKey: "id");
+.CacheOutputWithDomain("catalog", entityKind: "products", resourceRouteKey: "id");
 ```
 
 `IDomainDataCache` reads the `catalog` snapshot already attached to the request. You do not repeat the domain name inside `GetOrSetEntityAsync`.
@@ -88,11 +85,7 @@ app.MapGet("/api/products/{id:int}", async (
 For an endpoint that uses only Data Cache and has no domain metadata, pass the domain explicitly:
 
 ```csharp
-await cache.GetOrSetAsync(
-    http,
-    "catalog",
-    LoadProductsAsync,
-    cancellationToken);
+await cache.GetOrSetAsync(http, "catalog", LoadProductsAsync, cancellationToken);
 ```
 
 Without endpoint metadata, an existing request snapshot, or an explicit domain, `IDomainDataCache` runs the factory uncached and records an unresolved diagnostic. Class libraries and workers use the HTTP-free `ICacheOrchestrator` API with a host-supplied `CacheDomainContext`.
@@ -118,18 +111,14 @@ Every layer has its own TTL because it stores a different artifact. A five-minut
 When product `42` changes, targeted invalidation removes entries tagged for that logical entity from Output Cache and the Data Cache:
 
 ```csharp
-await invalidator.InvalidateEntityAsync(
-    "catalog",
-    "products",
-    42,
-    cancellationToken);
+await invalidator.InvalidateEntityAsync("catalog", "products", 42, cancellationToken);
 ```
 
 Other products remain cached. Domain- and entity-kind-level invalidation are available when the change is broader.
 
 ### Version starts a new generation
 
-`Version` is a stamp for the whole domain, not the revision number of one entity. Changing `"2030-08"` to `"2030-09"` changes the cache identity for every request in that domain. Old entries are no longer found and expire according to their store policy.
+`Version` is a stamp for the whole domain, not the revision number of one entity. Changing `"2030-08"` to `"2030-09"` changes the cache identity for every request in that domain. Entries under the previous stamp are not selected and expire according to their store policy.
 
 Use a version change for snapshot cutovers, large coordinated releases, or representation changes. Do not bump the whole domain for an ordinary single-row update when entity invalidation is available.
 
@@ -148,10 +137,7 @@ resource id: 42
 For a detail endpoint, declare that identity once:
 
 ```csharp
-.CacheOutputWithDomain(
-    "catalog",
-    entityKind: "products",
-    resourceRouteKey: "id")
+.CacheOutputWithDomain("catalog", entityKind: "products", resourceRouteKey: "id")
 ```
 
 `resourceRouteKey` tells CacheOrchestrator which route value contains the id. `GetOrSetEntityAsync` consumes the same identity for the Data Cache key and tags. `InvalidateEntityAsync` then addresses the same domain, kind, and id.

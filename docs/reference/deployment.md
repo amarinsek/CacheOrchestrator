@@ -28,6 +28,15 @@ app.MapCacheOrchestratorHttpBus();
 
 ---
 
+## Table of Contents
+
+- [Single instance (in-memory only)](#single-instance-in-memory-only)
+- [Multiple instances with Redis](#multiple-instances-with-redis)
+- [Multiple instances without Redis (InMemory Data Cache, no backplane)](#multiple-instances-without-redis-inmemory-data-cache-no-backplane)
+- [Mixed backends (Output Cache InMemory + Data Cache Redis)](#mixed-backends-output-cache-inmemory-data-cache-redis)
+- [Using multiple Data Cache instances](#using-multiple-data-cache-instances)
+- [Shared configuration across instances](#shared-configuration-across-instances)
+
 ## Single instance (in-memory only)
 
 The simplest topology. One process, no Redis, no cross-process coordination.
@@ -100,7 +109,7 @@ Instance B's L1 memory would still hold stale data until its TTL expired. The Re
 (pub/sub) delivers the invalidation signal so L1 is cleared immediately on all nodes.
 
 **Backplane channel:** `{DataCacheNamespace}:backplane` (e.g. `my-app-fc:backplane`).
-Effective Data Cache namespace is `Cache:DataCacheInstances:{name}:Namespace` if set, else `{Cache:Namespace}-fc` for instance `default`, else `{Cache:Namespace}-fc-{instanceName}`. The `-fc` suffix is historical. Multiple apps on the same Redis cluster stay isolated when those prefixes differ.
+Effective Data Cache namespace is `Cache:DataCacheInstances:{name}:Namespace` if set, else `{Cache:Namespace}-fc` for instance `default`, else `{Cache:Namespace}-fc-{instanceName}`. Multiple apps on the same Redis cluster stay isolated when those prefixes differ.
 
 Runtime Version / TTL / **settings** overlays are **not** carried by the Fusion backplane. Use the [cluster bus](cluster-bus.md) (`CacheOrchestrator.HttpBus`) or Admin Console fan-out for those.
 
@@ -174,7 +183,7 @@ while the Fusion Data Cache provider uses Redis so object data is shared and inv
 | Data Cache L1 (Fusion) | Per-process memory | No (but invalidated via backplane) |
 | Data Cache L2 (Fusion) | Redis | Yes |
 
-Output Cache will eventually diverge between instances (until TTL expires or endpoint is not hit on that instance yet).
+Output Cache will eventually diverge between instances (until TTL expires, or that instance has not served the endpoint since the change).
 Fusion object data stays consistent because Redis is the shared source of truth and the backplane keeps L1 in sync.
 
 ---

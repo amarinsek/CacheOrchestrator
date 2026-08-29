@@ -6,6 +6,14 @@ When data changes, retire it in **every** layer that still holds it — Data Cac
 
 Prefer **`ICacheOrchestratorInvalidator`** over talking to Data Cache or Output Cache stores directly. Multi-instance behaviour depends on topology ([deployment](deployment.md), [cluster bus](cluster-bus.md)).
 
+## Table of Contents
+
+- [Version (preferred for bulk cutovers)](#version-preferred-for-bulk-cutovers)
+- [Programmatic API (`ICacheOrchestratorInvalidator`)](#programmatic-api-icacheorchestratorinvalidator)
+- [When to use which](#when-to-use-which)
+- [EF Core SaveChanges (`CacheOrchestrator.EFCore.Invalidation`)](#ef-core-savechanges-cacheorchestratorefcoreinvalidation)
+- [Multi-instance invalidation](#multi-instance-invalidation)
+
 ## Version (preferred for bulk cutovers)
 
 In config:
@@ -289,7 +297,7 @@ app.MapCacheOrchestratorHttpBus(); // independent of Admin
 
 Prefer Redis L2 and the backplane when instances share Fusion data. Use HttpBus when stores are in-memory and you still need commands on every node, including runtime Version and TTL overlays.
 
-`ICacheInvalidationObserver` remains for **audit/webhooks only** — not a second cluster bus when HttpBus is registered.
+`ICacheInvalidationObserver` is for **audit/webhooks only** — not a second cluster bus when HttpBus is registered.
 
 ### Choosing an approach (multi-instance)
 

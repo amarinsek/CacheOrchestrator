@@ -8,8 +8,6 @@ For Fusion L2 / backplane only, use **CacheOrchestrator.FusionCache.Redis**. For
 
 ## Install
 
-Available on nuget.org **from release 3.0.0-beta.3** onwards (until then, reference the project from source):
-
 ```bash
 dotnet add package CacheOrchestrator.AspNetCore.Redis --prerelease
 ```

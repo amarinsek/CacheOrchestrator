@@ -4,6 +4,16 @@
 
 These are short answers to common mistakes and boundary questions. Follow the linked guide or reference page for the complete model.
 
+## Table of Contents
+
+- [Hits, misses, and domain resolution](#hits-misses-and-domain-resolution)
+- [Authentication and request variation](#authentication-and-request-variation)
+- [Freshness, invalidation, and ETags](#freshness-invalidation-and-etags)
+- [Packages and topology](#packages-and-topology)
+- [Admin and multi-instance operations](#admin-and-multi-instance-operations)
+- [Output Cache methods and identity](#output-cache-methods-and-identity)
+- [Product boundaries](#product-boundaries)
+
 ## Hits, misses, and domain resolution
 
 ### Why is a route cached when I never set a domain?
@@ -221,9 +231,11 @@ Yes, but the extension point depends on what the storage system does:
 - implement `IFusionCacheBackendRegistrar` for FusionCache L2 storage or a backplane;
 - implement `IDataCacheProvider` only for a complete Data Cache engine.
 
-The same provider name may have separate registrars for the first two surfaces. `IOutputCacheBackendRegistrar` does not configure `DataCacheInstances`.
+The same provider name may have separate registrars for Output Cache and Fusion L2. `IOutputCacheBackendRegistrar` does not configure `DataCacheInstances`. `AddRedisBackend` / `AddRedisFusionCacheBackend` apply to Fusion, not HybridCache.
 
-See [Cache backends](../reference/backends.md) and the complete [extensibility catalog](../reference/extensibility.md).
+> With HybridCache as the Data Cache engine, configure distributed storage through Microsoft HybridCache / `IDistributedCache` (outside CacheOrchestrator) — there is no Hybrid-specific backend registrar;
+
+See [Cache backends](../reference/backends.md), [Data Cache — HybridCache](../reference/data-cache.md#hybridcache-provider), and the complete [extensibility catalog](../reference/extensibility.md).
 
 ## Admin and multi-instance operations
 
@@ -261,7 +273,7 @@ Yes, but only with an explicit cache identity binding.
 
 Without identity metadata, Output Cache supports `GET` and `HEAD` with URL identity. Applying a domain alone does not cache `POST`, `PUT`, or other methods.
 
-Duplicate bindings for one method fail during registration or through analyzer `COIDENTITY001`. See [Endpoint cache identity](../reference/cache-identity.md).
+See [Endpoint cache identity](../reference/cache-identity.md).
 
 ## Product boundaries
 
@@ -281,4 +293,4 @@ No. It resolves connection options and uses Redis as a backend. Provisioning, ac
 
 No. Application code should depend on public interfaces such as `IDomainDataCache`, `ICacheOrchestrator`, and `ICacheOrchestratorInvalidator`, then obtain implementations through dependency injection.
 
-Still stuck? Follow the request-level checklist in [Operations](operations.md#use-a-short-incident-checklist), then use the topic links above for exact configuration and API contracts.
+

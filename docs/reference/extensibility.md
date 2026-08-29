@@ -6,6 +6,24 @@ CacheOrchestrator exposes several extension points, each at a different boundary
 
 This page distinguishes supported application extension points from provider- and host-integration contracts. A type being public does not automatically mean ordinary applications should replace it.
 
+## Table of Contents
+
+- [Extension point map](#extension-point-map)
+- [Request identity: `ICacheIdentityContract`](#request-identity-icacheidentitycontract)
+- [Domain-template token providers](#domain-template-token-providers)
+- [Vary dimensions: `ICacheVaryContributor`](#vary-dimensions-icachevarycontributor)
+- [Full HTTP Data Cache key: `IDomainKeyGenerator`](#full-http-data-cache-key-idomainkeygenerator)
+- [Invalidation observer: `ICacheInvalidationObserver`](#invalidation-observer-icacheinvalidationobserver)
+- [Health probe: `ICacheOrchestratorHealthProbe`](#health-probe-icacheorchestratorhealthprobe)
+- [Output Cache store: `IOutputCacheBackendRegistrar`](#output-cache-store-ioutputcachebackendregistrar)
+- [FusionCache L2/backplane: `IFusionCacheBackendRegistrar`](#fusioncache-l2backplane-ifusioncachebackendregistrar)
+- [Data Cache engine: `IDataCacheProvider`](#data-cache-engine-idatacacheprovider)
+- [Provider-specific runtime settings](#provider-specific-runtime-settings)
+- [Satellite-package builders](#satellite-package-builders)
+- [Cluster contracts](#cluster-contracts)
+- [Advanced host integration contracts](#advanced-host-integration-contracts)
+- [Public utility types](#public-utility-types)
+
 ## Extension point map
 
 | Requirement | Extension point | Typical owner |

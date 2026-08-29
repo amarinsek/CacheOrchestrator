@@ -8,18 +8,19 @@ Long-lived public datasets create a client-caching dilemma. A 30-day browser or 
 
 It changes only the client-facing `Cache-Control` header. It does not change Output Cache TTL, Data Cache TTL, server entries, or the domain `Version`.
 
+## Table of Contents
+
+- [Follow one response toward cutover](#follow-one-response-toward-cutover)
+- [Configure the client policy](#configure-the-client-policy)
+- [Understand what the schedule does not do](#understand-what-the-schedule-does-not-do)
+- [Run a planned cutover](#run-a-planned-cutover)
+- [Choose values from the release objective](#choose-values-from-the-release-objective)
+- [Observe the phase](#observe-the-phase)
+- [Handle unscheduled updates separately](#handle-unscheduled-updates-separately)
+
 ## Follow one response toward cutover
 
-Suppose a public tile domain normally gives clients a 30-day TTL, with a 15-minute floor near a September release.
-
-```text
-Far from release                           Scheduled update
-      Calm               Approaching             Hold
- max-age=30 days    max-age moves downward    max-age=15 min
-───────────────┬───────────────────────────┬──────────────────► time
-               │                           │
-      30 days before                 cutover time
-```
+Suppose a public tile domain normally gives clients a 30-day TTL, with a 15-minute floor near a `ScheduledUpdateUtc` release.
 
 <img src="../assets/scheduled-update.svg" height="350" alt="Client max-age ramps down as the scheduled update approaches" />
 
@@ -34,7 +35,7 @@ Each response is assigned one phase:
 
 During most of the Approaching phase, `max-age` roughly follows the time remaining. Once the cutover is closer than the configured floor, clients still receive the floor value. The floor deliberately trades an exact cutover boundary for a minimum practical cache lifetime.
 
-The exact clamps and rounding rules are documented in the [Client Cache Schedule algorithm](../reference/client-cache-schedule-algorithm.md).
+When the schedule enters the Hold phase, the operator deploys the new data and bumps the domain version. This phase provides a safe window to verify the deployment's success or trigger a rollback. Because clients are locked to the short `TtlMinSeconds` `max-age` and `must-revalidate` during this time, they are protected from caching incorrect data for too long. Upon successful verification, the operator defines a new `ScheduledUpdateUtc`, automatically transitioning the schedule back into the Calm phase.
 
 ## Configure the client policy
 

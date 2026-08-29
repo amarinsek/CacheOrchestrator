@@ -4,6 +4,18 @@ The Admin Console App gives operators one place to inspect multiple CacheOrchest
 
 <img src="../../docs/assets/admin-overview.png" alt="CacheOrchestrator Admin Console overview with instance health and cache statistics" width="800" />
 
+## Table of Contents
+
+- [Quick start](#quick-start)
+- [How it works](#how-it-works)
+- [Choose the next document](#choose-the-next-document)
+- [Enable the Admin API on each instance](#enable-the-admin-api-on-each-instance)
+- [Configure this host](#configure-this-host)
+- [Run locally](#run-locally)
+- [Docker](#docker)
+- [Recommendation hints](#recommendation-hints)
+- [Metrics (Prometheus)](#metrics-prometheus)
+
 ## Quick start
 
 From the repository root, start the Playground, Prometheus, and Admin Console together:

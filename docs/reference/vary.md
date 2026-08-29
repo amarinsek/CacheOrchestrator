@@ -10,6 +10,13 @@ See also: [cache-keys.md](cache-keys.md), [Output Cache](output-cache.md), [conf
 
 Admin Console **Operations → Patch settings** can change these at runtime (bool / enum / numbers and comma-separated string lists). Playground domain **`vary-demo`** (`GET /api/vary-demo`) exercises Accept + `?lang=` allowlisting.
 
+## Table of Contents
+
+- [Built-in settings](#built-in-settings)
+- [Authorization](#authorization)
+- [Custom vary (`ICacheVaryContributor`)](#custom-vary-icachevarycontributor)
+- [Security](#security)
+
 ## Built-in settings
 
 All under `Cache:Domains:{name}:` (and `DomainDefaults`).

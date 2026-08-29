@@ -14,9 +14,21 @@ ghcr.io/amarinsek/cacheorchestrator-admin-console:<version>
 
 Use the same version as the NuGet packages when possible (e.g. `1.2.3` from tag `v1.2.3`).
 
-Until the image is published to GHCR, use a **local image name** instead (see [Local image name](#local-image-name-before-ghcr--or-for-contributors) at the end).
+If you cannot pull the GHCR image, use a **local image name** instead (see [Local image name](#local-image-name) at the end).
 
 ---
+
+## Table of Contents
+
+- [What you must configure](#what-you-must-configure)
+- [Layout inside the container](#layout-inside-the-container)
+- [Quick start](#quick-start)
+- [Environment variables](#environment-variables)
+- [Logs](#logs)
+- [Security](#security)
+- [Custom hint rules](#custom-hint-rules)
+- [Local image name](#local-image-name)
+- [Local development (without Docker)](#local-development-without-docker)
 
 ## What you must configure
 
@@ -158,7 +170,7 @@ docker run --rm -p 5188:8080 \
 - Playground: keep `dev-admin-key` and start the sample on port 5289. For your apps, change the env key to match their `Cache:Admin:ApiKey` (overrides the file if both are set).  
 - `$PWD` = current folder in the terminal (or use a full path to the files).  
 - `--add-host=host.docker.internal:host-gateway` helps Linux Docker resolve the host; Docker Desktop usually works without it.  
-- If GHCR is not available yet, replace the last line with `cacheorchestrator-admin-console:local` (see below).
+- If you cannot pull from GHCR, replace the last line with `cacheorchestrator-admin-console:local` (see below).
 
 Open http://localhost:5188/ — health at http://localhost:5188/health .
 
@@ -234,7 +246,7 @@ Attach Loki, Fluent Bit, Datadog, etc. at the host/cluster level (Docker logging
 
 ## Security
 
-- Put VPN / SSO reverse proxy in front of the Admin UI (no built-in login today).
+- Put VPN / SSO reverse proxy in front of the Admin UI (no built-in login).
 - Treat `ApiKey` as a secret (env or secret store). It must match each instance’s `Cache:Admin:ApiKey`.
 - Invalidate / Version / TTL change **live** cache state on target instances.
 
@@ -250,11 +262,11 @@ After adding or editing files under `data/rules/`, open **Settings → Reload** 
 
 ---
 
-## Local image name (before GHCR / or for contributors)
+## Local image name
 
 **Normal users:** pull from GHCR after a release — you do **not** build from source.
 
-**Only if** the GHCR image is not published yet, or you are changing the Admin Console App code:
+**Only if** you cannot use the GHCR image, or you are changing the Admin Console App code:
 
 1. Clone this repository.  
 2. From the **repository root**:

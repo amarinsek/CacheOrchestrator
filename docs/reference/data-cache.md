@@ -8,6 +8,16 @@ The **Data Cache** stores **application objects** from your factory (DTOs, tiles
 - Web: **`IDomainDataCache`**. Libraries / workers: Core **`ICacheOrchestrator`** + `CacheDomainContext`.
 - Which NuGet: [packages](../guide/packages.md). Copy-paste stacks: [composition](../how-to/composition.md).
 
+## Table of Contents
+
+- [Providers](#providers)
+- [How the Data Cache finds the domain](#how-the-data-cache-finds-the-domain)
+- [When the factory runs uncached](#when-the-factory-runs-uncached)
+- [Cache key](#cache-key)
+- [Results (`X-Cache` `dc=` and `DataCacheResult`)](#results-x-cache-dc-and-datacacheresult)
+- [FusionCache provider](#fusioncache-provider)
+- [HybridCache provider](#hybridcache-provider)
+
 ## Providers
 
 | Package | Engine | Config |
@@ -113,14 +123,15 @@ The same footprint model also covers lists, references, aggregates, nested colle
 
 Also: [domain-profiles.md](../guide/domain-profiles.md), [invalidation.md](invalidation.md), [cache-keys.md](cache-keys.md).
 
-For a Data-Cache-only endpoint, set a natural typed ID through the generic extension:
+For a Data-Cache-only endpoint, bind the domain and a natural typed ID, then call `GetOrSetEntityAsync(http, factory)`:
 
 ```csharp
+domains.EnsureDomainOptions(http, "store");
 cache.SetEntityIdentity(http, "products", 42);
-await cache.GetOrSetEntityAsync(http, "store", factory, cancellationToken);
+await cache.GetOrSetEntityAsync(http, factory, cancellationToken);
 ```
 
-The extension formats `IFormattable` values with invariant culture. Use a string only when the identifier itself is a string, for example `"ABC-42"`.
+`SetEntityIdentity` formats `IFormattable` values with invariant culture. Use a string only when the identifier itself is a string, for example `"ABC-42"`.
 
 ## When the factory runs uncached
 
@@ -225,7 +236,7 @@ Stampede protection and fail-safe stale serve come from FusionCache itself. Nest
 
 Effective Fusion settings are merged and cached per normalized domain and runtime-override stamp. Prepared `FusionCacheEntryOptions` are also reused while the Core and Fusion snapshots are unchanged, so a normal L1 hit does not traverse Configuration Binder or rebuild entry options. Configuration reload and Admin overrides replace the cached snapshots.
 
-The provider stores a small typed envelope around the application value so it can distinguish a value materialized by the current call from a cached or fail-safe stale value. This is an internal v3 storage format; all nodes sharing an L2 store must be upgraded together.
+The provider stores a small typed envelope around the application value so it can distinguish a value materialized by the current call from a cached or fail-safe stale value. Every node that shares that L2 store must run a build that understands the same envelope.
 
 ---
 
@@ -246,7 +257,7 @@ builder.Services.AddCacheOrchestratorHybridCache();
 - Optional L2: configure HybridCache / `IDistributedCache` as usual (outside this package) — not Fusion `AddRedisBackend`.
 - Prefer **Fusion** when you need fail-safe, eager refresh, or the full Fusion surface.
 
-Like the Fusion provider, HybridCache stores an internal typed envelope used to report whether this call materialized the returned value. Upgrade nodes that share its distributed storage together.
+Like the Fusion provider, HybridCache stores an internal typed envelope used to report whether this call materialized the returned value. Run the same package build on every node that shares that distributed store.
 
 Package README: [CacheOrchestrator.HybridCache](../../src/CacheOrchestrator.HybridCache/README.md).
 

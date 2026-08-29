@@ -6,6 +6,18 @@ A domain says how data should be cached. A topology says where cached values liv
 
 Start with one process and in-memory stores. Add Redis or the HTTP cluster bus only when a deployment requirement calls for it.
 
+## Table of Contents
+
+- [Separate storage from coordination](#separate-storage-from-coordination)
+- [Topology 1: one process, all in memory](#topology-1-one-process-all-in-memory)
+- [Topology 2: several instances, both stores in Redis](#topology-2-several-instances-both-stores-in-redis)
+- [Topology 3: local Output Cache, shared Data Cache](#topology-3-local-output-cache-shared-data-cache)
+- [Topology 4: several in-memory instances with HttpBus](#topology-4-several-in-memory-instances-with-httpbus)
+- [Choose Redis, HttpBus, or both](#choose-redis-httpbus-or-both)
+- [Named Data Cache instances isolate workloads](#named-data-cache-instances-isolate-workloads)
+- [Namespace every application](#namespace-every-application)
+- [Learn the layouts in the topology labs](#learn-the-layouts-in-the-topology-labs)
+
 ## Separate storage from coordination
 
 Multi-instance caching has two independent questions:

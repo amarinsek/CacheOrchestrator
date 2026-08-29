@@ -6,6 +6,16 @@ The getting-started tutorial installed the `CacheOrchestrator` meta package beca
 
 Choose packages by capability first. Choose InMemory, Redis, and multi-instance coordination on the [Topologies](topologies.md) page next.
 
+## Table of Contents
+
+- [Start with the host](#start-with-the-host)
+- [Add the Data Cache engine](#add-the-data-cache-engine)
+- [Add Redis only where it is needed](#add-redis-only-where-it-is-needed)
+- [Add integrations for specific jobs](#add-integrations-for-specific-jobs)
+- [Common compositions](#common-compositions)
+- [Know which package owns each setting](#know-which-package-owns-each-setting)
+- [Keep dependencies pointing inward](#keep-dependencies-pointing-inward)
+
 ## Start with the host
 
 | Application shape | Starting package | What it provides |
@@ -92,7 +102,7 @@ Exact commands, configuration, and complete code for each combination are in [Pa
 
 | Configuration section | Owner | Meaning |
 |-----------------------|-------|---------|
-| `Cache:Domains:*:DataCache` | Core | Portable Data Cache policy: enabled state, instance, TTL, and vary behaviour |
+| `Cache:Domains:*:DataCache` | Core + ASP.NET Core | Core: enabled, instance, TTL. ASP.NET Core: `RespectNoStore`, `VaryOnEncoding`, `VaryOnPublicAddress` under the same JSON object |
 | `Cache:Domains:*:OutputCache` | ASP.NET Core | Server HTTP response policy |
 | `Cache:Domains:*:ClientCache` | ASP.NET Core | Client Cache headers and optional Client Cache Schedule |
 | `Cache:Domains:*:FusionCache` | FusionCache package | Engine-specific hard TTL, fail-safe, jitter, and factory timeouts |

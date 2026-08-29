@@ -25,6 +25,16 @@ In Docker, keep **`core-hints.json` in the image** (do not mount over all of `/a
 
 ---
 
+## Table of Contents
+
+- [Why customize](#why-customize)
+- [Config](#config)
+- [Step-by-step: add a new rule](#step-by-step-add-a-new-rule)
+- [Document shape](#document-shape)
+- [Fact paths (allowlist)](#fact-paths-allowlist)
+- [Settings UI & API](#settings-ui-api)
+- [Design checklist](#design-checklist)
+
 ## Why customize
 
 Default rules cover common factory-share (also known as origin), **impact** (poor candidate / at-risk / strong), factory failure, schedule, and TTL problems. Teams often need:

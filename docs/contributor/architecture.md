@@ -10,6 +10,16 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 2. **Data Cache** — objects from your factory via `ICacheOrchestrator` / `IDomainDataCache` (Fusion or Hybrid as `IDataCacheProvider`; L1 memory, optional L2 / backplane for Fusion).
 3. **Client Cache** — browser and CDN headers, including Client Cache Schedule.
 
+## Table of Contents
+
+- [Design principles](#design-principles)
+- [High-level diagram](#high-level-diagram)
+- [Source layout (`src/`)](#source-layout-src)
+- [Public API surface](#public-api-surface)
+- [Request flow — Output Cache](#request-flow-output-cache)
+- [Request flow — Data Cache](#request-flow-data-cache)
+- [Backends](#backends)
+
 ## Design principles
 
 - **Configuration over code** — change TTLs and providers without redeploying handlers.
@@ -56,8 +66,8 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 | `CacheOrchestrator.Core` | Domains, Version, portable `DataCache` settings, entity footprint, `ICacheOrchestrator`, invalidation and cluster **contracts**, diagnostics |
 | `CacheOrchestrator.FusionCache` | ZiggyCreatures Fusion as `IDataCacheProvider`; JSON `FusionCache` knobs |
 | `CacheOrchestrator.HybridCache` | Microsoft HybridCache as `IDataCacheProvider` |
-| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP vary/diagnostics/Admin settings, Admin HTTP API, `IDomainDataCache`, host `AddCacheOrchestrator` |
-| `CacheOrchestrator` | Meta NuGet: AspNetCore + FusionCache |
+| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP vary/diagnostics/Admin settings, Admin HTTP API, `IDomainDataCache`, host `AddCacheOrchestratorAspNetCore` |
+| `CacheOrchestrator` | Meta NuGet: AspNetCore + FusionCache (`AddCacheOrchestrator`) |
 | `CacheOrchestrator.Redis` | Redis Output Cache store + Fusion L2 + backplane |
 | `CacheOrchestrator.HttpBus` | HTTP cluster command bus + transport, authentication, Static / ServiceDiscovery membership settings |
 | `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation — [ef-core-invalidation.md](../reference/ef-core-invalidation.md) |
@@ -74,7 +84,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | Public (stable contract) | Internal (not for app code) |
 |--------------------------|-----------------------------|
 | `AddCacheOrchestratorCore` / `ICacheOrchestrator` / `IDataCacheProvider` (**Core**) | Core host registration / orchestrator / provider boundary |
-| `AddCacheOrchestrator` / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` / `ICacheOrchestratorBuilder` | ASP.NET Core composition and `DefaultCacheOrchestratorBuilder` |
+| `AddCacheOrchestrator` (**meta `CacheOrchestrator`**) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` / `ICacheOrchestratorBuilder` (**AspNetCore**) | Meta wires AspNetCore + Fusion; AspNetCore owns host composition and `DefaultCacheOrchestratorBuilder` |
 | `IDomainDataCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainDataCacheService` |
 | `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainDataCacheSettings`, `DomainName` (**Core**) | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator` |
 | `IRequestDomainCacheOptions`, `DomainHttpCacheOptions`, HTTP domain setting types, `ICacheOrchestratorFeature` (**AspNetCore**) | `RequestDomainCacheOptionsProvider`, `CacheOrchestratorHttpOptions`, `CacheOrchestratorHttpOptionsValidator`, `CacheOrchestratorFeature` |
@@ -93,7 +103,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | Health: `AddCacheOrchestrator()`, `ICacheOrchestratorHealthProbe` | `CacheOrchestratorHealthCheck` |
 | Meter/activity **names** (`CacheOrchestrator`) | `CacheOrchestratorMetrics.Record*` |
 
-Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features` (domain options, entity identity, disposition, pending footprint). Prefer `http.GetDomainCacheOptions()` for the resolved snapshot. The old `CacheOrchestratorKeys` / `HttpContext.Items` slots were removed.
+Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features` (domain options, entity identity, disposition, pending footprint). Read the resolved snapshot with `http.GetDomainCacheOptions()`.
 
 ## Request flow — Output Cache
 

@@ -4,6 +4,16 @@
 
 Policy (domains, TTLs, invalidation, Client Cache) is separate from **storage**. InMemory ships with the host packages and Redis is supplied by focused integration packages. Custom storage has three distinct boundaries: an Output Cache store, FusionCache L2/backplane, or a complete Data Cache engine. Do not use one registrar as though it configured all three.
 
+## Table of Contents
+
+- [First-party backends](#first-party-backends)
+- [Install](#install)
+- [Register](#register)
+- [Configure](#configure)
+- [What a backend implements](#what-a-backend-implements)
+- [Example: Fusion L2 on SQL Server](#example-fusion-l2-on-sql-server)
+- [Builder API summary](#builder-api-summary)
+
 ## First-party backends
 
 | Provider | Package | Registration | Output Cache | Data Cache L2 (Fusion) |

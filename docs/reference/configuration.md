@@ -4,11 +4,27 @@
 
 Schema for the `Cache` configuration section (or another root you pass to `AddCacheOrchestrator`).
 
-- Section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(config, "MySection")`.
+- Section name defaults to **`Cache`**. Override with a named argument, e.g. `services.AddCacheOrchestrator(configuration, configSection: "MySection")` (same for `AddCacheOrchestratorAspNetCore`).
 - Domain lifetimes use nested objects (`DataCache`, `OutputCache`, `ClientCache`, Fusion-only `FusionCache`) with **integer seconds** (`TtlSeconds`, …) — not TimeSpan strings.
 - Runtime snapshots often expose `TimeSpan` for server TTLs; client max-age fields stay `int` seconds.
 
 For “which package do I need?”, start with [packages](../guide/packages.md), not this page.
+
+## Table of Contents
+
+- [Root shape](#root-shape)
+- [Root properties and package ownership](#root-properties-and-package-ownership)
+- [Provider options (`OutputCache` / `DataCacheInstances` entry)](#provider-options-outputcache-datacacheinstances-entry)
+- [Redis connection (`CacheOrchestrator.Redis` package)](#redis-connection-cacheorchestratorredis-package)
+- [Distributed resilience (`Cache:Distributed`)](#distributed-resilience-cachedistributed)
+- [Domain settings (`DomainDefaults` and each `Domains` entry)](#domain-settings-domaindefaults-and-each-domains-entry)
+- [Admin API (`Cache:Admin`)](#admin-api-cacheadmin)
+- [Cluster bus (`Cache:Cluster:Bus`)](#cluster-bus-cacheclusterbus)
+- [EF Core invalidation (`Cache:EFCore:Invalidation`)](#ef-core-invalidation-cacheefcoreinvalidation)
+- [Validation](#validation)
+- [Runtime model](#runtime-model)
+- [Domain name normalization](#domain-name-normalization)
+- [Example domains](#example-domains)
 
 ## Root shape
 
@@ -43,7 +59,7 @@ For “which package do I need?”, start with [packages](../guide/packages.md),
 |----------|-------|------|---------|-------------|
 | `Namespace` | Core + consuming adapters | string | `app-cache` | Global key prefix; isolates multi-app shared stores **and** cluster command isolation |
 | `InstanceId` | Core | string | machine name | Stable process id (management, cluster anti-echo, diagnostics) |
-| `EmitDiagnosticsHeaders` | ASP.NET Core | bool | `true` | When `true`, emit client-visible diagnostic headers (currently `X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
+| `EmitDiagnosticsHeaders` | ASP.NET Core | bool | `true` | When `true`, emit client-visible diagnostic headers (`X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
 | `Metrics` | ASP.NET Core | object | see below | HTTP meter label options (OpenTelemetry / Prometheus) |
 | `Distributed` | Core / Data Cache provider | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** Data Cache providers (Fusion Redis, …) |
 | `OutputCache` | ASP.NET Core | object | Provider `InMemory` | Output Cache provider + optional namespace |
@@ -71,7 +87,7 @@ Effective namespaces:
 
 - Output: `OutputCache.Namespace` ?? `{Namespace}-oc`
 - Data Cache **`default`** instance: `DataCacheInstances.default.Namespace` ?? `{Namespace}-fc`
-  (**no** `-default` suffix — keys look like `app-cache-fc:…`, not `app-cache-fc-default:…`. The `-fc` suffix is historical.)
+  (**no** `-default` suffix — keys look like `app-cache-fc:…`, not `app-cache-fc-default:…`.)
 - Data Cache **named** instance (e.g. `pii`): `…Namespace` ?? `{Namespace}-fc-{name}`
 
 ## Provider options (`OutputCache` / `DataCacheInstances` entry)
@@ -128,7 +144,7 @@ Core produces an immutable `DomainCacheOptions` snapshot for domain identity and
 
 | JSON section | Portable? | Meaning |
 |--------------|-----------|---------|
-| `DataCache` | Yes (Core) | Enable, instance name, TTL, vary / no-store — Fusion **or** Hybrid |
+| `DataCache` | Core + AspNet | Core: enable, instance, TTL. AspNet HTTP keys under the same object: `RespectNoStore`, `VaryOnEncoding`, `VaryOnPublicAddress` — Fusion **or** Hybrid |
 | `OutputCache` | AspNet | HTTP response cache TTL and Output Cache behavior |
 | `ClientCache` | AspNet | Browser / CDN `Cache-Control` (+ schedule) |
 | `FusionCache` | Fusion package only | Hard TTL, fail-safe, factory timeouts, jitter, … |
@@ -137,7 +153,7 @@ Core produces an immutable `DomainCacheOptions` snapshot for domain identity and
 
 | Property | Default* | Description |
 |----------|----------|-------------|
-| `AuthBypassMode` | `AuthenticatedOrAuthorization` | Prefer this: `Never` / `AuthenticatedIdentityOnly` / `AuthorizationHeaderOnly` / `AuthenticatedOrAuthorization` |
+| `AuthBypassMode` | `AuthenticatedOrAuthorization` | `Never` / `AuthenticatedIdentityOnly` / `AuthorizationHeaderOnly` / `AuthenticatedOrAuthorization` |
 | `VaryOutputCacheByUser` | true | When authentication is not bypassed, vary Output Cache (and Data Cache when intentional) by user, claims, or API-key hash |
 | `TreatAuthorizationAsAuthSignal` | true | `Authorization` counts as auth signal for OR-mode |
 | `AuthVaryIncludeAuthorizationHash` | true | Hash `Authorization` into auth-user when no identity |
@@ -158,13 +174,20 @@ Core produces an immutable `DomainCacheOptions` snapshot for domain identity and
 |----------|-------------|
 | `Version` | Bulk invalidation stamp string (e.g. "v1", "2026-08"). Missing → stable default "1" + warning log (stable keys, no auto-invalidate on restart) |
 
-### `DataCache` (portable)
+### `DataCache` (portable Core)
 
 | Property | Default* | Description |
 |----------|----------|-------------|
 | `Enabled` | true | Enable Data Cache for the domain |
 | `Instance` | `default` | Key in `DataCacheInstances` |
 | `TtlSeconds` | `3800` | Logical Data Cache TTL in seconds (Fusion soft/`Duration`; Hybrid expiration) |
+
+### `DataCache` (HTTP-only AspNetCore)
+
+Same JSON object as portable `DataCache`; bound by ASP.NET Core:
+
+| Property | Default* | Description |
+|----------|----------|-------------|
 | `RespectNoStore` | true | Skip Data Cache when request has `Cache-Control: no-store` |
 | `VaryOnEncoding` | true | Include Accept-Encoding in the Data Cache key |
 | `VaryOnPublicAddress` | true | Include scheme + host in the Data Cache key |

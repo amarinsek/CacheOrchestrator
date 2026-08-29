@@ -10,23 +10,36 @@ Operating a cache means answering three questions quickly:
 
 Start with one response, move to aggregate telemetry, and use Admin mutations only after you know the intended scope.
 
+## Table of Contents
+
+- [Read one request with `X-Cache`](#read-one-request-with-x-cache)
+- [Use metrics for trends](#use-metrics-for-trends)
+- [Use logs and traces for the reason](#use-logs-and-traces-for-the-reason)
+- [Probe backend health](#probe-backend-health)
+- [Choose the Admin surface](#choose-the-admin-surface)
+- [Match every mutation to its scope](#match-every-mutation-to-its-scope)
+- [Confirm the instance boundary](#confirm-the-instance-boundary)
+- [Secure the control plane](#secure-the-control-plane)
+- [Use a short incident checklist](#use-a-short-incident-checklist)
+
 ## Read one request with `X-Cache`
 
 Domain endpoints emit `X-Cache` by default:
 
 ```http
-X-Cache: domain=catalog; client=public; phase=n/a; oc=miss; dc=miss; fa=run; ms=12
+X-Cache: domain=catalog; version=v1; client=public; phase=n/a; oc=miss; dc=miss; fa=run; ms=12
 ```
 
-| Token | What it tells you |
-|-------|-------------------|
-| `domain` | Resolved domain name |
-| `client` | Client policy: `public`, `private`, `no-store`, or `blocked` |
-| `phase` | Client Cache Schedule phase |
-| `oc` | Output Cache result: `hit`, `miss`, `bypass`, or `off` |
-| `dc` | Data Cache result; omitted when Output Cache served the response |
-| `fa=run` | The application had to run factory/origin work to produce the result |
-| `ms` | Factory/origin elapsed milliseconds |
+| Token | Values | What it tells you |
+|-------|--------|-------------------|
+| `domain` | normalized name, or `_` | Resolved domain; `_` when the domain could not be resolved |
+| `version` | domain `Version` stamp, or `-` | Always present; `-` when unresolved |
+| `client` | `public` / `private` / `no-store` / `blocked` | Client Cache-Control class applied to the response |
+| `phase` | `calm` / `approaching` / `hold` / `n/a` | Client Cache Schedule phase (always present) |
+| `oc` | `hit` / `miss` / `bypass` / `off` | Output Cache outcome |
+| `dc` | `hit` / `miss` / `stale` / `bypass` / `off` / `unresolved` / `n/a` | Data Cache outcome. `n/a` when no Data Cache operation ran. Omitted on an Output Cache `hit`. |
+| `fa` | `run` | Application/origin work produced the result. Omitted on an Output Cache `hit` and on `dc=hit`. |
+| `ms` | integer milliseconds | Factory/origin elapsed time. Omitted on an Output Cache `hit`. |
 
 Common flows:
 
@@ -160,16 +173,17 @@ See [Topologies](topologies.md) and [Cluster bus](../reference/cluster-bus.md) f
 
 ## Secure the control plane
 
-Admin operations can evict cache entries and change live policy.
-
-- Keep Admin API and bus endpoints on a private network.
-- Set strong API keys through a secret provider; never commit them to configuration files.
-- Put VPN, SSO, or authenticated reverse-proxy access in front of the Admin Console. It has no built-in user login.
-- Use TLS between operators, Console, and application instances.
-- Restrict Prometheus and diagnostic headers when their labels reveal sensitive deployment details.
-- Audit invalidation and settings mutations outside the cache process when required.
-
-An enabled Admin API with an empty key is suitable only for isolated local development and produces a warning.
+> [!WARNING]
+> Admin operations can evict cache entries and change live policy.
+>
+>- Keep Admin API and bus endpoints on a private network.
+>- Set strong API keys through a secret provider; never commit them to configuration files.
+>- Put VPN, SSO, or authenticated reverse-proxy access in front of the Admin Console. It has no built-in user login.
+>- Use TLS between operators, Console, and application instances.
+>- Restrict Prometheus and diagnostic headers when their labels reveal sensitive deployment details.
+>- Audit invalidation and settings mutations outside the cache process when required.
+>
+> An enabled Admin API with an empty key is suitable only for isolated local development and produces a warning.
 
 ## Use a short incident checklist
 

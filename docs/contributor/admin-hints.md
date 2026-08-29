@@ -17,6 +17,17 @@ Hints never change cache behaviour, TTLs, or invalidation.
 
 ---
 
+## Table of Contents
+
+- [What operators need](#what-operators-need)
+- [Architecture (repository)](#architecture-repository)
+- [Config (summary)](#config-summary)
+- [Severity (product meaning)](#severity-product-meaning)
+- [Product core codes (overview)](#product-core-codes-overview)
+- [API (Admin Console App)](#api-admin-console-app)
+- [Implementation map (contributors)](#implementation-map-contributors)
+- [See also](#see-also)
+
 ## What operators need
 
 1. Open Admin → **Settings** for the rule catalog, compile errors/warnings, enable/disable, and “view rule JSON”.  

@@ -6,6 +6,16 @@ CacheOrchestrator is useful when an application must keep several cache layers a
 
 This page compares the responsibilities you own with direct ASP.NET Core and FusionCache usage against the same application using CacheOrchestrator.
 
+## Table of Contents
+
+- [The underlying stack stays the same](#the-underlying-stack-stays-the-same)
+- [Compare one snapshot endpoint](#compare-one-snapshot-endpoint)
+- [Compare dynamic entity invalidation](#compare-dynamic-entity-invalidation)
+- [Responsibility matrix](#responsibility-matrix)
+- [When CacheOrchestrator is a strong fit](#when-cacheorchestrator-is-a-strong-fit)
+- [When direct platform APIs may be simpler](#when-direct-platform-apis-may-be-simpler)
+- [Adopt it incrementally](#adopt-it-incrementally)
+
 ## The underlying stack stays the same
 
 With or without CacheOrchestrator, the request can still use:

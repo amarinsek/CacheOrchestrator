@@ -4,6 +4,16 @@
 
 How versions, NuGet packages, and GitHub Releases fit together.
 
+## Table of Contents
+
+- [Versioning (MinVer)](#versioning-minver)
+- [Release notes (two files)](#release-notes-two-files)
+- [Package READMEs (NuGet vs GitHub)](#package-readmes-nuget-vs-github)
+- [Compatibility and package gates](#compatibility-and-package-gates)
+- [Checklist](#checklist)
+- [Optional: package signing](#optional-package-signing)
+- [Local pack smoke test](#local-pack-smoke-test)
+
 ## Versioning (MinVer)
 
 Package version is **not** hardcoded. [MinVer](https://github.com/adamralph/minver) reads **Git tags**.
@@ -88,7 +98,7 @@ dotnet pack src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj \
   -c Release --no-build -o ./nupkg
 ```
 
-The repository does not currently set `PackageValidationBaselineVersion`, so this gate does **not** compare prerelease v3 packages with the last package published on nuget.org. That is intentional for the v3 major cutover. After a stable v3 baseline exists, a maintainer can explicitly compare a later compatible release with it:
+The repository does not set `PackageValidationBaselineVersion`, so this gate does **not** compare packages against nuget.org by default. To compare a release against a chosen baseline version:
 
 ```bash
 dotnet pack src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj \
@@ -145,7 +155,7 @@ The release publish workflow packs the final package set and therefore runs SDK 
 
 ## Optional: package signing
 
-Not enabled in CI. See historical notes: sign locally with `dotnet nuget sign` if you have a certificate.
+Not enabled in CI. Sign locally with `dotnet nuget sign` if you have a certificate.
 
 ## Local pack smoke test
 

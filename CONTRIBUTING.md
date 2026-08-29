@@ -16,7 +16,7 @@ Not sure whether something is a bug? Open an issue anyway. Unexpected behavior a
 
 ## Help test v3
 
-CacheOrchestrator v3 is approaching its stable release, and feedback from real applications is especially useful. You can make a valuable contribution without writing library code.
+CacheOrchestrator v3 is in prerelease, and feedback from real applications is especially useful. You can make a valuable contribution without writing library code.
 
 We are particularly interested in:
 

@@ -4,6 +4,17 @@
 
 Output Cache stores the **full HTTP response**. By default that means **GET** and **HEAD** with Url identity (path, query, host, domain vary). Other methods are not cached by Output Cache unless the endpoint opts in with **[endpoint cache identity](cache-identity.md)**. CacheOrchestrator applies ASP.NET Core Output Caching per **domain**: TTL, tags, vary rules, `Cache-Control`, and ETag all come from that domain.
 
+## Table of Contents
+
+- [Register](#register)
+- [Base policy and endpoints without a domain](#base-policy-and-endpoints-without-a-domain)
+- [Minimal APIs](#minimal-apis)
+- [Controllers](#controllers)
+- [Policy](#policy)
+- [Endpoint cache identity](#endpoint-cache-identity)
+- [Authenticated traffic](#authenticated-traffic)
+- [Headers](#headers)
+
 ## Register
 
 ```csharp
@@ -138,7 +149,7 @@ app.MapPost("/graphql", ...)
 
 By default any signed-in user or `Authorization` header skips Output Cache (`AuthBypassMode: AuthenticatedOrAuthorization`). That is the safe setting for mixed public and private APIs.
 
-- **AuthBypassMode** — preferred control (`Never`, `AuthenticatedIdentityOnly`, `AuthorizationHeaderOnly`, `AuthenticatedOrAuthorization`).
+- **AuthBypassMode** — `Never`, `AuthenticatedIdentityOnly`, `AuthorizationHeaderOnly`, or `AuthenticatedOrAuthorization`.
 - **VaryOutputCacheByUser** (default `true`) — when you allow authenticated caching, partition entries by user, selected claims, or an Authorization hash.
 - **DataCacheRespectAuthBypass** (default `true`) — Data Cache also skips when Output Cache would bypass. Set it to `false` only when the object cached by Data Cache is shared between callers.
 

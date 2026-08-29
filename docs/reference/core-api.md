@@ -15,6 +15,21 @@ application logical key
       → IDataCacheProvider
 ```
 
+## Table of Contents
+
+- [Package and namespaces](#package-and-namespaces)
+- [Management without HTTP](#management-without-http)
+- [`ICacheOrchestrator` surface](#icacheorchestrator-surface)
+- [`CacheDomainContext`](#cachedomaincontext)
+- [Basic get-or-create](#basic-get-or-create)
+- [`CacheEntryRequest`](#cacheentryrequest)
+- [One entity](#one-entity)
+- [Entity collections](#entity-collections)
+- [Factory-owned footprint](#factory-owned-footprint)
+- [Disabled domains and failures](#disabled-domains-and-failures)
+- [Coordinating Core and HTTP](#coordinating-core-and-http)
+- [Provider boundary](#provider-boundary)
+
 ## Package and namespaces
 
 ```bash
@@ -108,7 +123,7 @@ public sealed class CatalogReader(ICacheOrchestrator cache)
 The physical key is:
 
 ```text
-{normalizedDomain}:{versionHex}:{logicalKey}
+co3:{escapedDomain}:{versionHex}:{logicalKey}
 ```
 
 The logical key must be deterministic, stable across processes, and free of secrets. Core does not derive keys from routes, query strings, headers, or users; those are ASP.NET concerns handled by `IDomainDataCache`.

@@ -8,6 +8,17 @@ Namespace: `CacheOrchestrator.Identity`.
 
 ---
 
+## Table of Contents
+
+- [Mental model](#mental-model)
+- [Rules](#rules)
+- [API surface](#api-surface)
+- [Cheat sheet](#cheat-sheet)
+- [DX examples](#dx-examples)
+- [GET / HEAD with a custom identity](#get-head-with-a-custom-identity)
+- [Fail-fast](#fail-fast)
+- [Performance notes](#performance-notes)
+
 ## Mental model
 
 ```text
@@ -84,7 +95,7 @@ On GET/HEAD you rarely need this sentinel: omitting identity helpers already mea
 On **POST**, Url identity is correct only when path and query already fully identify the read and the body does not change the answer. Examples that fit:
 
 - RPC-style read with ids in the route or query: `POST /api/reports/run?id=42` (empty or ignored body)
-- Legacy clients that POST for a GET-like fetch where the resource is named in the URL
+- Clients that POST for a GET-like fetch where the resource is named in the URL
 
 Do **not** use Url on POST when the body carries search criteria, GraphQL documents, or filters. Those requests would share one cache entry per URL (or collide) while responses differ by body. Prefer a **named contract** (field extraction) or **content-hash** (opaque body) instead.
 

@@ -8,7 +8,7 @@ Without `.CacheOutputWithDomain` / `[CacheDomain]`, the base Output Cache policy
 
 Decision tables: [packages](../guide/packages.md) · [topologies](../guide/topologies.md).
 
-## Scenarios
+## Table of Contents
 
 - [§1. Typical web (InMemory Fusion)](#scenario-1)
 - [§2. Output Cache only](#scenario-2)
@@ -320,13 +320,14 @@ static string CatalogDomain(HttpContext http) =>
 
 app.MapGet("/t/{tenant}/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
 {
-    var data = await cache.GetOrSetAsync(http, CatalogDomain(http), ct => LoadProductAsync(id, ct));
+    // Rely on Output Cache domain metadata (no explicit domain overload).
+    var data = await cache.GetOrSetAsync(http, ct => LoadProductAsync(id, ct));
     return Results.Json(data);
 })
 .CacheOutputWithDomain(CatalogDomain);
 ```
 
-The resolver selects a configured domain; it does not create one. An empty or unknown result bypasses Output Cache and request-scoped Data Cache and emits `Cache-Control: no-store`. The handler still decides whether an unknown tenant returns `404`, `403`, or another application response.
+The resolver selects a configured domain; it does not create one. An empty or unknown result bypasses Output Cache, emits `Cache-Control: no-store`, and leaves no domain options on the request — so `GetOrSetAsync(http, factory)` above also runs uncached. An **explicit** `GetOrSetAsync(http, domain, factory)` for an unknown name still binds through `DomainDefaults` (with a Warning). The handler still decides whether an unknown tenant returns `404`, `403`, or another application response.
 
 ---
 
@@ -490,7 +491,7 @@ app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDat
 {
     var data = await cache.GetOrSetEntityAsync(http, async ct =>
     {
-        Product? p = await db.Products.AsNoTracking().FirstOrDefaultAsync(x => x.Id.ToString() == id, ct);
+        Product? p = await db.Products.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         return p is null ? null : new ProductDto(p.Id, p.Price);
     });
     return data is null ? Results.NotFound() : Results.Json(data);
@@ -517,6 +518,7 @@ Library owns DbContext usage and cache reads/writes. Host wires CacheOrchestrato
 
 ```bash
 dotnet add package CacheOrchestrator.Core --prerelease
+dotnet add package CacheOrchestrator.EFCore.Invalidation --prerelease
 dotnet add package Microsoft.EntityFrameworkCore
 ```
 

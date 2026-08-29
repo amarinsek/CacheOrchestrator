@@ -6,6 +6,14 @@ How to see what the cache is doing: the **`X-Cache`** response header, the **`Ca
 
 Operator dashboards and multi-instance actions: [admin](admin.md). Admin Console **traffic** charts are **Prometheus-only** (point `AdminConsole:Metrics` at a scrape of the meter). Try Prometheus with the playground [topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) — sample Compose only, not a NuGet dependency.
 
+## Table of Contents
+
+- [X-Cache response header](#x-cache-response-header)
+- [Metrics](#metrics)
+- [Activities (tracing)](#activities-tracing)
+- [Logging](#logging)
+- [Health checks](#health-checks)
+
 ## X-Cache response header
 
 Written by `DomainOutputCachePolicy` on response start via `XCacheHeaderFormatter`, when
@@ -31,24 +39,25 @@ Use `false` in production if you prefer not to expose domain names, hit/miss sta
 Example when enabled:
 
 ```http
-X-Cache: domain=products; client=public; phase=approaching; oc=miss; dc=hit; ms=12
+X-Cache: domain=products; version=v1; client=public; phase=approaching; oc=miss; dc=hit; ms=12
 ```
 
-| Token | Meaning |
-|-------|---------|
-| `domain` | Normalized domain |
-| `client` | `public` / `private` / `no-store` / `blocked` |
-| `phase` | Client Cache Schedule: `calm` / `approaching` / `hold` / `n/a` |
-| `oc` | Output Cache: `hit` / `miss` / `bypass` / `off` |
-| `dc` | Data Cache result; `n/a` when no Data Cache operation ran; omitted on an Output Cache `hit` |
-| `fa` | `run` when application/origin work produced the result. Omitted on an Output Cache `hit` and on `dc=hit`. |
-| `ms` | Factory/origin elapsed milliseconds (omitted on an Output Cache `hit`) |
+| Token | Wire values | Presence / meaning |
+|-------|-------------|--------------------|
+| `domain` | normalized name, or `_` | Always present. `_` when the domain could not be resolved (fail-closed path). |
+| `version` | domain `Version` stamp, or `-` | Always present. `-` when unresolved. |
+| `client` | `public` / `private` / `no-store` / `blocked` | Always present. Client Cache-Control class applied to the response. |
+| `phase` | `calm` / `approaching` / `hold` / `n/a` | Always present. Same wire values as metrics `phase` tags. |
+| `oc` | `hit` / `miss` / `bypass` / `off` | Always present. Output Cache outcome. |
+| `dc` | `hit` / `miss` / `stale` / `bypass` / `off` / `unresolved` / `n/a` | Present unless `oc=hit`. `n/a` when no Data Cache operation ran. |
+| `fa` | `run` | Present when application/origin work produced the result: direct generation (`dc=n/a`) and every non-hit Data Cache disposition (`miss` / `stale` / `bypass` / `off` / `unresolved`). Omitted on `oc=hit` and on `dc=hit`. Matches Admin FA run. |
+| `ms` | integer milliseconds | Factory/origin elapsed time when measured. Omitted on an Output Cache `hit`. |
 
-When the header is emitted, `phase` is always present on responses that go through the policy header path (same wire values as metrics tags). `fa=run` matches Admin FA run. It covers direct response generation (`dc=n/a`) and every non-hit Data Cache disposition (`miss` / `stale` / `bypass` / `off` / `unresolved`). There is no `dc=fail` on the header — a hard factory throw is recorded by factory failure telemetry and the exception propagates.
+A hard factory throw is recorded by factory failure telemetry (`result=fail` on metrics) and the exception propagates; the header never uses `dc=fail`.
 
 `dc=stale` has a deliberately narrow meaning: CacheOrchestrator observed a factory failure in this request and the provider returned its fail-safe value. `dc=hit` does not promise that provider-specific eager-refresh or timeout metadata says the value is fresh; the current provider contract does not expose a reliable stale signal for every background-refresh path.
 
-An empty or unconfigured dynamic domain fails closed with `Cache-Control: no-store`. When diagnostics are enabled, `X-Cache` uses `domain=_; client=no-store; oc=bypass; dc=n/a; fa=run` and never echoes the unresolved value.
+An empty or unconfigured dynamic domain fails closed with `Cache-Control: no-store`. When diagnostics are enabled, `X-Cache` uses `domain=_; version=-; client=no-store; phase=n/a; oc=bypass; dc=n/a; fa=run` and never echoes the unresolved value.
 
 ## Metrics
 
@@ -61,7 +70,7 @@ Meter name: **`CacheOrchestrator`**
 | `cache_orchestrator.factory.failures` | Factory/origin failures by `domain`; optional `route` |
 | `cache_orchestrator.factory.duration` | **Canonical** factory/origin wall time (ms), including direct `dc=n/a` execution; optional `route` |
 | `cache_orchestrator.factory.result_size` | Factory result size (bytes) when cheaply measurable on a successful factory (`miss` / `off` / `unresolved` / `bypass`); optional `route`. Independent of `Cache:Admin:TrackResultSize` (that flag only fills Admin `/stats` sums). |
-| `cache_orchestrator.dc.duration` | Legacy Data Cache get-or-set duration (ms) for any timed result; prefer `factory.duration` for factory cost |
+| `cache_orchestrator.dc.duration` | Data Cache get-or-set duration (ms) for any timed result; use `factory.duration` for factory cost |
 | `cache_orchestrator.oc.requests` | Output outcomes by `domain`, `result` (`hit`/`miss`/`bypass`/`off`/`unresolved`; domain `_` when unresolved); optional `route` |
 | `cache_orchestrator.client.schedule` | Client Cache Schedule by `domain`, `phase` |
 | `cache_orchestrator.invalidate` | Successful full invalidations by `domain` (domain-only label). Optional low-cardinality `kind` tag: `Domain` / `Entity` / `EntityKind`. Not recorded for raw `InvalidateTagsAsync`. |
