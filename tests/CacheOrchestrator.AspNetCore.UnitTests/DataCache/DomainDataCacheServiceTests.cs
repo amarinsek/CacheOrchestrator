@@ -54,13 +54,16 @@ public class DomainDataCacheServiceTests
         DomainHttpCacheOptions cfg = CreateConfig(domain: "reports");
         _domainConfig.GetDomainOptions(http).Returns((DomainHttpCacheOptions?)null);
         _domainConfig.EnsureDomainOptions(http, "reports").Returns(cfg);
-        _keyGenerator.Generate(cfg, http, DomainCacheKeyShape.Url).Returns("reports:v:key");
+        _keyGenerator.Generate(Arg.Is<DomainCacheKeyContext>(context =>
+            context.Options == cfg && context.HttpContext == http && context.Shape == DomainCacheKeyShape.Url))
+            .Returns("reports:v:key");
         StubOrchestratorGetOrCreate(1);
 
         await _sut.GetOrSetAsync(http, "reports", _ => Task.FromResult(1), TestContext.Current.CancellationToken);
 
         _domainConfig.Received(1).EnsureDomainOptions(http, "reports");
-        _keyGenerator.Received(1).Generate(cfg, http, DomainCacheKeyShape.Url);
+        _keyGenerator.Received(1).Generate(Arg.Is<DomainCacheKeyContext>(context =>
+            context.Options == cfg && context.HttpContext == http && context.Shape == DomainCacheKeyShape.Url));
     }
 
     [Fact]
@@ -70,7 +73,7 @@ public class DomainDataCacheServiceTests
         DomainHttpCacheOptions cfg = CreateConfig(domain: "catalog");
         _domainConfig.GetDomainOptions(http).Returns((DomainHttpCacheOptions?)null);
         _domainConfig.EnsureDomainOptions(http, "catalog").Returns(cfg);
-        _keyGenerator.Generate(cfg, http, DomainCacheKeyShape.Url).Returns("key");
+        StubKey(cfg, http, DomainCacheKeyShape.Url, "key");
 
         var endpoint = new Endpoint(
             _ => Task.CompletedTask,
@@ -112,7 +115,7 @@ public class DomainDataCacheServiceTests
         var http = new DefaultHttpContext();
         DomainHttpCacheOptions cfg = CreateConfig();
         _domainConfig.GetDomainOptions(http).Returns(cfg);
-        _keyGenerator.Generate(cfg, http, DomainCacheKeyShape.Url).Returns("products:abc:hash");
+        StubKey(cfg, http, DomainCacheKeyShape.Url, "co3:products:abc:hash");
 
         CacheEntryRequest? captured = null;
         _orchestrator
@@ -123,6 +126,7 @@ public class DomainDataCacheServiceTests
             .Returns(callInfo =>
             {
                 captured = callInfo.ArgAt<CacheEntryRequest>(0);
+                captured.OutcomeObserver?.Invoke(DataCacheProviderOutcome.Cached);
                 return ValueTask.FromResult<string?>("ok");
             });
 
@@ -130,7 +134,7 @@ public class DomainDataCacheServiceTests
 
         result.Should().Be("ok");
         captured.Should().NotBeNull();
-        captured.Key.Should().Be("products:abc:hash");
+        captured.Key.Should().Be("co3:products:abc:hash");
         captured.KeyIsPhysical.Should().BeTrue();
         captured.Domain.Should().Be("products");
     }
@@ -146,7 +150,7 @@ public class DomainDataCacheServiceTests
             EntityKind = "products",
             ResourceId = "42"
         });
-        _keyGenerator.Generate(cfg, http, DomainCacheKeyShape.Entity).Returns("products:v:id:products:42:hash");
+        StubKey(cfg, http, DomainCacheKeyShape.Entity, "co3:products:v:id:products:42:hash");
 
         _orchestrator
             .GetOrCreateWithFootprintAsync(
@@ -155,7 +159,9 @@ public class DomainDataCacheServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
+                CacheEntryRequest request = callInfo.ArgAt<CacheEntryRequest>(0);
                 Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>> factory = callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1);
+                request.OutcomeObserver?.Invoke(DataCacheProviderOutcome.Materialized);
                 return factory(CancellationToken.None);
             });
 
@@ -277,6 +283,35 @@ public class DomainDataCacheServiceTests
             Arg.Any<long?>());
     }
 
+    [Fact]
+    public async Task GetOrSetAsync_WhenProviderReturnsStale_ReportsStaleEvenWithoutSynchronousFactoryFailure()
+    {
+        var http = new DefaultHttpContext();
+        DomainHttpCacheOptions cfg = CreateConfig();
+        _domainConfig.GetDomainOptions(http).Returns(cfg);
+        StubKey(cfg, http, DomainCacheKeyShape.Url, "co3:products:abc:key");
+        _orchestrator
+            .GetOrCreateAsync(
+                Arg.Any<CacheEntryRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<string?>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                CacheEntryRequest request = callInfo.ArgAt<CacheEntryRequest>(0);
+                request.OutcomeObserver?.Invoke(DataCacheProviderOutcome.Stale);
+                return ValueTask.FromResult<string?>("stale-value");
+            });
+
+        string result = await _sut.GetOrSetAsync(
+            http,
+            _ => Task.FromResult("fresh-value"),
+            TestContext.Current.CancellationToken);
+
+        result.Should().Be("stale-value");
+        http.Features.Get<ICacheOrchestratorFeature>()!.Disposition!.Data
+            .Should().Be(DataCacheResult.Stale);
+    }
+
     private void StubOrchestratorGetOrCreate<T>(T value)
     {
         _orchestrator
@@ -284,7 +319,22 @@ public class DomainDataCacheServiceTests
                 Arg.Any<CacheEntryRequest>(),
                 Arg.Any<Func<CancellationToken, ValueTask<T?>>>(),
                 Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult<T?>(value));
+            .Returns(callInfo =>
+            {
+                callInfo.ArgAt<CacheEntryRequest>(0).OutcomeObserver?.Invoke(DataCacheProviderOutcome.Cached);
+                return ValueTask.FromResult<T?>(value);
+            });
+    }
+
+    private void StubKey(
+        DomainHttpCacheOptions options,
+        HttpContext http,
+        DomainCacheKeyShape shape,
+        string key)
+    {
+        _keyGenerator.Generate(Arg.Is<DomainCacheKeyContext>(context =>
+            context.Options == options && context.HttpContext == http && context.Shape == shape))
+            .Returns(key);
     }
 
     private static DomainHttpCacheOptions CreateConfig(string domain = "products", bool enabled = true) => new()

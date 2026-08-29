@@ -94,7 +94,7 @@ Do not pass bearer tokens, cookies, API keys, or other secrets to `AddValue`. Se
 
 ## Full HTTP Data Cache key: `IDomainKeyGenerator`
 
-Replace `IDomainKeyGenerator` only when a contributor cannot express the required key shape. The generator receives the resolved `DomainHttpCacheOptions`, `HttpContext`, and `DomainCacheKeyShape`. Respect `Url` by ignoring request entity identity, respect `Entity` by using it when available, and preserve the `Automatic` behavior for direct callers. The result must be deterministic, compact, and non-secret.
+Replace `IDomainKeyGenerator` only when a contributor cannot express the required key shape. The generator receives a `DomainCacheKeyContext` containing the resolved `DomainHttpCacheOptions`, `HttpContext`, and `DomainCacheKeyShape`. Respect `Url` by ignoring request entity identity, respect `Entity` by using it when available, and preserve the `Automatic` behavior for direct callers. The result must be deterministic, compact, and non-secret.
 
 Register before `AddCacheOrchestratorAspNetCore` so its `TryAddSingleton` keeps the custom implementation, or replace the registration afterwards.
 
@@ -185,7 +185,7 @@ Implement `IDataCacheProvider` only when adding a complete engine alongside Fusi
 | `Tags` | Domain, entity, entity-kind, and custom tags |
 | `DomainOptions` | Resolved portable policy snapshot |
 
-`DataCacheProviderResult<T>.Outcome` must be `Materialized` only when the returned value came from this call's successfully completed factory invocation. Return `Cached` for an existing value and for a stale value returned while a refresh runs in the background. Never return `Unknown`; it is the invalid default-struct state and the orchestrator rejects it. The orchestrator uses this distinction to decide whether a factory-expanded entity footprint may replace stored tags.
+`DataCacheProviderResult<T>.Outcome` must be `Materialized` only when the returned value came from this call's successfully completed factory invocation, `Cached` for a fresh hit, and `Stale` whenever fail-safe or a background refresh returns an expired value. Never return `Unknown`; it is the invalid default-struct state and the orchestrator rejects it. The orchestrator uses this distinction both for HTTP disposition and to decide whether a factory-expanded entity footprint may replace stored tags.
 
 The provider must be thread-safe and preserve generic values, cancellation, null/negative-cache payloads, named-instance isolation, configured namespaces, and tag invalidation. It must not rebuild HTTP vary material. `SetAsync` is an implementor-facing overwrite used only after a successfully materialized factory expands the early footprint; providers must replace both value and tag metadata. A provider that cannot support named instances should reject non-default `DataCacheInstances` during options validation instead of silently sharing one store.
 

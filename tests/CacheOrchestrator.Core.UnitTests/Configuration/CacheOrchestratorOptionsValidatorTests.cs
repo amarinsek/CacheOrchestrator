@@ -162,6 +162,20 @@ public class CacheOrchestratorOptionsValidatorTests
     }
 
     [Fact]
+    public void Validate_DomainDefaultsReferencesUnknownInstance_Fails()
+    {
+        CacheOrchestratorOptions options = CreateValidOptions();
+        options.DomainDefaults.DataCache = new() { Instance = "nonexistent" };
+
+        ValidateOptionsResult result = _sut.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f =>
+            f.Contains("DomainDefaults", StringComparison.OrdinalIgnoreCase)
+            && f.Contains("nonexistent", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Validate_DomainWithNullDataCacheInstance_ReturnsSuccess()
     {
         CacheOrchestratorOptions options = CreateValidOptions();

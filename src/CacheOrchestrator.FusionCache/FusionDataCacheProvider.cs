@@ -75,12 +75,19 @@ internal sealed class FusionDataCacheProvider :
         string[] tags = request.Tags as string[] ?? [.. request.Tags];
 
         var materializationId = Guid.NewGuid();
+        int factoryHadStaleValue = 0;
         FusionProviderCacheEntry<T> entry = await fusion.GetOrSetAsync<FusionProviderCacheEntry<T>>(
                 request.Key,
-                async (_, token) => new FusionProviderCacheEntry<T>
+                async (context, token) =>
                 {
-                    Value = await factory(token).ConfigureAwait(false),
-                    MaterializationId = materializationId
+                    if (context.HasStaleValue)
+                        Interlocked.Exchange(ref factoryHadStaleValue, 1);
+
+                    return new FusionProviderCacheEntry<T>
+                    {
+                        Value = await factory(token).ConfigureAwait(false),
+                        MaterializationId = materializationId
+                    };
                 },
                 entryOptions,
                 tags: tags,
@@ -92,7 +99,9 @@ internal sealed class FusionDataCacheProvider :
 
         DataCacheProviderOutcome outcome = entry.MaterializationId == materializationId
             ? DataCacheProviderOutcome.Materialized
-            : DataCacheProviderOutcome.Cached;
+            : Volatile.Read(ref factoryHadStaleValue) != 0
+                ? DataCacheProviderOutcome.Stale
+                : DataCacheProviderOutcome.Cached;
         return new DataCacheProviderResult<T>(entry.Value, outcome);
     }
 

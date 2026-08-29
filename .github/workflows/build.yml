@@ -34,6 +34,35 @@ jobs:
     - name: Build
       run: dotnet build CacheOrchestrator.slnx --no-restore --configuration Release
 
+    - name: Package analyzer consumer smoke
+      run: |
+        set -e
+        mkdir -p .artifacts/package-smoke
+        dotnet pack src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj --no-build --configuration Release --output .artifacts/package-smoke
+        dotnet pack src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj --no-build --configuration Release --output .artifacts/package-smoke
+        dotnet pack src/CacheOrchestrator.AspNetCore/CacheOrchestrator.AspNetCore.csproj --no-build --configuration Release --output .artifacts/package-smoke
+        dotnet pack src/CacheOrchestrator/CacheOrchestrator.csproj --no-build --configuration Release --output .artifacts/package-smoke
+        unzip -l .artifacts/package-smoke/CacheOrchestrator.AspNetCore.*.nupkg | grep -q "analyzers/dotnet/cs/CacheOrchestrator.Analyzers.dll"
+        dotnet new classlib --framework net8.0 --output .artifacts/package-consumer
+        dotnet add .artifacts/package-consumer/package-consumer.csproj package CacheOrchestrator --source "$GITHUB_WORKSPACE/.artifacts/package-smoke" --prerelease
+        cat > .artifacts/package-consumer/Class1.cs <<'EOF'
+        using CacheOrchestrator.Identity;
+
+        namespace PackageConsumer;
+
+        public sealed class DuplicateIdentity
+        {
+          [CacheIdentity(new[] { "GET" }, "first")]
+          [CacheIdentity(new[] { "GET" }, "second")]
+          public void Execute() { }
+        }
+        EOF
+        if dotnet build .artifacts/package-consumer/package-consumer.csproj 2>&1 | tee .artifacts/package-consumer/build.log; then
+          echo "Expected COIDENTITY001 from the packaged analyzer."
+          exit 1
+        fi
+        grep -q "COIDENTITY001" .artifacts/package-consumer/build.log
+
     # Unit tests multi-target: execute against both packaged TFMs.
     - name: Unit tests (net8.0)
       run: |

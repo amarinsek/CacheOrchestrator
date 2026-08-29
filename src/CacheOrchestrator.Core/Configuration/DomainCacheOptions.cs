@@ -8,6 +8,7 @@ public sealed class DomainCacheOptions
 #pragma warning disable IDE0032 // Manual fields support thread-safe lazy hot-path tag preparation.
     private string? _domainTag;
     private string[]? _domainTags;
+    private string? _physicalKeyPrefix;
 #pragma warning restore IDE0032
 
     /// <summary>Normalized domain name.</summary>
@@ -59,6 +60,25 @@ public sealed class DomainCacheOptions
 
             string[] created = [DomainTag];
             return Interlocked.CompareExchange(ref _domainTags, created, null) ?? created;
+        }
+    }
+
+    /// <summary>Prepared unambiguous provider-key prefix reused by this snapshot.</summary>
+    internal string PhysicalKeyPrefix
+    {
+        get
+        {
+            string? cached = Volatile.Read(ref _physicalKeyPrefix);
+            if (cached is not null)
+                return cached;
+
+            string created = string.Concat(
+                "co3:",
+                Uri.EscapeDataString(Domain),
+                ":",
+                VersionHex,
+                ":");
+            return Interlocked.CompareExchange(ref _physicalKeyPrefix, created, null) ?? created;
         }
     }
 }

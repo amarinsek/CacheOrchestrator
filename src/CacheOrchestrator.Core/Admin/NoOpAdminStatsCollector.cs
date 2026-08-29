@@ -30,12 +30,7 @@ internal sealed class NoOpAdminStatsCollector : IAdminStatsCollector
     {
     }
 
-    public void RecordFactory(
-        string? endpointKey,
-        string? domain,
-        bool failed,
-        long? elapsedTicks = null,
-        long? resultSizeBytes = null)
+    public void RecordFactory(AdminFactoryRecord record)
     {
     }
 

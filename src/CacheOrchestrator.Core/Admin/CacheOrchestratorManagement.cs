@@ -120,14 +120,12 @@ internal sealed class CacheOrchestratorManagement : ICacheOrchestratorManagement
             }
         }
 
-        bool providerOk = _dataCacheProvider is not NullDataCacheProvider
-            || !DataCacheProviderStartupDiagnostic.IsDataCacheEnabled(_options.CurrentValue);
         DataCacheProviderCapabilities capabilities =
             (_dataCacheProvider as IDataCacheProviderCapabilities)?.Capabilities ?? new();
 
         return new AdminHealthDto
         {
-            Healthy = statsOk && probesOk && providerOk,
+            Healthy = statsOk && probesOk,
             InstanceId = AdminInstanceId.Resolve(_options.CurrentValue),
             UtcNow = now,
             AdminEnabled = admin.Enabled,

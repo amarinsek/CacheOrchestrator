@@ -78,7 +78,7 @@ public class CacheOrchestratorHealthCheckTests
     }
 
     [Fact]
-    public async Task CheckHealth_WhenDataCacheEnabledWithoutProvider_ReturnsConfiguredFailureStatus()
+    public async Task CheckHealth_WhenNoDataCacheProviderAndNoProbes_ReturnsHealthy()
     {
         (CacheOrchestratorHealthCheck sut, HealthCheckContext ctx) = Create(
             [],
@@ -87,8 +87,7 @@ public class CacheOrchestratorHealthCheckTests
 
         HealthCheckResult result = await sut.CheckHealthAsync(ctx, TestContext.Current.CancellationToken);
 
-        result.Status.Should().Be(HealthStatus.Degraded);
-        result.Description.Should().Contain("no Data Cache provider");
+        result.Status.Should().Be(HealthStatus.Healthy);
         result.Data["data_cache_provider"].Should().Be("Null");
     }
 }

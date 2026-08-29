@@ -1,4 +1,12 @@
 #nullable enable
+CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.Generate(CacheOrchestrator.DataCache.DomainCacheKeyContext! context) -> string!
+CacheOrchestrator.DataCache.DomainCacheKeyContext
+CacheOrchestrator.DataCache.DomainCacheKeyContext.DomainCacheKeyContext(CacheOrchestrator.Configuration.DomainHttpCacheOptions! options, Microsoft.AspNetCore.Http.HttpContext! httpContext, CacheOrchestrator.DataCache.DomainCacheKeyShape shape = CacheOrchestrator.DataCache.DomainCacheKeyShape.Automatic) -> void
+CacheOrchestrator.DataCache.DomainCacheKeyContext.HttpContext.get -> Microsoft.AspNetCore.Http.HttpContext!
+CacheOrchestrator.DataCache.DomainCacheKeyContext.Options.get -> CacheOrchestrator.Configuration.DomainHttpCacheOptions!
+CacheOrchestrator.DataCache.DomainCacheKeyContext.Shape.get -> CacheOrchestrator.DataCache.DomainCacheKeyShape
+CacheOrchestrator.DataCache.IDomainKeyGenerator.Generate(CacheOrchestrator.DataCache.DomainCacheKeyContext! context) -> string!
+*REMOVED*CacheOrchestrator.DataCache.IDomainKeyGenerator.Generate(CacheOrchestrator.Configuration.DomainHttpCacheOptions! options, Microsoft.AspNetCore.Http.HttpContext! httpContext, CacheOrchestrator.DataCache.DomainCacheKeyShape shape = CacheOrchestrator.DataCache.DomainCacheKeyShape.Automatic) -> string!
 CacheOrchestrator.Backends.OutputCacheRegistrationContext.OutputCacheNamespace.get -> string!
 CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.Generate(CacheOrchestrator.Configuration.DomainHttpCacheOptions! opts, Microsoft.AspNetCore.Http.HttpContext! http, CacheOrchestrator.DataCache.DomainCacheKeyShape shape = CacheOrchestrator.DataCache.DomainCacheKeyShape.Automatic) -> string!
 CacheOrchestrator.DataCache.DomainCacheKeyShape

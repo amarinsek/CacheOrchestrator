@@ -30,12 +30,8 @@ public class DirectFactoryTelemetryMiddlewareTests
         Func<Task> act = () => sut.InvokeAsync(http);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("boom");
-        admin.Received(1).RecordFactory(
-            Arg.Any<string?>(),
-            "promotions",
-            true,
-            Arg.Any<long?>(),
-            Arg.Any<long?>());
+        admin.Received(1).RecordFactory(Arg.Is<AdminFactoryRecord>(record =>
+            record.Domain == "promotions" && record.Failed));
     }
 
     [Fact]
@@ -61,11 +57,6 @@ public class DirectFactoryTelemetryMiddlewareTests
         Func<Task> act = () => sut.InvokeAsync(http);
 
         await act.Should().ThrowAsync<InvalidOperationException>();
-        admin.DidNotReceive().RecordFactory(
-            Arg.Any<string?>(),
-            Arg.Any<string?>(),
-            Arg.Any<bool>(),
-            Arg.Any<long?>(),
-            Arg.Any<long?>());
+        admin.DidNotReceive().RecordFactory(Arg.Any<AdminFactoryRecord>());
     }
 }

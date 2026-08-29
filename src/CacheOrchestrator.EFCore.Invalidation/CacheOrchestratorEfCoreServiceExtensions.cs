@@ -64,7 +64,7 @@ public static class CacheOrchestratorEfCoreServiceExtensions
     }
 
     /// <summary>
-    /// Attaches the registered <see cref="CacheInvalidationSaveChangesInterceptor"/> to this context.
+    /// Attaches the CacheOrchestrator invalidation interceptor registered in the service provider.
     /// </summary>
     /// <param name="options">The DbContext options builder.</param>
     /// <param name="services">The application service provider (from <c>AddDbContext</c> factory).</param>

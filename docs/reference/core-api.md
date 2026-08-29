@@ -2,7 +2,7 @@
 
 > **Reference.** Product overview: [root README](../../README.md). Orientation: [packages](../guide/packages.md). Catalog: [documentation index](../README.md). HTTP API: [Data Cache](data-cache.md).
 
-`CacheOrchestrator.Core` is the HTTP-free application API for class libraries, workers, message handlers, gRPC services, and other hosts that should not depend on ASP.NET Core. The primary abstraction is `ICacheOrchestrator`; a registered `IDataCacheProvider` owns physical storage. If Data Cache is enabled without a provider, the host logs a startup warning and the health check reports the configured failure status instead of silently appearing configured.
+`CacheOrchestrator.Core` is the HTTP-free application API for class libraries, workers, message handlers, gRPC services, and other hosts that should not depend on ASP.NET Core. The primary abstraction is `ICacheOrchestrator`; a registered `IDataCacheProvider` owns physical storage. Without a provider, startup and health remain valid for hosts that never use Data Cache; the first actual Data Cache operation logs a warning and runs uncached.
 
 The caller supplies a **domain** and a stable **logical key**. CacheOrchestrator resolves the domain policy, adds the domain `Version`, attaches invalidation tags, and delegates the operation to the provider.
 
@@ -10,7 +10,7 @@ The caller supplies a **domain** and a stable **logical key**. CacheOrchestrator
 application logical key
   → ICacheOrchestrator
       → resolve DomainCacheOptions
-      → build {domain}:{versionHex}:{logicalKey}
+      → build co3:{escapedDomain}:{versionHex}:{logicalKey}
       → attach domain/entity tags
       → IDataCacheProvider
 ```
@@ -137,12 +137,11 @@ ProductDto? product = await cache.GetOrCreateAsync(
 | Property | Required | Meaning |
 |----------|----------|---------|
 | `Domain` | Yes | Domain name; normalized before resolution |
-| `Key` | Yes | Logical key, unless `KeyIsPhysical` is set |
-| `KeyIsPhysical` | No, default `false` | `false`: prepend domain and Version. `true`: pass the key to the provider unchanged. Intended for adapters that already formed a complete physical key. |
+| `Key` | Yes | Logical key; CacheOrchestrator prepends the domain and Version |
 | `Footprint` | No | Early primary/member/dependency/alias tags |
 | `AdditionalTags` | No | Advanced custom invalidation tags; the domain tag is still added automatically |
 
-Application code should normally leave `KeyIsPhysical` as `false`. Setting it to `true` transfers responsibility for domain and Version isolation to the caller.
+The physical-key bypass is internal to trusted HTTP adapters, so application code cannot accidentally omit domain and Version isolation.
 
 ## One entity
 

@@ -44,13 +44,13 @@ Default: `app-cache`. Effective store prefixes:
 |---------|-------|-----|
 | **Output Cache key** | Yes | `CacheKeyPrefix` = effective Output Cache namespace |
 | **Output Cache Redis store** | Yes | `InstanceName` = effective Output Cache namespace |
-| **Data Cache logical key** (`DefaultDomainKeyGenerator`) | **No** | Key is `{domain}:{versionHex}:{hash}` only |
+| **Data Cache provider key** (`DefaultDomainKeyGenerator`) | **No** | Key is `co3:{escapedDomain}:{versionHex}:{hash}` only |
 | **Fusion `CacheKeyPrefix`** | Yes | Effective Data Cache namespace + `:` (e.g. `my-app-fc:`) on every named Fusion instance |
 | **HybridCache key and tags** | Yes | The provider prefixes both with the effective default Data Cache namespace + `:` |
 | **Fusion Redis L2** | Yes (via Fusion) | Redis `InstanceName` is **not** set; Fusion prefix is the single isolation layer (do not also set `InstanceName` to the same namespace) |
 | **Fusion backplane** | Yes | Channel prefix `{dcNamespace}:backplane` |
 
-Logical Data Cache keys stay `{domain}:{versionHex}:{hash}` — Namespace is applied by the provider (Fusion `CacheKeyPrefix` / backplane or the Hybrid provider prefix), not inside the CO key string.
+Data Cache provider keys use the cutover format `co3:{escapedDomain}:{versionHex}:{logicalMaterial}`. The escaped domain makes segment boundaries unambiguous; Namespace is still applied by the provider (Fusion `CacheKeyPrefix` / backplane or the Hybrid provider prefix), not inside the CO key string.
 
 ---
 
@@ -58,7 +58,7 @@ Logical Data Cache keys stay `{domain}:{versionHex}:{hash}` — Namespace is app
 
 ### Who builds them
 
-`IDomainDataCache.GetOrSetAsync` → `IDomainKeyGenerator.Generate(options, http, shape)`.
+`IDomainDataCache.GetOrSetAsync` → `IDomainKeyGenerator.Generate(context)`.
 
 Default implementation: **`DefaultDomainKeyGenerator`** (XxHash3 over request material, then a short string key).
 
@@ -68,8 +68,8 @@ Replace with a custom `IDomainKeyGenerator` when you must vary on dimensions the
 
 | Mode | Key shape |
 |------|-----------|
-| URL-shaped (default) | `{domain}:{versionHex}:{hash}` |
-| Entity / resource id | `{domain}:{versionHex}:id:{entityKind}:{resourceId}:{hash}` |
+| URL-shaped (default) | `co3:{escapedDomain}:{versionHex}:{hash}` |
+| Entity / resource id | `co3:{escapedDomain}:{versionHex}:id:{entityKind}:{resourceId}:{hash}` |
 
 Examples:
 
@@ -154,10 +154,10 @@ await cache.GetOrCreateAsync(
 The default physical key is:
 
 ```text
-{domain}:{versionHex}:{logicalKey}
+co3:{escapedDomain}:{versionHex}:{logicalKey}
 ```
 
-For product `42`, that might be `catalog:a1b2c3d4e5f60708:product:42`. FusionCache still adds its configured instance namespace outside this key. `CacheEntryRequest.KeyIsPhysical = true` skips the domain/Version prefix and is intended for adapters that already built a complete provider key, not normal application code.
+For product `42`, that might be `co3:catalog:a1b2c3d4e5f60708:product:42`. FusionCache still adds its configured instance namespace outside this key. Public Core callers always supply a logical key; CacheOrchestrator owns the domain and Version prefix.
 
 Core and HTTP keys deliberately have different lookup shapes. They coordinate invalidation through the same domain and entity tags. Full API: [Core API](core-api.md).
 
@@ -204,7 +204,7 @@ Output Cache stamps early tags in `CacheRequestAsync` (domain; primary entity wh
 
 | | Data Cache | Output Cache |
 |--|------------|--------------|
-| **Logical shape** | `{domain}:{versionHex}:{hash}` | Framework key from prefix + vary |
+| **Logical shape** | `co3:{escapedDomain}:{versionHex}:{hash}` | Framework key from prefix + vary |
 | **Namespace** | Logical key: no; Fusion `CacheKeyPrefix` + backplane: yes (`-fc`) | Yes (`CacheKeyPrefix`) |
 | **Domain in key** | Yes | No (tag only) |
 | **Version in key** | Yes (`versionHex`) | Yes (`data-version` vary) |

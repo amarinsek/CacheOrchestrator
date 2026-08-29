@@ -15,6 +15,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
     private readonly IDomainCacheOptionsProvider _domainOptions;
     private readonly IDataCacheProvider _dataCache;
     private readonly ILogger<CacheOrchestratorService> _logger;
+    private int _nullProviderWarningLogged;
 
     public CacheOrchestratorService(
         IDomainCacheOptionsProvider domainOptions,
@@ -52,6 +53,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
         }
 
         DataCacheProviderRequest providerRequest = CreateProviderRequest(opts, request);
+        WarnIfNullProviderIsUsed(opts.Domain);
 
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.orchestrator.get_or_create");
         activity?.SetTag("domain", opts.Domain);
@@ -66,7 +68,8 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
                     cancellationToken)
                 .ConfigureAwait(false);
             EnsureKnownOutcome(result.Outcome);
-            activity?.SetTag("cache.result", result.Outcome == DataCacheProviderOutcome.Materialized ? "miss" : "hit");
+            request.OutcomeObserver?.Invoke(result.Outcome);
+            activity?.SetTag("cache.result", OutcomeTag(result.Outcome));
             return result.Value;
         }
         catch (OperationCanceledException)
@@ -104,6 +107,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
         }
 
         DataCacheProviderRequest earlyRequest = CreateProviderRequest(opts, request);
+        WarnIfNullProviderIsUsed(opts.Domain);
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.orchestrator.get_or_create_footprint");
         activity?.SetTag("domain", opts.Domain);
         activity?.SetTag("provider", _dataCache.Name);
@@ -120,6 +124,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
                     cancellationToken)
                 .ConfigureAwait(false);
             EnsureKnownOutcome(result.Outcome);
+            request.OutcomeObserver?.Invoke(result.Outcome);
 
             FootprintCacheBox<T?> box = NormalizeBox(result.Value);
 
@@ -142,7 +147,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
                 }
             }
 
-            activity?.SetTag("cache.result", result.Outcome == DataCacheProviderOutcome.Materialized ? "miss" : "hit");
+            activity?.SetTag("cache.result", OutcomeTag(result.Outcome));
             return box;
         }
         catch (OperationCanceledException)
@@ -157,138 +162,11 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
         }
     }
 
-    /// <inheritdoc />
-    public async ValueTask<T?> GetOrCreateEntityAsync<T>(
-        string domain,
-        string logicalKey,
-        EntityRef primary,
-        Func<CancellationToken, ValueTask<T?>> factory,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        ArgumentException.ThrowIfNullOrWhiteSpace(logicalKey);
-        ArgumentNullException.ThrowIfNull(factory);
-        EnsureUsablePrimary(primary);
-
-        EntityFootprint early = new(primary);
-        FootprintCacheBox<T?> box = await GetOrCreateWithFootprintAsync<T>(
-                new CacheEntryRequest
-                {
-                    Domain = domain,
-                    Key = logicalKey,
-                    Footprint = early
-                },
-                async token =>
-                {
-                    T? value = await factory(token).ConfigureAwait(false);
-                    return new FootprintCacheBox<T?>
-                    {
-                        Value = value,
-                        IsMiss = value is null,
-                        Footprint = early
-                    };
-                },
-                cancellationToken)
-            .ConfigureAwait(false);
-
-        return box.IsMiss ? default : box.Value;
-    }
-
-    /// <inheritdoc />
-    public async ValueTask<T?> GetOrCreateEntityAsync<T>(
-        string domain,
-        string logicalKey,
-        EntityRef primary,
-        Func<CancellationToken, ValueTask<EntityCache<T>>> factory,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        ArgumentException.ThrowIfNullOrWhiteSpace(logicalKey);
-        ArgumentNullException.ThrowIfNull(factory);
-        EnsureUsablePrimary(primary);
-
-        FootprintCacheBox<T?> box = await GetOrCreateWithFootprintAsync<T>(
-                new CacheEntryRequest
-                {
-                    Domain = domain,
-                    Key = logicalKey,
-                    Footprint = new EntityFootprint(primary)
-                },
-                async token =>
-                {
-                    EntityCache<T> produced = await factory(token).ConfigureAwait(false);
-                    ArgumentNullException.ThrowIfNull(produced);
-                    EntityFootprint full = (produced.Footprint ?? EntityFootprint.Empty).WithPrimary(primary);
-                    return new FootprintCacheBox<T?>
-                    {
-                        Value = produced.IsMiss ? default : produced.Value,
-                        IsMiss = produced.IsMiss,
-                        Footprint = full
-                    };
-                },
-                cancellationToken)
-            .ConfigureAwait(false);
-
-        return box.IsMiss ? default : box.Value;
-    }
-
-    /// <inheritdoc />
-    public async ValueTask<IReadOnlyList<T>> GetOrCreateEntitySetAsync<T>(
-        string domain,
-        string logicalKey,
-        string entityKind,
-        Func<CancellationToken, ValueTask<EntitySet<T>>> factory,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        ArgumentException.ThrowIfNullOrWhiteSpace(logicalKey);
-        ArgumentException.ThrowIfNullOrWhiteSpace(entityKind);
-        ArgumentNullException.ThrowIfNull(factory);
-
-        string normalizedKind = DomainName.NormalizeEntityKind(entityKind);
-        if (string.IsNullOrEmpty(normalizedKind))
-            throw new ArgumentException("Entity kind must contain usable characters after normalization.", nameof(entityKind));
-
-        // Early tags: domain + entitykind (members arrive from the factory footprint).
-        EntityFootprint early = new(
-            primary: null,
-            members: null,
-            dependsOn: null,
-            aliases: null);
-        // EntityFootprint.Empty has no kind tag — pass kind via AdditionalTags for the early request.
-        string kindTag = CacheTags.EntityKind(DomainName.Normalize(domain), normalizedKind);
-
-        FootprintCacheBox<IReadOnlyList<T>?> box = await GetOrCreateWithFootprintAsync<IReadOnlyList<T>>(
-                new CacheEntryRequest
-                {
-                    Domain = domain,
-                    Key = logicalKey,
-                    Footprint = early,
-                    AdditionalTags = [kindTag]
-                },
-                async token =>
-                {
-                    EntitySet<T> produced = await factory(token).ConfigureAwait(false);
-                    ArgumentNullException.ThrowIfNull(produced);
-                    EntityFootprint footprint = produced.BuildFootprint(normalizedKind);
-                    return new FootprintCacheBox<IReadOnlyList<T>?>
-                    {
-                        Value = produced.Value,
-                        IsMiss = false,
-                        Footprint = footprint
-                    };
-                },
-                cancellationToken)
-            .ConfigureAwait(false);
-
-        return box.Value ?? [];
-    }
-
     /// <summary>
-    /// Physical key: <c>{domain}:{versionHex}:{logicalKey}</c> (Http-free / library path).
+    /// Physical key: <c>co3:{escapedDomain}:{versionHex}:{logicalKey}</c>.
     /// </summary>
     internal static string BuildPhysicalKey(DomainCacheOptions opts, string logicalKey)
-        => string.Concat(opts.Domain, ":", opts.VersionHex, ":", logicalKey);
+        => string.Concat(opts.PhysicalKeyPrefix, logicalKey);
 
     internal static IReadOnlyList<string> BuildTags(
         DomainCacheOptions options,
@@ -406,19 +284,34 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
                 "The data-cache provider returned an unknown outcome. Providers must explicitly return Cached or Materialized.");
         }
 
-        if (outcome is not DataCacheProviderOutcome.Cached and not DataCacheProviderOutcome.Materialized)
-            throw new InvalidOperationException($"The data-cache provider returned unsupported outcome '{outcome}'.");
-    }
-
-    private static void EnsureUsablePrimary(EntityRef primary)
-    {
-        string kind = DomainName.NormalizeEntityKind(primary.EntityKind);
-        string id = DomainName.NormalizeResourceId(primary.ResourceId);
-        if (string.IsNullOrEmpty(kind) || string.IsNullOrEmpty(id))
+        if (outcome is not DataCacheProviderOutcome.Cached
+            and not DataCacheProviderOutcome.Materialized
+            and not DataCacheProviderOutcome.Stale)
         {
-            throw new ArgumentException(
-                "Primary entity kind and id must contain usable characters after normalization.",
-                nameof(primary));
+            throw new InvalidOperationException($"The data-cache provider returned unsupported outcome '{outcome}'.");
         }
     }
+
+    private void WarnIfNullProviderIsUsed(string domain)
+    {
+        if (_dataCache is not NullDataCacheProvider
+            || Interlocked.Exchange(ref _nullProviderWarningLogged, 1) != 0)
+        {
+            return;
+        }
+
+        _logger.LogWarning(
+            "Data Cache was requested for domain {Domain}, but no Data Cache provider is registered. " +
+            "The factory will run uncached. Register FusionCache or HybridCache to cache data.",
+            domain);
+    }
+
+    private static string OutcomeTag(DataCacheProviderOutcome outcome) => outcome switch
+    {
+        DataCacheProviderOutcome.Cached => "hit",
+        DataCacheProviderOutcome.Materialized => "miss",
+        DataCacheProviderOutcome.Stale => "stale",
+        _ => "unknown"
+    };
+
 }

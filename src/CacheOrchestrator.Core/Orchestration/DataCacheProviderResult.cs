@@ -1,6 +1,6 @@
 namespace CacheOrchestrator.Orchestration;
 
-/// <summary>Describes whether a provider returned cached data or the value from this call's factory.</summary>
+/// <summary>Describes how a provider satisfied a Data Cache request.</summary>
 public enum DataCacheProviderOutcome
 {
     /// <summary>
@@ -8,11 +8,14 @@ public enum DataCacheProviderOutcome
     /// </summary>
     Unknown = 0,
 
-    /// <summary>The returned value was already cached, including a stale value returned during refresh.</summary>
+    /// <summary>The returned value was a fresh cache hit.</summary>
     Cached = 1,
 
     /// <summary>The returned value was produced by this call's completed factory invocation.</summary>
     Materialized = 2,
+
+    /// <summary>The returned value was stale because a refresh could not complete synchronously.</summary>
+    Stale = 3,
 }
 
 /// <summary>A Data Cache provider value together with its materialization outcome.</summary>
@@ -29,6 +32,6 @@ public readonly struct DataCacheProviderResult<T>
     /// <summary>The returned cache value.</summary>
     public T Value { get; }
 
-    /// <summary>Whether the value was cached or materialized by this call.</summary>
+    /// <summary>How the provider satisfied the request.</summary>
     public DataCacheProviderOutcome Outcome { get; }
 }
