@@ -10,7 +10,7 @@ This folder ships with the **CacheOrchestrator Admin Console App**. It holds:
 | **`*.json`** (your packs) | Custom rules when listed in `RuleFiles` (Development default: this folder) |
 | **`disabled.local.json`** | Enable/disable from the Settings UI (**do not commit**; machine-local) |
 
-Hints are **read-only recommendations** built from the Console **Prometheus window** stats model (and domain config), not from Local Admin process counters. `/api/stats/window` derives shares and **impact** (`domain.impact.*` / `endpoint.impact.*`) before rules run. They never change TTLs, Version, or invalidation.
+Hints are **read-only recommendations** built from the Console **Prometheus window** stats model (and domain config), not from Admin API process counters. `/api/stats/window` derives shares and **impact** (`domain.impact.*` / `endpoint.impact.*`) before rules run. They never change TTLs, Version, or invalidation.
 
 You can add rules **without recompiling** the Admin Console App: drop a JSON file where `RuleFiles` points, then **Settings → Reload**.
 

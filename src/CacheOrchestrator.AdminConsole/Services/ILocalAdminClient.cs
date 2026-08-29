@@ -6,7 +6,7 @@ using CacheOrchestrator.Invalidation;
 namespace CacheOrchestrator.AdminConsole.Services;
 
 /// <summary>
-/// HTTP client for a single instance's Local Admin API.
+/// HTTP client for a single instance's Admin API.
 /// </summary>
 public interface ILocalAdminClient
 {
@@ -53,7 +53,7 @@ public interface ILocalAdminClient
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>Typed outcome of a Local Admin call including latency metadata.</summary>
+/// <summary>Typed outcome of a Admin API call including latency metadata.</summary>
 public sealed class InstanceCallOutcome<T>
 {
     /// <summary>Configured instance id.</summary>
@@ -75,7 +75,7 @@ public sealed class InstanceCallOutcome<T>
     public double LatencyMs { get; init; }
 
     /// <summary>
-    /// When Local Admin returned 409 cluster-publish incomplete: origin already applied locally.
+    /// When Admin API returned 409 cluster-publish incomplete: origin already applied locally.
     /// </summary>
     public bool LocalApplied { get; init; }
 

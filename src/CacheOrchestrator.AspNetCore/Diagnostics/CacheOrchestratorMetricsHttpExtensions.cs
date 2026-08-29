@@ -29,7 +29,7 @@ public static class CacheOrchestratorMetricsHttpExtensions
     /// Resolves Admin endpoint key and optional metrics route in one pass.
     /// </summary>
     /// <param name="http">Current HTTP context.</param>
-    /// <param name="forAdminStats">When true, always resolve the key for Local Admin counters.</param>
+    /// <param name="forAdminStats">When true, always resolve the key for Admin API counters.</param>
     /// <param name="forMetrics">When true, resolve the route label if endpoint labeling is enabled.</param>
     /// <param name="endpointKey">Admin counter key when <paramref name="forAdminStats"/> is true.</param>
     /// <param name="metricsRoute">Route tag when IncludeEndpointLabel is enabled.</param>

@@ -217,7 +217,7 @@ public class AdminRegistrationTests
                 web.Configure(app =>
                 {
                     app.UseRouting();
-                    // Local Admin API does not require Output Cache middleware; omitting it keeps
+                    // Admin API does not require Output Cache middleware; omitting it keeps
                     // TestHost (esp. net10) free of PipeWriter/UnflushedBytes interactions.
                     app.UseEndpoints(endpoints =>
                     {

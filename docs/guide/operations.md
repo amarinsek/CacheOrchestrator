@@ -78,7 +78,7 @@ Start with these signals:
 
 By default, request instruments include a stable route-template label rather than raw resource paths. Disable `Cache:Metrics:IncludeEndpointLabel` if that cardinality is still too high, and keep the choice consistent across instances.
 
-Admin Console traffic charts require Prometheus. The local Admin `/stats` endpoint contains process-lifetime diagnostics and is not the source for time-window analytics.
+Admin Console traffic charts require Prometheus. The Admin API `/stats` endpoint contains process-lifetime diagnostics and is not the source for time-window analytics.
 
 ## Use logs and traces for the reason
 

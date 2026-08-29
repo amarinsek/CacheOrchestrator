@@ -218,7 +218,7 @@ The library is **modular**. The Core package provides the foundational policies,
 |---------|---------|
 | [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package: AspNetCore + FusionCache (for typical web apps). |
 | [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Domain models, orchestration, invalidation, and management contracts (no ASP.NET dependency). |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, HTTP helpers, and the Local Admin HTTP adapter. |
+| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, HTTP helpers, and the Admin API. |
 | [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | ZiggyCreatures FusionCache Data Cache provider. |
 | [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache Data Cache provider. |
 | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Meta Redis: Output Cache store and Fusion L2 / backplane (`AddRedisBackend`). |

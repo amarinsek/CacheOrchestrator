@@ -2,7 +2,7 @@
 
 > **Runbook (Docker).** Orientation: [Guide — operations](../../docs/guide/operations.md). Local `dotnet run`: [Admin Console README](../../src/CacheOrchestrator.AdminConsole/README.md). Architecture/security: [docs/reference/admin.md](../../docs/reference/admin.md). Writing rules: [hints/README.md](../../src/CacheOrchestrator.AdminConsole/hints/README.md).
 
-The Admin Console App is an **ops host**: it fans out to your application instances (Local Admin API) and optionally queries Prometheus for Metrics. It is **not** a NuGet package.
+The Admin Console App is an **ops host**: it fans out to your application instances (Admin API) and optionally queries Prometheus for Metrics. It is **not** a NuGet package.
 
 You do **not** need a git checkout to run it — only Docker, a small config file, and the image.
 

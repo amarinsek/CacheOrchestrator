@@ -228,7 +228,7 @@ Repo architecture notes: [docs/contributor/admin-hints.md](../../docs/contributo
 
 ## Metrics (Prometheus)
 
-Traffic KPIs, time-window domain and endpoint tables, impact analysis, charts, and recommendation inputs come from Prometheus through `AdminConsole:Metrics` and `GET /api/stats/window`. The Local Admin API is used for health, effective configuration, discovery, and operations.
+Traffic KPIs, time-window domain and endpoint tables, impact analysis, charts, and recommendation inputs come from Prometheus through `AdminConsole:Metrics` and `GET /api/stats/window`. The Admin API is used for health, effective configuration, discovery, and operations.
 
 Instance process-lifetime `GET …/stats` remains available for diagnostics but is not used by the statistics UI. Prometheus must scrape the `CacheOrchestrator` meter, including measurements such as `cache_orchestrator.dc.requests` and `cache_orchestrator.factory.duration`.
 

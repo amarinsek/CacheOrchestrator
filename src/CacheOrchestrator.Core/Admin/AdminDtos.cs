@@ -81,7 +81,7 @@ public sealed class AdminRuntimeOverrideFlagsDto
     public bool ClientTtlMin { get; init; }
 }
 
-/// <summary>Local Admin health response.</summary>
+/// <summary>Admin API health response.</summary>
 public sealed class AdminHealthDto
 {
     /// <summary>

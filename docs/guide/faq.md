@@ -242,7 +242,7 @@ See [Cache backends](../reference/backends.md), [Data Cache — HybridCache](../
 ### What is the difference between Admin API and Admin Console?
 
 - **Admin API** is an opt-in route group inside each application process. It exposes health, effective domains, invalidation, and runtime settings operations.
-- **Admin Console App** is a separate application that discovers and controls several Admin APIs through one UI.
+- **Admin Console App** is a separate application that discovers and controls the Admin API on each instance through one UI.
 
 Traffic charts in the Console use Prometheus. The Console has no built-in user login, so protect it with private networking and external authentication.
 

@@ -12,13 +12,13 @@ using Microsoft.Extensions.Options;
 namespace CacheOrchestrator.Admin;
 
 /// <summary>
-/// Maps Local Admin API endpoints (per instance). No-op when Admin is disabled.
+/// Maps Admin API endpoints (per instance). No-op when Admin is disabled.
 /// Prefer <see cref="DependencyInjection.ApplicationBuilderExtensions.MapCacheOrchestratorAdmin"/>.
 /// </summary>
 public static class AdminLocalApi
 {
     /// <summary>
-    /// Maps Local Admin routes under <c>Cache:Admin:RoutePrefix</c> when Admin is enabled.
+    /// Maps Admin API routes under <c>Cache:Admin:RoutePrefix</c> when Admin is enabled.
     /// Safe to call when Admin is disabled (maps nothing).
     /// </summary>
     /// <param name="endpoints">Endpoint route builder.</param>
@@ -43,7 +43,7 @@ public static class AdminLocalApi
             ILogger? logger = endpoints.ServiceProvider.GetService<ILoggerFactory>()
                 ?.CreateLogger("CacheOrchestrator.Admin");
             logger?.LogWarning(
-                "CacheOrchestrator Admin is enabled without ApiKey. Local Admin API at '{Prefix}' is open. " +
+                "CacheOrchestrator Admin is enabled without ApiKey. Admin API at '{Prefix}' is open. " +
                 "Set Cache:Admin:ApiKey for non-local environments.",
                 prefix);
         }
@@ -60,7 +60,7 @@ public static class AdminLocalApi
             CancellationToken cancellationToken) =>
             Results.Ok(await management.GetHealthAsync(cancellationToken).ConfigureAwait(false)));
 
-        // Always available when Local Admin is on (even without CacheOrchestrator.HttpBus).
+        // Always available when Admin API is on (even without CacheOrchestrator.HttpBus).
         // Prevents SPA MapFallbackToFile HTML from being mistaken for JSON on probe misses.
         group.MapGet("/cluster/info", async (
             ICacheOrchestratorManagement management,

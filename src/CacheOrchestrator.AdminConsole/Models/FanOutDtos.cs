@@ -43,7 +43,7 @@ public sealed class FanOutResultDto<T>
     /// <summary>When bus-distribute: the single origin instance id contacted by Admin Console App.</summary>
     public string? BusOriginInstanceId { get; init; }
 
-    /// <summary>Whether Local Admin requests used <c>distribute: true</c>.</summary>
+    /// <summary>Whether Admin API requests used <c>distribute: true</c>.</summary>
     public bool Distribute { get; init; }
 
     /// <summary>
@@ -156,7 +156,7 @@ public sealed class InstanceClusterProbeDto
     public string? Error { get; set; }
 }
 
-/// <summary>Outcome of one Local Admin HTTP call.</summary>
+/// <summary>Outcome of one Admin API call.</summary>
 public sealed class InstanceCallResultDto
 {
     /// <summary>Configured instance id.</summary>
@@ -175,7 +175,7 @@ public sealed class InstanceCallResultDto
     public double LatencyMs { get; init; }
 }
 
-/// <summary>Local Admin <c>409</c> body when <c>distribute:true</c> peer publish is incomplete.</summary>
+/// <summary>Admin API <c>409</c> body when <c>distribute:true</c> peer publish is incomplete.</summary>
 public sealed class LocalAdminClusterPublishIncompleteDto
 {
     /// <summary>Short error message.</summary>
@@ -191,7 +191,7 @@ public sealed class LocalAdminClusterPublishIncompleteDto
     public List<LocalAdminPeerFailureDto>? PeerFailures { get; set; }
 }
 
-/// <summary>One peer failure from a Local Admin cluster-publish incomplete response.</summary>
+/// <summary>One peer failure from a Admin API cluster-publish incomplete response.</summary>
 public sealed class LocalAdminPeerFailureDto
 {
     /// <summary>Membership peer id.</summary>

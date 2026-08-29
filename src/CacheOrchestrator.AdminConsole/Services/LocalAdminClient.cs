@@ -190,7 +190,7 @@ public sealed class LocalAdminClient : ILocalAdminClient
                     instance.Id,
                     (int)response.StatusCode,
                     "Non-JSON response (often SPA MapFallbackToFile HTML). " +
-                    "Endpoint may be missing — enable Local Admin and/or map the cluster bus receive endpoints.",
+                    "Endpoint may be missing — enable Admin API and/or map the cluster bus receive endpoints.",
                     sw.Elapsed.TotalMilliseconds);
             }
 
@@ -278,7 +278,7 @@ public sealed class LocalAdminClient : ILocalAdminClient
 
         string trimmed = body.Trim();
         if (trimmed.StartsWith('<') || trimmed.StartsWith("<!"))
-            return $"HTTP {statusCode}: non-JSON body (HTML). Check Local Admin path and that the target is not an SPA fallback.";
+            return $"HTTP {statusCode}: non-JSON body (HTML). Check Admin API path and that the target is not an SPA fallback.";
 
         if (TryParseClusterPublishIncomplete(trimmed, out LocalAdminClusterPublishIncompleteDto? incomplete)
             && incomplete is not null

@@ -229,7 +229,7 @@ The descriptor says what the registered provider implementation can support, not
 | Entry-size limit | Yes | No |
 | Batch invalidation | Yes | Yes |
 
-Provider name and capabilities are exposed in health-check data and the Local Admin health response. Inspect effective configuration and provider health probes as well when you need to know whether a supported distributed store or backplane is actually active.
+Provider name and capabilities are exposed in health-check data and the Admin API health response. Inspect effective configuration and provider health probes as well when you need to know whether a supported distributed store or backplane is actually active.
 
 Register exactly one provider. Core registration uses `TryAddSingleton`, so an application-owned provider can be registered first:
 

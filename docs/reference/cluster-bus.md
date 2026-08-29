@@ -248,7 +248,7 @@ Base path = `Cache:Admin:RoutePrefix` (default `/cache-admin/local`), **even if 
 | Method | Path | Role |
 |--------|------|------|
 | `POST` | `…/cluster/apply` | ApplyLocal command body |
-| `GET` | `…/cluster/info` | instance id, namespace, bus enabled, membership, peer count. When **Admin is enabled**, Local Admin maps this route (Bus does not duplicate it). When Admin is off, Bus maps it. |
+| `GET` | `…/cluster/info` | instance id, namespace, bus enabled, membership, peer count. When **Admin is enabled**, Admin API maps this route (Bus does not duplicate it). When Admin is off, Bus maps it. |
 
 ### Auth
 

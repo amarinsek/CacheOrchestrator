@@ -66,7 +66,7 @@ For “which package do I need?”, start with [packages](../guide/packages.md),
 | `DataCacheInstances` | Core / Data Cache provider | map | `default` instance `InMemory` | Named Data Cache engines (Fusion L1±L2; Hybrid supports only `default`) |
 | `DomainDefaults` | Core + feature packages | object | — | Fallbacks for every domain; each package binds its owned nested settings |
 | `Domains` | Core + feature packages | map | — | Per-domain overrides (keys are domain names) |
-| `Admin` | Core + ASP.NET Core / HttpBus adapters | object | disabled | Management policy plus HTTP adapter route/auth settings (see [admin.md](admin.md)) |
+| `Admin` | Core + ASP.NET Core / HttpBus adapters | object | disabled | Management policy plus Admin API route/auth settings (see [admin.md](admin.md)) |
 | `Cluster` | Core command handling + HttpBus transport | object | bus disabled | Cluster command and optional HttpBus settings (see below / [cluster-bus.md](cluster-bus.md)) |
 
 The JSON tree is stable even though no single public Core options type owns every row. Core, ASP.NET Core, FusionCache, and HttpBus bind package-specific projections from the same section.

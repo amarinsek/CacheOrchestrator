@@ -299,7 +299,7 @@ public class AdminFanOutServiceTests
 
         instances.Should().ContainSingle();
         instances[0].Status.Should().Be(InstanceHealthStatus.Degraded,
-            "Local Admin HTTP 200 + Healthy:false maps to Console Degraded");
+            "Admin API 200 + Healthy:false maps to Console Degraded");
         OverviewDto overview = await sut.GetOverviewAsync(TestContext.Current.CancellationToken);
         overview.DegradedCount.Should().Be(1);
         overview.HealthyCount.Should().Be(0);

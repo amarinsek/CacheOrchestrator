@@ -73,7 +73,7 @@ AdminDomainMutationResultDto changed = await management.SetVersionAsync(
     cancellationToken);
 ```
 
-Core reports portable Data Cache configuration and has no resource endpoints to discover by default. A host can implement `IAdminEndpointCatalog` and `IAdminDomainConfigProvider` to add its resource inventory and host-specific policy. `CacheOrchestrator.AspNetCore` provides those adapters and maps the existing Local Admin HTTP routes onto the same management contract. See [Admin](admin.md#core-management-contract).
+Core reports portable Data Cache configuration and has no resource endpoints to discover by default. A host can implement `IAdminEndpointCatalog` and `IAdminDomainConfigProvider` to add its resource inventory and host-specific policy. `CacheOrchestrator.AspNetCore` provides those adapters and maps the existing Admin API routes onto the same management contract. See [Admin](admin.md#core-management-contract).
 
 ## `ICacheOrchestrator` surface
 
@@ -156,7 +156,7 @@ ProductDto? product = await cache.GetOrCreateAsync(
 | `Footprint` | No | Early primary/member/dependency/alias tags |
 | `AdditionalTags` | No | Advanced custom invalidation tags; the domain tag is still added automatically |
 
-The physical-key bypass is internal to trusted HTTP adapters, so application code cannot accidentally omit domain and Version isolation.
+The physical-key bypass is internal to the trusted ASP.NET Core host path, so application code cannot accidentally omit domain and Version isolation.
 
 ## One entity
 

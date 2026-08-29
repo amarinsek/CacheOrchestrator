@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 namespace CacheOrchestrator.AdminConsole.Services;
 
 /// <summary>
-/// Orchestrates parallel fan-out to Local Admin APIs and aggregates results.
+/// Orchestrates parallel fan-out to Admin APIs and aggregates results.
 /// </summary>
 public sealed class AdminFanOutService
 {
@@ -353,10 +353,10 @@ public sealed class AdminFanOutService
     }
 
     /// <summary>
-    /// Maps Local Admin outcomes to Console results. A 409 cluster-publish incomplete response
+    /// Maps Admin API outcomes to Console results. A 409 cluster-publish incomplete response
     /// (origin applied, peers failed) expands into origin success + per-peer failure rows.
     /// </summary>
-    /// <summary>Expands Local Admin outcomes (including bus peer failures) into Console result rows.</summary>
+    /// <summary>Expands Admin API outcomes (including bus peer failures) into Console result rows.</summary>
     public static IReadOnlyList<InstanceCallResultDto> ExpandWriteResults<T>(
         IEnumerable<InstanceCallOutcome<T>> outcomes)
     {

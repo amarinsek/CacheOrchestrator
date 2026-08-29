@@ -66,7 +66,7 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 | `CacheOrchestrator.Core` | Domains, Version, portable `DataCache` settings, entity footprint, `ICacheOrchestrator`, invalidation and cluster **contracts**, diagnostics |
 | `CacheOrchestrator.FusionCache` | ZiggyCreatures Fusion as `IDataCacheProvider`; JSON `FusionCache` knobs |
 | `CacheOrchestrator.HybridCache` | Microsoft HybridCache as `IDataCacheProvider` |
-| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP vary/diagnostics/Admin settings, Admin HTTP API, `IDomainDataCache`, host `AddCacheOrchestratorAspNetCore` |
+| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP vary/diagnostics/Admin settings, Admin API, `IDomainDataCache`, host `AddCacheOrchestratorAspNetCore` |
 | `CacheOrchestrator` | Meta NuGet: AspNetCore + FusionCache (`AddCacheOrchestrator`) |
 | `CacheOrchestrator.Redis` | Redis Output Cache store + Fusion L2 + backplane |
 | `CacheOrchestrator.HttpBus` | HTTP cluster command bus + transport, authentication, Static / ServiceDiscovery membership settings |
@@ -95,7 +95,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | Redis: `AddRedisBackend` (**CacheOrchestrator.Redis**) | `RedisCacheBackendRegistrar`, `RedisCacheHealthProbe`, all `Redis.Shared` implementation types |
 | HttpBus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` (**CacheOrchestrator.HttpBus**) | `HttpClusterCommandBus`, versioned HTTP wire DTOs, `ClusterEndpointAuth` |
 | `ICacheOrchestratorManagement`, management DTOs and host adapter contracts (**Core**) | `CacheOrchestratorManagement`, `CoreAdminDomainConfigProvider` |
-| `MapCacheOrchestratorAdmin` (**AspNetCore HTTP adapter**) | `AdminLocalApi`, `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
+| `MapCacheOrchestratorAdmin` (**AspNetCore Admin API**) | `AdminLocalApi`, `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
 | `AuthBypassMode`, `ETagMode`, `ClientCacheability`, `DomainAuthEvaluator` (**AspNetCore**) | — |
 | `ICacheVaryContributor`, `CacheVaryMaterializer`, `ICacheVaryBuilder` | — |
 | `DomainOutputCachePolicy`, `[CacheDomain]`, `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheDomainConvention` |

@@ -10,7 +10,7 @@ public sealed class CacheOrchestratorOptions
     public string? Namespace { get; set; } = "app-cache";
 
     /// <summary>
-    /// Stable process identity for Local Admin, cluster bus anti-echo, and diagnostics.
+    /// Stable process identity for Admin API, cluster bus anti-echo, and diagnostics.
     /// Bound from <c>Cache:InstanceId</c>. When empty, the host machine name is used.
     /// </summary>
     public string? InstanceId { get; set; }

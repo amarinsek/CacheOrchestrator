@@ -7,10 +7,10 @@ The management model has three layers:
 | Piece | What it is | Where it runs |
 |-------|------------|----------------|
 | **Management API** | Transport-independent queries and operations through `ICacheOrchestratorManagement` | Core package; available to web apps, workers, command handlers, and custom adapters |
-| **Admin HTTP adapter** | Opt-in HTTP routes that delegate to the Management API | AspNetCore package (`Cache:Admin` + `MapCacheOrchestratorAdmin`) |
-| **Admin Console App** | Dashboard that fans out to the HTTP adapters | Separate process / Docker image — not a NuGet package |
+| **Admin API** | Opt-in HTTP routes that delegate to the Management API | AspNetCore package (`Cache:Admin` + `MapCacheOrchestratorAdmin`) |
+| **Admin Console App** | Dashboard that fans out to each instance Admin API | Separate process / Docker image — not a NuGet package |
 
-Use the Core contract from application code or a custom transport. Use the HTTP adapter for scripts and the Console for multi-instance UI. **Traffic charts need Prometheus.** Security matters: management operations mutate cache state.
+Use the Core contract from application code or a custom transport. Use the Admin API for scripts and the Console for multi-instance UI. **Traffic charts need Prometheus.** Security matters: management operations mutate cache state.
 
 Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Admin Console README](../../src/CacheOrchestrator.AdminConsole/README.md).
 
@@ -40,7 +40,7 @@ Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Ad
 ```
 
 - Admin Console App is **never** on the end-user caching hot path.  
-- **Console traffic stats** come only from the OTEL meter scraped into Prometheus (`increase()` over the selected Range per domain/route/`instance_id`). Local Admin `/stats` is a compact process-lifetime raw snapshot for diagnostics.
+- **Console traffic stats** come only from the OTEL meter scraped into Prometheus (`increase()` over the selected Range per domain/route/`instance_id`). Admin API `/stats` is a compact process-lifetime raw snapshot for diagnostics.
 - Runtime **Version** and **TTL** overlays are **process-local** on each node unless the optional [cluster bus](cluster-bus.md) publishes them (`distribute: true` / Admin Console App **bus-distribute**). Without bus, Admin Console App **fan-out** must hit every instance that should change.
 
 ---
@@ -50,7 +50,7 @@ Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Ad
 | Piece | How users get it |
 |-------|------------------|
 | Management API | Ships in **`CacheOrchestrator.Core`** and is registered by `AddCacheOrchestratorCore`. |
-| Admin HTTP adapter | Ships inside **`CacheOrchestrator`** / **`CacheOrchestrator.AspNetCore`**. No extra package. Routes default to disabled (`Cache:Admin:Enabled` = false). |
+| Admin API | Ships inside **`CacheOrchestrator`** / **`CacheOrchestrator.AspNetCore`**. No extra package. Routes default to disabled (`Cache:Admin:Enabled` = false). |
 | Admin Console App | Source in repo; `dotnet run` / `dotnet publish`; **Docker image** on GHCR with each GitHub Release. Not published to nuget.org. |
 
 | Image | |
@@ -91,7 +91,7 @@ public sealed class CacheOperations(ICacheOrchestratorManagement management)
 
 Core supplies a Data Cache domain view and an empty resource catalog. Host packages can enrich these through `IAdminDomainConfigProvider` and `IAdminEndpointCatalog`; the ASP.NET Core package supplies both adapters. `Admin:Enabled` controls HTTP route exposure and live Admin counters, not whether application code can resolve the Core management contract.
 
-Mutation methods validate input with `ArgumentException`. A distributed Version or settings result carries `ClusterPublish`; adapters decide how to represent partial peer failure. The built-in HTTP adapter returns `409 Conflict` after the local change has already been applied.
+Mutation methods validate input with `ArgumentException`. A distributed Version or settings result carries `ClusterPublish`; adapters decide how to represent partial peer failure. The built-in Admin API returns `409 Conflict` after the local change has already been applied.
 
 ### Enable (each app instance)
 
@@ -139,7 +139,7 @@ When the HTTP bus is enabled, Admin API mutation bodies accept **`distribute`** 
 | `POST …/domains/{d}/version` | Local Version overlay | Local + `VersionBumpCommand` |
 | `PATCH …/domains/{d}/settings` | Local overlay | Local + `SettingsPatchCommand` |
 
-With **`distribute: true`**, Local Admin applies the change on the origin first, then publishes to peers. If **any peer fails**, the HTTP response is **409 Conflict** with `localApplied: true` and `peerFailures[]` (cluster may already be inconsistent — no automatic rollback).
+With **`distribute: true`**, Admin API applies the change on the origin first, then publishes to peers. If **any peer fails**, the HTTP response is **409 Conflict** with `localApplied: true` and `peerFailures[]` (cluster may already be inconsistent — no automatic rollback).
 
 **Admin Console App** probes `GET …/cluster/info` on each configured instance (`GET /api/distribution`):
 
@@ -247,7 +247,7 @@ Use `GET /domain-settings/catalog` as the canonical list. A setting is writable 
 
 A successful Version or settings mutation returns the normalized `domain` and complete effective domain snapshot. With `distribute: true`, a peer failure returns `409` with `localApplied: true`, command metadata, and `peerFailures`; the local mutation is not rolled back.
 
-### Local Admin `/stats` (process-lifetime raw snapshot)
+### Admin API `/stats` (process-lifetime raw snapshot)
 
 Designed for curl/scripts and management adapters: process-lifetime counters without presentation shares or rates. When `Cache:Admin:TrackLatency` / `TrackResultSize` are on, factory duration and result-size sums are included.
 
@@ -380,7 +380,7 @@ Dev stack (Playground + Prometheus + Admin Console labs): [samples/CacheOrchestr
 | `BearerToken` | empty | Optional `Authorization: Bearer` |
 | `PathPrefix` | empty | e.g. `/prometheus` behind a reverse proxy |
 
-When **not configured**, statistics and charts are unavailable (UI shows Metrics offline); health, domain config, and operations still work via Local Admin API. When **configured but unreachable**, the UI shows **Disconnected** with the same **Provider · host** (from `BaseUrl`) plus not connected / error text — so the target is always visible even when the probe fails (no fake zeros). Metrics store status also appears on **Instances**.
+When **not configured**, statistics and charts are unavailable (UI shows Metrics offline); health, domain config, and operations still work via Admin API. When **configured but unreachable**, the UI shows **Disconnected** with the same **Provider · host** (from `BaseUrl`) plus not connected / error text — so the target is always visible even when the probe fails (no fake zeros). Metrics store status also appears on **Instances**.
 
 #### Windowed stats (Prometheus) — Console traffic source
 
@@ -391,7 +391,7 @@ When **not configured**, statistics and charts are unavailable (UI shows Metrics
 | `GET /api/metrics/series` | Chart panels (`range`, `from`/`to`, `panels`, `domains`, `instances`, `routes`) |
 | `GET /api/metrics/summary` | Compact rates/shares for the window |
 
-Overview, Domains, Endpoints, detail **traffic**, header KPIs, and **Hints** use `/api/stats/window` only. **Green underline** = current config/identity (Version, TTL, …), not the window. Local Admin process counters are **not** used for Console stats.
+Overview, Domains, Endpoints, detail **traffic**, header KPIs, and **Hints** use `/api/stats/window` only. **Green underline** = current config/identity (Version, TTL, …), not the window. Admin API process counters are **not** used for Console stats.
 
 Window aggregates use Prometheus **`increase(metric[range])`** over the selected Range (the same principle as chart `rate` / `increase`), so domains and endpoints that had traffic mid-window still count even if OTEL later stops exporting those labels. Instant `now − offset` is not used for that reason. Rows with **zero requests** and no invalidations in the window are omitted from domain and endpoint tables; charts may still draw historical curves for series present in TSDB. A new series with only one scrape may under-count until the next scrape (fallback: current value when the series did not exist at the start of the window). Output Cache, Data Cache, and invalidation series group by `domain` / `result`; endpoints group by `route`. Factory duration uses histogram `_sum` / `_count`. Data Cache meter `result=fail` maps a hard factory exception to a factory failure. Per-instance views use scrape label `instance_id` (lab: `playground-1`); missing labels become **`undefined`**.
 

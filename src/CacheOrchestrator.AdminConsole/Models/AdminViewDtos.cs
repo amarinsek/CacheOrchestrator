@@ -309,7 +309,7 @@ public sealed class AdminDomainStatsDto
 
     /// <summary>
     /// Optional impact KPIs (factory avoidance, time saved, benefit/candidate).
-    /// Local Admin leaves this null; Admin Console fills after derive.
+    /// Admin API leaves this null; Admin Console fills after derive.
     /// </summary>
     public CacheImpactKpiDto? Impact { get; init; }
 }
@@ -354,13 +354,13 @@ public sealed class AdminEndpointStatsDto
     public IReadOnlyList<AdminHintDto> Hints { get; init; } = [];
 
     /// <summary>
-    /// Optional impact KPIs. Local Admin leaves null; Admin Console fills after derive.
+    /// Optional impact KPIs. Admin API leaves null; Admin Console fills after derive.
     /// </summary>
     public CacheImpactKpiDto? Impact { get; init; }
 }
 
 /// <summary>
-/// Console-oriented cache impact KPIs derived from raw counters (not produced by Local Admin).
+/// Console-oriented cache impact KPIs derived from raw counters (not produced by Admin API).
 /// </summary>
 public sealed class CacheImpactKpiDto
 {

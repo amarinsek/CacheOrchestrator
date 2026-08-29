@@ -121,7 +121,7 @@ The complete project-to-test mapping and CI commands are visible in [`.github/wo
 | Path | Role |
 |------|------|
 | `src/CacheOrchestrator.Core` | HTTP-free domain orchestration, invalidation, management, and shared contracts |
-| `src/CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP Data Cache helpers, and Local Admin HTTP adapter |
+| `src/CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP Data Cache helpers, and Admin API |
 | `src/CacheOrchestrator.FusionCache` | FusionCache Data Cache provider |
 | `src/CacheOrchestrator.HybridCache` | HybridCache Data Cache provider |
 | `src/CacheOrchestrator` | Meta package for the typical ASP.NET Core + FusionCache composition |

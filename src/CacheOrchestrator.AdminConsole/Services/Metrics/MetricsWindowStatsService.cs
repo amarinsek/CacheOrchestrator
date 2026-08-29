@@ -6,7 +6,7 @@ namespace CacheOrchestrator.AdminConsole.Services.Metrics;
 
 /// <summary>
 /// Builds domain/endpoint stats from Prometheus for a selected time window
-/// so the Console can show windowed traffic without Local Admin process totals.
+/// so the Console can show windowed traffic without Admin API process totals.
 /// </summary>
 public sealed class MetricsWindowStatsService
 {

@@ -67,7 +67,7 @@ The reference describes exact configuration paths, API contracts, key material, 
 - [Deployment](reference/deployment.md) — single-instance, Redis, InMemory clusters, and shared configuration
 - [Cluster command bus](reference/cluster-bus.md) — membership, commands, delivery, authentication, and partial failure
 - [Observability](reference/observability.md) — `X-Cache`, metrics, traces, logs, and health checks
-- [Admin](reference/admin.md) — local Admin API, Admin Console App, trust boundaries, and operational endpoints
+- [Admin](reference/admin.md) — Admin API, Admin Console App, trust boundaries, and operational endpoints
 - [Admin Console Docker](../deploy/admin/README.md) — image, volumes, and logs
 
 ### Common technical paths
