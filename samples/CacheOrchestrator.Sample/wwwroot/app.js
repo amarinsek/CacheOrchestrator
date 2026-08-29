@@ -209,26 +209,31 @@ function cacheTag(xcache) {
 
     if (oc === 'hit') return `<span class="tag hit">OC-HIT</span>`;
 
-    const ocLabel = oc === 'off' ? 'OC-OFF' : oc === 'bypass' ? 'OC-BYPASS' : 'OC-MISS';
-    const ocCls = oc === 'off' || oc === 'bypass' ? 'phase-apr' : 'miss';
-    let html = `<span class="tag ${ocCls}">${ocLabel}</span>`;
+    let html = '';
+    if (oc === 'miss') {
+        html = `<span class="tag miss">OC-MISS</span>`;
+    } else if (oc === 'off') {
+        html = `<span class="tag off">OC-OFF</span>`;
+    } else if (oc === 'bypass') {
+        html = `<span class="tag phase-apr">OC-BYPASS</span>`;
+    }
 
     if (dc === 'hit') {
         html += `<span class="tag hit" style="margin-left:4px">DC-HIT</span>`;
     } else if (dc === 'stale') {
         html += `<span class="tag phase-hold" style="margin-left:4px">DC-STALE</span>`;
     } else if (dc === 'off') {
-        html += `<span class="tag phase-apr" style="margin-left:4px">DC-OFF</span>`;
+        html += `<span class="tag off" style="margin-left:4px">DC-OFF</span>`;
     } else if (dc === 'bypass') {
         html += `<span class="tag phase-apr" style="margin-left:4px">DC-BYPASS</span>`;
     } else if (dc === 'unresolved') {
         html += `<span class="tag miss" style="margin-left:4px">DC-UNRESOLVED</span>`;
-    } else if (dc) {
+    } else if (dc === 'miss') {
         html += `<span class="tag miss" style="margin-left:4px">DC-MISS</span>`;
     }
 
     if (faRun) {
-        html += `<span class="tag factory" style="margin-left:4px" title="Data-cache factory callback ran">FACTORY</span>`;
+        html += `<span class="tag factory" style="margin-left:4px" title="Application/origin work ran">FACTORY</span>`;
     }
     return html;
 }

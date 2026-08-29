@@ -313,6 +313,59 @@ public class CacheOrchestratorServiceTests
     }
 
     [Fact]
+    public async Task GetOrCreateWithFootprintAsync_OnMissWithUnchangedTags_DoesNotCallSetAsync()
+    {
+        DomainCacheOptions opts = CreateOptions(enabled: true, domain: "store", versionHex: "v1");
+        _domainOptions.GetOrCreateDomainOptions("store").Returns(opts);
+
+        EntityFootprint footprint = new(new EntityRef("items", "1"));
+        _dataCache
+            .GetOrCreateAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo => Materialize(
+                callInfo.ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1),
+                CancellationToken.None));
+
+        await _sut.GetOrCreateWithFootprintAsync<string>(
+            new CacheEntryRequest { Domain = "store", Key = "k", Footprint = footprint },
+            _ => ValueTask.FromResult(new FootprintCacheBox<string?>
+            {
+                Value = "fresh",
+                IsMiss = false,
+                Footprint = footprint
+            }),
+            TestContext.Current.CancellationToken);
+
+        await _dataCache.DidNotReceive().SetAsync(
+            Arg.Any<DataCacheProviderRequest>(),
+            Arg.Any<FootprintCacheBox<string?>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_WhenProviderOmitsOutcome_ThrowsContractError()
+    {
+        DomainCacheOptions opts = CreateOptions(enabled: true);
+        _domainOptions.GetOrCreateDomainOptions("products").Returns(opts);
+        _dataCache
+            .GetOrCreateAsync(
+                Arg.Any<DataCacheProviderRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<string?>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new DataCacheProviderResult<string?>("value", DataCacheProviderOutcome.Unknown));
+
+        Func<Task> act = async () => await _sut.GetOrCreateAsync(
+            new CacheEntryRequest { Domain = "products", Key = "k" },
+            _ => ValueTask.FromResult<string?>("fresh"),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*explicitly return Cached or Materialized*");
+    }
+
+    [Fact]
     public async Task GetOrCreateWithFootprintAsync_WhenRefreshStartsButCachedValueReturns_DoesNotPromoteCachedValue()
     {
         DomainCacheOptions opts = CreateOptions(enabled: true, domain: "store", versionHex: "v1");

@@ -125,8 +125,7 @@ public class LiveStatsServiceTests
                 }
 
                 if (promQl.Contains("sum by (domain)", StringComparison.Ordinal)
-                    && promQl.Contains(MetricsPanelCatalog.DcRequests, StringComparison.Ordinal)
-                    && promQl.Contains(MetricsPanelCatalog.FactoryResultMatcher, StringComparison.Ordinal))
+                    && promQl.Contains(MetricsPanelCatalog.FactoryRuns, StringComparison.Ordinal))
                 {
                     // Factory rate ≈ OC rate → factory share ~1.0
                     return [Sample(10, ("domain", "hot"))];

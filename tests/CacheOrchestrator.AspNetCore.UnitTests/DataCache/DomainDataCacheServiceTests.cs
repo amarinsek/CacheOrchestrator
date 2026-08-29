@@ -54,13 +54,13 @@ public class DomainDataCacheServiceTests
         DomainHttpCacheOptions cfg = CreateConfig(domain: "reports");
         _domainConfig.GetDomainOptions(http).Returns((DomainHttpCacheOptions?)null);
         _domainConfig.EnsureDomainOptions(http, "reports").Returns(cfg);
-        _keyGenerator.Generate(cfg, http).Returns("reports:v:key");
+        _keyGenerator.Generate(cfg, http, DomainCacheKeyShape.Url).Returns("reports:v:key");
         StubOrchestratorGetOrCreate(1);
 
         await _sut.GetOrSetAsync(http, "reports", _ => Task.FromResult(1), TestContext.Current.CancellationToken);
 
         _domainConfig.Received(1).EnsureDomainOptions(http, "reports");
-        _keyGenerator.Received(1).Generate(cfg, http);
+        _keyGenerator.Received(1).Generate(cfg, http, DomainCacheKeyShape.Url);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class DomainDataCacheServiceTests
         DomainHttpCacheOptions cfg = CreateConfig(domain: "catalog");
         _domainConfig.GetDomainOptions(http).Returns((DomainHttpCacheOptions?)null);
         _domainConfig.EnsureDomainOptions(http, "catalog").Returns(cfg);
-        _keyGenerator.Generate(cfg, http).Returns("key");
+        _keyGenerator.Generate(cfg, http, DomainCacheKeyShape.Url).Returns("key");
 
         var endpoint = new Endpoint(
             _ => Task.CompletedTask,
@@ -112,7 +112,7 @@ public class DomainDataCacheServiceTests
         var http = new DefaultHttpContext();
         DomainHttpCacheOptions cfg = CreateConfig();
         _domainConfig.GetDomainOptions(http).Returns(cfg);
-        _keyGenerator.Generate(cfg, http).Returns("products:abc:hash");
+        _keyGenerator.Generate(cfg, http, DomainCacheKeyShape.Url).Returns("products:abc:hash");
 
         CacheEntryRequest? captured = null;
         _orchestrator
@@ -146,7 +146,7 @@ public class DomainDataCacheServiceTests
             EntityKind = "products",
             ResourceId = "42"
         });
-        _keyGenerator.Generate(cfg, http).Returns("products:v:id:products:42:hash");
+        _keyGenerator.Generate(cfg, http, DomainCacheKeyShape.Entity).Returns("products:v:id:products:42:hash");
 
         _orchestrator
             .GetOrCreateWithFootprintAsync(
@@ -215,6 +215,64 @@ public class DomainDataCacheServiceTests
             Arg.Any<string?>(),
             "products",
             "off",
+            Arg.Any<long?>(),
+            Arg.Any<long?>());
+    }
+
+    [Fact]
+    public async Task GetOrSetEntityAsync_WhenDisabled_RecordsTimedFactoryRun()
+    {
+        IAdminStatsCollector admin = Substitute.For<IAdminStatsCollector>();
+        admin.IsEnabled.Returns(true);
+        admin.TrackLatency.Returns(true);
+        var sut = new DomainDataCacheService(
+            _orchestrator,
+            _domainConfig,
+            _keyGenerator,
+            NullLogger<DomainDataCacheService>.Instance,
+            admin);
+        var http = new DefaultHttpContext();
+        _domainConfig.GetDomainOptions(http).Returns(CreateConfig(enabled: false));
+        sut.SetEntityIdentity(http, "products", "42");
+
+        await sut.GetOrSetEntityAsync(
+            http,
+            _ => Task.FromResult<string?>("value"),
+            TestContext.Current.CancellationToken);
+
+        admin.Received().RecordDataCache(
+            Arg.Any<string?>(),
+            "products",
+            "off",
+            Arg.Is<long?>(value => value.HasValue),
+            Arg.Any<long?>());
+    }
+
+    [Fact]
+    public async Task GetOrSetEntityAsync_WhenDisabledFactoryFails_RecordsFailure()
+    {
+        IAdminStatsCollector admin = Substitute.For<IAdminStatsCollector>();
+        admin.IsEnabled.Returns(true);
+        var sut = new DomainDataCacheService(
+            _orchestrator,
+            _domainConfig,
+            _keyGenerator,
+            NullLogger<DomainDataCacheService>.Instance,
+            admin);
+        var http = new DefaultHttpContext();
+        _domainConfig.GetDomainOptions(http).Returns(CreateConfig(enabled: false));
+        sut.SetEntityIdentity(http, "products", "42");
+
+        Func<Task> act = () => sut.GetOrSetEntityAsync<string>(
+            http,
+            _ => Task.FromException<string?>(new InvalidOperationException("boom")),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("boom");
+        admin.Received().RecordDataCache(
+            Arg.Any<string?>(),
+            "products",
+            "fail",
             Arg.Any<long?>(),
             Arg.Any<long?>());
     }

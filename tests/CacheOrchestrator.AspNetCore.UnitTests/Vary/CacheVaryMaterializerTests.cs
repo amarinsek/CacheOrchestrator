@@ -3,33 +3,67 @@ using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
+using System.Globalization;
+using System.IO.Hashing;
 using System.Security.Claims;
+using System.Text;
 
 namespace CacheOrchestrator.AspNetCore.UnitTests.Vary;
 
 public class CacheVaryMaterializerTests
 {
     [Fact]
-    public void Build_DefaultOptions_OutputCache_VariesAcceptEncodingWhenPresent()
+    public void Build_NoVaryMaterial_ReusesImmutableEmptyResult()
+    {
+        var materializer = new CacheVaryMaterializer();
+        DefaultHttpContext first = CreateHttp();
+        DefaultHttpContext second = CreateHttp();
+        DomainHttpCacheOptions options = CreateOptions();
+
+        CacheVaryMaterial firstResult = materializer.Build(first, options, CacheVarySurface.Fusion);
+        CacheVaryMaterial secondResult = materializer.Build(second, options, CacheVarySurface.Fusion);
+
+        firstResult.Should().BeSameAs(secondResult);
+        firstResult.HeaderNames.Should().BeEmpty();
+        firstResult.Values.Should().BeEmpty();
+        firstResult.QueryKeys.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("kratko-ž")]
+    [InlineData("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")]
+    public void HashSegment_MatchesUtf8XxHash3(string value)
+    {
+        string expected = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes(value))
+            .ToString("x16", CultureInfo.InvariantCulture);
+
+        CacheVaryMaterializer.HashSegment(value).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Build_DefaultOptions_OutputCache_UsesNormalizedEncodingValue()
     {
         DefaultHttpContext http = CreateHttp(acceptEncoding: "gzip");
         DomainHttpCacheOptions opts = CreateOptions();
 
         CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.OutputCache);
 
-        material.HeaderNames.Should().Contain(HeaderNames.AcceptEncoding);
+        material.HeaderNames.Should().NotContain(HeaderNames.AcceptEncoding);
+        material.Values["normalized:accept-encoding"].Should().Be("gzip");
+        material.ResponseVaryHeaderNames.Should().Contain(HeaderNames.AcceptEncoding);
         material.Values.Should().NotContainKey("auth-user");
     }
 
     [Fact]
-    public void Build_DefaultOptions_Fusion_VariesEncodingWhenFlagOn()
+    public void Build_DefaultOptions_Fusion_UsesNormalizedEncodingValueWhenFlagOn()
     {
         DefaultHttpContext http = CreateHttp(acceptEncoding: "br");
         DomainHttpCacheOptions opts = CreateOptions(varyEncoding: true);
 
         CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
 
-        material.HeaderNames.Should().Contain(HeaderNames.AcceptEncoding);
+        material.HeaderNames.Should().NotContain(HeaderNames.AcceptEncoding);
+        material.Values["normalized:accept-encoding"].Should().Be("br");
     }
 
     [Fact]
@@ -193,16 +227,19 @@ public class CacheVaryMaterializerTests
     }
 
     [Fact]
-    public void AcceptNormalization_CollapsesToPreferList()
+    public void AcceptNormalization_AddsNormalizedValueWithoutMutatingRequest()
     {
         DefaultHttpContext http = CreateHttp(accept: "text/html, application/json;q=0.9");
         DomainHttpCacheOptions opts = CreateOptions(
             varyByAccept: true,
             acceptNormalization: ["application/json", "application/xml"]);
 
-        _ = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
+        CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
 
-        http.Request.Headers.Accept.ToString().Should().Be("application/json");
+        http.Request.Headers.Accept.ToString().Should().Be("text/html, application/json;q=0.9");
+        material.Values["normalized:accept"].Should().Be("application/json");
+        material.HeaderNames.Should().NotContain(HeaderNames.Accept);
+        material.ResponseVaryHeaderNames.Should().Contain(HeaderNames.Accept);
     }
 
     [Fact]
@@ -213,9 +250,10 @@ public class CacheVaryMaterializerTests
             varyByAccept: true,
             acceptNormalization: ["application/json", "application/xml"]);
 
-        _ = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
+        CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
 
-        http.Request.Headers.Accept.ToString().Should().BeEmpty();
+        http.Request.Headers.Accept.ToString().Should().Be("application/json-seq");
+        material.Values["normalized:accept"].Should().BeEmpty();
     }
 
     [Fact]
@@ -226,9 +264,10 @@ public class CacheVaryMaterializerTests
             varyByAccept: true,
             acceptNormalization: ["application/xml", "application/json"]);
 
-        _ = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
+        CacheVaryMaterial material = new CacheVaryMaterializer().Build(http, opts, CacheVarySurface.Fusion);
 
         http.Request.Headers.Accept.ToString().Should().Be("application/json");
+        material.Values["normalized:accept"].Should().Be("application/json");
     }
 
     private static DomainHttpCacheOptions CreateOptions(

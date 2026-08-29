@@ -15,8 +15,8 @@ public static class MetricsPanelCatalog
     /// <summary>Default OTel/Prometheus counter names (dots → underscores, <c>_total</c>).</summary>
     public const string OcRequests = "cache_orchestrator_oc_requests_total";
     public const string DcRequests = "cache_orchestrator_dc_requests_total";
-    /// <summary>PromQL matcher for data-cache factory invocations (not fresh hits).</summary>
-    public const string FactoryResultMatcher = "result=~\"miss|stale|fail|off|unresolved|bypass\"";
+    public const string FactoryRuns = "cache_orchestrator_factory_runs_total";
+    public const string FactoryFailures = "cache_orchestrator_factory_failures_total";
     public const string Invalidations = "cache_orchestrator_invalidate_total";
     public const string ClientSchedule = "cache_orchestrator_client_schedule_total";
     public const string ClusterPublishFailures = "cache_orchestrator_cluster_publish_failures_total";
@@ -177,7 +177,7 @@ public static class MetricsPanelCatalog
             Id = "factory_run_rate",
             Title = "Factory run rate",
             Description =
-                "How often the value factory callback runs per second (miss, stale, fail, off, unresolved, or bypass). Rising values mean more origin/DB work.",
+                "How often application/origin work runs per second, including direct endpoints without Data Cache. Rising values mean more origin/DB work.",
             Unit = "rate",
         },
         new()
@@ -185,7 +185,7 @@ public static class MetricsPanelCatalog
             Id = "factory_share",
             Title = "FA run % (window)",
             Description =
-                "Factory callback share of Output Cache-accounted requests in this window (includes data cache disabled).",
+                "Application factory/origin share of Output Cache-accounted requests in this window (includes direct endpoints and data cache disabled).",
             Unit = "percent",
         },
         new()
@@ -223,7 +223,6 @@ public static class MetricsPanelCatalog
         string selector = BuildLabelSelector(domains, instanceIds, routes);
         string selectorHit = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"hit\"");
         string selectorStale = BuildLabelSelector(domains, instanceIds, routes, extra: "result=\"stale\"");
-        string selectorFactory = BuildLabelSelector(domains, instanceIds, routes, extra: FactoryResultMatcher);
         string rw = SanitizeDuration(rateWindow);
         string by = ChooseByClause(panel.Id, domains, routes);
         string leBy = routes is { Count: > 0 }
@@ -270,10 +269,10 @@ public static class MetricsPanelCatalog
                 $"(rate({FactoryDurationBucket}{selector}[{rw}])))",
 
             "factory_run_rate" =>
-                $"{by} (rate({DcRequests}{selectorFactory}[{rw}]))",
+                $"{by} (rate({FactoryRuns}{selector}[{rw}]))",
 
             "factory_share" =>
-                $"{by} (rate({DcRequests}{selectorFactory}[{rw}]))" +
+                $"{by} (rate({FactoryRuns}{selector}[{rw}]))" +
                 $" / clamp_min({by} (rate({OcRequests}{selector}[{rw}])), 1e-9)",
 
             "factory_size_p95" =>
@@ -299,9 +298,9 @@ public static class MetricsPanelCatalog
                 $"sum(rate({DcRequests}{{result=\"hit\"}}[{rw}]))" +
                 $" / clamp_min(sum(rate({DcRequests}[{rw}])), 1e-9)",
             "invalidation_rate" => $"sum(rate({Invalidations}[{rw}]))",
-            "factory_run_rate" => $"sum(rate({DcRequests}{{{FactoryResultMatcher}}}[{rw}]))",
+            "factory_run_rate" => $"sum(rate({FactoryRuns}[{rw}]))",
             "factory_share" =>
-                $"sum(rate({DcRequests}{{{FactoryResultMatcher}}}[{rw}]))" +
+                $"sum(rate({FactoryRuns}[{rw}]))" +
                 $" / clamp_min(sum(rate({OcRequests}[{rw}])), 1e-9)",
             _ => throw new ArgumentException($"No summary query for panel '{panelId}'.", nameof(panelId)),
         };

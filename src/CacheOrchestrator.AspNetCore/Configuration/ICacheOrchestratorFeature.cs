@@ -52,15 +52,23 @@ internal sealed class CacheOrchestratorFeature : ICacheOrchestratorFeature
     public string? EntityKind { get; set; }
     public CacheDisposition? Disposition { get; set; }
     public EntityFootprint? PendingEntityFootprint { get; set; }
+}
 
-    /// <summary>Identity material built for this request (Output Cache and/or data cache).</summary>
-    public Identity.CacheIdentityMaterial? IdentityMaterial { get; set; }
+/// <summary>Internal cache-identity state kept separate from the replaceable public request feature.</summary>
+internal sealed class CacheIdentityFeature
+{
+    public Identity.CacheIdentityMaterial? Material { get; set; }
+    public bool Resolved { get; set; }
+    public bool Bypass { get; set; }
+}
 
-    /// <summary>True after identity was evaluated for this request.</summary>
-    public bool IdentityResolved { get; set; }
-
-    /// <summary>True when identity returned null material and caching must be skipped.</summary>
-    public bool IdentityBypass { get; set; }
+/// <summary>Internal request execution state used to attribute factory work exactly once.</summary>
+internal sealed class CacheFactoryExecutionFeature
+{
+    public string? DirectFactoryDomain { get; set; }
+    public bool DataCacheObserved { get; set; }
+    public bool DirectFactoryRecorded { get; set; }
+    public long DirectFactoryStartedTimestamp { get; set; }
 }
 
 /// <summary>
@@ -75,6 +83,33 @@ internal static class CacheOrchestratorFeatureAccessor
             return feature;
 
         feature = new CacheOrchestratorFeature();
+        http.Features.Set(feature);
+        return feature;
+    }
+}
+
+internal static class CacheIdentityFeatureAccessor
+{
+    public static CacheIdentityFeature GetOrCreate(HttpContext http)
+    {
+        CacheIdentityFeature? feature = http.Features.Get<CacheIdentityFeature>();
+        if (feature is not null)
+            return feature;
+
+        feature = new CacheIdentityFeature();
+        http.Features.Set(feature);
+        return feature;
+    }
+}
+internal static class CacheFactoryExecutionFeatureAccessor
+{
+    public static CacheFactoryExecutionFeature GetOrCreate(HttpContext http)
+    {
+        CacheFactoryExecutionFeature? feature = http.Features.Get<CacheFactoryExecutionFeature>();
+        if (feature is not null)
+            return feature;
+
+        feature = new CacheFactoryExecutionFeature();
         http.Features.Set(feature);
         return feature;
     }

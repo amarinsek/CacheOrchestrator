@@ -209,7 +209,7 @@ Invalidating product `42` retires every set whose returned members included `42`
 
 `GetOrCreateWithFootprintAsync` is the lowest-level footprint-aware operation. The request supplies early tags; the factory returns the stored value and final footprint in `FootprintCacheBox<T>`.
 
-Use it when neither the entity nor collection convenience overload describes the cached graph. On a factory run, CacheOrchestrator writes the value again with the expanded final tags. Prefer `GetOrCreateEntityAsync` or `GetOrCreateEntitySetAsync` for normal application code.
+Use it when neither the entity nor collection convenience overload describes the cached graph. On a factory run, CacheOrchestrator writes the value again only when the final footprint expands the early tags. Prefer `GetOrCreateEntityAsync` or `GetOrCreateEntitySetAsync` for normal application code.
 
 ## Disabled domains and failures
 

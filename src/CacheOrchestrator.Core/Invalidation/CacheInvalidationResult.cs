@@ -61,6 +61,11 @@ public sealed class CacheInvalidationResult
     public ClusterPublishResult? ClusterPublish { get; }
 
     /// <summary>
+    /// Individual results represented by an aggregate result. Empty for a single invalidation operation.
+    /// </summary>
+    public IReadOnlyList<CacheInvalidationResult> Parts { get; init; } = [];
+
+    /// <summary>
     /// Result used when the call was a no-op (empty domain/tags, nothing to do).
     /// </summary>
     public static CacheInvalidationResult Skipped(string reason) =>
@@ -105,6 +110,9 @@ public sealed class CacheInvalidationResult
             dataCacheSucceeded: dataOk,
             outputSucceeded: outputOk,
             errors: errors,
-            isSkipped: !anyWork);
+            isSkipped: !anyWork)
+        {
+            Parts = parts
+        };
     }
 }

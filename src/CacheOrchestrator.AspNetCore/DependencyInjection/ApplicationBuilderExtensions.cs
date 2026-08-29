@@ -1,4 +1,5 @@
 using CacheOrchestrator.Admin;
+using CacheOrchestrator.Diagnostics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 
@@ -10,7 +11,7 @@ namespace CacheOrchestrator.DependencyInjection;
 public static class ApplicationBuilderExtensions
 {
     /// <summary>
-    /// Adds the necessary middleware for CacheOrchestrator (currently Output Cache).
+    /// Adds the necessary middleware for CacheOrchestrator.
     /// Call this after <c>UseRouting()</c> and before Map* endpoints.
     /// </summary>
     /// <param name="app">The application builder.</param>
@@ -22,7 +23,8 @@ public static class ApplicationBuilderExtensions
         // Output Cache must run before endpoints
         app.UseOutputCache();
 
-        // Future: custom middleware (early domain config resolution, global X-Cache headers, etc.)
+        // Runs only after an Output Cache miss/bypass/off reaches the application pipeline.
+        app.UseMiddleware<DirectFactoryTelemetryMiddleware>();
 
         return app;
     }

@@ -1,5 +1,6 @@
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.Admin;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
 using Microsoft.AspNetCore.Builder;
@@ -132,6 +133,136 @@ public class HttpPipelineContractTests
     }
 
     [Fact]
+    public async Task DirectEndpoint_ReportsNotApplicableDataCache_AndOneFactoryRun()
+    {
+        string domain = "direct-" + Guid.NewGuid().ToString("N");
+        Dictionary<string, string?> config = BaseConfig(domain, values =>
+        {
+            values["Cache:Admin:Enabled"] = "true";
+            values["Cache:Admin:TrackEndpoints"] = "true";
+            values["Cache:Admin:TrackLatency"] = "true";
+        });
+
+        (HttpClient client, WebApplication app) = await StartAsync(config, endpoints =>
+        {
+            endpoints.MapGet("/direct", () => Results.Json(new { Value = 42 }))
+                .CacheOutputWithDomain(domain);
+        });
+
+        try
+        {
+            (HttpResponseMessage _, string miss, string _) = await GetAsync(client, "/direct");
+            (HttpResponseMessage _, string hit, string _) = await GetAsync(client, "/direct");
+
+            miss.Should().Contain("oc=miss")
+                .And.Contain("dc=n/a")
+                .And.Contain("fa=run")
+                .And.Contain("ms=");
+            hit.Should().Contain("oc=hit").And.NotContain("dc=").And.NotContain("fa=");
+
+            AdminDomainCountersDto counters = app.Services
+                .GetRequiredService<IAdminStatsCollector>()
+                .GetRawSnapshot()
+                .Domains
+                .Single(d => d.Name == domain);
+            counters.FactoryRuns.Should().Be(1);
+            counters.FactoryFailures.Should().Be(0);
+            counters.FactoryDurationCount.Should().Be(1);
+        }
+        finally
+        {
+            await app.StopAsync(TestContext.Current.CancellationToken);
+            await app.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task DataCacheFactory_IsNotDoubleCountedByDirectFactoryTelemetry()
+    {
+        string domain = "data-" + Guid.NewGuid().ToString("N");
+        Dictionary<string, string?> config = BaseConfig(domain, values =>
+        {
+            values["Cache:Admin:Enabled"] = "true";
+            values["Cache:Admin:TrackEndpoints"] = "true";
+        });
+
+        (HttpClient client, WebApplication app) = await StartAsync(config, endpoints =>
+        {
+            endpoints.MapGet("/data-once", async (
+                HttpContext http,
+                IDomainDataCache cache,
+                CancellationToken cancellationToken) =>
+            {
+                int value = await cache.GetOrSetAsync(http, _ => Task.FromResult(42), cancellationToken);
+                return Results.Json(new { Value = value });
+            }).CacheOutputWithDomain(domain);
+        });
+
+        try
+        {
+            (HttpResponseMessage _, string miss, string _) = await GetAsync(client, "/data-once");
+            miss.Should().Contain("oc=miss").And.Contain("dc=miss").And.Contain("fa=run");
+
+            AdminDomainCountersDto counters = app.Services
+                .GetRequiredService<IAdminStatsCollector>()
+                .GetRawSnapshot()
+                .Domains
+                .Single(d => d.Name == domain);
+            counters.FactoryRuns.Should().Be(1);
+        }
+        finally
+        {
+            await app.StopAsync(TestContext.Current.CancellationToken);
+            await app.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task AcceptNormalization_PreservesHandlerHeader_AndSharesOutputCacheEntry()
+    {
+        string domain = "accept-" + Guid.NewGuid().ToString("N");
+        Dictionary<string, string?> config = BaseConfig(domain, values =>
+        {
+            values[$"Cache:Domains:{domain}:VaryByAccept"] = "true";
+            values[$"Cache:Domains:{domain}:AcceptNormalizationList:0"] = "application/json";
+            values[$"Cache:Domains:{domain}:AcceptNormalizationList:1"] = "application/xml";
+        });
+
+        (HttpClient client, WebApplication app) = await StartAsync(config, endpoints =>
+        {
+            endpoints.MapGet("/accept", (HttpContext http, HitCounter hits) =>
+            {
+                hits.Increment();
+                return Results.Text(http.Request.Headers.Accept.ToString());
+            }).CacheOutputWithDomain(domain);
+        });
+
+        try
+        {
+            (HttpResponseMessage _, string firstCache, string firstBody) = await GetAsync(
+                client,
+                "/accept",
+                new Dictionary<string, string> { ["Accept"] = "text/html, application/json;q=0.9" });
+            (HttpResponseMessage _, string secondCache, string secondBody) = await GetAsync(
+                client,
+                "/accept",
+                new Dictionary<string, string> { ["Accept"] = "application/json" });
+
+            firstCache.Should().Contain("oc=miss");
+            secondCache.Should().Contain("oc=hit");
+            firstBody.Should().Contain("text/html").And.Contain("application/json").And.Contain("q=0.9");
+            firstBody.Should().NotBe("application/json");
+            secondBody.Should().Be(firstBody);
+            app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
+        }
+        finally
+        {
+            await app.StopAsync(TestContext.Current.CancellationToken);
+            await app.DisposeAsync();
+        }
+    }
+
+    [Fact]
     public async Task EmptyDynamicDomain_DoesNotStoreInOutputCache()
     {
         (HttpClient? client, WebApplication? app) = await StartAsync(DefaultsOnlyConfig(), a =>
@@ -234,8 +365,10 @@ public class HttpPipelineContractTests
 
             first.Headers.CacheControl?.NoStore.Should().BeTrue();
             second.Headers.CacheControl?.NoStore.Should().BeTrue();
-            firstCache.Should().NotContain("oc=hit");
-            secondCache.Should().NotContain("oc=hit");
+            firstCache.Should().Contain("domain=_").And.Contain("oc=bypass");
+            secondCache.Should().Contain("domain=_").And.Contain("oc=bypass");
+            firstCache.Should().NotContain("unknown");
+            secondCache.Should().NotContain("unknown");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
         finally
@@ -522,7 +655,7 @@ public class HttpPipelineContractTests
     }
 
     [Fact]
-    public async Task InvalidateDomainsAsync_PurgesBoth_AndNotifiesDomainsThenDomain()
+    public async Task InvalidateDomainsAsync_PurgesBoth_AndNotifiesBatchOnce()
     {
         string a = "obs-a-" + Guid.NewGuid().ToString("N");
         string b = "obs-b-" + Guid.NewGuid().ToString("N");
@@ -558,17 +691,16 @@ public class HttpPipelineContractTests
                 .GetRequiredService<ICacheOrchestratorInvalidator>()
                 .InvalidateDomainsAsync([a, b], TestContext.Current.CancellationToken);
             result.Succeeded.Should().BeTrue();
+            result.Parts.Should().HaveCount(2);
 
             lock (observer.Before)
             {
-                observer.Before.Should().Contain(CacheInvalidationKind.Domains);
-                observer.Before.Count(k => k == CacheInvalidationKind.Domain).Should().Be(2);
+                observer.Before.Should().Equal(CacheInvalidationKind.Domains);
             }
 
             lock (observer.After)
             {
-                observer.After.Should().Contain(CacheInvalidationKind.Domains);
-                observer.After.Count(k => k == CacheInvalidationKind.Domain).Should().Be(2);
+                observer.After.Should().Equal(CacheInvalidationKind.Domains);
             }
 
             (await GetAsync(client, "/a")).XCache.Should().Contain("oc=miss");

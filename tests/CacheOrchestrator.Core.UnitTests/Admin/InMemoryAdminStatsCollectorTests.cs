@@ -7,6 +7,33 @@ namespace CacheOrchestrator.Core.UnitTests.Admin;
 public class InMemoryAdminStatsCollectorTests
 {
     [Fact]
+    public void DirectFactory_ContributesFactoryStatsWithoutDataCacheOutcome()
+    {
+        InMemoryAdminStatsCollector collector = new(
+            new CacheOrchestratorOptions.AdminOptions
+            {
+                Enabled = true,
+                TrackEndpoints = true,
+                TrackLatency = true
+            },
+            instanceId: "direct");
+
+        collector.RecordOutput("GET /promotions", "promotions", "miss");
+        collector.RecordFactory(
+            "GET /promotions",
+            "promotions",
+            failed: false,
+            elapsedTicks: Stopwatch.Frequency / 100);
+
+        AdminDomainCountersDto domain = collector.GetRawSnapshot().Domains.Single();
+        domain.DataCacheHits.Should().Be(0);
+        domain.DataCacheMisses.Should().Be(0);
+        domain.FactoryRuns.Should().Be(1);
+        domain.FactoryFailures.Should().Be(0);
+        domain.FactoryDurationCount.Should().Be(1);
+    }
+
+    [Fact]
     public void GetRawSnapshot_ExposesFlatCounters_WithoutDerivedShares()
     {
         InMemoryAdminStatsCollector collector = new(

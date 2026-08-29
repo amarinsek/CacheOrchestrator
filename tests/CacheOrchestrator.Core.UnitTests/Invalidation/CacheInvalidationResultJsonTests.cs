@@ -1,4 +1,4 @@
-﻿using CacheOrchestrator.Cluster;
+using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Invalidation;
 using System.Text.Json;
 
@@ -50,5 +50,23 @@ public class CacheInvalidationResultJsonTests
         back.IsSkipped.Should().BeTrue();
         back.Succeeded.Should().BeFalse();
         back.Errors.Should().ContainSingle().Which.Should().Be("empty");
+    }
+
+    [Fact]
+    public void Roundtrip_Aggregate_PreservesParts()
+    {
+        CacheInvalidationResult original = CacheInvalidationResult.Aggregate(
+        [
+            new CacheInvalidationResult("products", ["domain:products"], true, true),
+            new CacheInvalidationResult("catalog", ["domain:catalog"], true, false, ["failed"])
+        ]);
+
+        string json = JsonSerializer.Serialize(original, Web);
+        CacheInvalidationResult? back = JsonSerializer.Deserialize<CacheInvalidationResult>(json, Web);
+
+        back.Should().NotBeNull();
+        back.Parts.Should().HaveCount(2);
+        back.Parts[0].Scope.Should().Be("products");
+        back.Parts[1].OutputSucceeded.Should().BeFalse();
     }
 }

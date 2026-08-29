@@ -31,9 +31,11 @@ public static class XCacheHeaderFormatter
         string clientStr = ClientToString(client);
         string phaseStr = PhaseToString(phase);
         string ocStr = OutputToString(output);
-        bool includeDc = output != OutputCacheResult.Hit && data is not null;
-        string? dcStr = includeDc ? DataToString(data!.Value) : null;
-        bool includeFa = includeDc && data!.Value != DataCacheResult.Hit;
+        bool includeDc = output != OutputCacheResult.Hit;
+        string? dcStr = includeDc
+            ? data is null ? "n/a" : DataToString(data.Value)
+            : null;
+        bool includeFa = includeDc && data != DataCacheResult.Hit;
         string? msStr = ms is not null && output != OutputCacheResult.Hit
             ? ms.Value.ToString(CultureInfo.InvariantCulture)
             : null;

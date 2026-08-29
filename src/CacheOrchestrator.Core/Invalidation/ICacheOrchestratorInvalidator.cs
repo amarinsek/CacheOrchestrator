@@ -23,8 +23,9 @@ public interface ICacheOrchestratorInvalidator
 
     /// <summary>
     /// Invalidates multiple domains sequentially (each domain on its owning data-cache instance).
-    /// Observers receive per-domain <see cref="CacheInvalidationKind.Domain"/> callbacks and one
-    /// aggregate <see cref="CacheInvalidationKind.Domains"/> before/after pair for the batch.
+    /// Observers receive one <see cref="CacheInvalidationKind.Domains"/> before/after pair for the
+    /// public batch operation. Individual domain outcomes are available in
+    /// <see cref="CacheInvalidationResult.Parts"/>.
     /// </summary>
     /// <param name="domains">Domain names (null/whitespace entries ignored).</param>
     /// <param name="cancellationToken">Cancellation token.</param>

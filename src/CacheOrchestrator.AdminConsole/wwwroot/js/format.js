@@ -149,7 +149,7 @@ export const METRIC_TITLES = {
   dataCacheMisses: "Misses - data cache misses in the selected time range.",
   dataCacheBypass: "Bypass - data cache bypass in the selected time range.",
   dcLayerN: "Layer n - Samples that reached the data-cache layer.",
-  factoryRate: "Factory / s - Factory callback rate over the lookback window (including data cache disabled).",
+  factoryRate: "Factory / s - Application/origin work rate over the lookback window (including direct endpoints and data cache disabled).",
   factoryFailShare: "Fail % - Data-cache fail + stale share of requests over the lookback window.",
   bypassShare: "Bypass % - Auth / no-store skip at a cache layer (not an exclusive pipeline mix bucket).",
 };

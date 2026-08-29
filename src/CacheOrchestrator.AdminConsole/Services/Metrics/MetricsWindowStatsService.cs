@@ -93,6 +93,12 @@ public sealed class MetricsWindowStatsService
             Task<IReadOnlyList<PrometheusInstantSample>> fcInstTask = QueryAsync(
                 WindowCountBy("domain,result,instance_id", MetricsPanelCatalog.DcRequests, rw, domainFilter),
                 window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> facRunInstTask = QueryAsync(
+                WindowCountBy("domain,instance_id", MetricsPanelCatalog.FactoryRuns, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> facFailInstTask = QueryAsync(
+                WindowCountBy("domain,instance_id", MetricsPanelCatalog.FactoryFailures, rw, domainFilter),
+                window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> invInstTask = QueryAsync(
                 WindowCountBy("domain,instance_id", MetricsPanelCatalog.Invalidations, rw, domainFilter),
                 window.End, cancellationToken);
@@ -102,6 +108,18 @@ public sealed class MetricsWindowStatsService
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> fcRouteInstTask = QueryAsync(
                 WindowCountBy("route,result,instance_id", MetricsPanelCatalog.DcRequests, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> facRunRouteTask = QueryAsync(
+                WindowCountBy("route,domain", MetricsPanelCatalog.FactoryRuns, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> facFailRouteTask = QueryAsync(
+                WindowCountBy("route,domain", MetricsPanelCatalog.FactoryFailures, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> facRunRouteInstTask = QueryAsync(
+                WindowCountBy("route,instance_id", MetricsPanelCatalog.FactoryRuns, rw, domainFilter),
+                window.End, cancellationToken);
+            Task<IReadOnlyList<PrometheusInstantSample>> facFailRouteInstTask = QueryAsync(
+                WindowCountBy("route,instance_id", MetricsPanelCatalog.FactoryFailures, rw, domainFilter),
                 window.End, cancellationToken);
             Task<IReadOnlyList<PrometheusInstantSample>> facSumRouteInstTask = QueryAsync(
                 WindowCountBy("route,instance_id", MetricsPanelCatalog.FactoryDurationSum, rw, domainFilter),
@@ -124,8 +142,10 @@ public sealed class MetricsWindowStatsService
             await Task.WhenAll(
                     facSumTask, facCntTask,
                     ocRouteTask, fcRouteTask, facSumRouteTask, facCntRouteTask,
-                    ocInstTask, fcInstTask, invInstTask,
-                    ocRouteInstTask, fcRouteInstTask, facSumRouteInstTask, facCntRouteInstTask,
+                    ocInstTask, fcInstTask, facRunInstTask, facFailInstTask, invInstTask,
+                    ocRouteInstTask, fcRouteInstTask,
+                    facRunRouteTask, facFailRouteTask, facRunRouteInstTask, facFailRouteInstTask,
+                    facSumRouteInstTask, facCntRouteInstTask,
                     peakDomTask, peakRouteTask,
                     cfgTask)
                 .ConfigureAwait(false);
@@ -134,6 +154,8 @@ public sealed class MetricsWindowStatsService
             Dictionary<string, Dictionary<string, LayerBucket>> domainInst = new(StringComparer.OrdinalIgnoreCase);
             AccumulateLayerByInstance(domainInst, await ocInstTask.ConfigureAwait(false), isOc: true);
             AccumulateLayerByInstance(domainInst, await fcInstTask.ConfigureAwait(false), isOc: false);
+            AccumulateFactoryByKeyInstance(domainInst, await facRunInstTask.ConfigureAwait(false), failed: false, keyLabel: "domain");
+            AccumulateFactoryByKeyInstance(domainInst, await facFailInstTask.ConfigureAwait(false), failed: true, keyLabel: "domain");
             AccumulateInvByInstance(domainInst, await invInstTask.ConfigureAwait(false));
 
             Dictionary<string, LayerBucket> domains = RollupByPrimaryKey(domainInst);
@@ -144,12 +166,16 @@ public sealed class MetricsWindowStatsService
             Dictionary<string, LayerBucket> routes = new(StringComparer.Ordinal);
             AccumulateLayer(routes, ocRoute, isOc: true, keyLabel: "route");
             AccumulateLayer(routes, fcRoute, isOc: false, keyLabel: "route");
+            AccumulateFactory(routes, await facRunRouteTask.ConfigureAwait(false), failed: false, keyLabel: "route");
+            AccumulateFactory(routes, await facFailRouteTask.ConfigureAwait(false), failed: true, keyLabel: "route");
             AccumulateFactoryDuration(routes, await facSumRouteTask.ConfigureAwait(false), await facCntRouteTask.ConfigureAwait(false), keyLabel: "route");
 
             // route → instanceId → bucket
             Dictionary<string, Dictionary<string, LayerBucket>> routeInst = new(StringComparer.Ordinal);
             AccumulateLayerByKeyInstance(routeInst, await ocRouteInstTask.ConfigureAwait(false), isOc: true, keyLabel: "route");
             AccumulateLayerByKeyInstance(routeInst, await fcRouteInstTask.ConfigureAwait(false), isOc: false, keyLabel: "route");
+            AccumulateFactoryByKeyInstance(routeInst, await facRunRouteInstTask.ConfigureAwait(false), failed: false, keyLabel: "route");
+            AccumulateFactoryByKeyInstance(routeInst, await facFailRouteInstTask.ConfigureAwait(false), failed: true, keyLabel: "route");
             AccumulateFactoryDurationByKeyInstance(
                 routeInst,
                 await facSumRouteInstTask.ConfigureAwait(false),
@@ -597,26 +623,56 @@ public sealed class MetricsWindowStatsService
                     break;
                 case "miss":
                     b.DataCacheMisses += n;
-                    b.FactoryRuns += n;
                     break;
                 case "stale":
                     b.DataCacheStale += n;
-                    b.FactoryRuns += n;
-                    b.FactoryFailures += n;
-                    break;
-                case "fail":
-                    b.FactoryRuns += n;
-                    b.FactoryFailures += n;
                     break;
                 case "bypass":
                     b.DataCacheBypass += n;
-                    b.FactoryRuns += n;
-                    break;
-                case "off":
-                case "unresolved":
-                    b.FactoryRuns += n;
                     break;
             }
+        }
+    }
+
+    private static void AccumulateFactory(
+        Dictionary<string, LayerBucket> map,
+        IReadOnlyList<PrometheusInstantSample> samples,
+        bool failed,
+        string keyLabel)
+    {
+        foreach (PrometheusInstantSample sample in samples)
+        {
+            string key = Label(sample.Metric, keyLabel);
+            if (key.Length == 0)
+                continue;
+
+            long count = ToCount(sample.Value);
+            if (failed)
+                GetOrAdd(map, key).FactoryFailures += count;
+            else
+                GetOrAdd(map, key).FactoryRuns += count;
+        }
+    }
+
+    private static void AccumulateFactoryByKeyInstance(
+        Dictionary<string, Dictionary<string, LayerBucket>> map,
+        IReadOnlyList<PrometheusInstantSample> samples,
+        bool failed,
+        string keyLabel)
+    {
+        foreach (PrometheusInstantSample sample in samples)
+        {
+            string key = Label(sample.Metric, keyLabel);
+            if (key.Length == 0)
+                continue;
+
+            string instance = InstanceId(sample.Metric);
+            LayerBucket bucket = GetOrAddNested(map, key, instance);
+            long count = ToCount(sample.Value);
+            if (failed)
+                bucket.FactoryFailures += count;
+            else
+                bucket.FactoryRuns += count;
         }
     }
 
@@ -645,6 +701,20 @@ public sealed class MetricsWindowStatsService
         }
 
         return b;
+    }
+
+    private static LayerBucket GetOrAddNested(
+        Dictionary<string, Dictionary<string, LayerBucket>> map,
+        string key,
+        string instance)
+    {
+        if (!map.TryGetValue(key, out Dictionary<string, LayerBucket>? instances))
+        {
+            instances = new Dictionary<string, LayerBucket>(StringComparer.OrdinalIgnoreCase);
+            map[key] = instances;
+        }
+
+        return GetOrAdd(instances, instance);
     }
 
     private static AdminDomainStatsDto ToDomain(

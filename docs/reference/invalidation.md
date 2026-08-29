@@ -79,12 +79,15 @@ Use the generic entity overloads with the ID's natural type, as above. `int`, `l
 | `OutputSucceeded` | All Output Cache evictions succeeded |
 | `IsSkipped` | No-op (empty domain/tags); nothing was evicted |
 | `Succeeded` | Both layers succeeded **and** the call was not skipped. Cluster publish failures do not flip this. |
-| `ClusterPublish` | Per-peer bus outcomes when the bus ran; `null` when publish was skipped. `InvalidateDomainsAsync` **drops** this on the aggregate (`null`); inspect `Errors` for peer failures on a batch. |
+| `ClusterPublish` | Per-peer bus outcomes for one invalidation operation; `null` when publish was skipped. For a batch, inspect each entry in `Parts`. |
 | `Errors` | Non-fatal messages (partial failure or skip reason) |
+| `Parts` | Ordered per-domain results represented by `InvalidateDomainsAsync`; empty for a single operation |
 
 Empty input (null domain, no tags) → `CacheInvalidationResult.Skipped(...)` with `IsSkipped == true`, `Succeeded == false`, and no store calls.
 
-`ICacheInvalidationObserver` sees `CacheInvalidationKind.Domain` (or Entity / EntityKind / Tags) per operation. `InvalidateDomainsAsync` also fires one aggregate **`Domains`** before/after pair for the batch (per-domain callbacks still run).
+`ICacheInvalidationObserver` receives exactly one before/after pair per public invalidation call. `InvalidateDomainsAsync` reports `CacheInvalidationKind.Domains`; inspect `result.Parts` in the after callback for individual domain, store, and cluster outcomes. Call `InvalidateDomainAsync` separately only when separate observer operations are intentional.
+
+Invalidation and a concurrent cache fill can race: a fill that completes after eviction may publish a new entry under the same Version. When a release needs a strong generation boundary, change the domain Version so old and new fills cannot share physical keys.
 
 ### Tag formats (`CacheTags`)
 

@@ -40,11 +40,15 @@ X-Cache: domain=products; client=public; phase=approaching; oc=miss; dc=hit; ms=
 | `client` | `public` / `private` / `no-store` / `blocked` |
 | `phase` | Client Cache Schedule: `calm` / `approaching` / `hold` / `n/a` |
 | `oc` | Output Cache: `hit` / `miss` / `bypass` / `off` |
-| `dc` | Data Cache result (omitted on an Output Cache `hit`) |
-| `fa` | `run` when `dc` is present and is not a fresh hit (the factory callback ran). Omitted on an Output Cache `hit` and on `dc=hit`. |
-| `ms` | Data Cache elapsed milliseconds (omitted on an Output Cache `hit`) |
+| `dc` | Data Cache result; `n/a` when no Data Cache operation ran; omitted on an Output Cache `hit` |
+| `fa` | `run` when application/origin work produced the result. Omitted on an Output Cache `hit` and on `dc=hit`. |
+| `ms` | Factory/origin elapsed milliseconds (omitted on an Output Cache `hit`) |
 
-When the header is emitted, `phase` is always present on responses that go through the policy header path (same wire values as metrics tags). `fa=run` matches Admin FA run: every non-hit Fusion disposition still invokes the factory (`miss` / `stale` / `bypass` / `off` / `unresolved`). There is no `dc=fail` on the header — a hard factory throw is meter `result=fail` only.
+When the header is emitted, `phase` is always present on responses that go through the policy header path (same wire values as metrics tags). `fa=run` matches Admin FA run. It covers direct response generation (`dc=n/a`) and every non-hit Data Cache disposition (`miss` / `stale` / `bypass` / `off` / `unresolved`). There is no `dc=fail` on the header — a hard factory throw is recorded by factory failure telemetry and the exception propagates.
+
+`dc=stale` has a deliberately narrow meaning: CacheOrchestrator observed a factory failure in this request and the provider returned its fail-safe value. `dc=hit` does not promise that provider-specific eager-refresh or timeout metadata says the value is fresh; the current provider contract does not expose a reliable stale signal for every background-refresh path.
+
+An empty or unconfigured dynamic domain fails closed with `Cache-Control: no-store`. When diagnostics are enabled, `X-Cache` uses `domain=_; client=no-store; oc=bypass; dc=n/a; fa=run` and never echoes the unresolved value.
 
 ## Metrics
 
@@ -53,10 +57,12 @@ Meter name: **`CacheOrchestrator`**
 | Instrument | Description |
 |------------|-------------|
 | `cache_orchestrator.dc.requests` | Data Cache ops by `domain`, `result` (`hit`/`miss`/`stale`/`fail`/`bypass`/`off`/`unresolved`; domain `_` when unresolved); optional `route` |
-| `cache_orchestrator.factory.duration` | **Canonical** factory wall time (ms) whenever the factory callback ran (`miss` / `stale` / `fail` / `off` / `unresolved` / `bypass`); optional `route` |
+| `cache_orchestrator.factory.runs` | Canonical factory/origin executions by `domain`; optional `route`. Includes direct endpoints with no Data Cache operation. |
+| `cache_orchestrator.factory.failures` | Factory/origin failures by `domain`; optional `route` |
+| `cache_orchestrator.factory.duration` | **Canonical** factory/origin wall time (ms), including direct `dc=n/a` execution; optional `route` |
 | `cache_orchestrator.factory.result_size` | Factory result size (bytes) when cheaply measurable on a successful factory (`miss` / `off` / `unresolved` / `bypass`); optional `route`. Independent of `Cache:Admin:TrackResultSize` (that flag only fills Admin `/stats` sums). |
 | `cache_orchestrator.dc.duration` | Legacy Data Cache get-or-set duration (ms) for any timed result; prefer `factory.duration` for factory cost |
-| `cache_orchestrator.oc.requests` | Output outcomes by `domain`, `result` (`hit`/`miss`/`bypass`/`off`); optional `route` |
+| `cache_orchestrator.oc.requests` | Output outcomes by `domain`, `result` (`hit`/`miss`/`bypass`/`off`/`unresolved`; domain `_` when unresolved); optional `route` |
 | `cache_orchestrator.client.schedule` | Client Cache Schedule by `domain`, `phase` |
 | `cache_orchestrator.invalidate` | Successful full invalidations by `domain` (domain-only label). Optional low-cardinality `kind` tag: `Domain` / `Entity` / `EntityKind`. Not recorded for raw `InvalidateTagsAsync`. |
 | `cache_orchestrator.cluster.commands_published` | Cluster bus origin publish (`command_type`) — [cluster-bus.md](cluster-bus.md) |

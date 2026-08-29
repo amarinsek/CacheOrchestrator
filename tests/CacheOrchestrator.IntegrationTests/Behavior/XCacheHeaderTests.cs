@@ -127,8 +127,16 @@ public class XCacheHeaderTests
         xCache.Should().Contain($"oc={output}");
         if (data is null)
         {
-            xCache.Should().NotContain("dc=");
-            xCache.Should().NotContain("fa=");
+            if (output == "hit")
+            {
+                xCache.Should().NotContain("dc=");
+                xCache.Should().NotContain("fa=");
+            }
+            else
+            {
+                xCache.Should().Contain("dc=n/a");
+                xCache.Should().Contain("fa=run");
+            }
         }
         else
         {

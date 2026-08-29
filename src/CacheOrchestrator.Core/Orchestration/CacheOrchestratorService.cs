@@ -65,6 +65,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
                     factory,
                     cancellationToken)
                 .ConfigureAwait(false);
+            EnsureKnownOutcome(result.Outcome);
             activity?.SetTag("cache.result", result.Outcome == DataCacheProviderOutcome.Materialized ? "miss" : "hit");
             return result.Value;
         }
@@ -118,6 +119,7 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
                     },
                     cancellationToken)
                 .ConfigureAwait(false);
+            EnsureKnownOutcome(result.Outcome);
 
             FootprintCacheBox<T?> box = NormalizeBox(result.Value);
 
@@ -125,15 +127,19 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
             if (result.Outcome == DataCacheProviderOutcome.Materialized)
             {
                 IReadOnlyList<string> finalTags = BuildTags(opts, box.Footprint, request.AdditionalTags);
-                DataCacheProviderRequest finalRequest = new()
+                // Performance: avoid a second backend write when the factory did not expand the early footprint.
+                if (!TagsEqual(earlyRequest.Tags, finalTags))
                 {
-                    Key = earlyRequest.Key,
-                    InstanceName = earlyRequest.InstanceName,
-                    Tags = finalTags,
-                    DomainOptions = opts
-                };
+                    DataCacheProviderRequest finalRequest = new()
+                    {
+                        Key = earlyRequest.Key,
+                        InstanceName = earlyRequest.InstanceName,
+                        Tags = finalTags,
+                        DomainOptions = opts
+                    };
 
-                await _dataCache.SetAsync(finalRequest, box, cancellationToken).ConfigureAwait(false);
+                    await _dataCache.SetAsync(finalRequest, box, cancellationToken).ConfigureAwait(false);
+                }
             }
 
             activity?.SetTag("cache.result", result.Outcome == DataCacheProviderOutcome.Materialized ? "miss" : "hit");
@@ -376,6 +382,32 @@ internal sealed class CacheOrchestratorService : ICacheOrchestrator
             IsMiss = box.IsMiss,
             Footprint = box.Footprint ?? EntityFootprint.Empty
         };
+    }
+
+    private static bool TagsEqual(IReadOnlyList<string> left, IReadOnlyList<string> right)
+    {
+        if (left.Count != right.Count)
+            return false;
+
+        for (int i = 0; i < left.Count; i++)
+        {
+            if (!string.Equals(left[i], right[i], StringComparison.Ordinal))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static void EnsureKnownOutcome(DataCacheProviderOutcome outcome)
+    {
+        if (outcome == DataCacheProviderOutcome.Unknown)
+        {
+            throw new InvalidOperationException(
+                "The data-cache provider returned an unknown outcome. Providers must explicitly return Cached or Materialized.");
+        }
+
+        if (outcome is not DataCacheProviderOutcome.Cached and not DataCacheProviderOutcome.Materialized)
+            throw new InvalidOperationException($"The data-cache provider returned unsupported outcome '{outcome}'.");
     }
 
     private static void EnsureUsablePrimary(EntityRef primary)

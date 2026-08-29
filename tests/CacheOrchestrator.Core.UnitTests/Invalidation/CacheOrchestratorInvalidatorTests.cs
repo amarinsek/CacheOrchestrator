@@ -210,6 +210,8 @@ public class CacheOrchestratorInvalidatorTests
 
         result.Succeeded.Should().BeTrue();
         result.Tags.Should().BeEquivalentTo(["domain:products", "domain:catalog"]);
+        result.Parts.Should().HaveCount(2);
+        result.Parts.Select(part => part.Scope).Should().Equal("products", "catalog");
 
         await AssertDataInvalidated("default", "domain:products");
         await AssertDataInvalidated("default", "domain:catalog");
@@ -415,11 +417,12 @@ public class CacheOrchestratorInvalidatorTests
             Arg.Is<CacheInvalidationResult>(r => r.Succeeded),
             Arg.Any<CancellationToken>());
 
-        await observer.Received(1).OnBeforeInvalidateAsync(
-            Arg.Is<CacheInvalidationContext>(c => c.Kind == CacheInvalidationKind.Domain && c.Scope == "products"),
+        await observer.DidNotReceive().OnBeforeInvalidateAsync(
+            Arg.Is<CacheInvalidationContext>(c => c.Kind == CacheInvalidationKind.Domain),
             Arg.Any<CancellationToken>());
-        await observer.Received(1).OnBeforeInvalidateAsync(
-            Arg.Is<CacheInvalidationContext>(c => c.Kind == CacheInvalidationKind.Domain && c.Scope == "catalog"),
+        await observer.DidNotReceive().OnAfterInvalidateAsync(
+            Arg.Is<CacheInvalidationContext>(c => c.Kind == CacheInvalidationKind.Domain),
+            Arg.Any<CacheInvalidationResult>(),
             Arg.Any<CancellationToken>());
     }
 

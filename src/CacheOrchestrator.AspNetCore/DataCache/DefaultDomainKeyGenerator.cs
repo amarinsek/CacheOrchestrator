@@ -53,7 +53,10 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
     }
 
     /// <inheritdoc />
-    public string Generate(DomainHttpCacheOptions opts, HttpContext http)
+    public string Generate(
+        DomainHttpCacheOptions opts,
+        HttpContext http,
+        DomainCacheKeyShape shape = DomainCacheKeyShape.Automatic)
     {
         ArgumentNullException.ThrowIfNull(opts);
         ArgumentNullException.ThrowIfNull(http);
@@ -66,19 +69,14 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
         byte[]? rentedBytes = null;
         char[]? rentedChars = null;
 
-        IHeaderDictionary headers = http.Request.Headers;
-        bool hadAccept = headers.ContainsKey(HeaderNames.Accept);
-        StringValues originalAccept = hadAccept ? headers.Accept : default;
-        bool hadAcceptLanguage = headers.ContainsKey(HeaderNames.AcceptLanguage);
-        StringValues originalAcceptLanguage = hadAcceptLanguage ? headers.AcceptLanguage : default;
-
         try
         {
             CacheVaryMaterial vary = _materializer.Build(http, opts, CacheVarySurface.Fusion);
 
             // 0. Entity identity (CRUD) — both kind and id are required; no id-only key shape.
             ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
-            if (feature?.EntityKind is { Length: > 0 } entityKind
+            if (shape != DomainCacheKeyShape.Url
+                && feature?.EntityKind is { Length: > 0 } entityKind
                 && feature.ResourceId is { Length: > 0 } resourceId)
             {
                 AppendRaw(hasher, "id:"u8);
@@ -141,26 +139,11 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
         }
         finally
         {
-            RestoreHeader(headers, HeaderNames.Accept, hadAccept, originalAccept);
-            RestoreHeader(headers, HeaderNames.AcceptLanguage, hadAcceptLanguage, originalAcceptLanguage);
-
             if (rentedBytes != null)
                 ArrayPool<byte>.Shared.Return(rentedBytes);
             if (rentedChars != null)
                 ArrayPool<char>.Shared.Return(rentedChars);
         }
-    }
-
-    private static void RestoreHeader(
-        IHeaderDictionary headers,
-        string name,
-        bool hadValue,
-        StringValues original)
-    {
-        if (hadValue)
-            headers[name] = original;
-        else
-            headers.Remove(name);
     }
 
     private static void AppendPublicAddress(
@@ -186,25 +169,24 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
         ref Span<char> charBuffer,
         ref char[]? rentedChars)
     {
-        if (http.Features.Get<ICacheOrchestratorFeature>() is not CacheOrchestratorFeature feature
-            || !feature.IdentityResolved
-            || feature.IdentityMaterial is null
-            || feature.IdentityMaterial.Values.Count == 0)
+        CacheIdentityFeature? feature = http.Features.Get<CacheIdentityFeature>();
+        if (feature is null
+            || !feature.Resolved
+            || feature.Material is null
+            || feature.Material.Values.Count == 0)
         {
             return;
         }
 
-        IReadOnlyDictionary<string, string> values = feature.IdentityMaterial.Values;
-        string[] keys = values.Keys.ToArray();
-        Array.Sort(keys, StringComparer.Ordinal);
-        for (int i = 0; i < keys.Length; i++)
-        {
-            string key = keys[i];
-            AppendRaw(hasher, PrefixVal);
-            AppendString(hasher, CacheIdentityApplicator.VaryValuePrefix + key, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
-            AppendRaw(hasher, Colon);
-            AppendString(hasher, values[key], ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
-        }
+        IReadOnlyDictionary<string, string> values = feature.Material.Values;
+        AppendSortedValues(
+            hasher,
+            values,
+            CacheIdentityApplicator.VaryValuePrefix,
+            ref byteBuffer,
+            ref rentedBytes,
+            ref charBuffer,
+            ref rentedChars);
     }
 
     private static void AppendVaryMaterial(
@@ -276,17 +258,122 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
         // Named values (auth-user, hashed cookies/headers, contributor values) — sorted for stability.
         if (vary.Values.Count > 0)
         {
-            string[] valueKeys = vary.Values.Keys.ToArray();
-            Array.Sort(valueKeys, StringComparer.Ordinal);
-            for (int i = 0; i < valueKeys.Length; i++)
+            AppendSortedValues(
+                hasher,
+                vary.Values,
+                keyPrefix: null,
+                ref byteBuffer,
+                ref rentedBytes,
+                ref charBuffer,
+                ref rentedChars);
+        }
+    }
+
+    private static void AppendSortedValues(
+        XxHash3 hasher,
+        IReadOnlyDictionary<string, string> values,
+        string? keyPrefix,
+        ref Span<byte> byteBuffer,
+        ref byte[]? rentedBytes,
+        ref Span<char> charBuffer,
+        ref char[]? rentedChars)
+    {
+        if (values.Count <= 3)
+        {
+            string? first = null;
+            string? second = null;
+            string? third = null;
+            int index = 0;
+            foreach (string key in values.Keys)
             {
-                string key = valueKeys[i];
-                AppendRaw(hasher, PrefixVal);
-                AppendString(hasher, key, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
-                AppendRaw(hasher, Colon);
-                AppendString(hasher, vary.Values[key], ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars, lowercase: false);
+                if (index == 0)
+                    first = key;
+                else if (index == 1)
+                    second = key;
+                else
+                    third = key;
+                index++;
+            }
+
+            // Allocation optimization: sort the common one-to-three-key case without creating an array.
+            CompareExchange(ref first, ref second);
+            CompareExchange(ref second, ref third);
+            CompareExchange(ref first, ref second);
+
+            if (first is not null)
+                AppendNamedValue(hasher, first, values[first], keyPrefix, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
+            if (second is not null)
+                AppendNamedValue(hasher, second, values[second], keyPrefix, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
+            if (third is not null)
+                AppendNamedValue(hasher, third, values[third], keyPrefix, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
+            return;
+        }
+
+        // Allocation optimization: managed string references cannot be stackallocated, so sorting uses a pooled array.
+        string[] keys = ArrayPool<string>.Shared.Rent(values.Count);
+        try
+        {
+            int count = 0;
+            foreach (string key in values.Keys)
+                keys[count++] = key;
+
+            Array.Sort(keys, 0, count, StringComparer.Ordinal);
+            for (int i = 0; i < count; i++)
+            {
+                string key = keys[i];
+                AppendNamedValue(
+                    hasher,
+                    key,
+                    values[key],
+                    keyPrefix,
+                    ref byteBuffer,
+                    ref rentedBytes,
+                    ref charBuffer,
+                    ref rentedChars);
             }
         }
+        finally
+        {
+            ArrayPool<string>.Shared.Return(keys, clearArray: true);
+        }
+    }
+
+    private static void CompareExchange(ref string? left, ref string? right)
+    {
+        if (right is null || (left is not null && string.CompareOrdinal(left, right) <= 0))
+            return;
+
+        (left, right) = (right, left);
+    }
+
+    private static void AppendNamedValue(
+        XxHash3 hasher,
+        string key,
+        string value,
+        string? keyPrefix,
+        ref Span<byte> byteBuffer,
+        ref byte[]? rentedBytes,
+        ref Span<char> charBuffer,
+        ref char[]? rentedChars)
+    {
+        AppendRaw(hasher, PrefixVal);
+        AppendString(
+            hasher,
+            keyPrefix is null ? key : keyPrefix + key,
+            ref byteBuffer,
+            ref rentedBytes,
+            ref charBuffer,
+            ref rentedChars,
+            lowercase: false);
+        AppendRaw(hasher, Colon);
+        AppendString(
+            hasher,
+            value,
+            ref byteBuffer,
+            ref rentedBytes,
+            ref charBuffer,
+            ref rentedChars,
+            lowercase: false);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

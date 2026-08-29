@@ -58,7 +58,7 @@ Logical Data Cache keys stay `{domain}:{versionHex}:{hash}` — Namespace is app
 
 ### Who builds them
 
-`IDomainDataCache.GetOrSetAsync` → `IDomainKeyGenerator.Generate(options, http)`.
+`IDomainDataCache.GetOrSetAsync` → `IDomainKeyGenerator.Generate(options, http, shape)`.
 
 Default implementation: **`DefaultDomainKeyGenerator`** (XxHash3 over request material, then a short string key).
 

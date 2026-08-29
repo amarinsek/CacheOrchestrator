@@ -173,9 +173,12 @@ public sealed class TenantKeyGenerator : IDomainKeyGenerator
     public TenantKeyGenerator(CacheVaryMaterializer materializer)
         => _inner = new DefaultDomainKeyGenerator(materializer);
 
-    public string Generate(DomainHttpCacheOptions options, HttpContext httpContext)
+    public string Generate(
+        DomainHttpCacheOptions options,
+        HttpContext httpContext,
+        DomainCacheKeyShape shape = DomainCacheKeyShape.Automatic)
     {
-        var baseKey = _inner.Generate(options, httpContext);
+        var baseKey = _inner.Generate(options, httpContext, shape);
         var tenantId = httpContext.User.FindFirst("tenant_id")?.Value ?? "anon";
         return $"{baseKey}|t:{tenantId}";
     }
@@ -185,6 +188,7 @@ public sealed class TenantKeyGenerator : IDomainKeyGenerator
 `new DefaultDomainKeyGenerator()` (no materializer) skips `ICacheVaryContributor`, Accept, and auth-user material. Prefer the DI constructor above, or replace `IDomainKeyGenerator` after `AddCacheOrchestrator`.
 
 Keys must be deterministic, must not contain secrets (they land in Redis and in logs), and should stay short.
+The `shape` argument is part of the contract: URL-shaped and collection calls must not accidentally inherit entity identity already present on the request.
 
 ## Results (`X-Cache` `dc=` and `DataCacheResult`)
 
@@ -199,9 +203,9 @@ Keys must be deterministic, must not contain secrets (they land in Redis and in 
 
 There is **no** `DataCacheResult.Fail` and **no** `dc=fail` on `X-Cache`. A hard factory throw with no fail-safe value is recorded on the meter as `cache_orchestrator.dc.requests` `result=fail` (and `factory.duration`), then the exception propagates.
 
-When `dc` is present and is not `hit`, `X-Cache` also includes `fa=run`. That is the same factory-invocation set as Admin factory run (`miss` / `stale` / `bypass` / `off` / `unresolved`). An Output Cache `hit` omits `dc` and `fa`.
+When `dc` is not `hit`, `X-Cache` also includes `fa=run`. `dc=n/a` means the endpoint generated the response without making a Data Cache operation; it is a header-only state, not a `DataCacheResult` enum value. Admin and factory instruments still count that application/origin work. An Output Cache `hit` omits `dc` and `fa`.
 
-Admin Console's exclusive pipeline mix is **Output Cache hit + fresh Data Cache hit + factory run**. Factory run is the share of requests that invoke the callback, including `off`, `unresolved`, bypass with factory, miss, and stale. **Data Cache stale %** is an overlay on requests, not a fourth mix segment. Layer `bypass` remains an authentication or `no-store` skip, not “caching disabled”.
+Admin Console's exclusive pipeline mix is **Output Cache hit + fresh Data Cache hit + factory run**. Factory run is the share of requests that require application/origin work, including direct `dc=n/a`, `off`, `unresolved`, bypass with factory, miss, and stale. **Data Cache stale %** is an overlay on requests, not a fourth mix segment. Layer `bypass` remains an authentication or `no-store` skip, not “caching disabled”.
 
 ---
 

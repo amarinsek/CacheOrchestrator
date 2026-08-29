@@ -64,6 +64,12 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
     public ValueTask<CacheInvalidationResult> InvalidateDomainAsync(
         string domain,
         CancellationToken cancellationToken = default)
+        => InvalidateDomainCoreAsync(domain, notifyObservers: true, cancellationToken);
+
+    private ValueTask<CacheInvalidationResult> InvalidateDomainCoreAsync(
+        string domain,
+        bool notifyObservers,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(domain))
             return ValueTask.FromResult(CacheInvalidationResult.Skipped("Domain was null or whitespace."));
@@ -75,7 +81,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             tags: [CacheTags.Domain(normalizedDomain)],
             dataCacheInstanceName: ResolveDataCacheInstance(normalizedDomain),
             allDataCacheInstances: false,
-            cancellationToken);
+            cancellationToken,
+            notifyObservers: notifyObservers);
     }
 
     /// <inheritdoc />
@@ -114,7 +121,11 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         List<CacheInvalidationResult> parts = [];
         for (int i = 0; i < requested.Count; i++)
         {
-            parts.Add(await InvalidateDomainAsync(requested[i], cancellationToken).ConfigureAwait(false));
+            parts.Add(await InvalidateDomainCoreAsync(
+                    requested[i],
+                    notifyObservers: false,
+                    cancellationToken)
+                .ConfigureAwait(false));
         }
 
         var aggregate = CacheInvalidationResult.Aggregate(parts);
@@ -283,7 +294,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         string? domain = null,
         string? entityKind = null,
         string? entityId = null,
-        IReadOnlyList<string>? resourceIds = null)
+        IReadOnlyList<string>? resourceIds = null,
+        bool notifyObservers = true)
     {
         CacheInvalidationContext observerContext = new(kind, scopeLabel, tags);
 
@@ -299,7 +311,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             string.Join(", ", tags),
             allDataCacheInstances);
 
-        await NotifyBeforeAsync(observerContext, cancellationToken).ConfigureAwait(false);
+        if (notifyObservers)
+            await NotifyBeforeAsync(observerContext, cancellationToken).ConfigureAwait(false);
 
         bool dataOk = true;
         bool outputOk = true;
@@ -412,7 +425,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         }
 
         CacheInvalidationResult result = new(scopeLabel, tags, dataOk, outputOk, errors, clusterPublish);
-        await NotifyAfterAsync(observerContext, result, cancellationToken).ConfigureAwait(false);
+        if (notifyObservers)
+            await NotifyAfterAsync(observerContext, result, cancellationToken).ConfigureAwait(false);
         return result;
     }
 

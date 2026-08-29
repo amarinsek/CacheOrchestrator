@@ -1,13 +1,17 @@
 #nullable enable
+CacheOrchestrator.Admin.IAdminStatsCollector.RecordFactory(string? endpointKey, string? domain, bool failed, long? elapsedTicks = null, long? resultSizeBytes = null) -> void
 CacheOrchestrator.Orchestration.DataCacheProviderOutcome
-CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Cached = 0 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
-CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Materialized = 1 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
+CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Cached = 1 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
+CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Materialized = 2 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
+CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Unknown = 0 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
 CacheOrchestrator.Orchestration.DataCacheProviderResult<T>
 CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.DataCacheProviderResult() -> void
 CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.DataCacheProviderResult(T value, CacheOrchestrator.Orchestration.DataCacheProviderOutcome outcome) -> void
 CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.Outcome.get -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
 CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.Value.get -> T
 CacheOrchestrator.Orchestration.IDataCacheProvider.GetOrCreateAsync<T>(CacheOrchestrator.Orchestration.DataCacheProviderRequest! request, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<CacheOrchestrator.Orchestration.DataCacheProviderResult<T>>
+CacheOrchestrator.Invalidation.CacheInvalidationResult.Parts.get -> System.Collections.Generic.IReadOnlyList<CacheOrchestrator.Invalidation.CacheInvalidationResult!>!
+CacheOrchestrator.Invalidation.CacheInvalidationResult.Parts.init -> void
 CacheOrchestrator.Admin.AdminHealthDto.DataCacheCapabilities.get -> CacheOrchestrator.Orchestration.DataCacheProviderCapabilities!
 CacheOrchestrator.Admin.AdminHealthDto.DataCacheCapabilities.init -> void
 CacheOrchestrator.Admin.AdminHealthDto.DataCacheProvider.get -> string!
