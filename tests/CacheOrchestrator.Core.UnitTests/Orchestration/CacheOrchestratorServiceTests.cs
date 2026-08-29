@@ -70,7 +70,7 @@ public class CacheOrchestratorServiceTests
 
         value.Should().Be("cached");
         captured.Should().NotBeNull();
-        captured.Key.Should().Be("products:abc123:product:42");
+        captured.Key.Should().Be("co3:products:abc123:product:42");
         captured.InstanceName.Should().Be("default");
         captured.Tags.Should().Equal("domain:products");
         captured.DomainOptions.Should().BeSameAs(opts);
@@ -170,7 +170,21 @@ public class CacheOrchestratorServiceTests
     {
         DomainCacheOptions opts = CreateOptions(domain: "catalog", versionHex: "deadbeef");
         CacheOrchestratorService.BuildPhysicalKey(opts, "page:1")
-            .Should().Be("catalog:deadbeef:page:1");
+            .Should().Be("co3:catalog:deadbeef:page:1");
+    }
+
+    [Fact]
+    public void BuildPhysicalKey_SeparatesDomainVersionAndLogicalKeyUnambiguously()
+    {
+        DomainCacheOptions first = CreateOptions(domain: "a:b", versionHex: "c");
+        DomainCacheOptions second = CreateOptions(domain: "a", versionHex: "b");
+
+        string firstKey = CacheOrchestratorService.BuildPhysicalKey(first, "d");
+        string secondKey = CacheOrchestratorService.BuildPhysicalKey(second, "c:d");
+
+        firstKey.Should().Be("co3:a%3Ab:c:d");
+        secondKey.Should().Be("co3:a:b:c:d");
+        firstKey.Should().NotBe(secondKey);
     }
 
     [Fact]
@@ -207,13 +221,13 @@ public class CacheOrchestratorServiceTests
             new CacheEntryRequest
             {
                 Domain = "products",
-                Key = "products:abc123:already-physical",
+                Key = "co3:products:abc123:already-physical",
                 KeyIsPhysical = true
             },
             _ => ValueTask.FromResult<string?>("fresh"),
             TestContext.Current.CancellationToken);
 
-        captured!.Key.Should().Be("products:abc123:already-physical");
+        captured!.Key.Should().Be("co3:products:abc123:already-physical");
     }
 
     [Fact]
@@ -451,7 +465,7 @@ public class CacheOrchestratorServiceTests
             TestContext.Current.CancellationToken);
 
         value.Should().Be("sku-7");
-        getRequest!.Key.Should().Be("products:v1:id:products:7");
+        getRequest!.Key.Should().Be("co3:products:v1:id:products:7");
         getRequest.Tags.Should().Contain("entity:products:products:7");
         getRequest.Tags.Should().Contain("entitykind:products:products");
     }

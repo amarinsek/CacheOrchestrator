@@ -19,11 +19,13 @@ public class InMemoryAdminStatsCollectorTests
             instanceId: "direct");
 
         collector.RecordOutput("GET /promotions", "promotions", "miss");
-        collector.RecordFactory(
-            "GET /promotions",
-            "promotions",
-            failed: false,
-            elapsedTicks: Stopwatch.Frequency / 100);
+        collector.RecordFactory(new AdminFactoryRecord
+        {
+            EndpointKey = "GET /promotions",
+            Domain = "promotions",
+            Failed = false,
+            ElapsedTicks = Stopwatch.Frequency / 100
+        });
 
         AdminDomainCountersDto domain = collector.GetRawSnapshot().Domains.Single();
         domain.DataCacheHits.Should().Be(0);

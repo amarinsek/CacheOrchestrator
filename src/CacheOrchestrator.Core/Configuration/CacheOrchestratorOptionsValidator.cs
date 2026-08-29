@@ -48,6 +48,15 @@ internal sealed class CacheOrchestratorOptionsValidator : IValidateOptions<Cache
 
         ValidateDomainSettings("DomainDefaults", options.DomainDefaults, failures);
 
+        string? defaultDataInstance = options.DomainDefaults.DataCache?.Instance;
+        if (!string.IsNullOrWhiteSpace(defaultDataInstance)
+            && !options.DataCacheInstances.ContainsKey(defaultDataInstance))
+        {
+            failures.Add(
+                $"DomainDefaults: DataCache.Instance '{defaultDataInstance}' " +
+                $"does not exist in DataCacheInstances.");
+        }
+
         foreach ((string? domain, CacheOrchestratorOptions.DomainCacheSettings? settings) in options.Domains)
         {
             ValidateDomainKey(domain, failures);

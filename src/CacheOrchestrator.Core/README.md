@@ -11,7 +11,7 @@ dotnet add package CacheOrchestrator.Core --prerelease
 ```
 
 A reusable library stops there. A standalone worker also installs one Data Cache provider, for example `CacheOrchestrator.FusionCache`.
-If a host leaves Data Cache enabled without a provider, CacheOrchestrator logs a startup warning and reports it through the health check.
+Without a provider, startup and health remain valid for hosts that do not use Data Cache. The first actual Data Cache operation logs a one-time warning and runs its factory uncached.
 
 ## Configuration
 

@@ -259,13 +259,13 @@ internal sealed class DomainDataCacheService : IDomainDataCache
                 .ConfigureAwait(false);
         }
 
-        string key = _keyGenerator.Generate(
+        string key = _keyGenerator.Generate(new DomainCacheKeyContext(
             opts,
             http,
-            useEntityKey ? DomainCacheKeyShape.Entity : DomainCacheKeyShape.Url);
+            useEntityKey ? DomainCacheKeyShape.Entity : DomainCacheKeyShape.Url));
 
         EntityFootprint early = BuildEarlyFootprint(http, useEntityKey);
-        bool materialized = false;
+        DataCacheProviderOutcome providerOutcome = DataCacheProviderOutcome.Unknown;
         bool factoryFailed = false;
         long started = Stopwatch.GetTimestamp();
 
@@ -287,6 +287,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
                         Domain = opts.Domain,
                         Key = key,
                         KeyIsPhysical = true,
+                        OutcomeObserver = outcome => providerOutcome = outcome,
                         Footprint = early,
                         AdditionalTags = useEntityKey
                             ? null
@@ -296,7 +297,6 @@ internal sealed class DomainDataCacheService : IDomainDataCache
                     },
                     async token =>
                     {
-                        materialized = true;
                         try
                         {
                             FootprintCacheBox<T?> produced = await factory(token).ConfigureAwait(false);
@@ -350,17 +350,13 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         EntityFootprintStaging.Stage(http, box.Footprint);
 
         GetElapsed(started, out long elapsedTicks, out long elapsedMs);
-        DataCacheResult dataResult = factoryFailed
-            ? DataCacheResult.Stale
-            : materialized
-                ? DataCacheResult.Miss
-                : DataCacheResult.Hit;
+        DataCacheResult dataResult = ToDataCacheResult(providerOutcome);
 
         SetData(http, dataResult, elapsedMs);
         string resultCode = DataToMetric(dataResult);
         activity?.SetTag("cache.result", resultCode);
 
-        long? resultSizeBytes = materialized && !factoryFailed
+        long? resultSizeBytes = providerOutcome == DataCacheProviderOutcome.Materialized
             ? FactoryResultSize.TryEstimateBytes(box.Value)
             : null;
 
@@ -510,9 +506,10 @@ internal sealed class DomainDataCacheService : IDomainDataCache
                 .ConfigureAwait(false);
         }
 
-        string key = _keyGenerator.Generate(opts, http, DomainCacheKeyShape.Url);
+        string key = _keyGenerator.Generate(
+            new DomainCacheKeyContext(opts, http, DomainCacheKeyShape.Url));
 
-        bool materialized = false;
+        DataCacheProviderOutcome providerOutcome = DataCacheProviderOutcome.Unknown;
         bool factoryFailed = false;
         long started = Stopwatch.GetTimestamp();
 
@@ -527,11 +524,11 @@ internal sealed class DomainDataCacheService : IDomainDataCache
                     {
                         Domain = opts.Domain,
                         Key = key,
-                        KeyIsPhysical = true
+                        KeyIsPhysical = true,
+                        OutcomeObserver = outcome => providerOutcome = outcome
                     },
                     async token =>
                     {
-                        materialized = true;
                         try
                         {
                             return await factory(token).ConfigureAwait(false);
@@ -582,18 +579,14 @@ internal sealed class DomainDataCacheService : IDomainDataCache
 
         GetElapsed(started, out long elapsedTicks, out long elapsed);
 
-        DataCacheResult dataResult = factoryFailed
-            ? DataCacheResult.Stale
-            : materialized
-                ? DataCacheResult.Miss
-                : DataCacheResult.Hit;
+        DataCacheResult dataResult = ToDataCacheResult(providerOutcome);
 
         SetData(http, dataResult, elapsed);
 
         string resultCode = DataToMetric(dataResult);
         activity?.SetTag("cache.result", resultCode);
 
-        long? resultSizeBytes = materialized && !factoryFailed
+        long? resultSizeBytes = providerOutcome == DataCacheProviderOutcome.Materialized
             ? FactoryResultSize.TryEstimateBytes(result)
             : null;
 
@@ -894,6 +887,14 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         DataCacheResult.Unresolved => "unresolved",
         DataCacheResult.Miss => "miss",
         _ => "miss"
+    };
+
+    private static DataCacheResult ToDataCacheResult(DataCacheProviderOutcome outcome) => outcome switch
+    {
+        DataCacheProviderOutcome.Cached => DataCacheResult.Hit,
+        DataCacheProviderOutcome.Materialized => DataCacheResult.Miss,
+        DataCacheProviderOutcome.Stale => DataCacheResult.Stale,
+        _ => throw new InvalidOperationException($"Unsupported Data Cache provider outcome '{outcome}'.")
     };
 
     private void RecordDataCacheAndAdmin(

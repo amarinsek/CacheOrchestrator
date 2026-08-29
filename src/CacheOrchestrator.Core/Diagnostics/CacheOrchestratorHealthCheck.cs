@@ -52,13 +52,6 @@ internal sealed class CacheOrchestratorHealthCheck : IHealthCheck
 
         List<ICacheOrchestratorHealthProbe> probes = [.. _probes];
         List<string> failures = [];
-        if (_dataCacheProvider is NullDataCacheProvider
-            && DataCacheProviderStartupDiagnostic.IsDataCacheEnabled(opts))
-        {
-            data["data_cache_provider:error"] = "Data Cache is enabled without a provider.";
-            failures.Add("Data Cache is enabled, but no Data Cache provider is registered.");
-        }
-
         if (probes.Count == 0)
         {
             if (failures.Count == 0)

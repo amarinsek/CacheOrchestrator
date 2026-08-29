@@ -180,6 +180,25 @@ public class DomainCacheConfigProviderTests
     }
 
     [Fact]
+    public void EnsureConfig_CopiesMutableConfigurationArraysIntoSnapshot()
+    {
+        string[] headers = ["X-Tenant"];
+        IRequestDomainCacheOptions provider = CreateProvider(
+            new CacheOrchestratorOptions(),
+            new CacheOrchestratorHttpOptions
+            {
+                DomainDefaults = new() { VaryByHeaders = headers }
+            });
+
+        DomainHttpCacheOptions snapshot = provider.EnsureDomainOptions(
+            new DefaultHttpContext(),
+            "products");
+        headers[0] = "X-Changed";
+
+        snapshot.VaryByHeaders.Should().Equal("X-Tenant");
+    }
+
+    [Fact]
     public void GetConfig_ReturnsNull_WhenNotYetEnsured()
     {
         IRequestDomainCacheOptions provider = CreateProvider(new CacheOrchestratorOptions());

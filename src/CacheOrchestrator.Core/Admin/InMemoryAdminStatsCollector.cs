@@ -81,21 +81,17 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
     }
 
     /// <inheritdoc />
-    public void RecordFactory(
-        string? endpointKey,
-        string? domain,
-        bool failed,
-        long? elapsedTicks = null,
-        long? resultSizeBytes = null)
+    public void RecordFactory(AdminFactoryRecord record)
     {
-        if (!string.IsNullOrEmpty(domain))
-            ApplyFactory(GetDomain(domain), failed, elapsedTicks, resultSizeBytes);
+        ArgumentNullException.ThrowIfNull(record);
+        if (!string.IsNullOrEmpty(record.Domain))
+            ApplyFactory(GetDomain(record.Domain), record.Failed, record.ElapsedTicks, record.ResultSizeBytes);
 
-        if (TrackEndpoints && !string.IsNullOrEmpty(endpointKey))
+        if (TrackEndpoints && !string.IsNullOrEmpty(record.EndpointKey))
         {
-            AdminCounterSet ep = GetEndpoint(endpointKey);
-            ApplyFactory(ep, failed, elapsedTicks, resultSizeBytes);
-            RememberEndpointDomain(endpointKey, domain);
+            AdminCounterSet ep = GetEndpoint(record.EndpointKey);
+            ApplyFactory(ep, record.Failed, record.ElapsedTicks, record.ResultSizeBytes);
+            RememberEndpointDomain(record.EndpointKey, record.Domain);
         }
     }
 

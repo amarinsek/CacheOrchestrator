@@ -53,6 +53,13 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
     }
 
     /// <inheritdoc />
+    public string Generate(DomainCacheKeyContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return Generate(context.Options, context.HttpContext, context.Shape);
+    }
+
+    /// <summary>Creates a key from explicit inputs.</summary>
     public string Generate(
         DomainHttpCacheOptions opts,
         HttpContext http,
@@ -96,7 +103,7 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                 return string.Create(
                     null,
                     stackalloc char[256],
-                    $"{opts.Domain}:{opts.VersionHex}:id:{encodedEntityKind}:{encodedResourceId}:{resourceHash:x16}");
+                    $"{opts.CoreOptions.PhysicalKeyPrefix}id:{encodedEntityKind}:{encodedResourceId}:{resourceHash:x16}");
             }
 
             // 1. Route / path
@@ -135,7 +142,7 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                 AppendPublicAddress(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
             ulong hash = hasher.GetCurrentHashAsUInt64();
-            return string.Create(null, stackalloc char[128], $"{opts.Domain}:{opts.VersionHex}:{hash:x16}");
+            return string.Create(null, stackalloc char[160], $"{opts.CoreOptions.PhysicalKeyPrefix}{hash:x16}");
         }
         finally
         {

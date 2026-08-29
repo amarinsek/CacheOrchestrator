@@ -148,9 +148,9 @@ internal sealed class RequestDomainCacheOptionsProvider : IRequestDomainCacheOpt
                 ?? Pick(domainSettings.TreatAuthorizationAsAuthSignal, defaults.TreatAuthorizationAsAuthSignal, true),
             AuthVaryIncludeAuthorizationHash = overlay?.AuthVaryIncludeAuthorizationHash
                 ?? Pick(domainSettings.AuthVaryIncludeAuthorizationHash, defaults.AuthVaryIncludeAuthorizationHash, true),
-            VaryByAuthClaims = overlay?.VaryByAuthClaims
+            VaryByAuthClaims = Copy(overlay?.VaryByAuthClaims
                 ?? domainSettings.VaryByAuthClaims
-                ?? defaults.VaryByAuthClaims,
+                ?? defaults.VaryByAuthClaims),
             DataCacheRespectAuthBypass = overlay?.DataCacheRespectAuthBypass
                 ?? Pick(domainSettings.DataCacheRespectAuthBypass, defaults.DataCacheRespectAuthBypass, true),
             ClientForcePrivateWhenAuthenticated = overlay?.ClientForcePrivateWhenAuthenticated
@@ -160,27 +160,27 @@ internal sealed class RequestDomainCacheOptionsProvider : IRequestDomainCacheOpt
                     true),
             VaryByAccept = overlay?.VaryByAccept
                 ?? Pick(domainSettings.VaryByAccept, defaults.VaryByAccept, true),
-            AcceptNormalizationList = overlay?.AcceptNormalizationList
+            AcceptNormalizationList = Copy(overlay?.AcceptNormalizationList
                 ?? domainSettings.AcceptNormalizationList
                 ?? defaults.AcceptNormalizationList
-                ?? DefaultAcceptNormalization,
+                ?? DefaultAcceptNormalization),
             VaryByAcceptLanguage = overlay?.VaryByAcceptLanguage
                 ?? Pick(domainSettings.VaryByAcceptLanguage, defaults.VaryByAcceptLanguage, false),
-            AcceptLanguageNormalizationList = overlay?.AcceptLanguageNormalizationList
+            AcceptLanguageNormalizationList = Copy(overlay?.AcceptLanguageNormalizationList
                 ?? domainSettings.AcceptLanguageNormalizationList
-                ?? defaults.AcceptLanguageNormalizationList,
-            VaryByHeaders = overlay?.VaryByHeaders
+                ?? defaults.AcceptLanguageNormalizationList),
+            VaryByHeaders = Copy(overlay?.VaryByHeaders
                 ?? domainSettings.VaryByHeaders
-                ?? defaults.VaryByHeaders,
-            VaryByQueryKeys = overlay?.VaryByQueryKeys
+                ?? defaults.VaryByHeaders),
+            VaryByQueryKeys = Copy(overlay?.VaryByQueryKeys
                 ?? domainSettings.VaryByQueryKeys
-                ?? defaults.VaryByQueryKeys,
-            IgnoreQueryKeys = overlay?.IgnoreQueryKeys
+                ?? defaults.VaryByQueryKeys),
+            IgnoreQueryKeys = Copy(overlay?.IgnoreQueryKeys
                 ?? domainSettings.IgnoreQueryKeys
-                ?? defaults.IgnoreQueryKeys,
-            VaryByCookies = overlay?.VaryByCookies
+                ?? defaults.IgnoreQueryKeys),
+            VaryByCookies = Copy(overlay?.VaryByCookies
                 ?? domainSettings.VaryByCookies
-                ?? defaults.VaryByCookies,
+                ?? defaults.VaryByCookies),
             EmitResponseVary = overlay?.EmitResponseVary
                 ?? Pick(domainSettings.EmitResponseVary, defaults.EmitResponseVary, true),
             ETagMode = overlay?.ETagMode
@@ -188,12 +188,12 @@ internal sealed class RequestDomainCacheOptionsProvider : IRequestDomainCacheOpt
                 ?? defaults.OutputCache?.ETagMode
                 ?? ETagMode.Version,
             ETag = CacheETagFactory.FromVersion(core.Version),
-            CacheableStatusCodes = domainSettings.OutputCache?.CacheableStatusCodes
+            CacheableStatusCodes = Copy(domainSettings.OutputCache?.CacheableStatusCodes
                 ?? defaults.OutputCache?.CacheableStatusCodes
-                ?? [200],
-            EncodingNormalizationList = domainSettings.OutputCache?.EncodingNormalizationList
+                ?? [200])!,
+            EncodingNormalizationList = Copy(domainSettings.OutputCache?.EncodingNormalizationList
                 ?? defaults.OutputCache?.EncodingNormalizationList
-                ?? ["br", "gzip"],
+                ?? ["br", "gzip"]),
             ClientCacheability = overlay?.ClientCacheability
                 ?? domainSettings.ClientCache?.Cacheability
                 ?? defaults.ClientCache?.Cacheability
@@ -223,6 +223,8 @@ internal sealed class RequestDomainCacheOptionsProvider : IRequestDomainCacheOpt
 
     private static TimeSpan Seconds(int value) =>
         TimeSpan.FromSeconds(value < 0 ? 0 : value);
+
+    private static T[]? Copy<T>(T[]? values) => values is null ? null : [.. values];
 
     private static int ToNonNegativeSeconds(TimeSpan value)
     {

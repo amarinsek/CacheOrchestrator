@@ -66,7 +66,7 @@ public class DefaultDomainKeyGeneratorTests
 
         string key = _sut.Generate(cfg, http);
 
-        key.Should().StartWith($"catalog:{cfg.VersionHex}:");
+        key.Should().StartWith($"co3:catalog:{cfg.VersionHex}:");
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class DefaultDomainKeyGeneratorTests
 
         key1.Should().Be(key2);
         key1.Should().Contain(":id:items:42:");
-        key1.Should().StartWith($"products:{cfg.VersionHex}:id:items:42:");
+        key1.Should().StartWith($"co3:products:{cfg.VersionHex}:id:items:42:");
     }
 
     [Fact]

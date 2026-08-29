@@ -43,17 +43,8 @@ public interface IAdminStatsCollector
     /// <summary>
     /// Records application factory work that produced a response without a Data Cache operation.
     /// </summary>
-    /// <param name="endpointKey">e.g. <c>GET /api/x</c>, or null.</param>
-    /// <param name="domain">Normalized domain, or null.</param>
-    /// <param name="failed">Whether the application factory threw.</param>
-    /// <param name="elapsedTicks">Optional factory duration ticks when latency tracking is on.</param>
-    /// <param name="resultSizeBytes">Optional measured result size when size tracking is on.</param>
-    void RecordFactory(
-        string? endpointKey,
-        string? domain,
-        bool failed,
-        long? elapsedTicks = null,
-        long? resultSizeBytes = null);
+    /// <param name="record">Factory observation.</param>
+    void RecordFactory(AdminFactoryRecord record);
 
     /// <summary>Records a successful domain-scoped invalidation.</summary>
     void RecordInvalidation(string domain);

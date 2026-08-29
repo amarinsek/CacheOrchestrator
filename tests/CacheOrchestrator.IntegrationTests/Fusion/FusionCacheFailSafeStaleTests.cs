@@ -13,7 +13,7 @@ namespace CacheOrchestrator.IntegrationTests.Fusion;
 /// </summary>
 public class FailSafeStaleTests
 {
-    private static ServiceProvider BuildProvider()
+    private static ServiceProvider BuildProvider(int factorySoftTimeoutSeconds = 5)
     {
         IConfigurationRoot config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -29,7 +29,8 @@ public class FailSafeStaleTests
                 // Disable jitter / eager refresh so expiry timing is predictable.
                 ["Cache:Domains:stale:FusionCache:JitterSeconds"] = "0",
                 ["Cache:Domains:stale:FusionCache:EagerRefreshRatio"] = "0",
-                ["Cache:Domains:stale:FusionCache:FactorySoftTimeoutSeconds"] = "5",
+                ["Cache:Domains:stale:FusionCache:FactorySoftTimeoutSeconds"] =
+                    factorySoftTimeoutSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["Cache:Domains:stale:FusionCache:FactoryHardTimeoutSeconds"] = "10",
             })
             .Build();
@@ -110,6 +111,38 @@ public class FailSafeStaleTests
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*no cached value*");
+    }
+
+    [Fact]
+    public async Task GetOrSetAsync_WhenRefreshExceedsSoftTimeout_ReportsStaleBeforeFactoryCompletes()
+    {
+        await using ServiceProvider sp = BuildProvider(factorySoftTimeoutSeconds: 1);
+        IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
+        IRequestDomainCacheOptions domains = sp.GetRequiredService<IRequestDomainCacheOptions>();
+
+        DefaultHttpContext seedHttp = CreateHttp(domains, "/api/stale/slow");
+        await cache.GetOrSetAsync(
+            seedHttp,
+            _ => Task.FromResult("seed"),
+            TestContext.Current.CancellationToken);
+
+        await Task.Delay(TimeSpan.FromMilliseconds(1200), TestContext.Current.CancellationToken);
+
+        DefaultHttpContext refreshHttp = CreateHttp(domains, "/api/stale/slow");
+        TaskCompletionSource factoryCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        string served = await cache.GetOrSetAsync(
+            refreshHttp,
+            async _ =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                factoryCompleted.SetResult();
+                return "refreshed";
+            },
+            TestContext.Current.CancellationToken);
+
+        served.Should().Be("seed");
+        factoryCompleted.Task.IsCompleted.Should().BeFalse();
+        GetDisposition(refreshHttp)!.Data.Should().Be(DataCacheResult.Stale);
     }
 
     [Fact]

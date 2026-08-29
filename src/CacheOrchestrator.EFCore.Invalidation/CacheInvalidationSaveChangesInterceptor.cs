@@ -17,7 +17,7 @@ namespace CacheOrchestrator.EFCore;
 /// <c>DbContextOptionsBuilder.AddCacheOrchestratorInvalidation</c>.
 /// Pending work is stored per context (not on this instance) so pooling is safe.
 /// </remarks>
-public sealed class CacheInvalidationSaveChangesInterceptor : SaveChangesInterceptor
+internal sealed class CacheInvalidationSaveChangesInterceptor : SaveChangesInterceptor
 {
     private static readonly ConditionalWeakTable<DbContext, List<PendingChange>> Pending = [];
 

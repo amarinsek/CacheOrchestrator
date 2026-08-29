@@ -1,8 +1,27 @@
 #nullable enable
-CacheOrchestrator.Admin.IAdminStatsCollector.RecordFactory(string? endpointKey, string? domain, bool failed, long? elapsedTicks = null, long? resultSizeBytes = null) -> void
+CacheOrchestrator.Admin.AdminFactoryRecord
+CacheOrchestrator.Admin.AdminFactoryRecord.AdminFactoryRecord() -> void
+CacheOrchestrator.Admin.AdminFactoryRecord.Domain.get -> string?
+CacheOrchestrator.Admin.AdminFactoryRecord.Domain.init -> void
+CacheOrchestrator.Admin.AdminFactoryRecord.ElapsedTicks.get -> long?
+CacheOrchestrator.Admin.AdminFactoryRecord.ElapsedTicks.init -> void
+CacheOrchestrator.Admin.AdminFactoryRecord.EndpointKey.get -> string?
+CacheOrchestrator.Admin.AdminFactoryRecord.EndpointKey.init -> void
+CacheOrchestrator.Admin.AdminFactoryRecord.Failed.get -> bool
+CacheOrchestrator.Admin.AdminFactoryRecord.Failed.init -> void
+CacheOrchestrator.Admin.AdminFactoryRecord.ResultSizeBytes.get -> long?
+CacheOrchestrator.Admin.AdminFactoryRecord.ResultSizeBytes.init -> void
+CacheOrchestrator.Admin.IAdminStatsCollector.RecordFactory(CacheOrchestrator.Admin.AdminFactoryRecord! record) -> void
+CacheOrchestrator.Orchestration.CacheOrchestratorEntityExtensions
+static CacheOrchestrator.Orchestration.CacheOrchestratorEntityExtensions.GetOrCreateEntityAsync<T>(this CacheOrchestrator.Orchestration.ICacheOrchestrator! cache, string! domain, string! logicalKey, CacheOrchestrator.Entity.EntityRef primary, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<CacheOrchestrator.Entity.EntityCache<T>!>>! factory) -> System.Threading.Tasks.ValueTask<T?>
+static CacheOrchestrator.Orchestration.CacheOrchestratorEntityExtensions.GetOrCreateEntityAsync<T>(this CacheOrchestrator.Orchestration.ICacheOrchestrator! cache, string! domain, string! logicalKey, CacheOrchestrator.Entity.EntityRef primary, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<CacheOrchestrator.Entity.EntityCache<T>!>>! factory, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<T?>
+static CacheOrchestrator.Orchestration.CacheOrchestratorEntityExtensions.GetOrCreateEntityAsync<T>(this CacheOrchestrator.Orchestration.ICacheOrchestrator! cache, string! domain, string! logicalKey, CacheOrchestrator.Entity.EntityRef primary, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T?>>! factory) -> System.Threading.Tasks.ValueTask<T?>
+static CacheOrchestrator.Orchestration.CacheOrchestratorEntityExtensions.GetOrCreateEntityAsync<T>(this CacheOrchestrator.Orchestration.ICacheOrchestrator! cache, string! domain, string! logicalKey, CacheOrchestrator.Entity.EntityRef primary, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T?>>! factory, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<T?>
+static CacheOrchestrator.Orchestration.CacheOrchestratorEntityExtensions.GetOrCreateEntitySetAsync<T>(this CacheOrchestrator.Orchestration.ICacheOrchestrator! cache, string! domain, string! logicalKey, string! entityKind, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<CacheOrchestrator.Entity.EntitySet<T>!>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<T>!>
 CacheOrchestrator.Orchestration.DataCacheProviderOutcome
 CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Cached = 1 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
 CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Materialized = 2 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
+CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Stale = 3 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
 CacheOrchestrator.Orchestration.DataCacheProviderOutcome.Unknown = 0 -> CacheOrchestrator.Orchestration.DataCacheProviderOutcome
 CacheOrchestrator.Orchestration.DataCacheProviderResult<T>
 CacheOrchestrator.Orchestration.DataCacheProviderResult<T>.DataCacheProviderResult() -> void
@@ -34,3 +53,8 @@ CacheOrchestrator.Orchestration.IDataCacheBatchInvalidator
 CacheOrchestrator.Orchestration.IDataCacheBatchInvalidator.InvalidateBatchAsync(System.Collections.Generic.IReadOnlyList<CacheOrchestrator.Orchestration.DataCacheInvalidationRequest!>! requests, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 CacheOrchestrator.Orchestration.IDataCacheProviderCapabilities
 CacheOrchestrator.Orchestration.IDataCacheProviderCapabilities.Capabilities.get -> CacheOrchestrator.Orchestration.DataCacheProviderCapabilities!
+*REMOVED*CacheOrchestrator.Orchestration.CacheEntryRequest.KeyIsPhysical.get -> bool
+*REMOVED*CacheOrchestrator.Orchestration.CacheEntryRequest.KeyIsPhysical.init -> void
+*REMOVED*CacheOrchestrator.Orchestration.ICacheOrchestrator.GetOrCreateEntityAsync<T>(string! domain, string! logicalKey, CacheOrchestrator.Entity.EntityRef primary, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<CacheOrchestrator.Entity.EntityCache<T>!>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T?>
+*REMOVED*CacheOrchestrator.Orchestration.ICacheOrchestrator.GetOrCreateEntityAsync<T>(string! domain, string! logicalKey, CacheOrchestrator.Entity.EntityRef primary, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T?>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T?>
+*REMOVED*CacheOrchestrator.Orchestration.ICacheOrchestrator.GetOrCreateEntitySetAsync<T>(string! domain, string! logicalKey, string! entityKind, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<CacheOrchestrator.Entity.EntitySet<T>!>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<T>!>

@@ -98,12 +98,14 @@ internal sealed class DirectFactoryTelemetryMiddleware
 
         if (adminOn)
         {
-            adminStats!.RecordFactory(
-                endpointKey,
-                domain,
-                failed,
-                adminStats.TrackLatency ? elapsedTicks : null,
-                adminStats.TrackResultSize ? http.Response.ContentLength : null);
+            adminStats!.RecordFactory(new AdminFactoryRecord
+            {
+                EndpointKey = endpointKey,
+                Domain = domain,
+                Failed = failed,
+                ElapsedTicks = adminStats.TrackLatency ? elapsedTicks : null,
+                ResultSizeBytes = adminStats.TrackResultSize ? http.Response.ContentLength : null
+            });
         }
     }
 }

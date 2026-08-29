@@ -1,6 +1,3 @@
-using CacheOrchestrator.Configuration;
-using Microsoft.AspNetCore.Http;
-
 namespace CacheOrchestrator.DataCache;
 
 /// <summary>
@@ -34,12 +31,10 @@ namespace CacheOrchestrator.DataCache;
 ///     private readonly DefaultDomainKeyGenerator _inner = new();
 ///
 ///     public string Generate(
-///         DomainHttpCacheOptions options,
-///         HttpContext httpContext,
-///         DomainCacheKeyShape shape = DomainCacheKeyShape.Automatic)
+///         DomainCacheKeyContext context)
 ///     {
-///         var baseKey = _inner.Generate(options, httpContext, shape);
-///         var tenantId = httpContext.User.FindFirst("tenant_id")?.Value ?? "anon";
+///         var baseKey = _inner.Generate(context);
+///         var tenantId = context.HttpContext.User.FindFirst("tenant_id")?.Value ?? "anon";
 ///         return $"{baseKey}|t:{tenantId}";
 ///     }
 /// }
@@ -52,16 +47,11 @@ namespace CacheOrchestrator.DataCache;
 public interface IDomainKeyGenerator
 {
     /// <summary>
-    /// Creates a cache key for the given domain configuration and HTTP context.
+    /// Creates a cache key for the supplied operation context.
     /// </summary>
-    /// <param name="options">Resolved domain options.</param>
-    /// <param name="httpContext">Current HTTP context.</param>
-    /// <param name="shape">Whether entity identity should participate in the key.</param>
+    /// <param name="context">Resolved options, current request, and key shape.</param>
     /// <returns>A deterministic cache key string.</returns>
-    string Generate(
-        DomainHttpCacheOptions options,
-        HttpContext httpContext,
-        DomainCacheKeyShape shape = DomainCacheKeyShape.Automatic);
+    string Generate(DomainCacheKeyContext context);
 }
 
 /// <summary>Controls whether a generated data-cache key uses request entity identity.</summary>

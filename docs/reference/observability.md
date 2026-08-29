@@ -103,7 +103,7 @@ Core activities tag `domain`, `provider`, and `cache.result`; the footprint acti
 | Invalidation start | Information |
 | Invalidation partial failure | Warning |
 | Cluster peer publish failure / explicitly unauthenticated bus | Warning |
-| Data Cache enabled without a provider | Warning at startup |
+| Data Cache operation without a provider | One-time warning on first use; factory runs uncached |
 | Cluster ignore (namespace / self / dedupe) | Debug |
 | Unknown domain / missing Version | Warning |
 
@@ -124,7 +124,7 @@ All arguments shown are the defaults. `timeout` is the health-check registration
 
 - Runs health probes registered by active backend providers through their registration context
 - Redis backend registers a probe that pings `IConnectionMultiplexer`  
-- Data Cache enabled with the Null provider returns the configured failure status (`data_cache_provider: Null`); explicitly disabled Data Cache is valid for Output-Cache-only hosts
+- The Null provider is reported as `data_cache_provider: Null` but does not make health fail; this is a valid Output-Cache-only composition
 - InMemory registers no external probe (healthy if none registered)  
 - Custom backends (e.g., SQL Server) can register their own specific database probes
 - Default timeout 3s; failure status default `Degraded`

@@ -23,13 +23,12 @@ public sealed class CacheIdentityMaterial
     }
 
     /// <summary>
-    /// Creates material from a pre-built dictionary. The dictionary is used as-is (not copied).
-    /// Prefer the enumerable constructor for app code.
+    /// Creates material from a pre-built dictionary (copied; ordinal key comparer).
     /// </summary>
     public CacheIdentityMaterial(IReadOnlyDictionary<string, string> values)
     {
         ArgumentNullException.ThrowIfNull(values);
-        Values = values;
+        Values = new Dictionary<string, string>(values, StringComparer.Ordinal);
     }
 
     /// <summary>Named identity segments (must not contain secrets in plaintext).</summary>

@@ -17,7 +17,7 @@ The **Data Cache** stores **application objects** from your factory (DTOs, tiles
 
 Register exactly one provider. Meta `AddCacheOrchestrator` = AspNetCore + Fusion.
 
-If Data Cache remains enabled but no provider package is registered, startup logs a warning and factories run uncached. The CacheOrchestrator health check reports the configured failure status with `data_cache_provider: Null`. Output-Cache-only hosts should explicitly set `DomainDefaults:DataCache:Enabled` to `false`.
+An Output-Cache-only host does not need to configure `DataCache.Enabled`. Without a Data Cache provider, startup and health remain healthy; only an actual `IDomainDataCache` / `ICacheOrchestrator` operation logs a one-time warning and runs its factory uncached.
 
 **Hybrid instead of Fusion:** call `AddHybridCache()`, then `AddCacheOrchestratorAspNetCore`, then `AddCacheOrchestratorHybridCache` (replaces any prior `IDataCacheProvider`). Nested `FusionCache.*` domain knobs are ignored. Full sample: [composition §5](../how-to/composition.md#scenario-5).
 
@@ -136,7 +136,7 @@ The extension formats `IFormattable` values with invariant culture. Use a string
 With entity identity (`GetOrSetEntityAsync`):
 
 ```text
-{domain}:{versionHex}:id:{entityKind}:{resourceId}:{hash}
+co3:{escapedDomain}:{versionHex}:id:{entityKind}:{resourceId}:{hash}
 ```
 
 Without a resource id (URL-shaped):
@@ -173,13 +173,10 @@ public sealed class TenantKeyGenerator : IDomainKeyGenerator
     public TenantKeyGenerator(CacheVaryMaterializer materializer)
         => _inner = new DefaultDomainKeyGenerator(materializer);
 
-    public string Generate(
-        DomainHttpCacheOptions options,
-        HttpContext httpContext,
-        DomainCacheKeyShape shape = DomainCacheKeyShape.Automatic)
+    public string Generate(DomainCacheKeyContext context)
     {
-        var baseKey = _inner.Generate(options, httpContext, shape);
-        var tenantId = httpContext.User.FindFirst("tenant_id")?.Value ?? "anon";
+        var baseKey = _inner.Generate(context);
+        var tenantId = context.HttpContext.User.FindFirst("tenant_id")?.Value ?? "anon";
         return $"{baseKey}|t:{tenantId}";
     }
 }
@@ -188,7 +185,7 @@ public sealed class TenantKeyGenerator : IDomainKeyGenerator
 `new DefaultDomainKeyGenerator()` (no materializer) skips `ICacheVaryContributor`, Accept, and auth-user material. Prefer the DI constructor above, or replace `IDomainKeyGenerator` after `AddCacheOrchestrator`.
 
 Keys must be deterministic, must not contain secrets (they land in Redis and in logs), and should stay short.
-The `shape` argument is part of the contract: URL-shaped and collection calls must not accidentally inherit entity identity already present on the request.
+`context.Shape` is part of the contract: URL-shaped and collection calls must not accidentally inherit entity identity already present on the request.
 
 ## Results (`X-Cache` `dc=` and `DataCacheResult`)
 

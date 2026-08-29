@@ -2,6 +2,7 @@ using BenchmarkDotNet.Attributes;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Identity;
+using CacheOrchestrator.Orchestration;
 using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -54,7 +55,6 @@ public class DomainKeyGeneratorBenchmarks
             DataCacheVaryOnEncoding = true,
             DataCacheVaryOnPublicAddress = true
         };
-
         _noQuery = CreateHttp("/api/catalog");
         _withQuery = CreateHttp("/api/catalog", "?page=1&sort=name&filter=active");
         _withTracking = CreateHttp("/api/catalog", "?page=1&utm_source=google&fbclid=abc123");

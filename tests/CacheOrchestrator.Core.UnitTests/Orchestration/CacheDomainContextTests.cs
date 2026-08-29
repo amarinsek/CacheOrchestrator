@@ -33,13 +33,18 @@ public class CacheDomainContextTests
         CacheDomainContext context = new("catalog", "products");
         Func<CancellationToken, ValueTask<string?>> factory =
             _ => ValueTask.FromResult<string?>("value");
-        cache.GetOrCreateEntityAsync(
-                "catalog",
-                "product:42",
-                new CacheOrchestrator.Entity.EntityRef("products", "42"),
-                factory,
+        CacheEntryRequest? captured = null;
+        cache.GetOrCreateWithFootprintAsync<string>(
+                Arg.Any<CacheEntryRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
                 Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult<string?>("value"));
+            .Returns(callInfo =>
+            {
+                captured = callInfo.ArgAt<CacheEntryRequest>(0);
+                return callInfo
+                    .ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1)
+                    .Invoke(callInfo.ArgAt<CancellationToken>(2));
+            });
 
         string? result = await cache.GetOrCreateEntityAsync(
             context,
@@ -49,12 +54,11 @@ public class CacheDomainContextTests
             cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be("value");
-        await cache.Received(1).GetOrCreateEntityAsync(
-            "catalog",
-            "product:42",
-            new CacheOrchestrator.Entity.EntityRef("products", "42"),
-            factory,
-            TestContext.Current.CancellationToken);
+        captured.Should().NotBeNull();
+        captured!.Domain.Should().Be("catalog");
+        captured.Key.Should().Be("product:42");
+        captured.Footprint!.Primary.Should().Be(
+            new CacheOrchestrator.Entity.EntityRef("products", "42"));
     }
 
     [Fact]
@@ -64,13 +68,18 @@ public class CacheDomainContextTests
         CacheDomainContext context = new("catalog", "products");
         Func<CancellationToken, ValueTask<CacheOrchestrator.Entity.EntityCache<string>>> factory =
             _ => ValueTask.FromResult(CacheOrchestrator.Entity.EntityCache.Create("value"));
-        cache.GetOrCreateEntityAsync(
-                "catalog",
-                "product:42",
-                new CacheOrchestrator.Entity.EntityRef("products", "42"),
-                factory,
+        CacheEntryRequest? captured = null;
+        cache.GetOrCreateWithFootprintAsync<string>(
+                Arg.Any<CacheEntryRequest>(),
+                Arg.Any<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(),
                 Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult<string?>("value"));
+            .Returns(callInfo =>
+            {
+                captured = callInfo.ArgAt<CacheEntryRequest>(0);
+                return callInfo
+                    .ArgAt<Func<CancellationToken, ValueTask<FootprintCacheBox<string?>>>>(1)
+                    .Invoke(callInfo.ArgAt<CancellationToken>(2));
+            });
 
         string? result = await cache.GetOrCreateEntityAsync(
             context,
@@ -80,5 +89,7 @@ public class CacheDomainContextTests
             cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().Be("value");
+        captured!.Footprint!.Primary.Should().Be(
+            new CacheOrchestrator.Entity.EntityRef("products", "42"));
     }
 }

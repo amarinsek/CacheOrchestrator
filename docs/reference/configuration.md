@@ -265,7 +265,7 @@ Optional. Requires package **`CacheOrchestrator.EFCore.Invalidation`**. Type →
 Package-owned validators run on start (`ValidateOnStart`). Core validates portable domain and Data Cache configuration; ASP.NET Core validates Output Cache, Client Cache, HTTP Data Cache behavior, authentication, vary, and ETag settings; provider packages validate their own sections.
 
 - `DataCacheInstances` must contain **`default`**
-- Each domain `DataCache.Instance` must name a registered instance (default `"default"`)
+- `DomainDefaults.DataCache.Instance` and each domain `DataCache.Instance` must name a registered instance (default `"default"`)
 - Output Cache provider must match an `IOutputCacheBackendRegistrar` (`InMemory`, `Redis`, or custom via `AddOutputCacheBackend`)
 - Fusion instance providers must match an `IFusionCacheBackendRegistrar` (`InMemory`, `Redis`, or custom via `AddFusionCacheBackend`)
 - Redis provider requires a connection string (`Cache:Redis:Configuration` or the scoped `OutputCache:Redis` / `DataCacheInstances:{name}:Redis` override)

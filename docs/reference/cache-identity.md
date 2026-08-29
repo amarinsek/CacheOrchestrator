@@ -58,7 +58,7 @@ Identity bindings apply to **both** layers when each layer is in use:
 
 Identity does **not** call the Data Cache by itself. Without `GetOrSet*`, only Output Cache (if enabled) stores the HTTP response.
 
-Logical Data Cache key shape remains `{domain}:{versionHex}:{hash}`; identity adds sorted `co-id:{name}` segments into the hash (named contract / content-hash). `CacheIdentities.Url` adds no extra segments. `null` material / content-hash oversize → Data Cache bypass for that request. Details: [cache-keys.md](cache-keys.md). Example wiring: [With Data Cache (GetOrSet)](#with-data-cache-getorset).
+The Data Cache provider-key shape is `co3:{escapedDomain}:{versionHex}:{hash}`; identity adds sorted `co-id:{name}` segments into the hash (named contract / content-hash). `CacheIdentities.Url` adds no extra segments. `null` material / content-hash oversize → Data Cache bypass for that request. Details: [cache-keys.md](cache-keys.md). Example wiring: [With Data Cache (GetOrSet)](#with-data-cache-getorset).
 
 ---
 
