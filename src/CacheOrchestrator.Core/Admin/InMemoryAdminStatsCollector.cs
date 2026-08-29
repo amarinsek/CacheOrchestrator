@@ -81,6 +81,25 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
     }
 
     /// <inheritdoc />
+    public void RecordFactory(
+        string? endpointKey,
+        string? domain,
+        bool failed,
+        long? elapsedTicks = null,
+        long? resultSizeBytes = null)
+    {
+        if (!string.IsNullOrEmpty(domain))
+            ApplyFactory(GetDomain(domain), failed, elapsedTicks, resultSizeBytes);
+
+        if (TrackEndpoints && !string.IsNullOrEmpty(endpointKey))
+        {
+            AdminCounterSet ep = GetEndpoint(endpointKey);
+            ApplyFactory(ep, failed, elapsedTicks, resultSizeBytes);
+            RememberEndpointDomain(endpointKey, domain);
+        }
+    }
+
+    /// <inheritdoc />
     public void RecordInvalidation(string domain)
     {
         if (string.IsNullOrWhiteSpace(domain))
@@ -176,25 +195,25 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
                 break;
             case "miss":
                 Interlocked.Increment(ref set.DataCacheMisses);
-                Interlocked.Increment(ref set.DataCacheFactoryRuns);
+                Interlocked.Increment(ref set.FactoryRuns);
                 break;
             case "stale":
                 Interlocked.Increment(ref set.DataCacheStale);
-                Interlocked.Increment(ref set.DataCacheFactoryRuns);
-                Interlocked.Increment(ref set.DataCacheFactoryFailures);
+                Interlocked.Increment(ref set.FactoryRuns);
+                Interlocked.Increment(ref set.FactoryFailures);
                 break;
             case "fail":
                 // Hard factory throw (no fail-safe value returned). Factory still ran.
-                Interlocked.Increment(ref set.DataCacheFactoryRuns);
-                Interlocked.Increment(ref set.DataCacheFactoryFailures);
+                Interlocked.Increment(ref set.FactoryRuns);
+                Interlocked.Increment(ref set.FactoryFailures);
                 break;
             case "bypass":
                 Interlocked.Increment(ref set.DataCacheBypass);
-                Interlocked.Increment(ref set.DataCacheFactoryRuns);
+                Interlocked.Increment(ref set.FactoryRuns);
                 break;
             case "off":
             case "unresolved":
-                Interlocked.Increment(ref set.DataCacheFactoryRuns);
+                Interlocked.Increment(ref set.FactoryRuns);
                 break;
             default:
                 break;
@@ -223,6 +242,29 @@ internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector
     /// <summary>Results where the value factory ran (including data cache disabled / unresolved / bypass).</summary>
     internal static bool IsFactoryPathResult(string result) =>
         result is "miss" or "stale" or "fail" or "off" or "unresolved" or "bypass";
+
+    private void ApplyFactory(
+        AdminCounterSet set,
+        bool failed,
+        long? elapsedTicks,
+        long? resultSizeBytes)
+    {
+        Interlocked.Increment(ref set.FactoryRuns);
+        if (failed)
+            Interlocked.Increment(ref set.FactoryFailures);
+
+        if (TrackLatency && elapsedTicks is long ticks)
+        {
+            Interlocked.Add(ref set.FactorySumTicks, ticks);
+            Interlocked.Increment(ref set.FactoryCount);
+        }
+
+        if (TrackResultSize && resultSizeBytes is >= 0)
+        {
+            Interlocked.Add(ref set.FactoryResultSizeSumBytes, resultSizeBytes.Value);
+            Interlocked.Increment(ref set.FactoryResultSizeCount);
+        }
+    }
 
     private static AdminDomainCountersDto ToDomainCounters(
         string name,

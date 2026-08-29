@@ -7,6 +7,64 @@ namespace CacheOrchestrator.Core.UnitTests.Diagnostics;
 public class CacheOrchestratorMetricsTests
 {
     [Fact]
+    public void RecordFactory_IncrementsIndependentRunCounter()
+    {
+        long? value = null;
+        string? result = null;
+        const string expectedDomain = "ut-direct-factory";
+
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (instrument.Meter.Name == CacheOrchestratorMetrics.MeterName
+                && instrument.Name == "cache_orchestrator.factory.runs")
+            {
+                meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((_, measurement, tags, _) =>
+        {
+            if (ReadTag(tags, "domain") != expectedDomain)
+                return;
+            value = measurement;
+            result = ReadTag(tags, "result");
+        });
+        listener.Start();
+
+        CacheOrchestratorMetrics.RecordFactory(expectedDomain, failed: false, durationMs: 3);
+
+        value.Should().Be(1);
+        result.Should().Be("n/a");
+    }
+
+    [Fact]
+    public void RecordDataCacheMiss_IncrementsIndependentFactoryRunCounter()
+    {
+        long? value = null;
+        const string expectedDomain = "ut-data-factory";
+
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (instrument.Meter.Name == CacheOrchestratorMetrics.MeterName
+                && instrument.Name == "cache_orchestrator.factory.runs")
+            {
+                meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((_, measurement, tags, _) =>
+        {
+            if (ReadTag(tags, "domain") == expectedDomain)
+                value = measurement;
+        });
+        listener.Start();
+
+        CacheOrchestratorMetrics.RecordDataCache(expectedDomain, "miss");
+
+        value.Should().Be(1);
+    }
+
+    [Fact]
     public void RecordDataCache_IncrementsCounter_WithDomainAndResult()
     {
         long? value = null;

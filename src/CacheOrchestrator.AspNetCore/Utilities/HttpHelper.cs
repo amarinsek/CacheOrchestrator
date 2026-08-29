@@ -160,6 +160,28 @@ internal static class HttpHelper
         headers[headerName] = string.Empty;
     }
 
+    internal static string ResolvePreferredHeader(
+        StringValues current,
+        string[] preferred,
+        bool languageRange)
+    {
+        if (preferred.Length == 0 || current.Count == 0)
+            return string.Empty;
+
+        for (int i = 0; i < preferred.Length; i++)
+        {
+            string item = preferred[i];
+            if (string.IsNullOrWhiteSpace(item))
+                continue;
+
+            string trimmed = item.Trim();
+            if (HeaderMatchesPrefer(current, trimmed, languageRange))
+                return trimmed;
+        }
+
+        return string.Empty;
+    }
+
     private static bool HeaderMatchesPrefer(StringValues header, string preferred, bool languageRange)
     {
         for (int i = 0; i < header.Count; i++)

@@ -199,7 +199,6 @@ CacheOrchestrator.DataCache.DefaultDomainKeyGenerator
 CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.DefaultDomainKeyGenerator() -> void
 CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.DefaultDomainKeyGenerator(CacheOrchestrator.Vary.CacheVaryMaterializer! materializer) -> void
 CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.DefaultDomainKeyGenerator(System.Collections.Generic.IEnumerable<CacheOrchestrator.Vary.ICacheVaryContributor!>! contributors) -> void
-CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.Generate(CacheOrchestrator.Configuration.DomainHttpCacheOptions! opts, Microsoft.AspNetCore.Http.HttpContext! http) -> string!
 CacheOrchestrator.DataCache.IDomainDataCache
 CacheOrchestrator.DataCache.IDomainDataCache.GetOrSetAsync<T>(Microsoft.AspNetCore.Http.HttpContext! http, string! domain, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>!>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
 CacheOrchestrator.DataCache.IDomainDataCache.GetOrSetAsync<T>(Microsoft.AspNetCore.Http.HttpContext! http, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<T>!>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<T>!
@@ -209,7 +208,6 @@ CacheOrchestrator.DataCache.IDomainDataCache.GetOrSetEntitySetAsync<T>(Microsoft
 CacheOrchestrator.DataCache.IDomainDataCache.SetEntityIdentity(Microsoft.AspNetCore.Http.HttpContext! http, string! entityKind, string! resourceId) -> void
 CacheOrchestrator.DataCache.IDomainDataCacheExtensions
 CacheOrchestrator.DataCache.IDomainKeyGenerator
-CacheOrchestrator.DataCache.IDomainKeyGenerator.Generate(CacheOrchestrator.Configuration.DomainHttpCacheOptions! options, Microsoft.AspNetCore.Http.HttpContext! httpContext) -> string!
 CacheOrchestrator.DependencyInjection.ApplicationBuilderExtensions
 CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder
 CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder.AddOutputCacheBackend(CacheOrchestrator.Backends.IOutputCacheBackendRegistrar! registrar) -> CacheOrchestrator.DependencyInjection.ICacheOrchestratorBuilder!

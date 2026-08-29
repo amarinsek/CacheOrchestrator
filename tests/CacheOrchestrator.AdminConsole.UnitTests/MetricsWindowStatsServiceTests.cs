@@ -78,6 +78,24 @@ public class MetricsWindowStatsServiceTests
                     ];
                 }
 
+                if (promQl.Contains(MetricsPanelCatalog.FactoryRuns, StringComparison.Ordinal)
+                    && promQl.Contains("sum by (domain,instance_id)", StringComparison.Ordinal))
+                {
+                    return [Sample(2, ("domain", "catalog"), ("instance_id", "app-1"))];
+                }
+
+                if (promQl.Contains(MetricsPanelCatalog.FactoryRuns, StringComparison.Ordinal)
+                    && promQl.Contains("sum by (route,domain)", StringComparison.Ordinal))
+                {
+                    return [Sample(2, ("route", "GET /api/catalog"), ("domain", "catalog"))];
+                }
+
+                if (promQl.Contains(MetricsPanelCatalog.FactoryRuns, StringComparison.Ordinal)
+                    && promQl.Contains("sum by (route,instance_id)", StringComparison.Ordinal))
+                {
+                    return [Sample(2, ("route", "GET /api/catalog"), ("instance_id", "app-1"))];
+                }
+
                 // Invalidations / factory / by-instance extras → empty
                 return [];
             },
@@ -108,6 +126,7 @@ public class MetricsWindowStatsServiceTests
         result.NoData.Should().BeFalse();
         result.TotalRequests.Should().Be(50);
         result.Domains.Should().ContainSingle(d => d.Name == "catalog" && d.Requests == 50);
+        result.Domains[0].DataCache.FactoryRuns.Should().Be(2);
         result.Endpoints.Should().ContainSingle(e =>
             e.Route == "GET /api/catalog" && e.ConfiguredDomain == "catalog" && e.Requests == 50);
         result.Domains[0].Version.Should().Be("v1");

@@ -50,6 +50,7 @@ Response badges summarize `X-Cache` fields (`oc=`, `dc=`, and `fa=`):
 
 - **BROWSER-CACHE** — client cache served the response (only when **Disable browser HTTP cache** is off)
 - **OC-HIT** — Output Cache served the HTTP response (`oc=hit`; `dc`/`fa` omitted)
+- **OC-MISS FACTORY** — the app generated the response directly (`dc=n/a; fa=run`), as on the first promotions fetch
 - **OC-MISS DC-HIT** — handler ran; Data Cache had the object (`dc=hit`, no `fa`)
 - **OC-MISS DC-STALE FACTORY** — fail-safe stale from Data Cache (`dc=stale; fa=run`)
 - **OC-MISS DC-MISS FACTORY** — both layers missed; factory ran (`dc=miss; fa=run`)

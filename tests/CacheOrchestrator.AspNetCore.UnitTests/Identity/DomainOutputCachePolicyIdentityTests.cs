@@ -1,6 +1,7 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Identity;
 using CacheOrchestrator.OutputCache;
+using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.OutputCaching;
@@ -107,8 +108,26 @@ public class DomainOutputCachePolicyIdentityTests
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
         context.EnableOutputCaching.Should().BeFalse();
-        var feature = (CacheOrchestratorFeature)http.Features.Get<ICacheOrchestratorFeature>()!;
-        feature.IdentityBypass.Should().BeTrue();
+        http.Features.Get<CacheIdentityFeature>()!.Bypass.Should().BeTrue();
+    }
+
+    [Fact]
+    public void StoreOnFeature_PreservesCustomPublicFeature()
+    {
+        var http = new DefaultHttpContext();
+        var custom = new CustomCacheOrchestratorFeature { EntityKind = "products", ResourceId = "42" };
+        http.Features.Set<ICacheOrchestratorFeature>(custom);
+
+        CacheIdentityApplicator.StoreOnFeature(
+            http,
+            new CacheIdentityMaterial(new Dictionary<string, string> { ["query"] = "widgets" }),
+            bypass: false,
+            NullLogger.Instance);
+
+        http.Features.Get<ICacheOrchestratorFeature>().Should().BeSameAs(custom);
+        CacheIdentityFeature identity = http.Features.Get<CacheIdentityFeature>()!;
+        identity.Resolved.Should().BeTrue();
+        identity.Material!.Values["query"].Should().Be("widgets");
     }
 
     [Fact]
@@ -203,6 +222,7 @@ public class DomainOutputCachePolicyIdentityTests
 
         ServiceCollection services = new();
         services.AddSingleton(domainConfig);
+        services.AddSingleton<CacheVaryMaterializer>();
         services.AddSingleton(typeof(ILogger<DomainOutputCachePolicy>), NullLogger<DomainOutputCachePolicy>.Instance);
         services.AddSingleton(TimeProvider.System);
         http.RequestServices = services.BuildServiceProvider();
@@ -270,5 +290,14 @@ public class DomainOutputCachePolicyIdentityTests
 
         public Task SendFileAsync(string path, long offset, long? count, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class CustomCacheOrchestratorFeature : ICacheOrchestratorFeature
+    {
+        public DomainHttpCacheOptions? DomainOptions { get; set; }
+        public string? ResourceId { get; set; }
+        public string? EntityKind { get; set; }
+        public CacheDisposition? Disposition { get; set; }
+        public CacheOrchestrator.Entity.EntityFootprint? PendingEntityFootprint { get; set; }
     }
 }

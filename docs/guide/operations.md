@@ -25,8 +25,8 @@ X-Cache: domain=catalog; client=public; phase=n/a; oc=miss; dc=miss; fa=run; ms=
 | `phase` | Client Cache Schedule phase |
 | `oc` | Output Cache result: `hit`, `miss`, `bypass`, or `off` |
 | `dc` | Data Cache result; omitted when Output Cache served the response |
-| `fa=run` | The Data Cache factory ran |
-| `ms` | Time spent in the Data Cache operation |
+| `fa=run` | The application had to run factory/origin work to produce the result |
+| `ms` | Factory/origin elapsed milliseconds |
 
 Common flows:
 
@@ -35,6 +35,7 @@ Common flows:
 | `oc=hit` and no `dc` | Output Cache returned the HTTP response; the endpoint did not run |
 | `oc=miss; dc=hit` | Endpoint ran, but the object came from Data Cache |
 | `oc=miss; dc=miss; fa=run` | Both server layers missed and the database/service factory ran |
+| `oc=miss; dc=n/a; fa=run` | The application generated the response directly; no Data Cache operation was used |
 | `oc=bypass; dc=bypass; fa=run` | Policy deliberately bypassed caching, often for authenticated traffic |
 | `dc=unresolved; fa=run` | Data Cache call could not resolve a domain and ran uncached |
 
@@ -54,6 +55,8 @@ Start with these signals:
 |--------|----------------------|
 | `cache_orchestrator.oc.requests` | Is Output Cache serving the expected share of requests? |
 | `cache_orchestrator.dc.requests` | Is the Data Cache hitting, missing, going stale, or bypassing? |
+| `cache_orchestrator.factory.runs` | How often did application/origin work run, including endpoints without Data Cache? |
+| `cache_orchestrator.factory.failures` | How often did that work fail? |
 | `cache_orchestrator.factory.duration` | How expensive is the database or service work on factory runs? |
 | `cache_orchestrator.factory.result_size` | Are factories returning unexpectedly large cacheable values? |
 | `cache_orchestrator.client.schedule` | Which domains are Calm, Approaching, or in Hold? |

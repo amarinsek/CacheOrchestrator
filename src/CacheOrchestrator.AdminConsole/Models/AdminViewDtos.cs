@@ -136,7 +136,7 @@ public sealed class AdminPipelineDto
     public double? StaleShare { get; init; }
 
     /// <summary>
-    /// Factory callback share of requests (factoryRuns / requests), including data cache disabled.
+    /// Application factory/origin share of requests (factoryRuns / requests), including direct responses and data cache disabled.
     /// Also known as origin share. Exclusive mix sibling of OC hit and FC hit.
     /// </summary>
     public double? FactoryShare { get; init; }

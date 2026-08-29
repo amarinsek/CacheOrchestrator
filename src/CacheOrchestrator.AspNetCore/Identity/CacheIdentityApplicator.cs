@@ -71,33 +71,13 @@ internal static class CacheIdentityApplicator
         bool bypass,
         ILogger? logger)
     {
-        CacheOrchestratorFeature concrete = GetConcreteFeature(http);
-        concrete.IdentityMaterial = material;
-        concrete.IdentityResolved = true;
-        concrete.IdentityBypass = bypass;
+        CacheIdentityFeature identity = CacheIdentityFeatureAccessor.GetOrCreate(http);
+        identity.Material = material;
+        identity.Resolved = true;
+        identity.Bypass = bypass;
 
         if (bypass && logger is not null && logger.IsEnabled(LogLevel.Debug))
             logger.LogDebug("Cache identity returned null material; caching bypassed for this request.");
     }
 
-    public static CacheOrchestratorFeature GetConcreteFeature(HttpContext http)
-    {
-        if (http.Features.Get<ICacheOrchestratorFeature>() is CacheOrchestratorFeature existing)
-            return existing;
-
-        ICacheOrchestratorFeature current = CacheOrchestratorFeatureAccessor.GetOrCreate(http);
-        if (current is CacheOrchestratorFeature concrete)
-            return concrete;
-
-        CacheOrchestratorFeature replacement = new()
-        {
-            DomainOptions = current.DomainOptions,
-            ResourceId = current.ResourceId,
-            EntityKind = current.EntityKind,
-            Disposition = current.Disposition,
-            PendingEntityFootprint = current.PendingEntityFootprint,
-        };
-        http.Features.Set<ICacheOrchestratorFeature>(replacement);
-        return replacement;
-    }
 }

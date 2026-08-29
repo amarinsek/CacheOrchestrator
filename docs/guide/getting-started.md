@@ -133,6 +133,8 @@ to:
 X-Cache: domain=promotions; ...; oc=hit; ...
 ```
 
+The first response also reports `dc=n/a; fa=run`: the application generated the response directly, without a Data Cache operation. `fa=run` means application/origin work was required to produce the result; it is not limited to callbacks routed through Data Cache.
+
 Use `curl` while learning the flow. A browser may satisfy the second request from its own cache because the domain also emits a public `Cache-Control` header, in which case the request never reaches your application.
 
 At this point one domain coordinates two layers: Client Cache and Output Cache. Next, you will add the Data Cache layer and invalidate an individual entity across the server-side layers.

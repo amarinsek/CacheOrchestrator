@@ -175,6 +175,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         Func<CancellationToken, Task<FootprintCacheBox<T?>>> factory,
         CancellationToken cancellationToken)
     {
+        CacheFactoryExecutionFeatureAccessor.GetOrCreate(http).DataCacheObserved = true;
         DomainHttpCacheOptions? opts = ResolveDomainOptions(http, domain);
         if (opts is null)
         {
@@ -188,22 +189,28 @@ internal sealed class DomainDataCacheService : IDomainDataCache
                     http.Request.Path.Value);
             }
 
-            FootprintCacheBox<T?> unresolved = await factory(cancellationToken).ConfigureAwait(false);
-            EntityFootprint staged = WithRequestPrimary(http, unresolved.Footprint);
-            EntityFootprintStaging.Stage(http, staged);
-            SetData(http, DataCacheResult.Unresolved);
-            CacheOrchestratorMetrics.RecordDataCache("_", "unresolved", durationMs: null, null, resultSizeBytes: null);
-            return unresolved.IsMiss ? default : unresolved.Value;
+            return await InvokeFootprintFactoryUncachedAsync(
+                    http,
+                    DataCacheResult.Unresolved,
+                    "unresolved",
+                    metricsDomain: "_",
+                    adminDomain: null,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         if (!opts.DataCacheEnabled)
         {
-            FootprintCacheBox<T?> off = await factory(cancellationToken).ConfigureAwait(false);
-            EntityFootprint staged = WithRequestPrimary(http, off.Footprint);
-            EntityFootprintStaging.Stage(http, staged);
-            SetData(http, DataCacheResult.Off);
-            RecordDataCacheAndAdmin(http, opts.Domain, opts.Domain, "off", null, null);
-            return off.IsMiss ? default : off.Value;
+            return await InvokeFootprintFactoryUncachedAsync(
+                    http,
+                    DataCacheResult.Off,
+                    "off",
+                    opts.Domain,
+                    opts.Domain,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         if (opts.DataCacheRespectAuthBypass && DomainAuthEvaluator.ShouldBypassForAuth(http, opts))
@@ -211,12 +218,15 @@ internal sealed class DomainDataCacheService : IDomainDataCache
             if (_logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug("Data cache skipped due to auth bypass (DataCacheRespectAuthBypass)");
 
-            FootprintCacheBox<T?> bypass = await factory(cancellationToken).ConfigureAwait(false);
-            EntityFootprint staged = WithRequestPrimary(http, bypass.Footprint);
-            EntityFootprintStaging.Stage(http, staged);
-            SetData(http, DataCacheResult.Bypass);
-            RecordDataCacheAndAdmin(http, opts.Domain, opts.Domain, "bypass", null, null);
-            return bypass.IsMiss ? default : bypass.Value;
+            return await InvokeFootprintFactoryUncachedAsync(
+                    http,
+                    DataCacheResult.Bypass,
+                    "bypass",
+                    opts.Domain,
+                    opts.Domain,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         if (opts.DataCacheRespectNoStore
@@ -225,43 +235,34 @@ internal sealed class DomainDataCacheService : IDomainDataCache
             if (_logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug("Data cache skipped due to Cache-Control: no-store");
 
-            FootprintCacheBox<T?> bypass = await factory(cancellationToken).ConfigureAwait(false);
-            EntityFootprint staged = WithRequestPrimary(http, bypass.Footprint);
-            EntityFootprintStaging.Stage(http, staged);
-            SetData(http, DataCacheResult.Bypass);
-            RecordDataCacheAndAdmin(http, opts.Domain, opts.Domain, "bypass", null, null);
-            return bypass.IsMiss ? default : bypass.Value;
+            return await InvokeFootprintFactoryUncachedAsync(
+                    http,
+                    DataCacheResult.Bypass,
+                    "bypass",
+                    opts.Domain,
+                    opts.Domain,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         if (await TryBypassForIdentityAsync(http, opts, cancellationToken).ConfigureAwait(false))
         {
-            FootprintCacheBox<T?> bypass = await factory(cancellationToken).ConfigureAwait(false);
-            EntityFootprint staged = WithRequestPrimary(http, bypass.Footprint);
-            EntityFootprintStaging.Stage(http, staged);
-            SetData(http, DataCacheResult.Bypass);
-            RecordDataCacheAndAdmin(http, opts.Domain, opts.Domain, "bypass", null, null);
-            return bypass.IsMiss ? default : bypass.Value;
+            return await InvokeFootprintFactoryUncachedAsync(
+                    http,
+                    DataCacheResult.Bypass,
+                    "bypass",
+                    opts.Domain,
+                    opts.Domain,
+                    factory,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
-        string? previousId = null;
-        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
-        if (feature is not null)
-        {
-            previousId = feature.ResourceId;
-            if (!useEntityKey && previousId is not null)
-                feature.ResourceId = null;
-        }
-
-        string key;
-        try
-        {
-            key = _keyGenerator.Generate(opts, http);
-        }
-        finally
-        {
-            if (!useEntityKey && feature is not null && previousId is not null)
-                feature.ResourceId = previousId;
-        }
+        string key = _keyGenerator.Generate(
+            opts,
+            http,
+            useEntityKey ? DomainCacheKeyShape.Entity : DomainCacheKeyShape.Url);
 
         EntityFootprint early = BuildEarlyFootprint(http, useEntityKey);
         bool materialized = false;
@@ -397,6 +398,8 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         ArgumentNullException.ThrowIfNull(http);
         ArgumentNullException.ThrowIfNull(factory);
 
+        CacheFactoryExecutionFeatureAccessor.GetOrCreate(http).DataCacheObserved = true;
+
         DomainHttpCacheOptions? opts = ResolveDomainOptions(http, domain);
 
         if (opts is null)
@@ -507,29 +510,7 @@ internal sealed class DomainDataCacheService : IDomainDataCache
                 .ConfigureAwait(false);
         }
 
-        // URL-shaped GetOrSet must not pick up request entity identity stamped by OC / SetEntityIdentity.
-        ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
-        string? kindForKey = feature?.EntityKind;
-        string? idForKey = feature?.ResourceId;
-        if (feature is not null)
-        {
-            feature.EntityKind = null;
-            feature.ResourceId = null;
-        }
-
-        string key;
-        try
-        {
-            key = _keyGenerator.Generate(opts, http);
-        }
-        finally
-        {
-            if (feature is not null)
-            {
-                feature.EntityKind = kindForKey;
-                feature.ResourceId = idForKey;
-            }
-        }
+        string key = _keyGenerator.Generate(opts, http, DomainCacheKeyShape.Url);
 
         bool materialized = false;
         bool factoryFailed = false;
@@ -694,10 +675,10 @@ internal sealed class DomainDataCacheService : IDomainDataCache
         DomainHttpCacheOptions opts,
         CancellationToken cancellationToken)
     {
-        if (http.Features.Get<ICacheOrchestratorFeature>() is CacheOrchestratorFeature existing
-            && existing.IdentityResolved)
+        if (http.Features.Get<CacheIdentityFeature>() is CacheIdentityFeature existing
+            && existing.Resolved)
         {
-            return existing.IdentityBypass;
+            return existing.Bypass;
         }
 
         Endpoint? endpoint = http.GetEndpoint();
@@ -832,6 +813,54 @@ internal sealed class DomainDataCacheService : IDomainDataCache
             elapsedTicks,
             FactoryResultSize.TryEstimateBytes(result));
         return result;
+    }
+
+    private async Task<T?> InvokeFootprintFactoryUncachedAsync<T>(
+        HttpContext http,
+        DataCacheResult dataResult,
+        string metricResult,
+        string metricsDomain,
+        string? adminDomain,
+        Func<CancellationToken, Task<FootprintCacheBox<T?>>> factory,
+        CancellationToken cancellationToken)
+    {
+        long started = Stopwatch.GetTimestamp();
+        FootprintCacheBox<T?> result;
+        try
+        {
+            result = await factory(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            GetElapsed(started, out long failureTicks, out long failureMs);
+            RecordDataCacheAndAdmin(
+                http,
+                metricsDomain,
+                adminDomain,
+                "fail",
+                failureMs,
+                failureTicks);
+            throw;
+        }
+
+        EntityFootprint staged = WithRequestPrimary(http, result.Footprint);
+        EntityFootprintStaging.Stage(http, staged);
+
+        GetElapsed(started, out long elapsedTicks, out long elapsedMs);
+        SetData(http, dataResult, elapsedMs);
+        RecordDataCacheAndAdmin(
+            http,
+            metricsDomain,
+            adminDomain,
+            metricResult,
+            elapsedMs,
+            elapsedTicks,
+            FactoryResultSize.TryEstimateBytes(result.Value));
+        return result.IsMiss ? default : result.Value;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

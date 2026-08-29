@@ -33,9 +33,12 @@ namespace CacheOrchestrator.DataCache;
 /// {
 ///     private readonly DefaultDomainKeyGenerator _inner = new();
 ///
-///     public string Generate(DomainHttpCacheOptions options, HttpContext httpContext)
+///     public string Generate(
+///         DomainHttpCacheOptions options,
+///         HttpContext httpContext,
+///         DomainCacheKeyShape shape = DomainCacheKeyShape.Automatic)
 ///     {
-///         var baseKey = _inner.Generate(options, httpContext);
+///         var baseKey = _inner.Generate(options, httpContext, shape);
 ///         var tenantId = httpContext.User.FindFirst("tenant_id")?.Value ?? "anon";
 ///         return $"{baseKey}|t:{tenantId}";
 ///     }
@@ -53,6 +56,23 @@ public interface IDomainKeyGenerator
     /// </summary>
     /// <param name="options">Resolved domain options.</param>
     /// <param name="httpContext">Current HTTP context.</param>
+    /// <param name="shape">Whether entity identity should participate in the key.</param>
     /// <returns>A deterministic cache key string.</returns>
-    string Generate(DomainHttpCacheOptions options, HttpContext httpContext);
+    string Generate(
+        DomainHttpCacheOptions options,
+        HttpContext httpContext,
+        DomainCacheKeyShape shape = DomainCacheKeyShape.Automatic);
+}
+
+/// <summary>Controls whether a generated data-cache key uses request entity identity.</summary>
+public enum DomainCacheKeyShape
+{
+    /// <summary>Use entity identity when both entity kind and resource id are present.</summary>
+    Automatic = 0,
+
+    /// <summary>Generate a URL-shaped key and ignore request entity identity.</summary>
+    Url = 1,
+
+    /// <summary>Generate an entity-shaped key when request entity identity is available.</summary>
+    Entity = 2,
 }

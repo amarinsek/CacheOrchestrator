@@ -94,7 +94,7 @@ Do not pass bearer tokens, cookies, API keys, or other secrets to `AddValue`. Se
 
 ## Full HTTP Data Cache key: `IDomainKeyGenerator`
 
-Replace `IDomainKeyGenerator` only when a contributor cannot express the required key shape. The generator receives the resolved `DomainHttpCacheOptions` and `HttpContext` and must return a deterministic, compact, non-secret key.
+Replace `IDomainKeyGenerator` only when a contributor cannot express the required key shape. The generator receives the resolved `DomainHttpCacheOptions`, `HttpContext`, and `DomainCacheKeyShape`. Respect `Url` by ignoring request entity identity, respect `Entity` by using it when available, and preserve the `Automatic` behavior for direct callers. The result must be deterministic, compact, and non-secret.
 
 Register before `AddCacheOrchestratorAspNetCore` so its `TryAddSingleton` keeps the custom implementation, or replace the registration afterwards.
 
@@ -108,6 +108,8 @@ Prefer composing `DefaultDomainKeyGenerator(CacheVaryMaterializer)` so built-in 
 ## Invalidation observer: `ICacheInvalidationObserver`
 
 Observers receive before/after callbacks for audit, metrics, or webhooks. They execute in DI registration order on the process applying the invalidation. An observer exception is logged and does not fail the store operation.
+
+Each public invalidator call produces one observer pair. A multi-domain call uses `CacheInvalidationKind.Domains`; its after result exposes ordered per-domain `Parts`, including partial and cluster-publish failures.
 
 Observers do not distribute invalidations. Use Redis backplane, HttpBus, or Admin Console fan-out for peer processes. See [invalidation observers](invalidation.md#observers-audit--webhooks).
 
@@ -183,9 +185,9 @@ Implement `IDataCacheProvider` only when adding a complete engine alongside Fusi
 | `Tags` | Domain, entity, entity-kind, and custom tags |
 | `DomainOptions` | Resolved portable policy snapshot |
 
-`DataCacheProviderResult<T>.Outcome` must be `Materialized` only when the returned value came from this call's completed factory invocation. Return `Cached` for an existing value and for a stale value returned while a refresh runs in the background. The orchestrator uses this distinction to decide whether a factory-expanded entity footprint may replace stored tags.
+`DataCacheProviderResult<T>.Outcome` must be `Materialized` only when the returned value came from this call's successfully completed factory invocation. Return `Cached` for an existing value and for a stale value returned while a refresh runs in the background. Never return `Unknown`; it is the invalid default-struct state and the orchestrator rejects it. The orchestrator uses this distinction to decide whether a factory-expanded entity footprint may replace stored tags.
 
-The provider must preserve generic values, cancellation, null/negative-cache payloads, named-instance isolation, and tag invalidation. It must not rebuild HTTP vary material. A provider that cannot support named instances should reject non-default `DataCacheInstances` during options validation instead of silently sharing one store.
+The provider must be thread-safe and preserve generic values, cancellation, null/negative-cache payloads, named-instance isolation, configured namespaces, and tag invalidation. It must not rebuild HTTP vary material. `SetAsync` is an implementor-facing overwrite used only after a successfully materialized factory expands the early footprint; providers must replace both value and tag metadata. A provider that cannot support named instances should reject non-default `DataCacheInstances` during options validation instead of silently sharing one store.
 
 `DataCacheInvalidationRequest` deliberately groups `Tags` and optional `InstanceName` into one operation. New optional provider features should be introduced as separate capability interfaces instead of growing `IDataCacheProvider` with unrelated members.
 
@@ -272,6 +274,8 @@ These contracts are public for host and satellite-package integration. Ordinary 
 | `IFusionDomainSettingsProvider` / `IFusionDomainRuntimeOverrideStore` | Fusion package policy and overlay integration | Domain configuration and Admin PATCH |
 
 Replacing one of these contracts means taking responsibility for its caching, normalization, concurrency, reload, and lifecycle semantics.
+
+`HttpContext`, `ICacheOrchestratorFeature`, and internal request identity state are request-scoped. Custom contributors, identity contracts, and key generators must not retain them beyond the request or access them concurrently from arbitrary background work.
 
 ## Public utility types
 

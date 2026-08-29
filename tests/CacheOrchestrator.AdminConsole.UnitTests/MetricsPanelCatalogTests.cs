@@ -65,11 +65,12 @@ public class MetricsPanelCatalogTests
         Assert.Contains("histogram_quantile(0.95", p95, StringComparison.Ordinal);
 
         string rate = MetricsPanelCatalog.BuildPromQl("factory_run_rate", null);
-        Assert.Contains(MetricsPanelCatalog.FactoryResultMatcher, rate, StringComparison.Ordinal);
+        Assert.Contains(MetricsPanelCatalog.FactoryRuns, rate, StringComparison.Ordinal);
+        Assert.DoesNotContain(MetricsPanelCatalog.DcRequests, rate, StringComparison.Ordinal);
 
         string share = MetricsPanelCatalog.BuildPromQl("factory_share", null);
         Assert.Contains(MetricsPanelCatalog.OcRequests, share, StringComparison.Ordinal);
-        Assert.Contains(MetricsPanelCatalog.FactoryResultMatcher, share, StringComparison.Ordinal);
+        Assert.Contains(MetricsPanelCatalog.FactoryRuns, share, StringComparison.Ordinal);
 
         string stale = MetricsPanelCatalog.BuildPromQl("dc_stale_share", null);
         Assert.Contains(MetricsPanelCatalog.DcRequests, stale, StringComparison.Ordinal);

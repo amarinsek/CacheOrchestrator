@@ -14,8 +14,8 @@ internal sealed class AdminCounterSet
     public long DataCacheMisses;
     public long DataCacheStale;
     public long DataCacheBypass;
-    public long DataCacheFactoryRuns;
-    public long DataCacheFactoryFailures;
+    public long FactoryRuns;
+    public long FactoryFailures;
 
     /// <summary>Sum of factory-path Stopwatch ticks (miss/stale), when TrackLatency is on.</summary>
     public long FactorySumTicks;
@@ -53,8 +53,8 @@ internal sealed class AdminCounterSet
             DataCacheMisses: Interlocked.Read(ref DataCacheMisses),
             DataCacheStale: Interlocked.Read(ref DataCacheStale),
             DataCacheBypass: Interlocked.Read(ref DataCacheBypass),
-            FactoryRuns: Interlocked.Read(ref DataCacheFactoryRuns),
-            FactoryFailures: Interlocked.Read(ref DataCacheFactoryFailures),
+            FactoryRuns: Interlocked.Read(ref FactoryRuns),
+            FactoryFailures: Interlocked.Read(ref FactoryFailures),
             FactoryDurationSumMs: sumMs,
             FactoryDurationCount: count,
             FactoryResultSizeSumBytes: sizeCount > 0 ? sizeSum : null,

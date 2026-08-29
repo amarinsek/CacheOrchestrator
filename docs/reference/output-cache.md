@@ -69,7 +69,7 @@ group.MapGet("{tileset}/{z:int}/{x:int}/{y:int}.{ext?}", HandleTileAsync)
 }
 ```
 
-The template resolves `{route:tileset}` and selects `tiles-satellite`, `tiles-osm`, or `tiles-vehicle`. It never creates a domain at request time. An empty or unconfigured result fails closed: the handler still runs, but Output Cache and request-scoped Data Cache are bypassed and the response receives `Cache-Control: no-store`. Templates also support `{host}`, `{header:Name}`, `{query:key}`, and application-defined `{custom:key}` providers; see [Extensibility](extensibility.md#domain-template-tokens).
+The template resolves `{route:tileset}` and selects `tiles-satellite`, `tiles-osm`, or `tiles-vehicle`. It never creates a domain at request time. An empty or unconfigured result fails closed: the handler still runs, but Output Cache and request-scoped Data Cache are bypassed, the response receives `Cache-Control: no-store`, and diagnostics use the bounded placeholder `domain=_` rather than echoing the unresolved value. Templates also support `{host}`, `{header:Name}`, `{query:key}`, and application-defined `{custom:key}` providers; see [Extensibility](extensibility.md#domain-template-tokens).
 
 ## Controllers
 

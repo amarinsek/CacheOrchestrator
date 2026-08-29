@@ -5,6 +5,23 @@ namespace CacheOrchestrator.AspNetCore.UnitTests.Configuration;
 public class XCacheHeaderFormatterTests
 {
     [Fact]
+    public void Format_OutputMissWithoutDataCache_ReportsNotApplicableAndFactoryRun()
+    {
+        string header = XCacheHeaderFormatter.Format(
+            "promotions",
+            ClientCacheClass.Public,
+            OutputCacheResult.Miss,
+            data: null,
+            ms: 4,
+            version: "1");
+
+        header.Should().Contain("oc=miss")
+            .And.Contain("dc=n/a")
+            .And.Contain("fa=run")
+            .And.Contain("ms=4");
+    }
+
+    [Fact]
     public void Format_IncludesPhase_AfterClient()
     {
         string header = XCacheHeaderFormatter.Format(
@@ -60,8 +77,8 @@ public class XCacheHeaderFormatterTests
         header.Should().Contain("phase=n/a");
         header.Should().Contain("version=1");
         header.Should().Contain("oc=bypass");
-        header.Should().NotContain("dc=");
-        header.Should().NotContain("fa=");
+        header.Should().Contain("dc=n/a");
+        header.Should().Contain("fa=run");
     }
 
     [Fact]

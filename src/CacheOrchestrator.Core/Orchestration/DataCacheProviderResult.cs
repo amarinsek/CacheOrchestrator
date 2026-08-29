@@ -3,11 +3,16 @@ namespace CacheOrchestrator.Orchestration;
 /// <summary>Describes whether a provider returned cached data or the value from this call's factory.</summary>
 public enum DataCacheProviderOutcome
 {
+    /// <summary>
+    /// The provider did not report an outcome. Providers must never return this value.
+    /// </summary>
+    Unknown = 0,
+
     /// <summary>The returned value was already cached, including a stale value returned during refresh.</summary>
-    Cached = 0,
+    Cached = 1,
 
     /// <summary>The returned value was produced by this call's completed factory invocation.</summary>
-    Materialized = 1,
+    Materialized = 2,
 }
 
 /// <summary>A Data Cache provider value together with its materialization outcome.</summary>

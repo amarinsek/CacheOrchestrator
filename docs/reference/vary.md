@@ -17,7 +17,7 @@ All under `Cache:Domains:{name}:` (and `DomainDefaults`).
 | Setting | Default | Output Cache | Data Cache | Notes |
 |---------|---------|--------------|------------|-------|
 | `VaryByAccept` | `true` | ✓ | ✓ | Separates negotiated representations such as JSON and XML. Disable it only when the endpoint always produces the same representation. |
-| `AcceptNormalizationList` | `null` | normalize | same | Optional prefer-list used to collapse equivalent `Accept` values. Without a list, the normalized header value is used. |
+| `AcceptNormalizationList` | `null` | normalize | same | Optional prefer-list used to collapse equivalent `Accept` values. Without a list, the raw header value is used. |
 | `VaryByAcceptLanguage` | `false` | ✓ | ✓ | Locale. Stays off — most JSON APIs are language-agnostic; enabling fragments the cache. |
 | `AcceptLanguageNormalizationList` | `null` | normalize | same | e.g. `en`, `sl` when you opt into language vary |
 | `VaryByHeaders` | `null` | ✓ | ✓ | Case-insensitive names; sensitive values hashed. Never auto-fill. |
@@ -27,6 +27,8 @@ All under `Cache:Domains:{name}:` (and `DomainDefaults`).
 | `EmitResponseVary` | **`true`** | ✓ | — | Emits HTTP response `Vary` for non-secret headers included in the key. Set `false` to omit the response header without changing server-side key material. |
 
 The layer-specific dimensions live in their nested sections: `DataCache.VaryOnEncoding`, `DataCache.VaryOnPublicAddress`, `OutputCache.EncodingNormalizationList`, and `OutputCache.VaryByHost`.
+
+Normalization changes cache identity, not the request. CacheOrchestrator stores the selected prefer-list value as named vary material for both Output Cache and Data Cache while the endpoint handler continues to see the original `Accept`, `Accept-Language`, and `Accept-Encoding` headers. The response `Vary` header still advertises the corresponding non-secret request header.
 
 > **Note on query parameters:** Unlike native ASP.NET Core Output Caching (which ignores query parameters by default), CacheOrchestrator's default (`"VaryByQueryKeys": null`) **varies by all query parameters** (except tracking parameters like `utm_*`). To ignore all query parameters like native ASP.NET Core does, explicitly set `"VaryByQueryKeys": []`.
 

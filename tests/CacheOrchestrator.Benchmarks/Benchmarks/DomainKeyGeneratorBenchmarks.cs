@@ -1,7 +1,10 @@
 using BenchmarkDotNet.Attributes;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.Identity;
+using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
 
@@ -20,6 +23,9 @@ public class DomainKeyGeneratorBenchmarks
     private DefaultHttpContext _varyHost = null!;
     private DefaultHttpContext _resourceId = null!;
     private DefaultHttpContext _routeEndpoint = null!;
+    private DefaultHttpContext _oneIdentityValue = null!;
+    private DefaultHttpContext _threeIdentityValues = null!;
+    private DefaultHttpContext _eightIdentityValues = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -68,6 +74,10 @@ public class DomainKeyGeneratorBenchmarks
             displayName: "products");
         _routeEndpoint.SetEndpoint(endpoint);
         _routeEndpoint.Request.RouteValues["id"] = "42";
+
+        _oneIdentityValue = CreateIdentityHttp(1);
+        _threeIdentityValues = CreateIdentityHttp(3);
+        _eightIdentityValues = CreateIdentityHttp(8);
     }
 
     [Benchmark(Baseline = true)]
@@ -98,6 +108,33 @@ public class DomainKeyGeneratorBenchmarks
     public string WithRouteEndpointAndParam()
         => _generator.Generate(_options, _routeEndpoint);
 
+    [Benchmark]
+    public string WithOneIdentityValue()
+        => _generator.Generate(_options, _oneIdentityValue);
+
+    [Benchmark]
+    public string WithThreeIdentityValues()
+        => _generator.Generate(_options, _threeIdentityValues);
+
+    [Benchmark]
+    public string WithEightIdentityValues()
+        => _generator.Generate(_options, _eightIdentityValues);
+
+    private static DefaultHttpContext CreateIdentityHttp(int count)
+    {
+        DefaultHttpContext http = CreateHttp("/api/catalog");
+        Dictionary<string, string> values = new(StringComparer.Ordinal);
+        for (int i = count - 1; i >= 0; i--)
+            values["key-" + i] = "value-" + i;
+
+        CacheIdentityApplicator.StoreOnFeature(
+            http,
+            new CacheIdentityMaterial(values),
+            bypass: false,
+            NullLogger.Instance);
+        return http;
+    }
+
     private static DefaultHttpContext CreateHttp(
         string path,
         string? query = null,
@@ -119,4 +156,18 @@ public class DomainKeyGeneratorBenchmarks
 
         return http;
     }
+}
+
+[MemoryDiagnoser]
+[ShortJob]
+public class VaryHashSegmentBenchmarks
+{
+    private readonly string _short = "tenant-ž";
+    private readonly string _long = new('x', 4096);
+
+    [Benchmark(Baseline = true)]
+    public string ShortValue() => CacheVaryMaterializer.HashSegment(_short);
+
+    [Benchmark]
+    public string LongValue() => CacheVaryMaterializer.HashSegment(_long);
 }

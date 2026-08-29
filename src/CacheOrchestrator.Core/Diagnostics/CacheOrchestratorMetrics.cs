@@ -49,6 +49,18 @@ public static class CacheOrchestratorMetrics
             unit: "ms",
             description: "Value factory wall time in milliseconds (miss/stale path only)");
 
+    private static readonly Counter<long> FactoryRuns =
+        Meter.CreateCounter<long>(
+            "cache_orchestrator.factory.runs",
+            unit: "{run}",
+            description: "Application factory executions required to produce a response");
+
+    private static readonly Counter<long> FactoryFailures =
+        Meter.CreateCounter<long>(
+            "cache_orchestrator.factory.failures",
+            unit: "{failure}",
+            description: "Application factory executions that failed");
+
     private static readonly Histogram<double> FactoryResultSizeBytes =
         Meter.CreateHistogram<double>(
             "cache_orchestrator.factory.result_size",
@@ -94,10 +106,18 @@ public static class CacheOrchestratorMetrics
     internal static bool IsDataCacheEnabled =>
         DcRequests.Enabled
         || DcDurationMs.Enabled
+        || FactoryRuns.Enabled
+        || FactoryFailures.Enabled
         || FactoryDurationMs.Enabled
         || FactoryResultSizeBytes.Enabled;
 
     internal static bool IsOutputCacheEnabled => OcRequests.Enabled;
+
+    internal static bool IsFactoryEnabled =>
+        FactoryRuns.Enabled
+        || FactoryFailures.Enabled
+        || FactoryDurationMs.Enabled
+        || FactoryResultSizeBytes.Enabled;
 
     /// <summary>
     /// Records a data-cache operation outcome (and optional duration).
@@ -119,15 +139,32 @@ public static class CacheOrchestratorMetrics
         bool recordFactoryDuration = durationMs.HasValue
             && FactoryDurationMs.Enabled
             && IsFactoryInvocation(result);
+        bool factoryInvocation = IsFactoryInvocation(result);
+        bool recordFactoryRun = factoryInvocation && FactoryRuns.Enabled;
+        bool recordFactoryFailure = factoryInvocation
+            && FactoryFailures.Enabled
+            && result is "stale" or "fail";
         bool recordSize = resultSizeBytes is >= 0
             && FactoryResultSizeBytes.Enabled
             && result is "miss" or "off" or "unresolved" or "bypass";
-        if (!recordRequest && !recordDuration && !recordFactoryDuration && !recordSize)
+        if (!recordRequest
+            && !recordDuration
+            && !recordFactoryRun
+            && !recordFactoryFailure
+            && !recordFactoryDuration
+            && !recordSize)
+        {
             return;
+        }
 
         TagList tags = BuildDomainResultTags(domain, result, route);
         if (recordRequest)
             DcRequests.Add(1, tags);
+
+        if (recordFactoryRun)
+            FactoryRuns.Add(1, tags);
+        if (recordFactoryFailure)
+            FactoryFailures.Add(1, tags);
 
         if (durationMs is double ms)
         {
@@ -135,13 +172,39 @@ public static class CacheOrchestratorMetrics
             if (recordDuration)
                 DcDurationMs.Record(ms, tags);
 
-            // Canonical factory cost: factory callback ran (including data cache disabled / unresolved / bypass).
+            // Canonical factory cost for Data Cache paths (including disabled / unresolved / bypass).
             if (recordFactoryDuration)
                 FactoryDurationMs.Record(ms, tags);
         }
 
         if (recordSize && resultSizeBytes is long size)
             FactoryResultSizeBytes.Record(size, tags);
+    }
+
+    /// <summary>Records factory work performed without a Data Cache operation.</summary>
+    internal static void RecordFactory(
+        string domain,
+        bool failed,
+        double? durationMs = null,
+        string? route = null,
+        long? resultSizeBytes = null)
+    {
+        bool recordRun = FactoryRuns.Enabled;
+        bool recordFailure = failed && FactoryFailures.Enabled;
+        bool recordDuration = durationMs.HasValue && FactoryDurationMs.Enabled;
+        bool recordSize = !failed && resultSizeBytes is >= 0 && FactoryResultSizeBytes.Enabled;
+        if (!recordRun && !recordFailure && !recordDuration && !recordSize)
+            return;
+
+        TagList tags = BuildDomainResultTags(domain, failed ? "fail" : "n/a", route);
+        if (recordRun)
+            FactoryRuns.Add(1, tags);
+        if (recordFailure)
+            FactoryFailures.Add(1, tags);
+        if (recordDuration)
+            FactoryDurationMs.Record(durationMs!.Value, tags);
+        if (recordSize)
+            FactoryResultSizeBytes.Record(resultSizeBytes!.Value, tags);
     }
 
     /// <summary>True when the data-cache factory callback ran (including data cache disabled).</summary>

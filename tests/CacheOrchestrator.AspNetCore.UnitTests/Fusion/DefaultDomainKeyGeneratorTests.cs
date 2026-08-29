@@ -1,6 +1,8 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.DataCache;
+using CacheOrchestrator.Identity;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 using System.IO.Hashing;
 using System.Text;
@@ -10,6 +12,35 @@ namespace CacheOrchestrator.AspNetCore.UnitTests.Fusion;
 public class DefaultDomainKeyGeneratorTests
 {
     private readonly DefaultDomainKeyGenerator _sut = new();
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void Generate_IdentityValueOrder_DoesNotChangeKey(int count)
+    {
+        DefaultHttpContext first = CreateHttpContext();
+        DefaultHttpContext second = CreateHttpContext();
+        KeyValuePair<string, string>[] entries =
+        [
+            new("d", "4"),
+            new("b", "2"),
+            new("a", "1"),
+            new("c", "3")
+        ];
+
+        CacheIdentityApplicator.StoreOnFeature(
+            first,
+            new CacheIdentityMaterial(entries.Take(count)),
+            bypass: false,
+            NullLogger.Instance);
+        CacheIdentityApplicator.StoreOnFeature(
+            second,
+            new CacheIdentityMaterial(entries.Take(count).Reverse()),
+            bypass: false,
+            NullLogger.Instance);
+
+        _sut.Generate(CreateConfig(), first).Should().Be(_sut.Generate(CreateConfig(), second));
+    }
 
     // =========================
     // Determinism & basic behaviour
@@ -389,18 +420,18 @@ public class DefaultDomainKeyGeneratorTests
     }
 
     [Fact]
-    public void Generate_AfterEntityItemsCleared_UsesUrlKeyShape()
+    public void Generate_WithExplicitUrlShape_IgnoresEntityWithoutMutatingFeature()
     {
         DomainHttpCacheOptions cfg = CreateConfig(domain: "products");
         DefaultHttpContext http = CreateHttpContext();
         http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "items", ResourceId = "42" });
-        string entityKey = _sut.Generate(cfg, http);
-
-        http.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature());
-        string urlKey = _sut.Generate(cfg, http);
+        string entityKey = _sut.Generate(cfg, http, DomainCacheKeyShape.Entity);
+        string urlKey = _sut.Generate(cfg, http, DomainCacheKeyShape.Url);
 
         entityKey.Should().Contain(":id:items:42:");
         urlKey.Should().NotContain(":id:");
+        http.Features.Get<ICacheOrchestratorFeature>()!.EntityKind.Should().Be("items");
+        http.Features.Get<ICacheOrchestratorFeature>()!.ResourceId.Should().Be("42");
     }
 
     [Fact]

@@ -230,8 +230,20 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         if (string.IsNullOrWhiteSpace(domain))
         {
             // Dynamic/template domain unresolved or unconfigured: fail closed.
+            CacheFactoryExecutionFeatureAccessor.GetOrCreate(http).DirectFactoryDomain = "_";
             context.EnableOutputCaching = false;
             http.Response.Headers.CacheControl = "no-store";
+            CacheOrchestratorMetrics.RecordOutput("_", "unresolved");
+            if (ShouldEmitDiagnosticsHeaders(http))
+            {
+                http.Response.Headers["X-Cache"] = XCacheHeaderFormatter.Format(
+                    "_",
+                    ClientCacheClass.NoStore,
+                    OutputCacheResult.Bypass,
+                    data: null,
+                    ms: null,
+                    version: "-");
+            }
             return;
         }
 
@@ -306,13 +318,6 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             CacheIdentityApplicator.StoreOnFeature(http, identityMaterial, bypass: false, logger);
         }
 
-        if (opts.EncodingNormalizationList != null)
-            HttpHelper.NormalizeAcceptEncoding(http, opts.EncodingNormalizationList);
-        if (opts.AcceptNormalizationList != null)
-            HttpHelper.NormalizeAccept(http, opts.AcceptNormalizationList);
-        if (opts.AcceptLanguageNormalizationList != null)
-            HttpHelper.NormalizeAcceptLanguage(http, opts.AcceptLanguageNormalizationList);
-
         context.EnableOutputCaching = true;
         context.AllowCacheLookup = true;
         context.AllowCacheStorage = true;
@@ -320,7 +325,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         context.ResponseExpirationTimeSpan = opts.OutputTtl;
 
         CacheVaryMaterializer materializer =
-            http.RequestServices.GetService<CacheVaryMaterializer>() ?? new CacheVaryMaterializer();
+            http.RequestServices.GetRequiredService<CacheVaryMaterializer>();
         CacheVaryMaterial vary = materializer.Build(http, opts, CacheVarySurface.OutputCache);
 
         context.CacheVaryByRules.VaryByHost = opts.OutputCacheVaryByHost;

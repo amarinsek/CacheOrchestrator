@@ -1,5 +1,6 @@
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.OutputCache;
+using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.OutputCaching;
@@ -60,11 +61,27 @@ public class DomainOutputCachePolicyTests
     public async Task CacheRequestAsync_WhenDomainIsEmpty_DoesNotEnableCaching()
     {
         var policy = new DomainOutputCachePolicy(_ => string.Empty);
-        (OutputCacheContext? context, DefaultHttpContext _) = CreateContext();
+        (OutputCacheContext? context, DefaultHttpContext http) = CreateContext();
 
         await policy.CacheRequestAsync(context, CancellationToken.None);
 
         context.EnableOutputCaching.Should().BeFalse();
+        http.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+        http.Response.Headers["X-Cache"].ToString().Should().Contain("domain=_").And.Contain("oc=bypass");
+    }
+
+    [Fact]
+    public async Task CacheRequestAsync_WhenDynamicDomainIsUnknown_FailsClosedWithoutEchoingDomain()
+    {
+        var policy = new DomainOutputCachePolicy(_ => "tiles-attacker");
+        (OutputCacheContext context, DefaultHttpContext http) = CreateContext();
+
+        await policy.CacheRequestAsync(context, CancellationToken.None);
+
+        context.EnableOutputCaching.Should().BeFalse();
+        http.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+        http.Response.Headers["X-Cache"].ToString().Should().Contain("domain=_");
+        http.Response.Headers["X-Cache"].ToString().Should().NotContain("tiles-attacker");
     }
 
     [Theory]
@@ -545,6 +562,7 @@ public class DomainOutputCachePolicyTests
 
         var services = new ServiceCollection();
         services.AddSingleton(domainConfig);
+        services.AddSingleton<CacheVaryMaterializer>();
         services.AddSingleton(typeof(ILogger<DomainOutputCachePolicy>), NullLogger<DomainOutputCachePolicy>.Instance);
         services.AddSingleton(timeProvider ?? TimeProvider.System);
         IOptionsMonitor<CacheOrchestratorHttpOptions> monitor =

@@ -3,6 +3,7 @@ using CacheOrchestrator.Utilities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
+using System.Buffers;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO.Hashing;
@@ -30,6 +31,13 @@ public sealed class CacheVaryMaterializer
         "X-Auth-Token",
         "Proxy-Authorization",
     ];
+    private static readonly CacheVaryMaterial EmptyMaterial = new()
+    {
+        HeaderNames = Array.Empty<string>(),
+        Values = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)),
+        QueryKeys = Array.Empty<string>(),
+        ResponseVaryHeaderNames = Array.Empty<string>(),
+    };
 
     private readonly ICacheVaryContributor[] _contributors;
 
@@ -55,12 +63,9 @@ public sealed class CacheVaryMaterializer
         ArgumentNullException.ThrowIfNull(http);
         ArgumentNullException.ThrowIfNull(options);
 
-        // Accept / Accept-Language prefer-lists (new). Encoding normalization stays OC-policy-only
-        // so historical Fusion keys that hashed raw Accept-Encoding remain unchanged.
-        if (options.AcceptNormalizationList is { Length: > 0 })
-            HttpHelper.NormalizeAccept(http, options.AcceptNormalizationList);
-        if (options.AcceptLanguageNormalizationList is { Length: > 0 })
-            HttpHelper.NormalizeAcceptLanguage(http, options.AcceptLanguageNormalizationList);
+        // Allocation optimization: the anonymous no-vary path can reuse immutable material and skip Builder.
+        if (_contributors.Length == 0 && HasNoVaryMaterial(http, options, surface))
+            return EmptyMaterial;
 
         Builder builder = new(http);
 
@@ -81,6 +86,54 @@ public sealed class CacheVaryMaterializer
         return builder.ToMaterial();
     }
 
+    private static bool HasNoVaryMaterial(
+        HttpContext http,
+        DomainHttpCacheOptions options,
+        CacheVarySurface surface)
+    {
+        IHeaderDictionary headers = http.Request.Headers;
+        if (headers.AcceptEncoding.Count > 0
+            && (surface == CacheVarySurface.OutputCache || options.DataCacheVaryOnEncoding))
+        {
+            return false;
+        }
+
+        if (options.VaryByAccept && headers.Accept.Count > 0)
+            return false;
+        if (options.VaryByAcceptLanguage && headers.AcceptLanguage.Count > 0)
+            return false;
+
+        if (options.VaryByHeaders is { Length: > 0 } varyHeaders)
+        {
+            for (int i = 0; i < varyHeaders.Length; i++)
+            {
+                string? name = varyHeaders[i];
+                if (!string.IsNullOrWhiteSpace(name) && headers.ContainsKey(name.Trim()))
+                    return false;
+            }
+        }
+
+        if (options.VaryByCookies is { Length: > 0 } varyCookies)
+        {
+            IRequestCookieCollection cookies = http.Request.Cookies;
+            for (int i = 0; i < varyCookies.Length; i++)
+            {
+                string? name = varyCookies[i];
+                if (!string.IsNullOrWhiteSpace(name) && cookies.ContainsKey(name.Trim()))
+                    return false;
+            }
+        }
+
+        if (DomainAuthEvaluator.HasAuthSignal(http, options)
+            && options.VaryOutputCacheByUser
+            && ShouldIncludeAuthUserVary(options, surface))
+        {
+            return false;
+        }
+
+        return http.Request.Query.Count == 0;
+    }
+
     private static void ApplyBuiltIn(
         HttpContext http,
         DomainHttpCacheOptions options,
@@ -92,21 +145,55 @@ public sealed class CacheVaryMaterializer
         if (ae.Count > 0
             && (surface == CacheVarySurface.OutputCache || options.DataCacheVaryOnEncoding))
         {
-            builder.AddHeader(HeaderNames.AcceptEncoding);
+            if (options.EncodingNormalizationList is { Length: > 0 } encodingNormalization)
+            {
+                builder.AddNormalizedHeader(
+                    HeaderNames.AcceptEncoding,
+                    "normalized:accept-encoding",
+                    HttpHelper.ResolvePreferredHeader(ae, encodingNormalization, languageRange: false));
+            }
+            else
+            {
+                builder.AddHeader(HeaderNames.AcceptEncoding);
+            }
         }
 
         if (options.VaryByAccept)
         {
             StringValues accept = http.Request.Headers.Accept;
             if (accept.Count > 0)
-                builder.AddHeader(HeaderNames.Accept);
+            {
+                if (options.AcceptNormalizationList is { Length: > 0 } acceptNormalization)
+                {
+                    builder.AddNormalizedHeader(
+                        HeaderNames.Accept,
+                        "normalized:accept",
+                        HttpHelper.ResolvePreferredHeader(accept, acceptNormalization, languageRange: false));
+                }
+                else
+                {
+                    builder.AddHeader(HeaderNames.Accept);
+                }
+            }
         }
 
         if (options.VaryByAcceptLanguage)
         {
             StringValues al = http.Request.Headers.AcceptLanguage;
             if (al.Count > 0)
-                builder.AddHeader(HeaderNames.AcceptLanguage);
+            {
+                if (options.AcceptLanguageNormalizationList is { Length: > 0 } languageNormalization)
+                {
+                    builder.AddNormalizedHeader(
+                        HeaderNames.AcceptLanguage,
+                        "normalized:accept-language",
+                        HttpHelper.ResolvePreferredHeader(al, languageNormalization, languageRange: true));
+                }
+                else
+                {
+                    builder.AddHeader(HeaderNames.AcceptLanguage);
+                }
+            }
         }
 
         string[]? extraHeaders = options.VaryByHeaders;
@@ -267,8 +354,25 @@ public sealed class CacheVaryMaterializer
     /// <summary>Hashes raw material to a stable hex segment.</summary>
     public static string HashSegment(string raw)
     {
-        ulong hash = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes(raw ?? string.Empty));
-        return hash.ToString("x16", CultureInfo.InvariantCulture);
+        string value = raw ?? string.Empty;
+        int byteCount = Encoding.UTF8.GetByteCount(value);
+        byte[]? rented = null;
+        // Allocation optimization: small secrets hash from the stack; larger headers use a pooled buffer.
+        Span<byte> bytes = byteCount <= 512
+            ? stackalloc byte[byteCount]
+            : (rented = ArrayPool<byte>.Shared.Rent(byteCount));
+
+        try
+        {
+            int written = Encoding.UTF8.GetBytes(value, bytes);
+            ulong hash = XxHash3.HashToUInt64(bytes[..written]);
+            return hash.ToString("x16", CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            if (rented is not null)
+                ArrayPool<byte>.Shared.Return(rented);
+        }
     }
 
     private sealed class Builder : ICacheVaryBuilder
@@ -340,6 +444,26 @@ public sealed class CacheVaryMaterializer
 
         public void AddHashedValue(string key, string raw) =>
             AddValue(key, "h:" + HashSegment(raw));
+
+        public void AddNormalizedHeader(string headerName, string key, string value)
+        {
+            AddValue(key, value);
+            AddResponseVaryHeader(headerName);
+        }
+
+        private void AddResponseVaryHeader(string headerName)
+        {
+            if (_responseVary is not null)
+            {
+                for (int i = 0; i < _responseVary.Count; i++)
+                {
+                    if (string.Equals(_responseVary[i], headerName, StringComparison.OrdinalIgnoreCase))
+                        return;
+                }
+            }
+
+            (_responseVary ??= []).Add(headerName);
+        }
 
         public void SetQueryKeys(IReadOnlyList<string> keys) => _queryKeys = keys;
 

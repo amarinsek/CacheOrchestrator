@@ -246,15 +246,16 @@ Designed for curl/scripts and management adapters: process-lifetime counters wit
 The Admin Console derives presentation shares and rates from Prometheus window counters, not from the local raw snapshot. Its request denominator is:
 
 ```text
-requests = (outputCacheHits+outputCacheMisses+outputCacheBypass) if > 0
+requests = (outputCacheHits+outputCacheMisses+outputCacheBypass+outputCacheOff) if > 0
          else (dataCacheHits+dataCacheMisses+dataCacheStale+dataCacheBypass)
 factoryShare = factoryRuns / requests
 ```
 
 ### Stats model (shares vs rates)
 
-1. **Output Cache** events on HTTP responses (hit / miss / bypass).  
-2. **FusionCache** events on data path (hit / miss / stale / fail / bypass, factory runs/failures).  
+1. **Output Cache** events on HTTP responses (hit / miss / bypass / off).
+2. **Data Cache** events on the data path (hit / miss / stale / fail / bypass / off).
+3. **Factory** events whenever application/origin work runs, whether direct (`dc=n/a`) or through Data Cache.
 
 
 | Metric type | Question it answers |
@@ -264,7 +265,7 @@ factoryShare = factoryRuns / requests
 
 #### Factory share (also known as origin)
 
-The miss path that runs your `GetOrSet` lambda / DB is the **factory**. Admin UI labels this **FA run**. A factory invocation is counted whenever that callback runs — Fusion miss, fail-safe stale, hard fail, Fusion **disabled** (`off`), unresolved domain, and auth/no-store bypass that still invokes the factory. It is **also known as origin** in CDN/proxy language.
+The application/origin work needed to produce a response is the **factory**. Admin UI labels this **FA run**. A factory invocation is counted for direct endpoints without Data Cache (`dc=n/a`) and whenever a Data Cache callback runs — miss, fail-safe stale, hard fail, Data Cache **disabled** (`off`), unresolved domain, and auth/no-store bypass. It is **also known as origin** in CDN/proxy language.
 
 | Admin label | API / JSON field | Formula |
 |-------------|------------------|---------|
