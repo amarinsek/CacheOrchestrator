@@ -200,14 +200,24 @@ public sealed class DuplicateIdentity
 }
 EOF
 
-if dotnet build "$consumer_dir/PackageConsumer.csproj" 2>&1 | tee "$consumer_dir/build.log"; then
+set +e
+dotnet build "$consumer_dir/PackageConsumer.csproj" > "$consumer_dir/build.log" 2>&1
+consumer_exit=$?
+set -e
+if [ "$consumer_exit" -eq 0 ]; then
+  cat "$consumer_dir/build.log"
   echo "Expected COIDENTITY001 from the packaged analyzer."
   exit 1
 fi
-grep -q "COIDENTITY001" "$consumer_dir/build.log"
+if ! grep -q "COIDENTITY001" "$consumer_dir/build.log"; then
+  cat "$consumer_dir/build.log"
+  echo "Consumer build failed without COIDENTITY001."
+  exit 1
+fi
+echo "Packaged analyzer emitted COIDENTITY001 as expected."
 ```
 
-The final `grep` must succeed. This external-project check is different from:
+The final message confirms success. This external-project check is different from:
 
 ```bash
 dotnet test tests/CacheOrchestrator.Analyzers.UnitTests/CacheOrchestrator.Analyzers.UnitTests.csproj -c Release
