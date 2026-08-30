@@ -237,6 +237,8 @@ The library is **modular**. `CacheOrchestrator.Core` provides the foundational p
 > [!NOTE]
 > **v3 is in prerelease (beta)**
 >
+> CacheOrchestrator v3 is a **full redesign**, not an incremental evolution of 1.x / 2.x. Previous published lines (v1.0.0 and v2.1.x) are maintained for legacy continuity only. The v3 does not preserve a direct migration story or API compatibility with them; please treat v3 as a new architectural surface under the same name.
+>
 > This documentation describes **CacheOrchestrator v3**. Public APIs may change until the stable **v3.0.0** release. Install the prerelease with the Quick start above (`dotnet add package … --prerelease`).
 >
 > **Help test the prerelease.** Reports from real ASP.NET Core applications, standalone workers, Redis deployments, browsers, and playground labs are especially valuable. Successful results and confusing behavior are welcome too — see [Contributing](CONTRIBUTING.md#help-test-v3).

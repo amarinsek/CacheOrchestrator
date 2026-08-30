@@ -173,7 +173,7 @@ See [Topologies](topologies.md) and [Cluster bus](../reference/cluster-bus.md) f
 
 ## Secure the control plane
 
-> [!WARNING]
+> [!IMPORTANT]
 > Admin operations can evict cache entries and change live policy.
 >
 >- Keep Admin API and bus endpoints on a private network.
