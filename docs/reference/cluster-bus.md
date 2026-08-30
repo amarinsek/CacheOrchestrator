@@ -329,11 +329,12 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 
 ## Security checklist
 
-- [ ] Set `Cluster:Bus:ApiKey` or `Admin:ApiKey`; never use `AllowUnauthenticated` on a reachable production network
-- [ ] Restrict peer HTTP to private networks / mesh  
-- [ ] Use TLS or mTLS between peers
-- [ ] Treat apply endpoints as admin-level (can purge cache)  
-- [ ] Do not expose Admin API / cluster routes on the public internet without auth  
+> [!IMPORTANT]
+> - [ ] Set `Cluster:Bus:ApiKey` or `Admin:ApiKey`; never use `AllowUnauthenticated` on a reachable production network
+> - [ ] Restrict peer HTTP to private networks / mesh
+> - [ ] Use TLS or mTLS between peers
+> - [ ] Treat apply endpoints as admin-level (can purge cache)
+> - [ ] Do not expose Admin API / cluster routes on the public internet without auth
 
 ---
 

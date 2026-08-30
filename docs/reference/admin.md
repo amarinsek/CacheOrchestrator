@@ -19,9 +19,9 @@ Use the **Management API** from application code or a custom transport. Use the 
 - [Management API](#management-api)
 - [Admin API](#admin-api)
 - [Admin Console App](#admin-console-app)
-- [Security](#security)
 - [Common pitfalls](#common-pitfalls)
 - [Out of scope](#out-of-scope)
+- [Security checklist](#security-checklist)
 
 ## Architecture
 
@@ -456,55 +456,7 @@ Repo overview: [admin-hints.md](../contributor/admin-hints.md).
 
 Write responses include `distributionMode`, `distribute`, `distributionSummary`, optional `busOriginInstanceId`, and per-instance `results[]`.
 
-**Warning:** These `/api/*` routes have **no application-level authentication**. Anyone who can reach the Admin Console App can read stats and run operations. Protect the host (see [Security](#security)).
-
----
-
-## Security
-
-API key is the **intended** machine-to-machine credential for Admin API — not a temporary mock. Sample values like `dev-admin-key` are **dev-only**.
-
-### Two different trust boundaries
-
-| Path | Protected by? |
-|------|---------------------|
-| **Admin Console App → Admin API** on each app | Optional shared secret `X-Cache-Admin-Key` (required in production) |
-| **Browser / user → Admin Console App** | **No built-in login** — network / reverse-proxy auth only |
-
-So: the key stops strangers from calling `/cache-admin/local` on your apps **if** they cannot reach Admin Console App *or* guess the key. It does **not** by itself decide which humans may open the dashboard.
-
-### Production checklist
-
-1. **Network**  
-   - Admin API: **not** on the public internet (private mesh, allowlist Admin Console App only).  
-   - Admin Console App: VPN, bastion, internal ingress, or zero-trust access — not a public anonymous URL.
-
-2. **Shared API key**  
-   - Strong random secret (e.g. 32+ bytes, base64).  
-   - Same value on every instance (`Cache:Admin:ApiKey`) and Admin Console App (`AdminConsole:ApiKey`).  
-   - From a secret store (K8s Secret, Key Vault, …) — **never** commit production keys.  
-   - Empty `ApiKey` with `Enabled=true` leaves Admin API **open** (logs a warning) — do not do this outside local dev.
-
-3. **Human access to Admin Console App**  
-   The Admin Console App has no built-in login. Put one of these in front of `/` and `/api`:  
-   - OAuth2 / OIDC proxy (e.g. oauth2-proxy, Azure App Service auth, Cloudflare Access)  
-   - mTLS / service mesh only for operators  
-   - VPN-only deployment  
-
-4. **TLS**  
-   HTTPS for browser → Admin Console App and Admin Console App → instances so the key is not sent in clear text.
-
-5. **Least privilege & audit**  
-   Invalidate / version / TTL are **mutations**. Limit who can open Operations. Prefer platform logging of who accessed the admin host.
-
-6. **Do not rely on**  
-   - API key alone without network isolation  
-   - Sample `dev-admin-key` in shared environments  
-   - Shipping Admin Console App as an unauthenticated public cloud URL  
-
-### Admin API without Admin Console App
-
-You may enable Admin API for scripts only. Still set `ApiKey` and lock down network if the process is reachable outside localhost.
+**Warning:** These `/api/*` routes have **no application-level authentication**. Anyone who can reach the Admin Console App can read stats and run operations. Protect the host (see [Security checklist](#security-checklist)).
 
 ---
 
@@ -530,6 +482,31 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 - Built-in OIDC login UI inside Admin Console App (use edge / reverse-proxy auth).
 
 ---
+
+## Security checklist
+
+API key is the **intended** machine-to-machine credential for Admin API — not a temporary mock. Sample values like `dev-admin-key` are **dev-only**.
+
+### Two different trust boundaries
+
+| Path | Protected by? |
+|------|---------------------|
+| **Admin Console App → Admin API** on each app | Optional shared secret `X-Cache-Admin-Key` (required in production) |
+| **Browser / user → Admin Console App** | **No built-in login** — network / reverse-proxy auth only |
+
+The key stops strangers from calling `/cache-admin/local` on your apps **if** they cannot reach Admin Console App *or* guess the key. It does **not** by itself decide which humans may open the dashboard.
+
+> [!IMPORTANT]
+> - [ ] Keep Admin API off the public internet (private mesh; allowlist Admin Console App only)
+> - [ ] Protect Admin Console App with VPN, bastion, internal ingress, or zero-trust access — not a public anonymous URL
+> - [ ] Use a strong shared API key (e.g. 32+ bytes, base64) on every instance (`Cache:Admin:ApiKey`) and Admin Console App (`AdminConsole:ApiKey`)
+> - [ ] Load keys from a secret store — **never** commit production keys or leave `ApiKey` empty with `Enabled=true` outside local dev
+> - [ ] Put human auth in front of Admin Console App `/` and `/api` (OAuth2/OIDC proxy, mTLS/mesh, or VPN-only)
+> - [ ] Use HTTPS for browser → Console and Console → instances so the key is not sent in clear text
+> - [ ] Limit who can open Operations (invalidate / version / TTL are mutations); prefer platform audit logs for admin host access
+> - [ ] Do not rely on API key alone without network isolation, or on sample `dev-admin-key` in shared environments
+>
+> You may enable Admin API for scripts only (no Console App). Still set `ApiKey` and lock down network if the process is reachable outside localhost. Peer bus receive auth is covered in [cluster-bus.md](cluster-bus.md#security-checklist).
 
 ## Related docs
 

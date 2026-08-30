@@ -15,7 +15,7 @@ Admin Console App **Operations → Patch settings** can change these at runtime 
 - [Built-in settings](#built-in-settings)
 - [Authorization](#authorization)
 - [Custom vary (`ICacheVaryContributor`)](#custom-vary-icachevarycontributor)
-- [Security](#security)
+- [Security checklist](#security-checklist)
 
 ## Built-in settings
 
@@ -179,13 +179,18 @@ Most contributors should add the same dimension to both surfaces, as the example
 - Full key-shape replacement is still available via `IDomainKeyGenerator`.
 - The full application extension-point catalog is in [Extensibility](extensibility.md).
 
-## Security
+## Security checklist
 
-- Raw `Authorization` / cookie values never enter keys, vary dictionaries, logs, or `X-Cache`.
-- Cookie vary is opt-in only; document CSRF/session fixation risks.
-- Response `Vary` omits secrets-bearing headers; per-user Output Cache still needs a `private` Client Cache policy.
-- Startup validation rejects empty allowlist entries and caps sizes (e.g. max 8 headers / cookies).
-
+> [!IMPORTANT]
+> Vary settings change what enters keys and what browsers see. Before enabling extra dimensions in production:
+>
+> - [ ] Never put raw secrets in custom vary via `AddValue` — use `AddHashedValue` (or hashed header helpers)
+> - [ ] Treat `VaryByCookies` as opt-in only; document CSRF / session-fixation risk if you partition by session cookies
+> - [ ] Keep Client Cache `private` (or stricter) when Output Cache varies by authenticated user
+> - [ ] Confirm response `Vary` does not advertise secret-bearing headers (library omits those; do not work around it)
+> - [ ] Prefer tight `VaryByHeaders` / query allowlists — wide vary multiplies entries and can leak tenancy signals into key cardinality
+>
+> Library defaults already keep raw `Authorization` / cookie values out of keys, vary dictionaries, logs, and `X-Cache`. Startup validation rejects empty allowlist entries and caps sizes (e.g. max 8 headers / cookies).
 ## Related
 
 - [Guide — concepts](../guide/concepts.md) — domain model and layer overview  

@@ -36,6 +36,7 @@ app.MapCacheOrchestratorHttpBus();
 - [Mixed backends (Output Cache InMemory + Data Cache Redis)](#mixed-backends-output-cache-inmemory-data-cache-redis)
 - [Using multiple Data Cache instances](#using-multiple-data-cache-instances)
 - [Shared configuration across instances](#shared-configuration-across-instances)
+- [Security checklist](#security-checklist)
 
 ## Single instance (in-memory only)
 
@@ -335,6 +336,16 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 | Browser caches near a data cutover | [Client Cache Schedule](../guide/client-cache-schedule.md) |
 | One product row changed under same Version | [Entity invalidation](invalidation.md) / [domain profiles](../guide/domain-profiles.md) |
 
+## Security checklist
+
+> [!IMPORTANT]
+> Multi-instance layouts share stores and (optionally) command paths. Treat configuration and network as part of the threat model:
+>
+> - [ ] Keep the same `Cache:Namespace`, domain `Version` / TTLs, and Redis targets on every instance that shares a store ([shared configuration](#shared-configuration-across-instances))
+> - [ ] Do not expose Admin API or cluster receive routes on the public internet — see [admin.md](admin.md#security-checklist) and [cluster-bus.md](cluster-bus.md#security-checklist)
+> - [ ] Put Redis (Output Cache / Fusion L2 / backplane) on a private network; use auth and TLS as your platform requires
+> - [ ] Use distinct namespaces (or Redis instances) when apps or environments must not share keyspace
+> - [ ] Prefer secret stores for Redis connection strings and Admin/Bus API keys — never commit production secrets
 ## Related
 
 - [Guide — topologies](../guide/topologies.md) — which layout to pick  

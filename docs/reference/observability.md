@@ -13,6 +13,7 @@ Operator dashboards and multi-instance actions: [admin](admin.md). Admin Console
 - [Activities (tracing)](#activities-tracing)
 - [Logging](#logging)
 - [Health checks](#health-checks)
+- [Security checklist](#security-checklist)
 
 ## X-Cache response header
 
@@ -141,6 +142,17 @@ All arguments shown are the defaults. `timeout` is the health-check registration
 See [Extensibility](extensibility.md#health-probe-icacheorchestratorhealthprobe) for a custom probe implementation.
 
 Admin API `GET …/health` is a **separate** endpoint: it still returns HTTP 200 when a registered cache probe fails, with `Healthy: false` (Admin Console App maps that to **Degraded**). See [admin.md](admin.md#health-semantics-admin-console-app-mapping).
+
+## Security checklist
+
+> [!IMPORTANT]
+> Diagnostics are useful in production only when you decide what clients and operators may see:
+>
+> - [ ] Set `Cache:EmitDiagnosticsHeaders` to `false` if `X-Cache` (domain, hit/miss, phase, `ms`) must not reach untrusted clients
+> - [ ] Keep server-side meter / activity / logs enabled independently of that switch when you still need ops visibility
+> - [ ] Do not log raw `Authorization`, cookies, or other secrets — vary and key paths already avoid putting them in `X-Cache`
+> - [ ] Treat Admin `GET …/health` and process `/health` as internal endpoints; do not expose them anonymously on the public internet
+> - [ ] When scraping Prometheus (or compatible), scrape over a private network or authenticated path — metrics can include domain and route labels
 
 ## Related
 
