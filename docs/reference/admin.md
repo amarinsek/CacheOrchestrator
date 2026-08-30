@@ -508,7 +508,7 @@ The key stops strangers from calling `/cache-admin/local` on your apps **if** th
 >
 > You may enable Admin API for scripts only (no Console App). Still set `ApiKey` and lock down network if the process is reachable outside localhost. Peer bus receive auth is covered in [cluster-bus.md](cluster-bus.md#security-checklist).
 
-## Related docs
+## Related
 
 - [Guide — operations](../guide/operations.md) — enabling Admin, health, and day-2 workflows  
 - [admin-hints.md](../contributor/admin-hints.md) — recommendation hints + customization  

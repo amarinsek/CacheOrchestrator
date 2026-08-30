@@ -191,6 +191,7 @@ Most contributors should add the same dimension to both surfaces, as the example
 > - [ ] Prefer tight `VaryByHeaders` / query allowlists — wide vary multiplies entries and can leak tenancy signals into key cardinality
 >
 > Library defaults already keep raw `Authorization` / cookie values out of keys, vary dictionaries, logs, and `X-Cache`. Startup validation rejects empty allowlist entries and caps sizes (e.g. max 8 headers / cookies).
+
 ## Related
 
 - [Guide — concepts](../guide/concepts.md) — domain model and layer overview  

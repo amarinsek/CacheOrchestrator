@@ -346,6 +346,7 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 > - [ ] Put Redis (Output Cache / Fusion L2 / backplane) on a private network; use auth and TLS as your platform requires
 > - [ ] Use distinct namespaces (or Redis instances) when apps or environments must not share keyspace
 > - [ ] Prefer secret stores for Redis connection strings and Admin/Bus API keys — never commit production secrets
+
 ## Related
 
 - [Guide — topologies](../guide/topologies.md) — which layout to pick  

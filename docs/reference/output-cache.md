@@ -78,7 +78,7 @@ group.MapGet("{tileset}/{z:int}/{x:int}/{y:int}.{ext?}", HandleTileAsync)
 
 The template resolves `{route:tileset}` to `tiles-satellite`, `tiles-osm`, or `tiles-vehicle`. It never creates a domain at request time. An empty or unknown name fails closed: the handler still runs, Output Cache and request-scoped Data Cache are bypassed, the response gets `Cache-Control: no-store`, and diagnostics use `domain=_` rather than echoing the unresolved value.
 
-Templates also support `{host}`, `{header:Name}`, `{query:key}`, and application-defined `{custom:key}` providers; see [Extensibility](extensibility.md#domain-template-tokens).
+Templates also support `{host}`, `{header:Name}`, `{query:key}`, and application-defined `{custom:key}` providers; see [Extensibility](extensibility.md#domain-template-token-providers).
 
 For arbitrary selection logic, use a short resolver instead of a string template:
 

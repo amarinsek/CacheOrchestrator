@@ -238,7 +238,7 @@ Admin Console App's exclusive pipeline mix is **Output Cache hit + fresh Data Ca
 | `FusionCache.FactorySoftTimeoutSeconds` / `FactoryHardTimeoutSeconds` | `FactorySoftTimeout` / `FactoryHardTimeout` |
 | `FusionCache.AllowBackground*` | distributed and backplane background work |
 
-Stampede protection and fail-safe stale serve come from FusionCache itself. Nested JSON schema: [configuration.md](configuration.md#fusioncache-fusion-package-only).
+Stampede protection and fail-safe stale serve come from FusionCache itself. Nested JSON schema: [configuration.md](configuration.md#fusioncache-cacheorchestratorfusioncache-only).
 
 Effective Fusion settings are merged and cached per normalized domain and runtime-override stamp. Prepared `FusionCacheEntryOptions` are also reused while the Core and Fusion snapshots are unchanged, so a normal L1 hit does not traverse Configuration Binder or rebuild entry options. Configuration reload and Admin overrides replace the cached snapshots.
 

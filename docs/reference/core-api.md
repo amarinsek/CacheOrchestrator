@@ -73,7 +73,7 @@ AdminDomainMutationResultDto changed = await management.SetVersionAsync(
     cancellationToken);
 ```
 
-Core reports portable Data Cache configuration and has no resource endpoints to discover by default. A host can implement `IAdminEndpointCatalog` and `IAdminDomainConfigProvider` to add its resource inventory and host-specific policy. `CacheOrchestrator.AspNetCore` provides those adapters and maps the existing Admin API routes onto the same management contract. See [Admin](admin.md#core-management-contract).
+Core reports portable Data Cache configuration and has no resource endpoints to discover by default. A host can implement `IAdminEndpointCatalog` and `IAdminDomainConfigProvider` to add its resource inventory and host-specific policy. `CacheOrchestrator.AspNetCore` provides those adapters and maps the existing Admin API routes onto the same management contract. See [Admin — Management API](admin.md#management-api).
 
 ## `ICacheOrchestrator` surface
 

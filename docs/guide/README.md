@@ -1,6 +1,6 @@
 # CacheOrchestrator guide
 
-> Product overview and quick start: [root README](../../README.md) · Complete documentation catalog: [docs/README.md](../README.md)
+> **Guide** — domain design, packages, topologies, cutovers, and operations. Product overview: [root README](../../README.md) · Catalog: [docs/README.md](../README.md)
 
 The guide connects the product overview to the technical reference. It teaches how to design a domain, choose packages and topology, prepare client cutovers, and operate the resulting cache.
 

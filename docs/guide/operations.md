@@ -176,12 +176,12 @@ See [Topologies](topologies.md) and [Cluster bus](../reference/cluster-bus.md) f
 > [!IMPORTANT]
 > Admin operations can evict cache entries and change live policy.
 >
-> - Keep Admin API and bus endpoints on a private network.
-> - Set strong API keys through a secret provider; never commit them to configuration files.
-> - Put VPN, SSO, or authenticated reverse-proxy access in front of the Admin Console App. It has no built-in user login.
-> - Use TLS between operators, Admin Console App, and application instances.
-> - Restrict Prometheus and diagnostic headers when their labels reveal sensitive deployment details.
-> - Audit invalidation and settings mutations outside the cache process when required.
+>  [ ] Keep Admin API and bus endpoints on a private network.
+>  [ ] Set strong API keys through a secret provider; never commit them to configuration files.
+>  [ ] Put VPN, SSO, or authenticated reverse-proxy access in front of the Admin Console App. It has no built-in user login.
+>  [ ] Use TLS between operators, Admin Console App, and application instances.
+>  [ ] Restrict Prometheus and diagnostic headers when their labels reveal sensitive deployment details.
+>  [ ] Audit invalidation and settings mutations outside the cache process when required.
 >
 > An enabled Admin API with an empty key is suitable only for isolated local development and produces a warning.
 

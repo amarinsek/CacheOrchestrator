@@ -45,7 +45,7 @@ The engines stay. What shrinks is **application-owned coordination** — vary li
 
 For a concrete GET with Output Cache + Data Cache + query/Accept vary + client max-age, see the side-by-side:
 
-[Worked example: one endpoint without and with CacheOrchestrator](comparison-endpoint-example.md)
+[Worked example: one endpoint with and without CacheOrchestrator](comparison-endpoint-example.md)
 
 The sections below stay shorter: snapshot cutover and entity invalidation at the responsibility level.
 

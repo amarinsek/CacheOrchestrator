@@ -43,7 +43,7 @@ The reference describes exact configuration paths, API contracts, key material, 
 - [Core API](reference/core-api.md) — HTTP-free orchestration, management, domain contexts, keys, and entity operations
 - [Output Cache](reference/output-cache.md) — policy selection, endpoint metadata, status rules, headers, and authentication
 - [Data Cache](reference/data-cache.md) — providers, domain resolution, key generation, results, and entity reads
-- [Client Cache Schedule algorithm](reference/client-cache-schedule-algorithm.md) — exact phase and `max-age` calculation
+- [Client Cache Schedule](guide/client-cache-schedule.md) — phase and `max-age` calculation (guide)
 - [Entity footprint](reference/entity-footprint.md) — primary entities, members, dependencies, collections, batches, and aliases
 - [Invalidation](reference/invalidation.md) — Version cutovers, tags, results, observers, and multi-instance behavior
 - [EF Core invalidation](reference/ef-core-invalidation.md) — entity mapping and purge after `SaveChanges`

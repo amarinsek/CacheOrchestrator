@@ -1,4 +1,4 @@
-# Worked example: one endpoint without and with CacheOrchestrator
+# Worked example: one endpoint with and without CacheOrchestrator
 
 > **Guide** — side-by-side application code for the same cached read.
 
