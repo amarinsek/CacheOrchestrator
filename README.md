@@ -1,4 +1,4 @@
-<img src="docs/assets/small-logo.png" height="100" alt="CacheOrchestrator logo" />
+<img src="docs/assets/logo-small.png" height="100" alt="CacheOrchestrator logo" />
 
 # CacheOrchestrator
 
