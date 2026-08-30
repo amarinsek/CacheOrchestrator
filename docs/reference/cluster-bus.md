@@ -1,6 +1,6 @@
 # Cluster command bus (`CacheOrchestrator.HttpBus`)
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md). Canonical detail for membership, commands, and peer HTTP.
+> **Reference** — HttpBus membership, commands, delivery, and peer HTTP.
 
 When several instances must apply the same invalidate, Version, or TTL change, this package delivers those **commands** over HTTP. It does not move cache payloads. Peers run the same local purge or overlay they would have run if the call had been made on that process.
 

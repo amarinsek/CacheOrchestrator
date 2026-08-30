@@ -1,6 +1,6 @@
 # Data Cache
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md).
+> **Reference** — Data Cache providers, domain resolution, keys, and entity reads.
 
 The **Data Cache** stores **application objects** from your factory (DTOs, tiles, aggregates) — not full HTTP responses. CacheOrchestrator scopes it to the same **domain** as Output Cache and Client Cache. A registered **`IDataCacheProvider`** owns the store (Fusion or Hybrid).
 
@@ -60,9 +60,7 @@ app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
 public class ProductsController : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Get(
-        [FromServices] IDomainDataCache cache,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Get([FromServices] IDomainDataCache cache, CancellationToken cancellationToken)
     {
         var data = await cache.GetOrSetAsync(HttpContext, LoadAsync, cancellationToken);
         return Ok(data);
@@ -273,10 +271,11 @@ Package README: [CacheOrchestrator.HybridCache](../../src/CacheOrchestrator.Hybr
 
 ## Related
 
-- [Guide — concepts](../guide/concepts.md)
-- [packages.md](../guide/packages.md)
-- [cache-keys.md](cache-keys.md)
-- [configuration.md](configuration.md)
-- [invalidation.md](invalidation.md)
-- [architecture.md](../contributor/architecture.md)
-- [Output Cache](output-cache.md)
+- [Guide — concepts](../guide/concepts.md) — domain model and Data Cache role  
+- [Packages](../guide/packages.md) — Fusion vs Hybrid vs meta packages  
+- [cache-keys.md](cache-keys.md) — `u:` / `e:` provider keys and hash material  
+- [configuration.md](configuration.md) — `DataCache` / `DataCacheInstances` / `Distributed`  
+- [invalidation.md](invalidation.md) — domain and entity tag purge  
+- [entity-footprint.md](entity-footprint.md) — members, depends-on, aliases  
+- [Output Cache](output-cache.md) — HTTP policy and domain binding on endpoints  
+- [architecture.md](../contributor/architecture.md) — request flow and package layout  

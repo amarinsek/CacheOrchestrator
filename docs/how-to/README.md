@@ -1,6 +1,6 @@
 # How-to
 
-> **How-to.** Catalog: [documentation index](../README.md). Package choices: [Packages](../guide/packages.md).
+> **How-to** — copy-paste package composition scenarios.
 
 Copy-paste wiring. These pages assume you already know what a **domain** is — [concepts](../guide/concepts.md) if not.
 

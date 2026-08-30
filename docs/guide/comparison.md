@@ -1,6 +1,6 @@
 # Comparison
 
-> **Guide page.** Start with [Getting started](getting-started.md) for a working example or return to the [Guide index](README.md).
+> **Guide** — hand-rolled caching stack vs CacheOrchestrator.
 
 CacheOrchestrator is useful when an application must keep several cache layers and several domains consistent. It replaces repeated policy and coordination code, not the underlying cache engines.
 

@@ -1,6 +1,6 @@
 # Cache backends
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md). Canonical detail for Redis and custom registrars.
+> **Reference** — Output Cache / Fusion store registrars and Redis wiring.
 
 Policy (domains, TTLs, invalidation, Client Cache) is separate from **storage**. InMemory ships with the host packages and Redis is supplied by focused integration packages. Custom storage has three distinct boundaries: an Output Cache store, FusionCache L2/backplane, or a complete Data Cache engine. Do not use one registrar as though it configured all three.
 

@@ -1,6 +1,6 @@
 # Admin recommendation hints
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — operations](../guide/operations.md). Catalog: [documentation index](../README.md). Repo architecture for hints; **how to write rules:** [hints/README.md](../../src/CacheOrchestrator.AdminConsole/hints/README.md).
+> **Contributor** — Admin Console hint engine and rule authoring.
 
 How the Admin Console App turns **live counters** (and domain config) into **read-only recommendations**.  
 Hints never change cache behaviour, TTLs, or invalidation.
@@ -153,8 +153,8 @@ Exact thresholds, messages, and `badge` labels: open **`core-hints.json`** or Se
 
 ## See also
 
-- [Guide — operations](../guide/operations.md)  
-- **[Writing rules (distributed with Admin)](../../src/CacheOrchestrator.AdminConsole/hints/README.md)**  
-- [Admin Console App README](../../src/CacheOrchestrator.AdminConsole/README.md)  
-- [admin.md](../reference/admin.md)  
-- [Client Cache Schedule](../guide/client-cache-schedule.md)
+- [Guide — operations](../guide/operations.md) — running Admin and reading live signals  
+- [Writing rules (distributed with Admin)](../../src/CacheOrchestrator.AdminConsole/hints/README.md) — hint rule authoring for the Console App  
+- [Admin Console App README](../../src/CacheOrchestrator.AdminConsole/README.md) — host layout and config  
+- [admin.md](../reference/admin.md) — Admin API vs Console App vs Management API  
+- [Client Cache Schedule](../guide/client-cache-schedule.md) — CCS phases related to some hints  

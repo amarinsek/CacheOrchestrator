@@ -1,6 +1,6 @@
 # Benchmark results
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide](../../guide/README.md). Catalog: [documentation index](../../README.md).
+> **Contributor** — recorded benchmark results.
 
 How to run the micro-benchmarks in `tests/CacheOrchestrator.Benchmarks`, and what they measure.
 

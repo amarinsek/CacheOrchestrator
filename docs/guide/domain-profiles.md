@@ -1,6 +1,6 @@
 # Domain profiles
 
-> **Guide path:** [Concepts](concepts.md) → **Domain profiles** → [Packages](packages.md) · [Guide index](README.md)
+> **Guide** — snapshot vs changing-record domain recipes.
 
 The most important domain decision is how the underlying data changes.
 

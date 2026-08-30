@@ -1,6 +1,6 @@
 # FAQ
 
-> **Guide page.** Start with [Getting started](getting-started.md), follow the [Guide index](README.md), or use this page to diagnose a specific symptom.
+> **Guide** — common mistakes and symptom-oriented answers.
 
 These are short answers to common mistakes and boundary questions. Follow the linked guide or reference page for the complete model.
 

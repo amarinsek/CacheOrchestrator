@@ -1,6 +1,6 @@
 # Client Cache Schedule
 
-> **Guide path:** [Topologies](topologies.md) → **Client Cache Schedule** → [Operations](operations.md) · [Guide index](README.md)
+> **Guide** — client `max-age` ramp before a scheduled cutover.
 
 Long-lived public datasets create a client-caching dilemma. A 30-day browser or CDN TTL saves substantial bandwidth, but a client that receives that TTL one day before a planned release can keep the old generation for weeks.
 

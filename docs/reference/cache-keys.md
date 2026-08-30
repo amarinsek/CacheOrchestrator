@@ -1,6 +1,6 @@
 # Cache keys
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — concepts](../guide/concepts.md). Catalog: [documentation index](../README.md). Canonical detail for Namespace and key composition.
+> **Reference** — Namespace and lookup key composition for Output Cache and Data Cache.
 
 How the **Data Cache** and Output Cache decide that two requests are the **same** resource. That is lookup identity. Eviction — tags and Version — is [invalidation.md](invalidation.md).
 
@@ -275,12 +275,12 @@ See [Data Cache](data-cache.md#custom-key-generator).
 
 ## Related
 
-- [Guide — concepts](../guide/concepts.md)  
-- [Data Cache](data-cache.md) — `GetOrSetAsync`, domain resolution, custom generator
-- [Output Cache](output-cache.md) — policy, auth vary, `resourceRouteKey`
+- [Guide — concepts](../guide/concepts.md) — domain, layers, and identity overview  
+- [Data Cache](data-cache.md) — `GetOrSetAsync`, domain resolution, custom generator  
+- [Output Cache](output-cache.md) — policy, auth vary, `resourceRouteKey`  
+- [cache-identity.md](cache-identity.md) — `co-id:*` material in keys  
 - [invalidation.md](invalidation.md) — Version, domain/entity tags  
 - [configuration.md](configuration.md) — `Namespace`, domain `Version`, vary flags  
 - [architecture.md](../contributor/architecture.md) — request flow  
 - [domain-profiles.md](../guide/domain-profiles.md) — snapshot vs dynamic / CRUD profiles  
-
 

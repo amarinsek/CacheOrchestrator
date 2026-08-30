@@ -1,6 +1,6 @@
 # Packages
 
-> **Guide path:** [Domain profiles](domain-profiles.md) → **Packages** → [Topologies](topologies.md) · [Guide index](README.md)
+> **Guide** — which NuGet packages to install for your stack.
 
 This page is how to **choose** a package for your stack. Copy-paste wiring is in [composition](../how-to/composition.md). Full package list, NuGet links, and the Admin Console App are in [Root README — Packages and applications](../../README.md#packages-and-applications).
 

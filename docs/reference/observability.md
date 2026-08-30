@@ -1,6 +1,6 @@
 # Observability
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [operations](../guide/operations.md). Catalog: [documentation index](../README.md).
+> **Reference** — `X-Cache`, metrics, traces, logs, and health checks.
 
 How to see what the cache is doing: the **`X-Cache`** response header, the **`CacheOrchestrator`** meter and activity source, logs, and health checks.
 
@@ -51,9 +51,9 @@ X-Cache: domain=products; version=v1; client=public; phase=approaching; oc=miss;
 | `oc` | `hit` / `miss` / `bypass` / `off` | Always present. Output Cache outcome. |
 | `dc` | `hit` / `miss` / `stale` / `bypass` / `off` / `unresolved` / `n/a` | Present unless `oc=hit`. `n/a` when no Data Cache operation ran. |
 | `fa` | `run` | Present when application/origin work produced the result: direct generation (`dc=n/a`) and every non-hit Data Cache disposition (`miss` / `stale` / `bypass` / `off` / `unresolved`). Omitted on `oc=hit` and on `dc=hit`. Matches Admin FA run. |
-| `ms` | integer milliseconds | Factory/origin elapsed time when measured. Omitted on an Output Cache `hit`. |
+| `ms` | integer milliseconds | Wall-clock of the timed server path when measured: Data Cache get-or-set (including L1/L2 `dc=hit`), or direct origin when `dc=n/a`. Omitted on Output Cache `oc=hit`. Use metric `cache_orchestrator.factory.duration` for factory/origin cost. |
 
-A hard factory throw is recorded by factory failure telemetry (`result=fail` on metrics) and the exception propagates; the header never uses `dc=fail`.
+A hard factory throw is recorded by factory failure telemetry (`result=fail` on metrics) and the exception propagates;
 
 `dc=stale` has a deliberately narrow meaning: CacheOrchestrator observed a factory failure in this request and the provider returned its fail-safe value. `dc=hit` does not promise that provider-specific eager-refresh or timeout metadata says the value is fresh; the current provider contract does not expose a reliable stale signal for every background-refresh path.
 
@@ -144,7 +144,7 @@ Admin API `GET …/health` is a **separate** endpoint: it still returns HTTP 200
 
 ## Related
 
-- [Operations guide](../guide/operations.md)
-- [Admin](admin.md)
-- [Cluster bus](cluster-bus.md) — multi-instance command metrics
+- [Operations guide](../guide/operations.md) — day-2 ops, health, and Admin wiring  
+- [Admin](admin.md) — Admin API, Console App, and management surface  
+- [Cluster bus](cluster-bus.md) — multi-instance command metrics  
 

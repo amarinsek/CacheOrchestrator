@@ -1,6 +1,6 @@
 # Configuration reference
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide](../guide/README.md). Catalog: [documentation index](../README.md). Packages: [packages](../guide/packages.md).
+> **Reference** — `Cache` appsettings schema, defaults, inheritance, and validation.
 
 Schema for the `Cache` configuration section (or another root you pass to `AddCacheOrchestrator`).
 
@@ -102,6 +102,8 @@ Effective namespaces:
 
 Read **only** after a Redis backend is registered. The binding implementation lives in the transitive `CacheOrchestrator.Redis.Shared` support package and is intentionally not public API.
 
+Configure Redis **primarily through the StackExchange.Redis connection string** (`Configuration`): host, password, SSL, `defaultDatabase`, and most wire options belong there. The integer fields below are a thin overlay for common timeouts and keep-alive; they do not replace the connection string. This section is **connection / store wiring** — not Fusion L2 call resilience (that is [`Cache:Distributed`](#distributed-resilience-cachedistributed)).
+
 | Section | Role |
 |---------|------|
 | `Cache:Redis` | Global fallback connection |
@@ -110,7 +112,7 @@ Read **only** after a Redis backend is registered. The binding implementation li
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `Configuration` | — | StackExchange.Redis connection string |
+| `Configuration` | — | StackExchange.Redis connection string (primary Redis configuration surface) |
 | `ConnectTimeout` | 5000 | ms |
 | `SyncTimeout` | 5000 | ms |
 | `KeepAliveSeconds` | 60 | TCP keep-alive |
@@ -118,6 +120,8 @@ Read **only** after a Redis backend is registered. The binding implementation li
 ## Distributed resilience (`Cache:Distributed`)
 
 Core setting. Applied when a Data Cache instance `Provider` is **not** `InMemory` (Fusion L2 path).
+
+These knobs are **application-side L2 resilience** (how long Fusion waits on distributed cache I/O and how long the circuit stays open after failures). They are **not** Redis connection settings — put host, auth, SSL, and StackExchange timeouts in the [Redis connection string](#redis-connection-cacheorchestratorredis-package) (and the optional overlay fields there). Factory timeouts stay under per-domain `FusionCache.*`.
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -351,9 +355,12 @@ See **[domain-profiles.md](../guide/domain-profiles.md)** for full **osm-tiles**
 
 ## Related
 
-- [packages.md](../guide/packages.md)  
-- [Guide](../guide/README.md)  
+- [Packages](../guide/packages.md) — which package owns which settings  
+- [Guide](../guide/README.md) — orientation and learning path  
+- [Topologies](../guide/topologies.md) — InMemory vs Redis vs HttpBus (when to share stores)  
+- [Deployment](deployment.md) — multi-instance layouts and **[shared configuration across instances](deployment.md#shared-configuration-across-instances)** (`appsettings.cache.json`, ConfigMap, identical policy on every node)  
 - [cache-keys.md](cache-keys.md) — Namespace and key composition  
-- [architecture.md](../contributor/architecture.md)  
-- [domain-profiles.md](../guide/domain-profiles.md)  
-- [invalidation.md](invalidation.md)  
+- [cluster-bus.md](cluster-bus.md) — optional HTTP command fan-out (invalidation / Admin distribute); not a substitute for shared Redis or shared policy config  
+- [invalidation.md](invalidation.md) — Version, tags, multi-instance purge  
+- [domain-profiles.md](../guide/domain-profiles.md) — example domain recipes  
+- [architecture.md](../contributor/architecture.md) — package layout and runtime snapshots  

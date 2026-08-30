@@ -1,6 +1,6 @@
 # EF Core SaveChanges invalidation
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md).
+> **Reference** — purge mapped entities after EF Core `SaveChanges`.
 
 Package **`CacheOrchestrator.EFCore.Invalidation`**. After a successful `SaveChanges` / `SaveChangesAsync`, the cache for the rows that changed is purged through `ICacheOrchestratorInvalidator`.
 
@@ -9,6 +9,7 @@ Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../../src/
 ## Table of Contents
 
 - [How it works](#how-it-works)
+- [Related cache entries (footprint tags)](#related-cache-entries-footprint-tags)
 - [When to use it](#when-to-use-it)
 - [Install and composition](#install-and-composition)
 - [Mapping (code only)](#mapping-code-only)
@@ -44,8 +45,20 @@ SavedChanges                    SaveChangesFailed
 InvalidateEntitiesAsync  or  InvalidateEntityKindAsync (OnBulk)
         │
         ├─ local Output Cache + Data Cache tag purge
-        └─ Redis backplane / HttpBus  (if those packages are configured)
+        ├─ Fusion Redis backplane  (if Redis Fusion L2 is configured — drops peer L1)
+        └─ HttpBus                 (if CacheOrchestrator.HttpBus is configured — peer ApplyLocal)
 ```
+
+### Related cache entries (footprint tags)
+
+EF does not walk FK graphs or `DependsOn` / `Members`. It only purges tags for the mapped `(domain, entityKind, id)`. Related entries disappear when they were **tagged at cache-write time** — for example a product detail that depended on a brand:
+
+```csharp
+return EntityCache.Create(productDetailDto)
+    .DependsOn("brands", dto.BrandId);
+```
+
+Saving `Brand` `7` then invalidates `entity:…:brands:7` and drops that product detail entry too. Wire those links with [Entity footprint](entity-footprint.md); the EF package only supplies the purge call.
 
 ---
 
@@ -203,9 +216,10 @@ Operational flags only. Bound from the same root section as `AddCacheOrchestrato
 
 ## Related
 
-- [Guide — topologies](../guide/topologies.md)  
+- [Guide — topologies](../guide/topologies.md) — when Redis / bus matter for purge reach  
 - [invalidation.md](invalidation.md) — tags, invalidator, multi-instance strategies  
-- [Data Cache](data-cache.md) — `GetOrSetEntityAsync`
-- [Output Cache](output-cache.md) — `resourceRouteKey` + `entityKind`
-- [faq.md](../guide/faq.md) — `ExecuteUpdate`
-- Package README — copy-paste samples  
+- [Data Cache](data-cache.md) — `GetOrSetEntityAsync`  
+- [Output Cache](output-cache.md) — `resourceRouteKey` + `entityKind`  
+- [entity-footprint.md](entity-footprint.md) — members / depends-on / aliases  
+- [faq.md](../guide/faq.md) — `ExecuteUpdate` and bulk-update caveats  
+- [Package composition](../how-to/composition.md) — copy-paste package wiring  

@@ -1,6 +1,6 @@
 # Domain vary dimensions
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md). Canonical detail for Accept / auth / contributors.
+> **Reference** — shared vary dimensions for Output Cache and Data Cache (query, headers, auth, contributors).
 
 CacheOrchestrator shares one **vary model** between **Output Cache** and **FusionCache** (where it makes sense). Built-in toggles and allowlists live on the domain; apps can add small custom dimensions via `ICacheVaryContributor` without replacing `IDomainKeyGenerator`.
 
@@ -24,9 +24,9 @@ All under `Cache:Domains:{name}:` (and `DomainDefaults`).
 | Setting | Default | Output Cache | Data Cache | Notes |
 |---------|---------|--------------|------------|-------|
 | `VaryByAccept` | `true` | ✓ | ✓ | Separates negotiated representations such as JSON and XML. Disable it only when the endpoint always produces the same representation. |
-| `AcceptNormalizationList` | `null` | normalize | same | Optional prefer-list used to collapse equivalent `Accept` values. Without a list, the raw header value is used. |
+| `AcceptNormalizationList` | `null` | normalize | normalize | Optional prefer-list used to collapse equivalent `Accept` values. Without a list, the raw header value is used. |
 | `VaryByAcceptLanguage` | `false` | ✓ | ✓ | Locale. Stays off — most JSON APIs are language-agnostic; enabling fragments the cache. |
-| `AcceptLanguageNormalizationList` | `null` | normalize | same | e.g. `en`, `sl` when you opt into language vary |
+| `AcceptLanguageNormalizationList` | `null` | normalize | normalize | e.g. `en`, `sl` when you opt into language vary |
 | `VaryByHeaders` | `null` | ✓ | ✓ | Case-insensitive names; sensitive values hashed. Never auto-fill. |
 | `VaryByQueryKeys` | `null` | ✓ | ✓ | `null` = all non-tracking; `[]` = none; non-empty = allowlist |
 | `IgnoreQueryKeys` | `null` | ✓ | ✓ | Extra deny list on top of tracking prefixes |
@@ -39,22 +39,35 @@ Normalization changes cache identity, not the request. CacheOrchestrator stores 
 
 > **Note on query parameters:** Unlike native ASP.NET Core Output Caching (which ignores query parameters by default), CacheOrchestrator's default (`"VaryByQueryKeys": null`) **varies by all query parameters** (except tracking parameters like `utm_*`). To ignore all query parameters like native ASP.NET Core does, explicitly set `"VaryByQueryKeys": []`.
 
-### Query allowlist examples
+### Query key examples
+
+**Allowlist** — only listed keys enter the cache key; everything else is ignored:
 
 ```json
 {
-"catalog": {
-  "VaryByQueryKeys": [ "page", "pageSize", "sort" ],
-  "IgnoreQueryKeys": [ "debug" ]
-}
+  "catalog": {
+    "VaryByQueryKeys": [ "page", "pageSize", "sort" ]
+  }
 }
 ```
 
+**Ignore list** — with default `VaryByQueryKeys` (`null`), every non-tracking query key enters the cache key except those listed:
+
 ```json
 {
-"static-asset": {
-  "VaryByQueryKeys": []
+  "search": {
+    "IgnoreQueryKeys": [ "debug" ]
+  }
 }
+```
+
+**No query vary** — empty allowlist: query string never partitions the key (closest to native ASP.NET Core Output Cache default):
+
+```json
+{
+  "static-asset": {
+    "VaryByQueryKeys": []
+  }
 }
 ```
 
@@ -175,8 +188,8 @@ Most contributors should add the same dimension to both surfaces, as the example
 
 ## Related
 
-- [concepts](../guide/concepts.md)
-- [Output Cache](output-cache.md) — auth bypass on the policy
-- [cache-keys.md](cache-keys.md) — how vary material enters Fusion keys
-- [configuration.md](configuration.md) — domain flags
-- [faq.md](../guide/faq.md) — authenticated requests and JSON vs XML
+- [Guide — concepts](../guide/concepts.md) — domain model and layer overview  
+- [Output Cache](output-cache.md) — auth bypass on the policy  
+- [cache-keys.md](cache-keys.md) — how vary material enters Data Cache keys  
+- [configuration.md](configuration.md) — domain vary flags  
+- [faq.md](../guide/faq.md) — authenticated requests and JSON vs XML  

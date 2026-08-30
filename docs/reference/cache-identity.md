@@ -1,6 +1,6 @@
 # Endpoint cache identity
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Related: [Output Cache](output-cache.md), [Data Cache](data-cache.md), [cache keys](cache-keys.md), [vary](vary.md). Catalog: [documentation index](../README.md).
+> **Reference** — per-method cache identity bindings (URL, named contracts, content-hash).
 
 Per-endpoint, per-HTTP-method binding that decides **whether** Output Cache may run for a method and **how** lookup identity is built (named contract or bounded body hash). The same identity material is reused for **Data Cache keys** when `IDomainDataCache.GetOrSet*` runs. Domain configuration stays shared policy (TTL, Version, tags, Client Cache, auth) — it does not define identity strategies.
 
@@ -366,10 +366,11 @@ If one request needs both field extraction and hashing, implement that in a **si
 
 ## Related
 
-- [Output Cache](output-cache.md) — domain policies, auth, tags, ETag
-- [Data Cache](data-cache.md) — `IDomainDataCache` / Fusion / Hybrid
-- [Cache keys](cache-keys.md) — how `co-id:*` enters Output Cache and Data Cache keys
-- [Vary](vary.md) — domain vary matrix (separate from endpoint identity)
-- [FAQ — Output Cache methods](../guide/faq.md#can-i-cache-post-search-or-graphql-requests-with-output-cache)
-- Samples: content-hash `POST /echo` in [CacheOrchestrator.Minimal](../../samples/CacheOrchestrator.Minimal); named-contract search + create contrast in the [Sample playground — POST identity](../../samples/CacheOrchestrator.Sample/README.md#post-identity-playground)
+- [Output Cache](output-cache.md) — domain policies, auth, tags, ETag  
+- [Data Cache](data-cache.md) — `IDomainDataCache` / Fusion / Hybrid  
+- [Cache keys](cache-keys.md) — how `co-id:*` enters Output Cache and Data Cache keys  
+- [Vary](vary.md) — domain vary matrix (separate from endpoint identity)  
+- [FAQ — Output Cache methods](../guide/faq.md#can-i-cache-post-search-or-graphql-requests-with-output-cache) — POST / search caching caveats  
+- [CacheOrchestrator.Minimal](../../samples/CacheOrchestrator.Minimal) — content-hash `POST /echo` sample  
+- [Sample playground — POST identity](../../samples/CacheOrchestrator.Sample/README.md#post-identity-playground) — named-contract search + create contrast  
 

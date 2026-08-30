@@ -1,6 +1,6 @@
 # Getting started
 
-> **Guide path:** **Getting started** → [Concepts](concepts.md) · [Guide index](README.md) · [Product overview](../../README.md)
+> **Guide** — first endpoint, domain binding, and reading `X-Cache`.
 
 This page takes you from an empty ASP.NET Core project to a working cached endpoint.
 

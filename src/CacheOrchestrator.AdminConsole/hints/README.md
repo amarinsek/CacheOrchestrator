@@ -270,6 +270,7 @@ Full list: Admin **Settings → Known paths**, or `GET /api/hints/rules` → `kn
 
 ## Related
 
-- [Guide — operations](../../../docs/guide/operations.md)  
-- Admin Console App overview: `../README.md`  
-- Repository architecture notes: monorepo `docs/contributor/admin-hints.md` and `docs/reference/admin.md` (source checkout; may not ship with a standalone Admin publish)
+- [Guide — operations](../../../docs/guide/operations.md) — day-2 ops and Admin wiring  
+- [Admin Console App README](../README.md) — host overview and configuration  
+- [admin-hints.md](../../../docs/contributor/admin-hints.md) — contributor notes for the hint engine (source checkout)  
+- [admin.md](../../../docs/reference/admin.md) — Admin API vs Console App (source checkout; may not ship with a standalone Admin publish)  

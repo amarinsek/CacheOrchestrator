@@ -1,6 +1,6 @@
 # Entity footprint
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [domain profiles](../guide/domain-profiles.md). Catalog: [documentation index](../README.md). Data Cache API: [Data Cache](data-cache.md).
+> **Reference** — which entities a cached value depends on, for targeted invalidation.
 
 An entity footprint describes which business entities contributed to a cached value. It lets invalidation retire the affected details, lists, references, aggregates, nested collections, batches, and aliases without bumping the whole domain `Version`.
 

@@ -1,6 +1,6 @@
 # Output Cache
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md).
+> **Reference** — Output Cache policy, endpoint binding, headers, auth, and tags.
 
 Output Cache stores the **full HTTP response**. By default that means **GET** and **HEAD** with Url identity (path, query, host, domain vary). Other methods are not cached by Output Cache unless the endpoint opts in with **[endpoint cache identity](cache-identity.md)**. CacheOrchestrator applies ASP.NET Core Output Caching per **domain**: TTL, tags, vary rules, `Cache-Control`, and ETag all come from that domain.
 
@@ -55,7 +55,7 @@ app.MapGet("/api/products/{id}", () => /* ... */)
 
 ## Domain name templates
 
-A **domain name template** selects which **configured** domain applies to the request. It is not a dynamic / CRUD *profile* ([domain profiles](../guide/domain-profiles.md)); the profile of each selected domain stays in `Cache:Domains`.
+A **domain name template** selects which **configured** domain applies to the request. The profile of each selected domain stays in `Cache:Domains`.
 
 Use a string template when the same endpoint serves a finite set of named domains:
 
@@ -217,9 +217,10 @@ On response start the policy sets:
 
 ## Related
 
-- [concepts](../guide/concepts.md)
-- [vary.md](vary.md)
-- [cache-keys.md](cache-keys.md)
-- [configuration.md](configuration.md)
-- [invalidation.md](invalidation.md)
-- [observability.md](observability.md)
+- [Guide — concepts](../guide/concepts.md) — domain model and the three cache layers  
+- [vary.md](vary.md) — shared vary matrix for Output Cache and Data Cache  
+- [cache-keys.md](cache-keys.md) — Output Cache prefix, vary, and Version  
+- [cache-identity.md](cache-identity.md) — per-method identity bindings (`WithCacheIdentity`, content-hash)  
+- [configuration.md](configuration.md) — `OutputCache` / `ClientCache` domain settings  
+- [invalidation.md](invalidation.md) — tags, Version, entity wiring  
+- [observability.md](observability.md) — `X-Cache`, metrics, health  

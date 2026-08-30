@@ -1,6 +1,6 @@
 # Architecture
 
-> **Contributor.** Product overview: [root README](../../README.md). Orientation: [Guide — concepts](../guide/concepts.md). Catalog: [documentation index](../README.md). Packages: [packages.md](../guide/packages.md).
+> **Contributor** — package layout, request flow, and internal boundaries.
 
 How the library is put together.
 
@@ -145,12 +145,12 @@ Output Cache and Data Cache providers can differ (for example, InMemory Output C
 
 ## Related
 
-- [packages.md](../guide/packages.md)  
-- [Guide — concepts](../guide/concepts.md)  
-- [cluster-bus.md](../reference/cluster-bus.md)  
-- [cache-keys.md](../reference/cache-keys.md)  
-- [configuration.md](../reference/configuration.md)  
-- [Output Cache](../reference/output-cache.md)
-- [Data Cache](../reference/data-cache.md)
-- [vary.md](../reference/vary.md)  
-- [deployment.md](../reference/deployment.md)  
+- [Packages](../guide/packages.md) — NuGet layout and ownership  
+- [Guide — concepts](../guide/concepts.md) — product mental model  
+- [cluster-bus.md](../reference/cluster-bus.md) — HttpBus and membership  
+- [cache-keys.md](../reference/cache-keys.md) — key and tag composition  
+- [configuration.md](../reference/configuration.md) — options binding and runtime snapshots  
+- [Output Cache](../reference/output-cache.md) — HTTP policy layer  
+- [Data Cache](../reference/data-cache.md) — Fusion / Hybrid orchestration  
+- [vary.md](../reference/vary.md) — shared vary materializer  
+- [deployment.md](../reference/deployment.md) — multi-instance topologies  

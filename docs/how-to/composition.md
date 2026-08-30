@@ -1,6 +1,6 @@
 # Package composition
 
-> **How-to.** Product overview: [root README](../../README.md). Catalog: [documentation index](../README.md). Which NuGet: [Packages guide](../guide/packages.md). First endpoint: [getting-started](../guide/getting-started.md).
+> **How-to** — install, register, and configure CacheOrchestrator by scenario.
 
 Copy-paste wiring for common stacks. Domain rules stay the same; only **packages**, **registration**, and **config** change.
 

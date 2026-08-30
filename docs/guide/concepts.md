@@ -1,6 +1,6 @@
 # Concepts
 
-> **Guide path:** [Getting started](getting-started.md) → **Concepts** → [Domain profiles](domain-profiles.md) · [Guide index](README.md)
+> **Guide** — domain model and the three cache layers.
 
 The getting-started tutorial used one domain to coordinate Client Cache, Output Cache, and Data Cache. This page explains the model behind that example so you can design domains for your own application.
 

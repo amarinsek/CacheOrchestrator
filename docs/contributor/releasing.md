@@ -1,6 +1,6 @@
 # Releasing CacheOrchestrator
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide](../guide/README.md). Catalog: [documentation index](../../README.md). Contributor procedure.
+> **Contributor** — versioning, packaging, and release procedure.
 
 How versions, NuGet packages, and GitHub Releases fit together.
 

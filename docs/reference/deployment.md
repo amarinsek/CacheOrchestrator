@@ -1,6 +1,6 @@
 # Deployment
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md).
+> **Reference** — single- and multi-instance topologies, Redis, and shared configuration.
 
 How to run CacheOrchestrator on one process or on several: in-memory stores, Redis, the backplane, and the cluster bus.
 
@@ -296,28 +296,20 @@ Keep host-specific settings in `appsettings.json` / environment; put **cluster-w
       "Provider": "InMemory"
     },
     "DataCacheInstances": {
-      "default": {
-        "Provider": "Redis"
-      }
+      "default": { "Provider": "Redis" }
     },
     "Redis": {
       "Configuration": "redis-primary:6379"
     },
     "DomainDefaults": {
-      "ClientCache": {
-        "Cacheability": "Public",
-        "TtlMinSeconds": 60
-      }
+      "ClientCache": {"Cacheability": "Public", "TtlMinSeconds": 60 }
     },
     "Domains": {
       "catalog": {
         "Version": "2026-08",
         "DataCache": { "TtlSeconds": 3800 },
         "OutputCache": { "TtlSeconds": 3700 },
-        "ClientCache": {
-          "TtlSeconds": 3600,
-          "ScheduledUpdateUtc": "2026-09-01T00:00:00Z"
-        }
+        "ClientCache": { "TtlSeconds": 3600, "ScheduledUpdateUtc": "2026-09-01T00:00:00Z" }
       },
       "live-tracking": {
         "Version": "1",
@@ -348,9 +340,10 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 - [Guide — topologies](../guide/topologies.md) — which layout to pick  
 - [configuration.md](configuration.md) — namespaces, providers, full schema  
 - [backends.md](backends.md) — `CacheOrchestrator.Redis` and custom registrars  
-- [Data Cache](data-cache.md)
-- [invalidation.md](invalidation.md)  
-- [observability.md](observability.md)  
+- [Data Cache](data-cache.md) — providers, instances, and L2 behaviour  
+- [invalidation.md](invalidation.md) — purge strategies across instances  
+- [observability.md](observability.md) — metrics, `X-Cache`, health  
+- [cluster-bus.md](cluster-bus.md) — HTTP fan-out when Redis backplane is not enough  
 - [faq.md](../guide/faq.md) — multi-instance and InMemory limitations  
-- [comparison.md](../guide/comparison.md) — when Redis Output Cache alone is enough
+- [comparison.md](../guide/comparison.md) — when Redis Output Cache alone is enough  
 - [domain-profiles.md](../guide/domain-profiles.md) — Version vs TTL cutovers  

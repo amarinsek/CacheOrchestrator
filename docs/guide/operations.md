@@ -1,6 +1,6 @@
 # Operations
 
-> **Guide path:** [Client Cache Schedule](client-cache-schedule.md) → **Operations** → [FAQ](faq.md) · [Guide index](README.md)
+> **Guide** — diagnostics, Admin API vs Console App, and day-2 ops.
 
 Operating a cache means answering three questions quickly:
 
@@ -39,7 +39,7 @@ X-Cache: domain=catalog; version=v1; client=public; phase=n/a; oc=miss; dc=miss;
 | `oc` | `hit` / `miss` / `bypass` / `off` | Output Cache outcome |
 | `dc` | `hit` / `miss` / `stale` / `bypass` / `off` / `unresolved` / `n/a` | Data Cache outcome. `n/a` when no Data Cache operation ran. Omitted on an Output Cache `hit`. |
 | `fa` | `run` | Application/origin work produced the result. Omitted on an Output Cache `hit` and on `dc=hit`. |
-| `ms` | integer milliseconds | Factory/origin elapsed time. Omitted on an Output Cache `hit`. |
+| `ms` | integer milliseconds | Wall-clock of the timed server path (Data Cache get-or-set, including L1/L2 `dc=hit`, or direct origin when `dc=n/a`). Omitted on `oc=hit`. Not factory-only — see [observability.md](../reference/observability.md). |
 
 Common flows:
 

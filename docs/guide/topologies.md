@@ -1,6 +1,6 @@
 # Topologies
 
-> **Guide path:** [Packages](packages.md) → **Topologies** → [Client Cache Schedule](client-cache-schedule.md) · [Guide index](README.md)
+> **Guide** — where cached values live and how instances learn about changes.
 
 A domain says how data should be cached. A topology says where cached values live and how application instances learn about changes.
 

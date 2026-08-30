@@ -1,6 +1,6 @@
 # CacheOrchestrator Admin
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [operations](../guide/operations.md). Catalog: [documentation index](../README.md).
+> **Reference** — Management API, Admin API, and Admin Console App.
 
 The management model has three layers:
 
@@ -533,10 +533,11 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 
 ## Related docs
 
-- [Guide — operations](../guide/operations.md)  
+- [Guide — operations](../guide/operations.md) — enabling Admin, health, and day-2 workflows  
 - [admin-hints.md](../contributor/admin-hints.md) — recommendation hints + customization  
 - [observability.md](observability.md) — metrics / `X-Cache` / health checks  
 - [invalidation.md](invalidation.md) — domain/entity invalidation model  
-- [configuration.md](configuration.md) — domain options binding  
+- [configuration.md](configuration.md) — domain options binding and `Cache:Admin`  
 - [architecture.md](../contributor/architecture.md) — library layers  
 - [deployment.md](deployment.md) — multi-instance topologies  
+- [cluster-bus.md](cluster-bus.md) — Admin `distribute` and peer fan-out  
