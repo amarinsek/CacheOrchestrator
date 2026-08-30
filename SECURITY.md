@@ -24,7 +24,7 @@ Please report privately so we can fix and, if needed, coordinate a release befor
 
 - Acknowledgement when the report is received (typically within a few days)
 - A fix or mitigation plan for confirmed issues
-- Credit in the advisory / changelog if you want it (optional)
+- Credit in the advisory / GitHub Release notes if you want it (optional)
 
 ## Non-security bugs
 

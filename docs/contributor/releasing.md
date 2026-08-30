@@ -7,7 +7,7 @@ How versions, NuGet packages, and GitHub Releases fit together.
 ## Table of Contents
 
 - [Versioning (MinVer)](#versioning-minver)
-- [Release notes (two files)](#release-notes-two-files)
+- [Release notes](#release-notes)
 - [Package READMEs (NuGet vs GitHub)](#package-readmes-nuget-vs-github)
 - [Compatibility and package gates](#compatibility-and-package-gates)
 - [Checklist](#checklist)
@@ -32,12 +32,12 @@ dotnet build src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -v:m
 
 **Requires full Git history** on CI (`fetch-depth: 0` — already set in workflows).
 
-## Release notes (two files)
+## Release notes
 
-| File | Audience | Role |
-|------|----------|------|
-| [CHANGELOG.md](../../CHANGELOG.md) | Humans / GitHub | Full history |
-| [PACKAGE_RELEASE_NOTES.md](../../PACKAGE_RELEASE_NOTES.md) | nuget.org | Short notes for **this** version only |
+| Surface | Audience | Role |
+|---------|----------|------|
+| [GitHub Releases](https://github.com/amarinsek/CacheOrchestrator/releases) | Humans | Full history per tag (canonical) |
+| [PACKAGE_RELEASE_NOTES.md](../../PACKAGE_RELEASE_NOTES.md) | nuget.org | Short notes for **this** version only; link to the matching `releases/tag/v…` |
 
 ## Package READMEs (NuGet vs GitHub)
 
@@ -125,7 +125,7 @@ The release publish workflow packs the final package set and therefore runs SDK 
 ## Checklist
 
 1. Merge all release work to `main`.
-2. Update **CHANGELOG.md** and **PACKAGE_RELEASE_NOTES.md**.
+2. Update **PACKAGE_RELEASE_NOTES.md** (short NuGet blurb + link to the release tag you are about to create). Draft the **GitHub Release** body from merged PR worklogs.
 3. Commit on `main`; wait for **Build and Test** to pass, including the packaged-analyzer consumer smoke.
 4. Create an **annotated tag**:
 

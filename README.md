@@ -252,7 +252,7 @@ The library is **modular**. `CacheOrchestrator.Core` provides the foundational p
 - [Documentation index](docs/README.md) — configuration, keys, deployment, architecture
 - [FAQ](docs/guide/faq.md) — common mistakes and limits
 - [Comparison](docs/guide/comparison.md) — the usual stack versus CacheOrchestrator
-- [CHANGELOG](CHANGELOG.md)
+- [Releases](https://github.com/amarinsek/CacheOrchestrator/releases)
 - [CONTRIBUTING](CONTRIBUTING.md)
 - [SECURITY](SECURITY.md)
 - [LICENSE](LICENSE.md) (MIT)

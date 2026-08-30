@@ -165,7 +165,7 @@ Put information in the narrowest appropriate documentation tier:
 4. [docs/reference](docs/reference/) for precise technical behavior;
 5. [docs/contributor](docs/contributor/) for architecture and maintainer procedures.
 
-Update examples, samples, and package READMEs when a public API or configuration surface changes. Do not edit `CHANGELOG.md` in an ordinary PR; record the user-facing outcome in the PR description or worklog so the maintainer can assemble release notes.
+Update examples, samples, and package READMEs when a public API or configuration surface changes. Record the user-facing outcome in the PR description or worklog so the maintainer can assemble the GitHub Release notes (and `PACKAGE_RELEASE_NOTES.md` for NuGet).
 
 ## Pull requests
 

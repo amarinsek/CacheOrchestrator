@@ -169,12 +169,12 @@ Doc layers (do not put reference into the root README):
 - **Reference:** `docs/reference/` (configuration, keys, deployment, …); hub: `docs/README.md`
 - **Contributor:** `docs/contributor/` (architecture, releasing, benchmarks, worklog template)
 
-Contributor / security: `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`.  
+Contributor / security: `CONTRIBUTING.md`, `SECURITY.md`.  
 Keep docs in sync when renaming public types or config keys. Put a change in the matching tier.
 
 Branch worklog: copy `docs/contributor/templates/worklog-template.md` (do not commit the filled copy). Summary → PR title and description; the rest is the PR appendix. Record **net outcomes** only — no chat, no rejected alternatives, no draft paths. A work item must still make sense a month later without the conversation.
 
-Do **not** edit `CHANGELOG.md` unless the user asks. User-facing notes go in the worklog Changelog. The maintainer updates `CHANGELOG.md` from merged PR worklogs.
+User-facing notes go in the worklog Changelog section. The maintainer assembles **GitHub Release** notes from merged PR worklogs and updates `PACKAGE_RELEASE_NOTES.md` (NuGet) with a link to that release tag.
 
 ## Safe change checklist
 

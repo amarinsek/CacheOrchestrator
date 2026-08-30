@@ -97,4 +97,4 @@ Maintainer material — not required to ship a first domain.
 - [Releasing](contributor/releasing.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Worklog template](contributor/templates/worklog-template.md)
-- [CHANGELOG](../CHANGELOG.md)
+- [Releases](https://github.com/amarinsek/CacheOrchestrator/releases)
