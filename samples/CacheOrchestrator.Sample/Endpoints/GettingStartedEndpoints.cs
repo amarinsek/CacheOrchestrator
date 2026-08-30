@@ -1,7 +1,7 @@
 using CacheOrchestrator.DataCache;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
-using System.Collections.Concurrent;
+using CacheOrchestrator.Sample.Data;
 
 namespace CacheOrchestrator.Sample.Endpoints;
 
@@ -19,26 +19,20 @@ public static class GettingStartedEndpoints
         })
         .CacheOutputWithDomain("promotions");
 
-        ConcurrentDictionary<int, Product> products = new(
-            new[]
-            {
-                new KeyValuePair<int, Product>(42, new(42, "Demo Widget", 10.00m)),
-                new KeyValuePair<int, Product>(7, new(7, "Sample Gadget", 19.50m))
-            });
-
         app.MapGet("/api/products/{id:int}", async (
             HttpContext http,
             int id,
             IDomainDataCache cache,
+            PlaygroundProductStore store,
             CancellationToken cancellationToken) =>
         {
             Product? product = await cache.GetOrSetEntityAsync(http, async token =>
             {
-                // Pretend this is a database or remote-service call.
-                await Task.Delay(200, token);
-                products.TryGetValue(id, out Product? value);
-                return value;
-            }, cancellationToken);
+                // Artificial delay so FACTORY stays visible in the playground.
+                await Task.Delay(200, token).ConfigureAwait(false);
+                PlaygroundProduct? row = await store.GetAsync(id.ToString(), token).ConfigureAwait(false);
+                return row is null ? null : new Product(id, row.Name, row.Price);
+            }, cancellationToken).ConfigureAwait(false);
 
             return product is null ? Results.NotFound() : Results.Json(product);
         })
@@ -50,16 +44,22 @@ public static class GettingStartedEndpoints
         app.MapPut("/api/products/{id:int}", async (
             int id,
             UpdateProduct request,
+            PlaygroundProductStore store,
             ICacheOrchestratorInvalidator invalidator,
             CancellationToken cancellationToken) =>
         {
-            products[id] = new Product(id, request.Name, request.Price);
+            await store.UpsertAsync(
+                id.ToString(),
+                request.Name,
+                request.Price,
+                DateTimeOffset.UtcNow,
+                cancellationToken).ConfigureAwait(false);
 
             await invalidator.InvalidateEntityAsync(
                 "catalog",
                 "products",
                 id,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             return Results.NoContent();
         });

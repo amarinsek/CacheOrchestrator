@@ -3,6 +3,7 @@ using CacheOrchestrator.Diagnostics;
 using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Identity;
 using CacheOrchestrator.Redis;
+using CacheOrchestrator.Sample.Data;
 using CacheOrchestrator.Sample.Endpoints;
 using CacheOrchestrator.Sample.Identity;
 using CacheOrchestrator.Sample.Services;
@@ -12,6 +13,9 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Peers in multi-instance labs share appsettings.json; poll so B reloads when A saves.
 builder.Services.AddHostedService<AppSettingsPeerReloadService>();
+
+builder.Services.Configure<SampleSqliteOptions>(builder.Configuration.GetSection(SampleSqliteOptions.SectionName));
+builder.Services.AddSingleton<PlaygroundProductStore>();
 
 // InMemory always; Redis + HTTP cluster bus when enabled in configuration (see labs/compose).
 builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration, o =>
@@ -31,6 +35,10 @@ builder.Services.AddOpenTelemetry()
     });
 
 WebApplication app = builder.Build();
+
+await app.Services.GetRequiredService<PlaygroundProductStore>()
+    .EnsureCreatedAndSeedAsync()
+    .ConfigureAwait(false);
 
 app.UseDefaultFiles();
 app.UseStaticFiles();

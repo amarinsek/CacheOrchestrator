@@ -16,6 +16,7 @@
 
 	<ItemGroup>
 		<!-- Explicit: Bus depends on this; VS/host runs sometimes miss transitive copy for multi-TF Bus. -->
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
 		<PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="10.0.0" />
 		<!-- Keep OpenTelemetry stack aligned; 1.15.3+ patches OpenTelemetry.Api GHSA-g94r-2vxg-569j -->
 		<PackageReference Include="OpenTelemetry.Api" Version="1.15.3" />
