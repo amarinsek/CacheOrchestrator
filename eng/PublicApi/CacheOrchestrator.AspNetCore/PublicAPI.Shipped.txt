@@ -1,5 +1,5 @@
 #nullable enable
-CacheOrchestrator.Admin.AdminLocalApi
+CacheOrchestrator.Admin.AdminApi
 CacheOrchestrator.Backends.IOutputCacheBackendRegistrar
 CacheOrchestrator.Backends.IOutputCacheBackendRegistrar.Name.get -> string!
 CacheOrchestrator.Backends.IOutputCacheBackendRegistrar.RegisterOutputCache(CacheOrchestrator.Backends.OutputCacheRegistrationContext! context) -> void
@@ -318,7 +318,7 @@ const CacheOrchestrator.Vary.CacheVaryMaterializer.MaxVaryByCookies = 8 -> int
 const CacheOrchestrator.Vary.CacheVaryMaterializer.MaxVaryByHeaders = 8 -> int
 Microsoft.AspNetCore.Http.CacheOrchestratorHttpContextExtensions
 override CacheOrchestrator.Configuration.ClientCacheHeaderGenerator.Result.GetHashCode() -> int
-static CacheOrchestrator.Admin.AdminLocalApi.Map(Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
+static CacheOrchestrator.Admin.AdminApi.Map(Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
 static CacheOrchestrator.Configuration.CacheETagFactory.FromVersion(string! version) -> Microsoft.Extensions.Primitives.StringValues
 static CacheOrchestrator.Configuration.CacheETagFactory.FromVersionAndResource(string! versionHex, string! resourceKey) -> Microsoft.Extensions.Primitives.StringValues
 static CacheOrchestrator.Configuration.CacheETagFactory.FromVersionAndResource(string! versionHex, System.ReadOnlySpan<char> part1, System.ReadOnlySpan<char> part2 = default(System.ReadOnlySpan<char>), System.ReadOnlySpan<char> part3 = default(System.ReadOnlySpan<char>)) -> Microsoft.Extensions.Primitives.StringValues

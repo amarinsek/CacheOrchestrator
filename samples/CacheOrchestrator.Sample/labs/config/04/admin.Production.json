@@ -3,7 +3,7 @@
     "ApiKey": "dev-admin-key",
     "RequestTimeoutMs": 5000,
     "Parallelism": 8,
-    "LocalPathPrefix": "/cache-admin/local",
+    "AdminApiPathPrefix": "/cache-admin/local",
     "Instances": [
       { "id": "playground-a", "url": "http://playground-a:8080" },
       { "id": "playground-b", "url": "http://playground-b:8080" }

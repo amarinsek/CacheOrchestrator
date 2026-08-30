@@ -15,7 +15,7 @@ namespace CacheOrchestrator.HttpBus;
 /// <summary>
 /// Maps cluster receive endpoints (independent of Admin API <c>Enabled</c>).
 /// </summary>
-internal static class ClusterLocalApi
+internal static class ClusterReceiveApi
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

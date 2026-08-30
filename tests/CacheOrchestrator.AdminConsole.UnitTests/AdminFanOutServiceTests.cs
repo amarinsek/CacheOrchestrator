@@ -13,7 +13,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task GetOverviewAsync_HealthOnly_NoTrafficCounters()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         AdminFanOutService sut = CreateSut(client,
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             new AdminInstanceOptions { Id = "b", Url = "http://b" });
@@ -31,7 +31,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task GetInstancesAsync_SkipsKnownDownInstance_OnSecondCall()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         client.FailHealth.Add("b");
 
         AdminFanOutService sut = CreateSut(client,
@@ -50,7 +50,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task GetInstancesAsync_ReprobesDownInstance_AfterDownReprobeSeconds()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         client.FailHealth.Add("b");
         TestMutableTimeProvider time = new(DateTimeOffset.Parse("2026-01-01T00:00:00Z"));
 
@@ -75,7 +75,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task InvalidateAsync_WhenNoBus_FansOutWithDistributeFalse()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         AdminFanOutService sut = CreateSut(client,
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             new AdminInstanceOptions { Id = "b", Url = "http://b" });
@@ -110,7 +110,7 @@ public class AdminFanOutServiceTests
             LocalApplied = true,
             PeerFailures =
             [
-                new LocalAdminPeerFailureDto
+                new AdminApiPeerFailureDto
                 {
                     PeerId = "playground-b",
                     Error = "Timed out after 2000ms",
@@ -138,7 +138,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task InvalidateAsync_WhenOneInstanceSkippedDown_PartialFailure()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         client.FailHealth.Add("b");
         AdminFanOutService sut = CreateSut(client,
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
@@ -164,15 +164,15 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task InvalidateAsync_WhenBusAvailable_UsesSingleOriginDistribute()
     {
-        FakeLocalAdminClient client = new();
-        client.ClusterInfo["a"] = new LocalClusterInfoDto
+        FakeAdminApiClient client = new();
+        client.ClusterInfo["a"] = new AdminApiClusterInfoDto
         {
             InstanceId = "a",
             BusEnabled = true,
             Membership = "Static",
             PeerCount = 2
         };
-        client.ClusterInfo["b"] = new LocalClusterInfoDto
+        client.ClusterInfo["b"] = new AdminApiClusterInfoDto
         {
             InstanceId = "b",
             BusEnabled = true,
@@ -203,8 +203,8 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task GetDistributionCapabilityAsync_ReportsBusPreferredOrigin()
     {
-        FakeLocalAdminClient client = new();
-        client.ClusterInfo["b"] = new LocalClusterInfoDto
+        FakeAdminApiClient client = new();
+        client.ClusterInfo["b"] = new AdminApiClusterInfoDto
         {
             InstanceId = "b",
             BusEnabled = true,
@@ -227,7 +227,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task GetDomainsAsync_MergesConfigsFromReachableInstances()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         client.DomainsById["a"] =
         [
             new AdminDomainConfigDto
@@ -269,7 +269,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task SetVersionAsync_FansOutWithDistributeFalse_WhenNoBus()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         AdminFanOutService sut = CreateSut(client,
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             new AdminInstanceOptions { Id = "b", Url = "http://b" });
@@ -289,7 +289,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task GetInstancesAsync_HttpOkButHealthyFalse_IsDegraded()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         client.Unhealthy.Add("a");
         AdminFanOutService sut = CreateSut(client,
             new AdminInstanceOptions { Id = "a", Url = "http://a" });
@@ -320,8 +320,8 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task GetDistributionCapabilityAsync_NullMembership_IsNotBus()
     {
-        FakeLocalAdminClient client = new();
-        client.ClusterInfo["a"] = new LocalClusterInfoDto
+        FakeAdminApiClient client = new();
+        client.ClusterInfo["a"] = new AdminApiClusterInfoDto
         {
             InstanceId = "a",
             BusEnabled = true,
@@ -341,7 +341,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task PatchSettingsAsync_FansOutWithDistributeFalse_WhenNoBus()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         AdminFanOutService sut = CreateSut(client,
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             new AdminInstanceOptions { Id = "b", Url = "http://b" });
@@ -380,7 +380,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task InvalidateAsync_WhenEveryTargetFails_IsFailed()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         client.FailHealth.Add("a");
         client.FailHealth.Add("b");
         AdminFanOutService sut = CreateSut(client,
@@ -398,7 +398,7 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task GetDomainSettingsCatalogAsync_UsesFirstSuccessfulInstance()
     {
-        FakeLocalAdminClient client = new();
+        FakeAdminApiClient client = new();
         client.FailCatalog.Add("a");
         client.CatalogById["b"] = new AdminDomainSettingsCatalogDto
         {
@@ -425,8 +425,8 @@ public class AdminFanOutServiceTests
     [Fact]
     public async Task SetVersionAsync_WhenBusAvailable_UsesSingleOriginDistribute()
     {
-        FakeLocalAdminClient client = new();
-        client.ClusterInfo["a"] = new LocalClusterInfoDto
+        FakeAdminApiClient client = new();
+        client.ClusterInfo["a"] = new AdminApiClusterInfoDto
         {
             InstanceId = "a",
             BusEnabled = true,
@@ -449,13 +449,13 @@ public class AdminFanOutServiceTests
     }
 
     private static AdminFanOutService CreateSut(params AdminInstanceOptions[] instances) =>
-        CreateSut(new FakeLocalAdminClient(), instances);
+        CreateSut(new FakeAdminApiClient(), instances);
 
-    private static AdminFanOutService CreateSut(ILocalAdminClient client, params AdminInstanceOptions[] instances) =>
+    private static AdminFanOutService CreateSut(IAdminApiClient client, params AdminInstanceOptions[] instances) =>
         CreateSut(client, TimeProvider.System, downReprobeSeconds: 15, instances);
 
     private static AdminFanOutService CreateSut(
-        ILocalAdminClient client,
+        IAdminApiClient client,
         TimeProvider time,
         int downReprobeSeconds,
         params AdminInstanceOptions[] instances)
@@ -472,7 +472,7 @@ public class AdminFanOutServiceTests
         return new AdminFanOutService(client, options, reachability, time);
     }
 
-    private sealed class FakeLocalAdminClient : ILocalAdminClient
+    private sealed class FakeAdminApiClient : IAdminApiClient
     {
         public HashSet<string> FailHealth { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Unhealthy { get; } = new(StringComparer.Ordinal);
@@ -481,7 +481,7 @@ public class AdminFanOutServiceTests
         public List<string> InvalidateCalls { get; } = [];
         public List<string> VersionCalls { get; } = [];
         public List<string> SettingsCalls { get; } = [];
-        public Dictionary<string, LocalClusterInfoDto> ClusterInfo { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, AdminApiClusterInfoDto> ClusterInfo { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, IReadOnlyList<AdminDomainConfigDto>> DomainsById { get; } =
             new(StringComparer.Ordinal);
         public Dictionary<string, AdminDomainSettingsCatalogDto> CatalogById { get; } =
@@ -581,15 +581,15 @@ public class AdminFanOutServiceTests
             return Task.FromResult(Ok(instance.Id, new AdminDomainSettingsCatalogDto { Settings = [] }));
         }
 
-        public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
+        public Task<InstanceCallOutcome<AdminApiClusterInfoDto>> GetClusterInfoAsync(
             AdminInstanceOptions instance,
             CancellationToken cancellationToken = default)
         {
-            if (ClusterInfo.TryGetValue(instance.Id, out LocalClusterInfoDto? info))
+            if (ClusterInfo.TryGetValue(instance.Id, out AdminApiClusterInfoDto? info))
                 return Task.FromResult(Ok(instance.Id, info));
 
             // Default: no bus endpoints (simulates bus disabled / not mapped).
-            return Task.FromResult(Fail<LocalClusterInfoDto>(instance.Id, "cluster info unavailable"));
+            return Task.FromResult(Fail<AdminApiClusterInfoDto>(instance.Id, "cluster info unavailable"));
         }
 
         private static InstanceCallOutcome<T> Ok<T>(string id, T value) =>

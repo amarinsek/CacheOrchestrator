@@ -113,7 +113,7 @@ For your own environment, change **`ApiKey`** and **`Instances`** (and Metrics i
 
     "RequestTimeoutMs": 3000,
     "Parallelism": 8,
-    "LocalPathPrefix": "/cache-admin/local",
+    "AdminApiPathPrefix": "/cache-admin/local",
 
     // Playground listens on host port 5289. From the Admin container use host.docker.internal
     // (Docker Desktop / Linux with host-gateway). For custom apps: service DNS or real host URLs.

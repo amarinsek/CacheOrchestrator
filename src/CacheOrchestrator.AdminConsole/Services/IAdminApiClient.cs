@@ -8,7 +8,7 @@ namespace CacheOrchestrator.AdminConsole.Services;
 /// <summary>
 /// HTTP client for a single instance's Admin API.
 /// </summary>
-public interface ILocalAdminClient
+public interface IAdminApiClient
 {
     /// <summary>GET health for one instance.</summary>
     Task<InstanceCallOutcome<AdminHealthDto>> GetHealthAsync(
@@ -48,7 +48,7 @@ public interface ILocalAdminClient
     /// <summary>
     /// GET cluster bus info (<c>…/cluster/info</c>). Fails when bus receive endpoints are not mapped.
     /// </summary>
-    Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
+    Task<InstanceCallOutcome<AdminApiClusterInfoDto>> GetClusterInfoAsync(
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default);
 }
@@ -80,7 +80,7 @@ public sealed class InstanceCallOutcome<T>
     public bool LocalApplied { get; init; }
 
     /// <summary>Peer failures from a 409 cluster-publish incomplete response.</summary>
-    public IReadOnlyList<LocalAdminPeerFailureDto> PeerFailures { get; init; } = [];
+    public IReadOnlyList<AdminApiPeerFailureDto> PeerFailures { get; init; } = [];
 
     /// <summary>Maps to the fan-out result DTO (without payload).</summary>
     public InstanceCallResultDto ToResultDto() =>

@@ -95,7 +95,7 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | Redis: `AddRedisBackend` (**CacheOrchestrator.Redis**) | `RedisCacheBackendRegistrar`, `RedisCacheHealthProbe`, all `Redis.Shared` implementation types |
 | HttpBus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` (**CacheOrchestrator.HttpBus**) | `HttpClusterCommandBus`, versioned HTTP wire DTOs, `ClusterEndpointAuth` |
 | `ICacheOrchestratorManagement`, management DTOs and host adapter contracts (**Core**) | `CacheOrchestratorManagement`, `CoreAdminDomainConfigProvider` |
-| `MapCacheOrchestratorAdmin` (**`CacheOrchestrator.AspNetCore` Admin API**) | `AdminLocalApi`, `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
+| `MapCacheOrchestratorAdmin` (**`CacheOrchestrator.AspNetCore` Admin API**) | `AdminApi`, `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
 | `AuthBypassMode`, `ETagMode`, `ClientCacheability`, `DomainAuthEvaluator` (**`CacheOrchestrator.AspNetCore`**) | — |
 | `ICacheVaryContributor`, `CacheVaryMaterializer`, `ICacheVaryBuilder` | — |
 | `DomainOutputCachePolicy`, `[CacheDomain]`, `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheDomainConvention` |

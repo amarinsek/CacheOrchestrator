@@ -9,19 +9,19 @@ using System.Text.Json;
 namespace CacheOrchestrator.AdminConsole.Services;
 
 /// <summary>
-/// Default <see cref="ILocalAdminClient"/> using <see cref="IHttpClientFactory"/>.
+/// Default <see cref="IAdminApiClient"/> using <see cref="IHttpClientFactory"/>.
 /// </summary>
-public sealed class LocalAdminClient : ILocalAdminClient
+public sealed class AdminApiClient : IAdminApiClient
 {
     /// <summary>Named HttpClient registration key.</summary>
-    public const string HttpClientName = "AdminConsoleLocal";
+    public const string HttpClientName = "AdminConsoleAdminApi";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly AdminConsoleOptions _options;
 
-    public LocalAdminClient(IHttpClientFactory httpClientFactory, IOptions<AdminConsoleOptions> options)
+    public AdminApiClient(IHttpClientFactory httpClientFactory, IOptions<AdminConsoleOptions> options)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactory);
         ArgumentNullException.ThrowIfNull(options);
@@ -92,10 +92,10 @@ public sealed class LocalAdminClient : ILocalAdminClient
         GetAsync<AdminDomainSettingsCatalogDto>(instance, "/domain-settings/catalog", cancellationToken);
 
     /// <inheritdoc />
-    public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
+    public Task<InstanceCallOutcome<AdminApiClusterInfoDto>> GetClusterInfoAsync(
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default) =>
-        GetAsync<LocalClusterInfoDto>(instance, "/cluster/info", cancellationToken);
+        GetAsync<AdminApiClusterInfoDto>(instance, "/cluster/info", cancellationToken);
 
     private async Task<InstanceCallOutcome<T>> GetAsync<T>(
         AdminInstanceOptions instance,
@@ -131,9 +131,9 @@ public sealed class LocalAdminClient : ILocalAdminClient
             throw new ArgumentException("Instance Url is required.", nameof(instance));
 
         string baseUrl = instance.Url.TrimEnd('/');
-        string prefix = string.IsNullOrWhiteSpace(_options.LocalPathPrefix)
+        string prefix = string.IsNullOrWhiteSpace(_options.AdminApiPathPrefix)
             ? "/cache-admin/local"
-            : _options.LocalPathPrefix.TrimEnd('/');
+            : _options.AdminApiPathPrefix.TrimEnd('/');
         string url = baseUrl + prefix + relativePath;
 
         HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
@@ -156,7 +156,7 @@ public sealed class LocalAdminClient : ILocalAdminClient
             if (!response.IsSuccessStatusCode)
             {
                 if ((int)response.StatusCode == StatusCodes.Status409Conflict
-                    && TryParseClusterPublishIncomplete(raw, out LocalAdminClusterPublishIncompleteDto? incomplete)
+                    && TryParseClusterPublishIncomplete(raw, out AdminApiClusterPublishIncompleteDto? incomplete)
                     && incomplete is not null
                     && incomplete.LocalApplied
                     && incomplete.PeerFailures is { Count: > 0 })
@@ -280,7 +280,7 @@ public sealed class LocalAdminClient : ILocalAdminClient
         if (trimmed.StartsWith('<') || trimmed.StartsWith("<!"))
             return $"HTTP {statusCode}: non-JSON body (HTML). Check Admin API path and that the target is not an SPA fallback.";
 
-        if (TryParseClusterPublishIncomplete(trimmed, out LocalAdminClusterPublishIncompleteDto? incomplete)
+        if (TryParseClusterPublishIncomplete(trimmed, out AdminApiClusterPublishIncompleteDto? incomplete)
             && incomplete is not null
             && !string.IsNullOrWhiteSpace(incomplete.Error))
         {
@@ -311,14 +311,14 @@ public sealed class LocalAdminClient : ILocalAdminClient
 
     private static bool TryParseClusterPublishIncomplete(
         string raw,
-        out LocalAdminClusterPublishIncompleteDto? dto)
+        out AdminApiClusterPublishIncompleteDto? dto)
     {
         dto = null;
         if (string.IsNullOrWhiteSpace(raw))
             return false;
         try
         {
-            dto = JsonSerializer.Deserialize<LocalAdminClusterPublishIncompleteDto>(raw, JsonOptions);
+            dto = JsonSerializer.Deserialize<AdminApiClusterPublishIncompleteDto>(raw, JsonOptions);
             return dto is not null
                 && (dto.LocalApplied || (dto.PeerFailures is { Count: > 0 }));
         }

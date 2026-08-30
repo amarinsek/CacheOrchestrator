@@ -10,7 +10,7 @@ using System.Text;
 
 namespace CacheOrchestrator.AdminConsole.UnitTests;
 
-public class LocalAdminClientTests
+public class AdminApiClientTests
 {
     [Fact]
     public async Task GetHealthAsync_SendsApiKey_AndDeserializes()
@@ -25,7 +25,7 @@ public class LocalAdminClientTests
             return JsonResponse("""{"healthy":true,"instanceId":"app-1","utcNow":"2026-01-01T00:00:00Z","adminEnabled":true}""");
         });
 
-        LocalAdminClient sut = CreateSut(handler, apiKey: "secret-key");
+        AdminApiClient sut = CreateSut(handler, apiKey: "secret-key");
         InstanceCallOutcome<AdminHealthDto> outcome = await sut.GetHealthAsync(
             new AdminInstanceOptions { Id = "app-1", Url = "http://app-1:8080" },
             TestContext.Current.CancellationToken);
@@ -45,7 +45,7 @@ public class LocalAdminClientTests
             return JsonResponse("""[{"name":"catalog","version":"1","dataCacheInstanceName":"default"}]""");
         });
 
-        LocalAdminClient sut = CreateSut(handler, apiKey: "k", localPathPrefix: "/custom/local");
+        AdminApiClient sut = CreateSut(handler, apiKey: "k", adminApiPathPrefix: "/custom/local");
         InstanceCallOutcome<IReadOnlyList<AdminDomainConfigDto>> outcome = await sut.GetDomainsAsync(
             new AdminInstanceOptions { Id = "app-1", Url = "http://app-1:8080/" },
             TestContext.Current.CancellationToken);
@@ -63,7 +63,7 @@ public class LocalAdminClientTests
                 Content = new StringContent("<html>spa</html>", Encoding.UTF8, "text/html"),
             });
 
-        LocalAdminClient sut = CreateSut(handler, apiKey: "k");
+        AdminApiClient sut = CreateSut(handler, apiKey: "k");
         InstanceCallOutcome<AdminHealthDto> outcome = await sut.GetHealthAsync(
             new AdminInstanceOptions { Id = "app-1", Url = "http://app-1:8080" },
             TestContext.Current.CancellationToken);
@@ -79,7 +79,7 @@ public class LocalAdminClientTests
             """{"error":"Cluster publish incomplete.","localApplied":true,"peerFailures":[{"peerId":"b","error":"timeout"}]}""",
             HttpStatusCode.Conflict));
 
-        LocalAdminClient sut = CreateSut(handler, apiKey: "k");
+        AdminApiClient sut = CreateSut(handler, apiKey: "k");
         InstanceCallOutcome<CacheInvalidationResult> outcome = await sut.InvalidateAsync(
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             new AdminInvalidateRequest { Scope = "domain", Domain = "catalog", Distribute = true },
@@ -99,7 +99,7 @@ public class LocalAdminClientTests
             """{"error":"bad api key"}""",
             HttpStatusCode.Unauthorized));
 
-        LocalAdminClient sut = CreateSut(handler, apiKey: "wrong");
+        AdminApiClient sut = CreateSut(handler, apiKey: "wrong");
         InstanceCallOutcome<AdminHealthDto> outcome = await sut.GetHealthAsync(
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             TestContext.Current.CancellationToken);
@@ -118,7 +118,7 @@ public class LocalAdminClientTests
             return JsonResponse("""{"healthy":true,"instanceId":"a","utcNow":"2026-01-01T00:00:00Z","adminEnabled":true}""");
         });
 
-        LocalAdminClient sut = CreateSut(handler, apiKey: "");
+        AdminApiClient sut = CreateSut(handler, apiKey: "");
         InstanceCallOutcome<AdminHealthDto> outcome = await sut.GetHealthAsync(
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             TestContext.Current.CancellationToken);
@@ -129,7 +129,7 @@ public class LocalAdminClientTests
     public async Task GetHealthAsync_InvalidJson_Fails()
     {
         RecordingHandler handler = new((_, _) => JsonResponse("{not-json"));
-        LocalAdminClient sut = CreateSut(handler, apiKey: "k");
+        AdminApiClient sut = CreateSut(handler, apiKey: "k");
         InstanceCallOutcome<AdminHealthDto> outcome = await sut.GetHealthAsync(
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             TestContext.Current.CancellationToken);
@@ -148,7 +148,7 @@ public class LocalAdminClientTests
             return JsonResponse("""{"domain":"catalog/v2","effective":{"name":"catalog/v2","version":"1","dataCacheInstanceName":"default"}}""");
         });
 
-        LocalAdminClient sut = CreateSut(handler, apiKey: "k");
+        AdminApiClient sut = CreateSut(handler, apiKey: "k");
         InstanceCallOutcome<AdminDomainMutationResultDto> outcome = await sut.PatchSettingsAsync(
             new AdminInstanceOptions { Id = "a", Url = "http://a" },
             "catalog/v2",
@@ -167,31 +167,31 @@ public class LocalAdminClientTests
     [Fact]
     public async Task GetHealthAsync_MissingInstanceId_Throws()
     {
-        LocalAdminClient sut = CreateSut(new RecordingHandler((_, _) => JsonResponse("{}")), apiKey: "k");
+        AdminApiClient sut = CreateSut(new RecordingHandler((_, _) => JsonResponse("{}")), apiKey: "k");
         Func<Task> act = () => sut.GetHealthAsync(
             new AdminInstanceOptions { Id = "", Url = "http://a" },
             TestContext.Current.CancellationToken);
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("instance");
     }
 
-    private static LocalAdminClient CreateSut(
+    private static AdminApiClient CreateSut(
         HttpMessageHandler handler,
         string apiKey,
-        string localPathPrefix = "/cache-admin/local")
+        string adminApiPathPrefix = "/cache-admin/local")
     {
         ServiceCollection services = new();
-        services.AddHttpClient(LocalAdminClient.HttpClientName)
+        services.AddHttpClient(AdminApiClient.HttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => handler);
         ServiceProvider sp = services.BuildServiceProvider();
 
         AdminConsoleOptions opts = new()
         {
             ApiKey = apiKey,
-            LocalPathPrefix = localPathPrefix,
+            AdminApiPathPrefix = adminApiPathPrefix,
             RequestTimeoutMs = 5000,
         };
 
-        return new LocalAdminClient(
+        return new AdminApiClient(
             sp.GetRequiredService<IHttpClientFactory>(),
             Microsoft.Extensions.Options.Options.Create(opts));
     }

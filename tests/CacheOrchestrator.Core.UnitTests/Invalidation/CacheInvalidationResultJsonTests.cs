@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace CacheOrchestrator.Core.UnitTests.Invalidation;
 
 /// <summary>
-/// Admin Console LocalAdminClient deserializes <see cref="CacheInvalidationResult"/> with Web defaults.
+/// Admin Console AdminApiClient deserializes <see cref="CacheInvalidationResult"/> with Web defaults.
 /// Constructor parameter names must match JSON property names (e.g. isSkipped).
 /// </summary>
 public class CacheInvalidationResultJsonTests

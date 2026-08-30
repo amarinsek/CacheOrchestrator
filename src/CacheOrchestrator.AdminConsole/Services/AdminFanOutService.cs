@@ -12,13 +12,13 @@ namespace CacheOrchestrator.AdminConsole.Services;
 /// </summary>
 public sealed class AdminFanOutService
 {
-    private readonly ILocalAdminClient _client;
+    private readonly IAdminApiClient _client;
     private readonly AdminConsoleOptions _options;
     private readonly TimeProvider _time;
     private readonly InstanceReachabilityCache _reachability;
 
     public AdminFanOutService(
-        ILocalAdminClient client,
+        IAdminApiClient client,
         IOptions<AdminConsoleOptions> options,
         InstanceReachabilityCache reachability,
         TimeProvider? timeProvider = null)
@@ -176,7 +176,7 @@ public sealed class AdminFanOutService
         CancellationToken cancellationToken)
     {
         IReadOnlyList<AdminInstanceOptions> all = GetConfiguredInstances();
-        List<InstanceCallOutcome<LocalClusterInfoDto>> outcomes =
+        List<InstanceCallOutcome<AdminApiClusterInfoDto>> outcomes =
             await FanOutAsync(
                     all,
                     _client.GetClusterInfoAsync,
@@ -185,7 +185,7 @@ public sealed class AdminFanOutService
                 .ConfigureAwait(false);
         // Cluster info may be missing when the bus is off — do not mark instances Down.
         // A successful probe still refreshes reachability as Up.
-        foreach (InstanceCallOutcome<LocalClusterInfoDto> o in outcomes)
+        foreach (InstanceCallOutcome<AdminApiClusterInfoDto> o in outcomes)
         {
             if (o.Succeeded && !IsSkippedDownError(o.Error))
                 _reachability.RecordSuccess(o.InstanceId, o.Value?.InstanceId, o.LatencyMs);
@@ -374,7 +374,7 @@ public sealed class AdminFanOutService
                     LatencyMs = o.LatencyMs,
                 });
 
-                foreach (LocalAdminPeerFailureDto peer in o.PeerFailures)
+                foreach (AdminApiPeerFailureDto peer in o.PeerFailures)
                 {
                     string peerId = peer.PeerId!.Trim();
                     results.Add(new InstanceCallResultDto

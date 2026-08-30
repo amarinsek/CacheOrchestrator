@@ -153,7 +153,7 @@ public class AdminRegistrationTests
         using var doc = JsonDocument.Parse(json);
         doc.RootElement.TryGetProperty("succeeded", out _).Should().BeTrue();
 
-        // Admin Console LocalAdminClient deserializes this type with Web defaults â€” must round-trip.
+        // Admin Console AdminApiClient deserializes this type with Web defaults â€” must round-trip.
         CacheInvalidationResult? parsed = System.Text.Json.JsonSerializer.Deserialize<CacheInvalidationResult>(
             json,
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));

@@ -36,5 +36,5 @@ public static class ApplicationBuilderExtensions
     /// <param name="endpoints">The endpoint route builder.</param>
     /// <returns>The same <paramref name="endpoints"/> for chaining.</returns>
     public static IEndpointRouteBuilder MapCacheOrchestratorAdmin(this IEndpointRouteBuilder endpoints) =>
-        AdminLocalApi.Map(endpoints);
+        AdminApi.Map(endpoints);
 }

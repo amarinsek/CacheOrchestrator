@@ -15,7 +15,7 @@ namespace CacheOrchestrator.Admin;
 /// Maps Admin API endpoints (per instance). No-op when Admin is disabled.
 /// Prefer <see cref="DependencyInjection.ApplicationBuilderExtensions.MapCacheOrchestratorAdmin"/>.
 /// </summary>
-public static class AdminLocalApi
+public static class AdminApi
 {
     /// <summary>
     /// Maps Admin API routes under <c>Cache:Admin:RoutePrefix</c> when Admin is enabled.

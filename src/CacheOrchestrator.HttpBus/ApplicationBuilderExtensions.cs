@@ -14,5 +14,5 @@ public static class ApplicationBuilderExtensions
     /// <param name="endpoints">Endpoint route builder.</param>
     /// <returns>The same <paramref name="endpoints"/> for chaining.</returns>
     public static IEndpointRouteBuilder MapCacheOrchestratorHttpBus(this IEndpointRouteBuilder endpoints) =>
-        ClusterLocalApi.Map(endpoints);
+        ClusterReceiveApi.Map(endpoints);
 }

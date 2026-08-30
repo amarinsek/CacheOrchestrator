@@ -41,7 +41,7 @@ public sealed class AdminConsoleOptions
     /// Path prefix of the Admin API on each instance (no trailing slash).
     /// Default: <c>/cache-admin/local</c>.
     /// </summary>
-    public string LocalPathPrefix { get; set; } = "/cache-admin/local";
+    public string AdminApiPathPrefix { get; set; } = "/cache-admin/local";
 
     /// <summary>
     /// Optional Prometheus-compatible metrics store for time-series UI.

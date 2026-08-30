@@ -80,7 +80,7 @@ app.MapCacheOrchestratorAdmin();
     "ApiKey": "dev-admin-key",
     "RequestTimeoutMs": 3000,
     "Parallelism": 8,
-    "LocalPathPrefix": "/cache-admin/local",
+    "AdminApiPathPrefix": "/cache-admin/local",
     "Instances": [
       { "id": "app-1", "url": "http://localhost:5290" },
       { "id": "app-2", "url": "http://localhost:5291" }
@@ -100,7 +100,7 @@ app.MapCacheOrchestratorAdmin();
 
 - **ApiKey** is sent as `X-Cache-Admin-Key` (must match each instance).  
 - **Instances[].url** is the application base URL only.  
-- **LocalPathPrefix** must match `Cache:Admin:RoutePrefix`.  
+- **AdminApiPathPrefix** must match `Cache:Admin:RoutePrefix`.  
 - **Restart required** after changing `Instances`, `ApiKey`, timeouts, or `Metrics` (bound via `IOptions` snapshot). Hint packs (`Hints`) reload without restart.  
 - Production keys belong in a secret store; put VPN/SSO in front of this host.  
 - Invalidate / Version / TTL change live cache state — see [docs/reference/admin.md — Security](../../docs/reference/admin.md#security).

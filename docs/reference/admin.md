@@ -122,7 +122,7 @@ app.MapCacheOrchestratorAdmin(); // after routing is available; safe no-op when 
 | `Cache:InstanceId` | machine name | Single process id for Admin, cluster bus, diagnostics |
 | `Admin:Enabled` | `false` | No routes, no counter cost when false |
 | `Admin:ApiKey` | empty | Empty + Enabled ⇒ **open** endpoints (dev only; logs a warning) |
-| `Admin:RoutePrefix` | `/cache-admin/local` | Must match Admin Console App `LocalPathPrefix` |
+| `Admin:RoutePrefix` | `/cache-admin/local` | Must match Admin Console App `AdminApiPathPrefix` |
 | `Admin:TrackEndpoints` | `true` | Per-route counters |
 | `Admin:TrackLatency` | `false` | Extra cost if true (Admin `/stats` factory duration sums) |
 | `Admin:TrackResultSize` | `false` | Extra cost if true (Admin `/stats` factory size sums). Does not gate OTEL `factory.result_size`. |
@@ -329,7 +329,7 @@ Section: `AdminConsole` → `AdminConsoleOptions`.
     "ApiKey": "use-a-strong-secret-in-production",
     "RequestTimeoutMs": 3000,
     "Parallelism": 8,
-    "LocalPathPrefix": "/cache-admin/local",
+    "AdminApiPathPrefix": "/cache-admin/local",
     "Instances": [
       { "id": "app-1", "url": "https://app-1.internal:8080" },
       { "id": "app-2", "url": "https://app-2.internal:8080" }
@@ -344,7 +344,7 @@ Section: `AdminConsole` → `AdminConsoleOptions`.
 | `RequestTimeoutMs` | Per-call timeout (1–120000) |
 | `Parallelism` | Max concurrent fan-out (1–64) |
 | `DownReprobeSeconds` | After an instance is Down, skip HTTP to it for this many seconds (5–300, default 15), then re-probe |
-| `LocalPathPrefix` | Path on each instance (must match `RoutePrefix`) |
+| `AdminApiPathPrefix` | Path on each instance (must match `RoutePrefix`) |
 | `Instances[].id` | Stable UI / filter id |
 | `Instances[].url` | **Base URL only** (scheme + host + port) — no `/cache-admin/...` path |
 | `Metrics` | Optional Prometheus-compatible store for the **Metrics** page (see below) |

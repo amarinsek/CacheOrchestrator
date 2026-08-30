@@ -14,7 +14,7 @@ using System.Text.Json;
 
 namespace CacheOrchestrator.HttpBus.UnitTests;
 
-public class ClusterLocalApiTests
+public class ClusterReceiveApiTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
