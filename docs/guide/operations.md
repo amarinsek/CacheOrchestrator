@@ -89,7 +89,7 @@ Metrics show that a miss or failure increased. Logs and activities explain a par
 - Stale results, backend failures, partial invalidation failures, and cluster publish failures appear at higher levels.
 - Activity source `CacheOrchestrator` emits Data Cache, Output Cache hit, and invalidation activities.
 
-Do not enable verbose cache logging indefinitely in a high-traffic environment. Prefer metrics for the baseline and raise log detail for the domain or incident window you are investigating.
+Do not enable verbose cache logging indefinitely in a high-traffic environment. Prefer metrics for the baseline and raise log detail for the domain or incident window you are investigating. Category names and `appsettings` fine-tuning: [Observability — Logging](../reference/observability.md#logging).
 
 ## Probe backend health
 
