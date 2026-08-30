@@ -68,7 +68,7 @@ public class HybridDataCacheProviderTests
             VersionHex = "v",
             DataCacheTtl = TimeSpan.FromMinutes(5),
             DataCacheInstanceName = "default",
-            DataCacheNamespace = "shop-fc",
+            DataCacheNamespace = "shop-dc",
         };
 
         DataCacheProviderRequest request = new()
@@ -86,10 +86,10 @@ public class HybridDataCacheProviderTests
 
         result.Value.Should().Be("hit");
         result.Outcome.Should().Be(DataCacheProviderOutcome.Cached);
-        passedKey.Should().Be("shop-fc:products:v:product:1");
+        passedKey.Should().Be("shop-dc:products:v:product:1");
         passedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(5));
         passedOptions.LocalCacheExpiration.Should().Be(TimeSpan.FromMinutes(5));
-        passedTags.Should().Equal("shop-fc:domain:products", "shop-fc:entity:products:product:1");
+        passedTags.Should().Equal("shop-dc:domain:products", "shop-dc:entity:products:product:1");
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public class HybridDataCacheProviderTests
             new DataCacheInvalidationRequest { Tags = ["domain:products"] },
             TestContext.Current.CancellationToken);
 
-        await _cache.Received(1).RemoveByTagAsync("shop-fc:domain:products", Arg.Any<CancellationToken>());
+        await _cache.Received(1).RemoveByTagAsync("shop-dc:domain:products", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public class HybridDataCacheProviderTests
             },
             TestContext.Current.CancellationToken);
 
-        await _cache.Received(1).RemoveByTagAsync("shop-fc-secondary:domain:products", Arg.Any<CancellationToken>());
+        await _cache.Received(1).RemoveByTagAsync("shop-dc-secondary:domain:products", Arg.Any<CancellationToken>());
     }
 
     private static IOptionsMonitor<CacheOrchestratorOptions> CreateOptions()

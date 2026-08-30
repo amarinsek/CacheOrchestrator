@@ -25,7 +25,7 @@ public class CacheOrchestratorOptionsTests
         opts.DataCacheInstances["pii"] = new CacheOrchestratorOptions.DataCacheInstanceOptions { Namespace = null };
         opts.Namespace = "myapp";
 
-        opts.DataCacheInstances["pii"].GetNamespace("pii", opts).Should().Be("myapp-fc-pii");
+        opts.DataCacheInstances["pii"].GetNamespace("pii", opts).Should().Be("myapp-dc-pii");
     }
 
     [Fact]
@@ -34,18 +34,18 @@ public class CacheOrchestratorOptionsTests
         var opts = new CacheOrchestratorOptions { Namespace = "myapp" };
         opts.DataCacheInstances["default"] = new CacheOrchestratorOptions.DataCacheInstanceOptions { Namespace = null };
 
-        opts.DataCacheInstances["default"].GetNamespace("default", opts).Should().Be("myapp-fc");
-        opts.DataCacheInstances["default"].GetNamespace("Default", opts).Should().Be("myapp-fc");
+        opts.DataCacheInstances["default"].GetNamespace("default", opts).Should().Be("myapp-dc");
+        opts.DataCacheInstances["default"].GetNamespace("Default", opts).Should().Be("myapp-dc");
     }
 
     [Fact]
     public void GetNamespace_WhenInstanceNamespaceSet_UsesInstanceNamespace()
     {
         var opts = new CacheOrchestratorOptions();
-        opts.DataCacheInstances["pii"] = new CacheOrchestratorOptions.DataCacheInstanceOptions { Namespace = "custom-fc" };
+        opts.DataCacheInstances["pii"] = new CacheOrchestratorOptions.DataCacheInstanceOptions { Namespace = "custom-dc" };
         opts.Namespace = "myapp";
 
-        opts.DataCacheInstances["pii"].GetNamespace("pii", opts).Should().Be("custom-fc");
+        opts.DataCacheInstances["pii"].GetNamespace("pii", opts).Should().Be("custom-dc");
     }
 
     [Fact]

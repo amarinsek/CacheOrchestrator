@@ -36,7 +36,7 @@ internal sealed class RedisFusionCacheBackendRegistrar : IFusionCacheBackendRegi
         }
 
         ConfigurationOptions configOptions = RedisConfigurationOptionsFactory.Create(redis);
-        string fcNamespace = context.InstanceOptions.GetNamespace(context.InstanceName, context.RootOptions);
+        string dcNamespace = context.InstanceOptions.GetNamespace(context.InstanceName, context.RootOptions);
         string instanceName = context.InstanceName;
 
         context.Services.TryAddKeyedSingleton<IConnectionMultiplexer>(
@@ -52,7 +52,7 @@ internal sealed class RedisFusionCacheBackendRegistrar : IFusionCacheBackendRegi
         context.Services.TryAddKeyedSingleton<IDistributedCache>(instanceName, (sp, _) =>
         {
             IConnectionMultiplexer mux = sp.GetRequiredKeyedService<IConnectionMultiplexer>(instanceName);
-            // InstanceName left empty: Fusion CacheKeyPrefix (effective FC namespace) owns keyspace
+            // InstanceName left empty: Fusion CacheKeyPrefix (effective Data Cache namespace) owns keyspace
             // isolation so Redis keys are not double-prefixed.
             RedisCacheOptions redisCacheOptions = new()
             {
@@ -73,7 +73,7 @@ internal sealed class RedisFusionCacheBackendRegistrar : IFusionCacheBackendRegi
             });
         });
 
-        string backplaneChannel = fcNamespace + ":backplane";
+        string backplaneChannel = dcNamespace + ":backplane";
         context.FusionBuilder.WithOptions(o => o.BackplaneChannelPrefix = backplaneChannel);
     }
 }

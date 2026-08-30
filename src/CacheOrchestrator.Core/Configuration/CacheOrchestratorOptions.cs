@@ -98,9 +98,9 @@ public sealed class CacheOrchestratorOptions
         /// Returns the key namespace for this instance.
         /// </summary>
         /// <remarks>
-        /// When <see cref="Namespace"/> is unset: <c>{root.Namespace}-fc</c> for the
+        /// When <see cref="Namespace"/> is unset: <c>{root.Namespace}-dc</c> for the
         /// <c>default</c> instance (no <c>-default</c> suffix), otherwise
-        /// <c>{root.Namespace}-fc-{instanceName}</c>.
+        /// <c>{root.Namespace}-dc-{instanceName}</c>.
         /// </remarks>
         public string GetNamespace(string instanceName, CacheOrchestratorOptions root)
         {
@@ -108,9 +108,9 @@ public sealed class CacheOrchestratorOptions
                 return Namespace;
 
             if (string.Equals(instanceName, "default", StringComparison.OrdinalIgnoreCase))
-                return $"{root.Namespace}-fc";
+                return $"{root.Namespace}-dc";
 
-            return $"{root.Namespace}-fc-{instanceName}";
+            return $"{root.Namespace}-dc-{instanceName}";
         }
     }
 

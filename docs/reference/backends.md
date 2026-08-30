@@ -21,7 +21,7 @@ Policy (domains, TTLs, invalidation, Client Cache) is separate from **storage**.
 | **InMemory** | `CacheOrchestrator.Core` / `CacheOrchestrator.AspNetCore` / `CacheOrchestrator` meta | Automatic | ASP.NET in-process store (+ size limits) | None (L1 only) |
 | **Redis** (meta) | `CacheOrchestrator.Redis` | `o.AddRedisBackend()` | Redis Output Cache store | Keyed Redis L2 + backplane |
 | **Redis** (Output Cache only) | `CacheOrchestrator.AspNetCore.Redis` | `o.AddRedisOutputCacheBackend()` | Redis Output Cache store | — |
-| **Redis** (Fusion only) | `CacheOrchestrator.FusionCache.Redis` | `AddRedisFusionCacheBackend(...)` | — | Keyed Redis L2 + backplane |
+| **Redis** (Fusion only) | `CacheOrchestrator.FusionCache.Redis` | `o.AddRedisFusionCacheBackend(...)` | — | Keyed Redis L2 + backplane |
 
 `CacheOrchestrator.Redis.Shared` is a **support** package (transitive). Do not install it alone.
 
@@ -209,9 +209,9 @@ Config:
 
 ## Related
 
-- [packages.md](../guide/packages.md)  
-- [Guide — topologies](../guide/topologies.md)  
-- [configuration.md](configuration.md) — `Distributed`, Redis, providers  
-- [deployment.md](deployment.md) — multi-instance Redis  
-- [Extensibility](extensibility.md) — all application, provider, and host extension points
-- [architecture.md](../contributor/architecture.md) — public API surface  
+- [Packages](../guide/packages.md) — which package to choose (including Redis meta vs leaf)
+- [Topologies](../guide/topologies.md) — InMemory, Redis, HttpBus, and when to combine them
+- [Configuration](configuration.md) — `Distributed`, Redis connection options, and provider settings
+- [Deployment](deployment.md) — multi-instance Redis and shared-store layouts
+- [Extensibility](extensibility.md) — `IOutputCacheBackendRegistrar`, `IFusionCacheBackendRegistrar`, and `IDataCacheProvider`
+- [Architecture](../contributor/architecture.md) — package layout and public API surface

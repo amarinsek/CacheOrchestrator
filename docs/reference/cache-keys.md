@@ -4,7 +4,7 @@
 
 How the **Data Cache** and Output Cache decide that two requests are the **same** resource. That is lookup identity. Eviction — tags and Version — is [invalidation.md](invalidation.md).
 
-- **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` (Output Cache) and `my-app-fc` (Data Cache default instance suffix).
+- **Namespace** — isolates applications that share Redis: `my-app` becomes `my-app-oc` (Output Cache) and `my-app-dc` (Data Cache default instance suffix).
 - **Domain** — the policy group (`products`, `product-detail`).
 - **Request material** — what varies inside a domain: path, route, query, host, encoding, resource id, and optional **endpoint cache identity** (`co-id:*`).
 
@@ -44,8 +44,8 @@ Default: `app-cache`. Effective store prefixes:
 | Target | Effective name | Override |
 |--------|----------------|----------|
 | Output Cache | `{Namespace}-oc` | `OutputCache.Namespace` |
-| Data Cache **default** instance | `{Namespace}-fc` | `DataCacheInstances.default.Namespace` |
-| Data Cache **named** instance `pii` | `{Namespace}-fc-pii` | `DataCacheInstances.pii.Namespace` |
+| Data Cache **default** instance | `{Namespace}-dc` | `DataCacheInstances.default.Namespace` |
+| Data Cache **named** instance `pii` | `{Namespace}-dc-pii` | `DataCacheInstances.pii.Namespace` |
 
 **Purpose:** isolate multiple applications or environments that share the same Redis (or other L2) so keys and backplane channels do not collide. Namespace is **not** a domain and is **not** per-endpoint.
 
@@ -56,7 +56,7 @@ Default: `app-cache`. Effective store prefixes:
 | **Output Cache key** | Yes | `CacheKeyPrefix` = effective Output Cache namespace |
 | **Output Cache Redis store** | Yes | `InstanceName` = effective Output Cache namespace |
 | **Data Cache provider key** (`DefaultDomainKeyGenerator`) | **No** | Key is `co3:{escapedDomain}:{versionHex}:{hash}` only |
-| **Fusion `CacheKeyPrefix`** | Yes | Effective Data Cache namespace + `:` (e.g. `my-app-fc:`) on every named Fusion instance |
+| **Fusion `CacheKeyPrefix`** | Yes | Effective Data Cache namespace + `:` (e.g. `my-app-dc:`) on every named Fusion instance |
 | **HybridCache key and tags** | Yes | The provider prefixes both with the effective default Data Cache namespace + `:` |
 | **Fusion Redis L2** | Yes (via Fusion) | Redis `InstanceName` is **not** set; Fusion prefix is the single isolation layer (do not also set `InstanceName` to the same namespace) |
 | **Fusion backplane** | Yes | Channel prefix `{dcNamespace}:backplane` |
@@ -216,7 +216,7 @@ Output Cache stamps early tags in `CacheRequestAsync` (domain; primary entity wh
 | | Data Cache | Output Cache |
 |--|------------|--------------|
 | **Logical shape** | `co3:{escapedDomain}:{versionHex}:{hash}` | Framework key from prefix + vary |
-| **Namespace** | Logical key: no; Fusion `CacheKeyPrefix` + backplane: yes (`-fc`) | Yes (`CacheKeyPrefix`) |
+| **Namespace** | Logical key: no; Fusion `CacheKeyPrefix` + backplane: yes (`-dc`) | Yes (`CacheKeyPrefix`) |
 | **Domain in key** | Yes | No (tag only) |
 | **Version in key** | Yes (`versionHex`) | Yes (`data-version` vary) |
 | **Route / path** | In hash (unless entity id mode) | Path in framework key |

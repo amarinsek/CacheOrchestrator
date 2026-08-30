@@ -138,7 +138,7 @@ public class FusionCacheRedisTests
     public async Task GetOrSetAsync_RedisKeys_UseFusionCacheKeyPrefixOnce()
     {
         const string cacheNamespace = "prefix-probe";
-        string fcNamespace = cacheNamespace + "-fc";
+        string dcNamespace = cacheNamespace + "-dc";
 
         await using ServiceProvider sp = BuildProvider(cacheNamespace);
         IDomainDataCache cache = sp.GetRequiredService<IDomainDataCache>();
@@ -163,7 +163,7 @@ public class FusionCacheRedisTests
         while (DateTimeOffset.UtcNow < deadline)
         {
             keys.Clear();
-            await foreach (RedisKey key in server.KeysAsync(pattern: $"*{fcNamespace}*"))
+            await foreach (RedisKey key in server.KeysAsync(pattern: $"*{dcNamespace}*"))
                 keys.Add(key.ToString());
 
             if (keys.Count > 0)
@@ -172,11 +172,11 @@ public class FusionCacheRedisTests
             await Task.Delay(100, TestContext.Current.CancellationToken);
         }
 
-        keys.Should().NotBeEmpty("Fusion L2 should write Redis keys under the FC namespace prefix");
-        keys.Should().OnlyContain(k => k.Contains(fcNamespace, StringComparison.Ordinal));
+        keys.Should().NotBeEmpty("Fusion L2 should write Redis keys under the Data Cache namespace prefix");
+        keys.Should().OnlyContain(k => k.Contains(dcNamespace, StringComparison.Ordinal));
         // Fusion CacheKeyPrefix owns isolation; Redis InstanceName must not apply the same namespace again.
-        string doubled = fcNamespace + ":" + fcNamespace;
+        string doubled = dcNamespace + ":" + dcNamespace;
         keys.Should().NotContain(k => k.Contains(doubled, StringComparison.Ordinal));
-        keys.Should().NotContain(k => k.Contains(fcNamespace + fcNamespace, StringComparison.Ordinal));
+        keys.Should().NotContain(k => k.Contains(dcNamespace + dcNamespace, StringComparison.Ordinal));
     }
 }

@@ -35,9 +35,9 @@ Contract   → reusable named extractor (DI); instance stored on endpoint metada
 
 **Default (no identity API on the endpoint):** Output Cache applies to **GET** and **HEAD** only. Identity is **Url** (route / path, query, and domain vary rules). The policy does not run contracts, content-hash, or request-body I/O on that path. Ordinary GET catalogues and detail routes stay on domain only — that is the common case.
 
-**Opt-in:** a method is cached by Output Cache only if it has an identity binding. The usual reason to opt in is a **read-only POST** (search, GraphQL, RPC-style read). There is no separate “allow methods” API.
+**Opt-in (identity API on the endpoint):** call `.WithCacheIdentity` / `.WithContentHashCacheIdentity` (or the MVC attributes). A method is then Output-Cached only if it has an identity binding. The usual reason to opt in is a **read-only POST** (search, GraphQL, RPC-style read); you can also bind GET/HEAD when you need a custom strategy. There is no separate “allow methods” API.
 
-> [!WARNING]
+> [!IMPORTANT]
 > **Caching POST.** HTTP POST is normally **not** cached: many POSTs mutate state, and a body-based identity is easy to get wrong. Enabling Output Cache on POST is an explicit choice — the handler must be a **read**, the identity strategy must match what makes two requests “the same”, and create / update / webhook routes under the same domain must stay **without** an identity binding.
 >
 > When that is clear, the feature set fits the case: named contracts for structured body fields, content-hash for opaque documents, or Url when path/query alone identify the read.
@@ -77,7 +77,7 @@ The Data Cache provider-key shape is `co3:{escapedDomain}:{versionHex}:{hash}`; 
 
 | Call / attribute | Meaning |
 |------------------|---------|
-| *(omit)* | GET/HEAD + Url (typical catalogues and detail GETs) |
+| *(omit — no identity API)* | GET/HEAD + Url (typical catalogues and detail GETs) |
 | `.WithCacheIdentity(["POST"], "search-v1")` | POST → named DI contract |
 | `.WithContentHashCacheIdentity(["POST"], maxBodyBytes: 65_536)` | POST → bounded body XxHash3 |
 | `.WithCacheIdentity(["POST"], CacheIdentities.Url)` | POST → Url identity (path/query; body ignored) |
@@ -85,6 +85,18 @@ The Data Cache provider-key shape is `co3:{escapedDomain}:{versionHex}:{hash}`; 
 | `[ContentHashCacheIdentity(["POST"], MaxBodyBytes = 65536)]` | MVC form of content-hash |
 | `[CacheIdentity(["POST"], CacheIdentities.Url)]` | MVC form of Url identity on POST |
 | `AddCacheIdentityContract<T>()` | Register a singleton `ICacheIdentityContract` |
+
+The same fluent calls and attributes accept **GET** and **HEAD** in the method list (for example `.WithCacheIdentity(["GET", "HEAD"], "…")`). The table uses **POST** because that is the usual opt-in; see [GET / HEAD with a custom identity](#get-head-with-a-custom-identity).
+
+### Minimal API vs MVC
+
+| Intent | Minimal API | MVC |
+|--------|-------------|-----|
+| Ordinary GET (default) | `.CacheOutputWithDomain("catalog")` | `[CacheDomain("catalog")]` |
+| Named contract on POST | `.WithCacheIdentity(["POST"], "product-search-v1")` | `[CacheIdentity(["POST"], "product-search-v1")]` |
+| Body hash on POST | `.WithContentHashCacheIdentity(["POST"], maxBodyBytes: 65_536)` | `[ContentHashCacheIdentity(["POST"], MaxBodyBytes = 65536)]` |
+| Url on POST (path/query only) | `.WithCacheIdentity(["POST"], CacheIdentities.Url)` | `[CacheIdentity(["POST"], CacheIdentities.Url)]` |
+| Custom identity on GET/HEAD | `.WithCacheIdentity(["GET", "HEAD"], "…")` | `[CacheIdentity(["GET", "HEAD"], "…")]` |
 
 ### `CacheIdentities.Url`
 
@@ -260,7 +272,7 @@ app.MapPost("/graphql", async (HttpContext http) =>
     return Results.Json(result);
 })
 .CacheOutputWithDomain("graphql")
-.WithContentHashCacheIdentity(["POST"], maxBodyBytes: 65_536);
+.WithContentHashCacheIdentity(["POST"], maxBodyBytes: 65536);
 ```
 
 ```csharp
@@ -309,7 +321,7 @@ public sealed class ProductsController : ControllerBase
 
 Most GET and HEAD endpoints need **no** identity helper: domain + default Url identity (and domain vary options) is enough.
 
-You *can* bind GET/HEAD to a named contract or to `CacheIdentities.Url` when you need behaviour that Url + domain options do not cover — for example a key built from a subset of query fields with custom normalization, or returning `null` to skip caching for some GETs. That is an advanced case; do not treat it as the default pattern.
+You can bind GET/HEAD to a named contract or to `CacheIdentities.Url` when you need behaviour that Url + domain options do not cover — for example a key built from a subset of query fields with custom normalization, or returning `null` to skip caching for some GETs.
 
 ```csharp
 // Uncommon: custom identity on GET/HEAD
@@ -318,16 +330,15 @@ app.MapGet("/api/products/search", ...)
    .WithCacheIdentity(["GET", "HEAD"], "product-search-v1");
 ```
 
----
+```csharp
+// MVC equivalent
+[HttpGet("search")]
+[CacheDomain("product-search")]
+[CacheIdentity(["GET", "HEAD"], "product-search-v1")]
+public Task<SearchResult> Search(...) => ...;
+```
 
-### Minimal API vs MVC
-
-| Intent | Minimal API | MVC |
-|--------|-------------|-----|
-| Ordinary GET | `.CacheOutputWithDomain("catalog")` | `[CacheDomain("catalog")]` |
-| Named contract on POST | `.WithCacheIdentity(["POST"], "product-search-v1")` | `[CacheIdentity(["POST"], "product-search-v1")]` |
-| Body hash on POST | `.WithContentHashCacheIdentity(["POST"], maxBodyBytes: 65_536)` | `[ContentHashCacheIdentity(["POST"], MaxBodyBytes = 65536)]` |
-| Url on POST (path/query only) | `.WithCacheIdentity(["POST"], CacheIdentities.Url)` | `[CacheIdentity(["POST"], CacheIdentities.Url)]` |
+POST examples stay in [DX examples](#dx-examples) and the [Minimal API vs MVC](#minimal-api-vs-mvc) table under API surface.
 
 ---
 

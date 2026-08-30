@@ -86,9 +86,9 @@ Endpoint time series need a scrape of the meter and Admin Console App Metrics st
 Effective namespaces:
 
 - Output: `OutputCache.Namespace` ?? `{Namespace}-oc`
-- Data Cache **`default`** instance: `DataCacheInstances.default.Namespace` ?? `{Namespace}-fc`
-  (**no** `-default` suffix — keys look like `app-cache-fc:…`, not `app-cache-fc-default:…`.)
-- Data Cache **named** instance (e.g. `pii`): `…Namespace` ?? `{Namespace}-fc-{name}`
+- Data Cache **`default`** instance: `DataCacheInstances.default.Namespace` ?? `{Namespace}-dc`
+  (**no** `-default` suffix — keys look like `app-cache-dc:…`, not `app-cache-dc-default:…`.)
+- Data Cache **named** instance (e.g. `pii`): `…Namespace` ?? `{Namespace}-dc-{name}`
 
 ## Provider options (`OutputCache` / `DataCacheInstances` entry)
 

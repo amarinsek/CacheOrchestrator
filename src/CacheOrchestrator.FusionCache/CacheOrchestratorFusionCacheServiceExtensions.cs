@@ -136,13 +136,13 @@ public static class CacheOrchestratorFusionCacheServiceExtensions
     {
         DistributedResilienceOptions resilience = rootOpts.GetEffectiveDistributedResilience();
         bool isDistributed = !string.Equals(instanceOpts.Provider, "InMemory", StringComparison.OrdinalIgnoreCase);
-        // Effective FC namespace (not the Fusion cache name). Trailing ':' matches FusionCache docs;
+        // Effective Data Cache namespace (not the Fusion cache name). Trailing ':' matches FusionCache docs;
         // WithCacheKeyPrefix(string) does not append the separator itself.
-        string fcNamespace = instanceOpts.GetNamespace(instanceName, rootOpts);
+        string dcNamespace = instanceOpts.GetNamespace(instanceName, rootOpts);
 
         IFusionCacheBuilder fusionBuilder = services
             .AddFusionCache(instanceName)
-            .WithCacheKeyPrefix(fcNamespace + ":")
+            .WithCacheKeyPrefix(dcNamespace + ":")
             .WithOptions(o =>
             {
                 if (isDistributed)
