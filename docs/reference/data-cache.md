@@ -147,15 +147,23 @@ await cache.GetOrSetEntityAsync(http, factory, cancellationToken);
 With entity identity (`GetOrSetEntityAsync`):
 
 ```text
-co3:{escapedDomain}:{versionHex}:id:{entityKind}:{resourceId}:{hash}
+co3:{escapedDomain}:{versionHex}:e:{hash}
 ```
 
-Without a resource id (URL-shaped):
+URL-shaped (`GetOrSetAsync` / collections):
+
+```text
+co3:{escapedDomain}:{versionHex}:u:{hash}
+```
+
+Hash material for URL-shaped keys includes:
 
 1. Route pattern and route values (or path)
 2. Query string (tracking parameters omitted: `utm_*`, `gclid`, …)
 3. `Accept-Encoding` if `DataCache.VaryOnEncoding`
 4. Scheme and host if `DataCache.VaryOnPublicAddress`
+
+Entity keys hash `entityKind` + `resourceId` (plus the same encoding / public-address flags when enabled), not path or query. The lookup string carries only the `u` / `e` marker and hash — kind and id stay in tags for invalidation.
 
 The string includes **domain** and **Version**. Every entry is tagged `domain:{name}`.
 

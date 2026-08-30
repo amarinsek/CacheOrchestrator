@@ -115,7 +115,7 @@ public class DomainDataCacheServiceTests
         var http = new DefaultHttpContext();
         DomainHttpCacheOptions cfg = CreateConfig();
         _domainConfig.GetDomainOptions(http).Returns(cfg);
-        StubKey(cfg, http, DomainCacheKeyShape.Url, "co3:products:abc:hash");
+        StubKey(cfg, http, DomainCacheKeyShape.Url, "co3:products:abc:u:hash");
 
         CacheEntryRequest? captured = null;
         _orchestrator
@@ -134,7 +134,7 @@ public class DomainDataCacheServiceTests
 
         result.Should().Be("ok");
         captured.Should().NotBeNull();
-        captured.Key.Should().Be("co3:products:abc:hash");
+        captured.Key.Should().Be("co3:products:abc:u:hash");
         captured.KeyIsPhysical.Should().BeTrue();
         captured.Domain.Should().Be("products");
     }
@@ -150,7 +150,7 @@ public class DomainDataCacheServiceTests
             EntityKind = "products",
             ResourceId = "42"
         });
-        StubKey(cfg, http, DomainCacheKeyShape.Entity, "co3:products:v:id:products:42:hash");
+        StubKey(cfg, http, DomainCacheKeyShape.Entity, "co3:products:v:e:hash");
 
         _orchestrator
             .GetOrCreateWithFootprintAsync(
@@ -289,7 +289,7 @@ public class DomainDataCacheServiceTests
         var http = new DefaultHttpContext();
         DomainHttpCacheOptions cfg = CreateConfig();
         _domainConfig.GetDomainOptions(http).Returns(cfg);
-        StubKey(cfg, http, DomainCacheKeyShape.Url, "co3:products:abc:key");
+        StubKey(cfg, http, DomainCacheKeyShape.Url, "co3:products:abc:u:key");
         _orchestrator
             .GetOrCreateAsync(
                 Arg.Any<CacheEntryRequest>(),

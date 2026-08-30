@@ -55,13 +55,13 @@ Default: `app-cache`. Effective store prefixes:
 |---------|-------|-----|
 | **Output Cache key** | Yes | `CacheKeyPrefix` = effective Output Cache namespace |
 | **Output Cache Redis store** | Yes | `InstanceName` = effective Output Cache namespace |
-| **Data Cache provider key** (`DefaultDomainKeyGenerator`) | **No** | Key is `co3:{escapedDomain}:{versionHex}:{hash}` only |
+| **Data Cache provider key** (`DefaultDomainKeyGenerator`) | **No** | Key is `co3:{escapedDomain}:{versionHex}:u:{hash}` or `:e:{hash}` only |
 | **Fusion `CacheKeyPrefix`** | Yes | Effective Data Cache namespace + `:` (e.g. `my-app-dc:`) on every named Fusion instance |
 | **HybridCache key and tags** | Yes | The provider prefixes both with the effective default Data Cache namespace + `:` |
 | **Fusion Redis L2** | Yes (via Fusion) | Redis `InstanceName` is **not** set; Fusion prefix is the single isolation layer (do not also set `InstanceName` to the same namespace) |
 | **Fusion backplane** | Yes | Channel prefix `{dcNamespace}:backplane` |
 
-Data Cache provider keys use the Version-stamped form `co3:{escapedDomain}:{versionHex}:{logicalMaterial}`. The escaped domain makes segment boundaries unambiguous; Namespace is still applied by the provider (Fusion `CacheKeyPrefix` / backplane or the Hybrid provider prefix), not inside the CO key string.
+HTTP Data Cache provider keys use the Version-stamped form `co3:{escapedDomain}:{versionHex}:u:{hash}` (URL-shaped) or `…:e:{hash}` (entity-shaped). The escaped domain makes segment boundaries unambiguous; Namespace is still applied by the provider (Fusion `CacheKeyPrefix` / backplane or the Hybrid provider prefix), not inside the CO key string. Core API keys keep a caller-supplied logical suffix (no `u`/`e` marker); see [Core API keys](#core-api-keys).
 
 ---
 
@@ -79,20 +79,20 @@ Replace with a custom `IDomainKeyGenerator` when you must vary on dimensions the
 
 | Mode | Key shape |
 |------|-----------|
-| URL-shaped (default) | `co3:{escapedDomain}:{versionHex}:{hash}` |
-| Entity / resource id | `co3:{escapedDomain}:{versionHex}:id:{entityKind}:{resourceId}:{hash}` |
+| URL-shaped (default) | `co3:{escapedDomain}:{versionHex}:u:{hash}` |
+| Entity / resource id | `co3:{escapedDomain}:{versionHex}:e:{hash}` |
 
 Examples:
 
 ```text
-co3:products:a1b2c3d4e5f60708:7f3e9c1a2b4d6e08
-co3:store:a1b2c3d4e5f60708:id:products:42:9c8b7a6d5e4f3210
+co3:products:a1b2c3d4e5f60708:u:7f3e9c1a2b4d6e08
+co3:store:a1b2c3d4e5f60708:e:9c8b7a6d5e4f3210
 ```
 
 - **`domain`** — normalized domain name from the Core `DomainCacheOptions` (explicit partition).
 - **`versionHex`** — stable hex of the domain `Version` stamp. Bumping `Version` changes every new key for that domain; old entries age out by TTL.
-- **`hash`** — 16 hex chars of XxHash3 over the material below.
-- **`entityKind` + `resourceId`** — present only for `GetOrSetEntityAsync` (see below).
+- **`u` / `e`** — shape marker (`u` = URL-shaped, `e` = entity-shaped).
+- **`hash`** — 16 hex chars of XxHash3 over the material below (for entity keys that includes `entityKind` + `resourceId`).
 
 ### What goes into the hash
 
@@ -120,7 +120,7 @@ Primary kind and resource id come from the request (`[CacheDomain]` / `CacheOutp
 
 | Input | Included |
 |-------|----------|
-| Normalized `entityKind` + opaque `resourceId` | Always (visible as percent-encoded `id:{entityKind}:{resourceId}` segments) |
+| Normalized `entityKind` + opaque `resourceId` | Always (hash material only; lookup string is `:e:{hash}`) |
 | Accept-Encoding / scheme+host | Same flags as above |
 | Path / query / route | **Not** used for the key |
 
@@ -215,7 +215,7 @@ Output Cache stamps early tags in `CacheRequestAsync` (domain; primary entity wh
 
 | | Data Cache | Output Cache |
 |--|------------|--------------|
-| **Logical shape** | `co3:{escapedDomain}:{versionHex}:{hash}` | Framework key from prefix + vary |
+| **Logical shape** | `co3:{escapedDomain}:{versionHex}:u\|e:{hash}` | Framework key from prefix + vary |
 | **Namespace** | Logical key: no; Fusion `CacheKeyPrefix` + backplane: yes (`-dc`) | Yes (`CacheKeyPrefix`) |
 | **Domain in key** | Yes | No (tag only) |
 | **Version in key** | Yes (`versionHex`) | Yes (`data-version` vary) |
@@ -234,8 +234,8 @@ Version: v1
 
 | Layer | Identity (conceptually) |
 |-------|-------------------------|
-| Data Cache (URL-shaped) | `co3:product-detail:{versionHex}:{hash(route id=42, query page=1)}` — `utm_source` ignored |
-| Data Cache (entity-shaped, kind `products`, id `42`) | `co3:product-detail:{versionHex}:id:products:42:{hash}` |
+| Data Cache (URL-shaped) | `co3:product-detail:{versionHex}:u:{hash(route id=42, query page=1)}` — `utm_source` ignored |
+| Data Cache (entity-shaped, kind `products`, id `42`) | `co3:product-detail:{versionHex}:e:{hash(kind+id(+vary))}` |
 | Output Cache | prefix `…-oc` + path `/api/products/42` + query `page` + host + `data-version` — `utm_source` ignored |
 | Tags | `domain:product-detail`; with Output Cache `resourceRouteKey` + `entityKind`: also `entity:product-detail:products:42` and `entitykind:product-detail:products` |
 

@@ -66,11 +66,11 @@ public class DefaultDomainKeyGeneratorTests
 
         string key = _sut.Generate(cfg, http);
 
-        key.Should().StartWith($"co3:catalog:{cfg.VersionHex}:");
+        key.Should().MatchRegex($"^co3:catalog:{cfg.VersionHex}:u:[0-9a-f]{{16}}$");
     }
 
     [Fact]
-    public void Generate_WithResourceId_IncludesIdSegmentAndIsStable()
+    public void Generate_WithResourceId_UsesEntityShapeMarkerAndIsStable()
     {
         DomainHttpCacheOptions cfg = CreateConfig(domain: "products");
         DefaultHttpContext http = CreateHttpContext();
@@ -80,8 +80,7 @@ public class DefaultDomainKeyGeneratorTests
         string key2 = _sut.Generate(cfg, http);
 
         key1.Should().Be(key2);
-        key1.Should().Contain(":id:items:42:");
-        key1.Should().StartWith($"co3:products:{cfg.VersionHex}:id:items:42:");
+        key1.Should().MatchRegex($"^co3:products:{cfg.VersionHex}:e:[0-9a-f]{{16}}$");
     }
 
     [Fact]
@@ -93,13 +92,18 @@ public class DefaultDomainKeyGeneratorTests
         DefaultHttpContext asset = CreateHttpContext();
         asset.Features.Set<ICacheOrchestratorFeature>(new CacheOrchestratorFeature { EntityKind = "assets", ResourceId = "1" });
 
-        _sut.Generate(cfg, product).Should().NotBe(_sut.Generate(cfg, asset));
-        _sut.Generate(cfg, product).Should().Contain(":id:products:1:");
-        _sut.Generate(cfg, asset).Should().Contain(":id:assets:1:");
+        string productKey = _sut.Generate(cfg, product);
+        string assetKey = _sut.Generate(cfg, asset);
+
+        productKey.Should().NotBe(assetKey);
+        productKey.Should().Contain(":e:");
+        assetKey.Should().Contain(":e:");
+        productKey.Should().NotContain(":id:");
+        assetKey.Should().NotContain(":id:");
     }
 
     [Fact]
-    public void Generate_ResourceIdWithoutEntityKind_DoesNotUseIdKeyShape()
+    public void Generate_ResourceIdWithoutEntityKind_UsesUrlShape()
     {
         DomainHttpCacheOptions cfg = CreateConfig(domain: "products");
         DefaultHttpContext http = CreateHttpContext();
@@ -107,7 +111,7 @@ public class DefaultDomainKeyGeneratorTests
 
         string key = _sut.Generate(cfg, http);
 
-        key.Should().NotContain(":id:42:");
+        key.Should().MatchRegex($"^co3:products:{cfg.VersionHex}:u:[0-9a-f]{{16}}$");
     }
 
     [Fact]
@@ -229,7 +233,7 @@ public class DefaultDomainKeyGeneratorTests
     }
 
     [Fact]
-    public void Generate_OpaqueResourceIds_RemainDistinctAndVisibleSegmentsAreEscaped()
+    public void Generate_OpaqueResourceIds_RemainDistinctInEntityHash()
     {
         DomainHttpCacheOptions cfg = CreateConfig(domain: "products");
         DefaultHttpContext slash = CreateHttpContext();
@@ -249,8 +253,10 @@ public class DefaultDomainKeyGeneratorTests
         string spaceKey = _sut.Generate(cfg, space);
 
         slashKey.Should().NotBe(spaceKey);
-        slashKey.Should().Contain(":id:items:A%2FB:");
-        spaceKey.Should().Contain(":id:items:A%20B:");
+        slashKey.Should().Contain(":e:");
+        spaceKey.Should().Contain(":e:");
+        slashKey.Should().NotContain("A/B");
+        spaceKey.Should().NotContain("A B");
     }
 
     [Fact]
@@ -428,8 +434,9 @@ public class DefaultDomainKeyGeneratorTests
         string entityKey = _sut.Generate(cfg, http, DomainCacheKeyShape.Entity);
         string urlKey = _sut.Generate(cfg, http, DomainCacheKeyShape.Url);
 
-        entityKey.Should().Contain(":id:items:42:");
-        urlKey.Should().NotContain(":id:");
+        entityKey.Should().Contain(":e:");
+        urlKey.Should().Contain(":u:");
+        urlKey.Should().NotContain(":e:");
         http.Features.Get<ICacheOrchestratorFeature>()!.EntityKind.Should().Be("items");
         http.Features.Get<ICacheOrchestratorFeature>()!.ResourceId.Should().Be("42");
     }
