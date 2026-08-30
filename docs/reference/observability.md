@@ -12,6 +12,9 @@ Operator dashboards and multi-instance actions: [admin](admin.md). Admin Console
 - [Metrics](#metrics)
 - [Activities (tracing)](#activities-tracing)
 - [Logging](#logging)
+  - [Levels by event](#levels-by-event)
+  - [Categories](#categories)
+  - [Configuring levels in appsettings](#configuring-levels-in-appsettings)
 - [Health checks](#health-checks)
 - [Security checklist](#security-checklist)
 
@@ -105,19 +108,102 @@ Core activities tag `domain`, `provider`, and `cache.result`; the footprint acti
 
 ## Logging
 
-| Component | Typical levels |
-|-----------|----------------|
-| Data Cache HIT/MISS | Debug |
-| Data Cache no domain (uncached factory) | Warning |
-| Data Cache STALE / errors | Information / Warning |
-| Invalidation start | Information |
-| Invalidation partial failure | Warning |
-| Cluster peer publish failure / explicitly unauthenticated bus | Warning |
-| Data Cache operation without a provider | One-time warning on first use; factory runs uncached |
-| Cluster ignore (namespace / self / dedupe) | Debug |
-| Unknown domain / missing Version | Warning |
+CacheOrchestrator uses `Microsoft.Extensions.Logging` only. Libraries do not register a logging provider; the host (console, Application Insights, Seq, …) decides sinks. Prefer **metrics** and **`X-Cache`** for steady-state ops; raise log detail for an incident window, then turn it down again ([operations](../guide/operations.md#use-logs-and-traces-for-the-reason)).
 
-Useful categories include `DomainOutputCachePolicy` and the Data Cache / invalidation services. Cluster bus categories live in the HttpBus package (`HttpClusterCommandBus`, …).
+### Levels by event
+
+| Event | Level |
+|-------|-------|
+| Data Cache HIT / MISS | Debug |
+| Output Cache HIT | Debug |
+| Data Cache skip (auth bypass, `Cache-Control: no-store`) | Debug |
+| Cache identity null material → caching bypassed | Debug |
+| Cluster ignore (namespace / self / dedupe), “no peers” | Debug |
+| Fusion / Hybrid provider GetOrCreate / Set (key) | Debug |
+| Data Cache STALE | Information |
+| Invalidation start | Information |
+| Domain options snapshot refresh | Information |
+| Data Cache no domain (factory runs uncached) | Warning |
+| Dynamic Output Cache domain not configured | Warning |
+| Unknown domain / missing Version | Warning |
+| Content-hash identity skipped (`MaxBodyBytes` exceeded) | Warning |
+| Data Cache ERROR / invalidation partial failure | Warning |
+| Cluster peer publish failure / bus AllowUnauthenticated | Warning |
+| Data Cache requested but no provider registered | Warning (once per process on first use) |
+
+There is **no** dedicated log line for every internal step (vary materialization, Output Cache store, physical key assembly). Those surfaces show up as metrics, activities, and `X-Cache`. Output Cache **MISS** is also silent in logs (only HIT is logged at Debug).
+
+### Categories
+
+Most components use `ILogger<T>`, so the category is the **fully qualified type name**. Two map-time warnings use short fixed strings (`CacheOrchestrator.Admin`, `CacheOrchestrator.HttpBus`).
+
+In `Logging:LogLevel`, a category is a **prefix**: `"CacheOrchestrator"` matches everything below; `"CacheOrchestrator.Configuration"` matches only the Configuration children; a full type name matches that logger only. The table is ordered so each deeper name sits under its parent prefix (alphabetical among siblings).
+
+| Category | Package | What you typically see |
+|----------|---------|------------------------|
+| `CacheOrchestrator` | — | LogLevel prefix for the whole product (not a single logger type) |
+| `CacheOrchestrator.Admin` | AspNetCore | Admin API mapped without `ApiKey` (fixed string) |
+| `CacheOrchestrator.Admin.CacheOrchestratorManagement` | Core | Cluster publish failures from management actions |
+| `CacheOrchestrator.AdminConsole.Services.Hints.HintRuleRegistry` | Admin Console App | Hint rule load / parse (not a NuGet package) |
+| `CacheOrchestrator.Cluster.DefaultClusterCommandHandler` | Core | Apply / ignore / unsupported cluster commands |
+| `CacheOrchestrator.Configuration` | — | LogLevel prefix for configuration loggers |
+| `CacheOrchestrator.Configuration.CacheOrchestratorOptionsValidator` | Core | Startup / options normalization warnings |
+| `CacheOrchestrator.Configuration.DomainCacheOptionsProvider` | Core | Options refresh; unknown domain / missing Version |
+| `CacheOrchestrator.Configuration.RequestDomainCacheOptionsProvider` | AspNetCore | Request domain snapshot replaced mid-request |
+| `CacheOrchestrator.DataCache.DomainDataCacheService` | AspNetCore | DC HIT / MISS / STALE / ERROR; auth / no-store skips; content-hash oversize on the Data Cache identity path |
+| `CacheOrchestrator.EFCore.CacheInvalidationSaveChangesInterceptor` | EFCore.Invalidation | SaveChanges invalidation failures / skipped keys |
+| `CacheOrchestrator.FusionCache.FusionDataCacheProvider` | FusionCache | GetOrCreate / Set with physical key |
+| `CacheOrchestrator.HttpBus` | HttpBus | Bus receive mapped with `AllowUnauthenticated` (fixed string) |
+| `CacheOrchestrator.HttpBus.HttpClusterCommandBus` | HttpBus | Publish peer failures; empty peer list |
+| `CacheOrchestrator.HttpBus.ServiceDiscoveryClusterMembership` | HttpBus | Discovery empty / failures |
+| `CacheOrchestrator.HybridCache.HybridDataCacheProvider` | HybridCache | GetOrCreate / Set with physical key |
+| `CacheOrchestrator.Invalidation.CacheOrchestratorInvalidator` | Core | Invalidation start; DC/OC / observer failures |
+| `CacheOrchestrator.Orchestration.CacheOrchestratorService` | Core | Data cache off; missing provider (one-time) |
+| `CacheOrchestrator.OutputCache.DomainOutputCachePolicy` | AspNetCore | OC HIT; dynamic domain bypass; content-hash oversize and identity bypass on the Output Cache path |
+
+> [!NOTE]
+> Setting `"CacheOrchestrator.Admin": "Warning"` also covers `CacheOrchestrator.Admin.CacheOrchestratorManagement`, because LogLevel matching is prefix-based. The same applies to `"CacheOrchestrator.HttpBus"` and its children. Prefer the full type name when you need to tune only the typed logger.
+
+Redis leaf packages do not emit their own product logs; connection problems surface through health probes, provider exceptions, and the invalidation / Data Cache Warning paths above.
+
+### Configuring levels in appsettings
+
+More specific category prefixes win over broader ones. Examples:
+
+**Production-ish baseline** — framework quiet; CacheOrchestrator anomalies and invalidation visible; no HIT/MISS noise:
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning",
+      "Microsoft.AspNetCore": "Warning",
+      "CacheOrchestrator": "Warning",
+      "CacheOrchestrator.Invalidation.CacheOrchestratorInvalidator": "Information"
+    }
+  }
+}
+```
+
+**Incident / playground tuning** — keep product Information, turn on HIT/MISS and provider keys for one window:
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "CacheOrchestrator": "Information",
+      "CacheOrchestrator.DataCache.DomainDataCacheService": "Debug",
+      "CacheOrchestrator.OutputCache.DomainOutputCachePolicy": "Debug",
+      "CacheOrchestrator.FusionCache.FusionDataCacheProvider": "Debug"
+    }
+  }
+}
+```
+
+The playground sample sets `"CacheOrchestrator": "Information"` so STALE and invalidation show without enabling Debug. For a full Debug dump during a lab, set `"CacheOrchestrator": "Debug"` temporarily.
 
 ## Health checks
 
