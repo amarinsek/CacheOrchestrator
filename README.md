@@ -21,6 +21,8 @@ A request can pass through the following cache layers:
 
 In real-world applications, caching layers are often fragmented. You might have an in-memory Output Cache on one end and a Redis-backed FusionCache on the other, each operating with different TTLs. When these isolated layers aren't synchronized, they easily work against each other. CacheOrchestrator unifies them under a **single domain** model to coordinate their lifecycles and policies. This is especially critical for cache **invalidation**: clearing the Data Cache is pointless if the Output Cache continues serving stale HTTP responses. By tying these layers together, CacheOrchestrator ensures that all corresponding server-side representations are invalidated simultaneously.
 
+---
+
 ## Table of Contents
 
 - [Why CacheOrchestrator](#why-cacheorchestrator)
@@ -30,6 +32,8 @@ In real-world applications, caching layers are often fragmented. You might have 
 - [Packages and applications](#packages-and-applications)
 - [Prerelease status](#prerelease-status)
 - [Documentation](#documentation)
+
+---
 
 ## Why CacheOrchestrator
 
@@ -45,6 +49,7 @@ In real-world applications, caching layers are often fragmented. You might have 
 
 - **Observable and extensible** — Expose cache and orchestration behavior through diagnostics and metrics, while keeping cache engines, transports, and integrations replaceable.
 
+---
 
 ## Quick start
 
@@ -185,6 +190,8 @@ Merge these settings into `appsettings.json` to use Redis for Fusion Data Cache 
 
 This keeps Output Cache in memory and moves the Fusion Data Cache L2 and backplane to Redis. Set `OutputCache:Provider` to `Redis` when instances should share complete HTTP responses as well.
 
+---
+
 ## Why domains
 
 A domain is a named set of cache rules: lifetimes, which layers to use, and how they are backed. For example, in a fleet tracking application, different types of data require different cache configurations:
@@ -198,6 +205,8 @@ The endpoint code is the same shape in every case. The domain is what differs.
 
 Domains are the unit of configuration. Within a domain you can optionally use **entity identity** (`entityKind` + id, and related footprints) so per-entity keys and invalidation are possible.
 
+---
+
 ## Playground topology labs
 
 To try **multi-layer layouts** (Admin Console App, Prometheus, Redis L2, multiple instances, cluster bus) without wiring Docker yourself, use the playground **topology labs** — one Compose command per stage. 
@@ -209,6 +218,8 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability
 Stages climb from a single in-memory playground to a dual Redis + HTTP bus architecture. 
 
 **Full guide & diagrams:** [samples/CacheOrchestrator.Sample/labs/README.md](samples/CacheOrchestrator.Sample/labs/README.md) — See what each stage teaches and how they evolve.
+
+---
 
 ## Packages and applications
 
@@ -232,6 +243,8 @@ The library is **modular**. `CacheOrchestrator.Core` provides the foundational p
 |-------------|---------|
 | [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Standalone Admin Console App for live stats, domain configuration, triggering invalidations, and adjusting Versions or TTLs on the fly. Available as a Docker image. See [Admin Console README](src/CacheOrchestrator.AdminConsole/) · [Deploy Admin Console App](deploy/admin/README.md). |
 
+---
+
 ## Prerelease status
 
 > [!IMPORTANT]
@@ -242,6 +255,8 @@ The library is **modular**. `CacheOrchestrator.Core` provides the foundational p
 > This documentation describes **CacheOrchestrator v3**. Public APIs may change until the stable **v3.0.0** release. Install the prerelease with the Quick start above (`dotnet add package … --prerelease`).<br>
 > **Help test the prerelease.** Reports from real ASP.NET Core applications, standalone workers, Redis deployments, browsers, and playground labs are especially valuable. Successful results and confusing behavior are welcome too — see [Contributing](CONTRIBUTING.md#help-test-v3).<br>
 > To build from source or contribute code, clone this repository — `main` tracks the same v3 work and may move faster than the latest beta package.
+
+---
 
 ## Documentation
 
