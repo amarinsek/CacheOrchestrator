@@ -1,10 +1,20 @@
 # Getting started
 
-> **Guide path:** **Getting started** → [Concepts](concepts.md) · [Guide index](README.md) · [Product overview](../../README.md)
+> **Guide** — first endpoint, domain binding, and reading `X-Cache`.
 
 This page takes you from an empty ASP.NET Core project to a working cached endpoint.
 
 You will first cache a simple promotions response and see an Output Cache hit. Then you will add product reads, cache the product object as well as its HTTP response, and invalidate both when the product changes. Everything runs in memory, so you do not need Redis or any other service.
+
+## Table of Contents
+
+- [1. Create the application](#1-create-the-application)
+- [2. Define the cache domains](#2-define-the-cache-domains)
+- [3. Register CacheOrchestrator](#3-register-cacheorchestrator)
+- [4. See the first cache hit](#4-see-the-first-cache-hit)
+- [5. Add cached product reads](#5-add-cached-product-reads)
+- [6. Update the product price and invalidate its caches](#6-update-the-product-price-and-invalidate-its-caches)
+- [What to read next](#what-to-read-next)
 
 ## 1. Create the application
 
@@ -21,7 +31,7 @@ Install the `CacheOrchestrator` meta package:
 dotnet add package CacheOrchestrator --prerelease
 ```
 
-The meta package combines the ASP.NET Core integration with FusionCache, which is the usual starting point for a web application. Both the Output Cache and Data Cache can run in memory, so this is all you need for the tutorial.
+The meta package combines `CacheOrchestrator.AspNetCore` with `CacheOrchestrator.FusionCache`, which is the usual starting point for a web application. Both the Output Cache and Data Cache can run in memory, so this is all you need for the tutorial.
 
 ## 2. Define the cache domains
 
@@ -133,8 +143,6 @@ to:
 X-Cache: domain=promotions; ...; oc=hit; ...
 ```
 
-The first response also reports `dc=n/a; fa=run`: the application generated the response directly, without a Data Cache operation. `fa=run` means application/origin work was required to produce the result; it is not limited to callbacks routed through Data Cache.
-
 Use `curl` while learning the flow. A browser may satisfy the second request from its own cache because the domain also emits a public `Cache-Control` header, in which case the request never reaches your application.
 
 At this point one domain coordinates two layers: Client Cache and Output Cache. Next, you will add the Data Cache layer and invalidate an individual entity across the server-side layers.
@@ -189,10 +197,7 @@ app.MapGet("/api/products/{id:int}", async (
 
     return product is null ? Results.NotFound() : Results.Json(product);
 })
-.CacheOutputWithDomain(
-    "catalog",
-    entityKind: "products",
-    resourceRouteKey: "id");
+.CacheOutputWithDomain("catalog", entityKind: "products", resourceRouteKey: "id");
 
 app.MapPut("/api/products/{id:int}", async (
     int id,
@@ -202,11 +207,7 @@ app.MapPut("/api/products/{id:int}", async (
 {
     products[id] = new Product(id, request.Name, request.Price);
 
-    await invalidator.InvalidateEntityAsync(
-        "catalog",
-        "products",
-        id,
-        cancellationToken);
+    await invalidator.InvalidateEntityAsync("catalog", "products", id, cancellationToken);
 
     return Results.NoContent();
 });

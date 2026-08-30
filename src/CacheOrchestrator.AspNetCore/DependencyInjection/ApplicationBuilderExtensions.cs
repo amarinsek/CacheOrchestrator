@@ -30,11 +30,11 @@ public static class ApplicationBuilderExtensions
     }
 
     /// <summary>
-    /// Maps Local Admin API routes when <c>Cache:Admin:Enabled</c> is true; otherwise a no-op.
+    /// Maps Admin API routes when <c>Cache:Admin:Enabled</c> is true; otherwise a no-op.
     /// Call after routing is configured (typically next to other <c>Map*</c> calls).
     /// </summary>
     /// <param name="endpoints">The endpoint route builder.</param>
     /// <returns>The same <paramref name="endpoints"/> for chaining.</returns>
     public static IEndpointRouteBuilder MapCacheOrchestratorAdmin(this IEndpointRouteBuilder endpoints) =>
-        AdminLocalApi.Map(endpoints);
+        AdminApi.Map(endpoints);
 }

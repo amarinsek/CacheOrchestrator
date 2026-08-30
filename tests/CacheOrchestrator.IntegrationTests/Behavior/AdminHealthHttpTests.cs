@@ -16,7 +16,7 @@ using System.Net.Http.Json;
 namespace CacheOrchestrator.IntegrationTests.Behavior;
 
 /// <summary>
-/// Local Admin <c>GET …/health</c> is not ASP.NET health checks: HTTP 200 with
+/// Admin API <c>GET …/health</c> is not ASP.NET health checks: HTTP 200 with
 /// <c>Healthy: false</c> means degraded (Admin Console maps that). ASP.NET
 /// <c>AddCacheOrchestrator</c> on <c>IHealthChecksBuilder</c> is a separate surface.
 /// </summary>

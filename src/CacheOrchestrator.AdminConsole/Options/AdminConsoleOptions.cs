@@ -15,7 +15,7 @@ public sealed class AdminConsoleOptions
     public const string SectionName = "AdminConsole";
 
     /// <summary>
-    /// Known application instances exposing Local Admin API.
+    /// Known application instances exposing Admin API.
     /// Changes require process restart (see type remarks).
     /// </summary>
     public List<AdminInstanceOptions> Instances { get; set; } = [];
@@ -25,7 +25,7 @@ public sealed class AdminConsoleOptions
     /// </summary>
     public string? ApiKey { get; set; }
 
-    /// <summary>Per-request timeout when calling a Local Admin API (milliseconds).</summary>
+    /// <summary>Per-request timeout when calling a Admin API (milliseconds).</summary>
     public int RequestTimeoutMs { get; set; } = 3000;
 
     /// <summary>Max concurrent HTTP calls during fan-out.</summary>
@@ -38,10 +38,10 @@ public sealed class AdminConsoleOptions
     public int DownReprobeSeconds { get; set; } = 15;
 
     /// <summary>
-    /// Path prefix of the Local Admin API on each instance (no trailing slash).
+    /// Path prefix of the Admin API on each instance (no trailing slash).
     /// Default: <c>/cache-admin/local</c>.
     /// </summary>
-    public string LocalPathPrefix { get; set; } = "/cache-admin/local";
+    public string AdminApiPathPrefix { get; set; } = "/cache-admin/local";
 
     /// <summary>
     /// Optional Prometheus-compatible metrics store for time-series UI.

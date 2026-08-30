@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 namespace CacheOrchestrator.Admin;
 
 /// <summary>
-/// Process-local live counters for Local Admin API.
+/// Process-local live counters for Admin API.
 /// Stores raw counters only; fat v1 DTOs are projected on read.
 /// </summary>
 internal sealed class InMemoryAdminStatsCollector : IAdminStatsCollector

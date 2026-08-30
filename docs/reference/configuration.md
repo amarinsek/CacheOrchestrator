@@ -1,14 +1,30 @@
 # Configuration reference
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide](../guide/README.md). Catalog: [documentation index](../README.md). Packages: [packages](../guide/packages.md).
+> **Reference** — `Cache` appsettings schema, defaults, inheritance, and validation.
 
 Schema for the `Cache` configuration section (or another root you pass to `AddCacheOrchestrator`).
 
-- Section name defaults to **`Cache`**. Override with `AddCacheOrchestrator(config, "MySection")`.
+- Section name defaults to **`Cache`**. Override with a named argument, e.g. `services.AddCacheOrchestrator(configuration, configSection: "MySection")` (same for `AddCacheOrchestratorAspNetCore`).
 - Domain lifetimes use nested objects (`DataCache`, `OutputCache`, `ClientCache`, Fusion-only `FusionCache`) with **integer seconds** (`TtlSeconds`, …) — not TimeSpan strings.
 - Runtime snapshots often expose `TimeSpan` for server TTLs; client max-age fields stay `int` seconds.
 
 For “which package do I need?”, start with [packages](../guide/packages.md), not this page.
+
+## Table of Contents
+
+- [Root shape](#root-shape)
+- [Root properties and package ownership](#root-properties-and-package-ownership)
+- [Provider options (`OutputCache` / `DataCacheInstances` entry)](#provider-options-outputcache-datacacheinstances-entry)
+- [Redis connection (`CacheOrchestrator.Redis` package)](#redis-connection-cacheorchestratorredis-package)
+- [Distributed resilience (`Cache:Distributed`)](#distributed-resilience-cachedistributed)
+- [Domain settings (`DomainDefaults` and each `Domains` entry)](#domain-settings-domaindefaults-and-each-domains-entry)
+- [Admin API (`Cache:Admin`)](#admin-api-cacheadmin)
+- [Cluster bus (`Cache:Cluster:Bus`)](#cluster-bus-cacheclusterbus)
+- [EF Core invalidation (`Cache:EFCore:Invalidation`)](#ef-core-invalidation-cacheefcoreinvalidation)
+- [Validation](#validation)
+- [Runtime model](#runtime-model)
+- [Domain name normalization](#domain-name-normalization)
+- [Example domains](#example-domains)
 
 ## Root shape
 
@@ -41,23 +57,23 @@ For “which package do I need?”, start with [packages](../guide/packages.md),
 
 | Property | Owner | Type | Default | Description |
 |----------|-------|------|---------|-------------|
-| `Namespace` | Core + consuming adapters | string | `app-cache` | Global key prefix; isolates multi-app shared stores **and** cluster command isolation |
-| `InstanceId` | Core | string | machine name | Stable process id (management, cluster anti-echo, diagnostics) |
-| `EmitDiagnosticsHeaders` | ASP.NET Core | bool | `true` | When `true`, emit client-visible diagnostic headers (currently `X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
-| `Metrics` | ASP.NET Core | object | see below | HTTP meter label options (OpenTelemetry / Prometheus) |
-| `Distributed` | Core / Data Cache provider | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** Data Cache providers (Fusion Redis, …) |
-| `OutputCache` | ASP.NET Core | object | Provider `InMemory` | Output Cache provider + optional namespace |
-| `DataCacheInstances` | Core / Data Cache provider | map | `default` instance `InMemory` | Named Data Cache engines (Fusion L1±L2; Hybrid supports only `default`) |
-| `DomainDefaults` | Core + feature packages | object | — | Fallbacks for every domain; each package binds its owned nested settings |
-| `Domains` | Core + feature packages | map | — | Per-domain overrides (keys are domain names) |
-| `Admin` | Core + ASP.NET Core / HttpBus adapters | object | disabled | Management policy plus HTTP adapter route/auth settings (see [admin.md](admin.md)) |
-| `Cluster` | Core command handling + HttpBus transport | object | bus disabled | Cluster command and optional HttpBus settings (see below / [cluster-bus.md](cluster-bus.md)) |
+| `Namespace` | `CacheOrchestrator.Core` + consuming adapters | string | `app-cache` | Global key prefix; isolates multi-app shared stores **and** cluster command isolation |
+| `InstanceId` | `CacheOrchestrator.Core` | string | machine name | Stable process id (management, cluster anti-echo, diagnostics) |
+| `EmitDiagnosticsHeaders` | `CacheOrchestrator.AspNetCore` | bool | `true` | When `true`, emit client-visible diagnostic headers (`X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
+| `Metrics` | `CacheOrchestrator.AspNetCore` | object | see below | HTTP meter label options (OpenTelemetry / Prometheus) |
+| `Distributed` | `CacheOrchestrator.Core` / Data Cache provider | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** Data Cache providers (Fusion Redis, …) |
+| `OutputCache` | `CacheOrchestrator.AspNetCore` | object | Provider `InMemory` | Output Cache provider + optional namespace |
+| `DataCacheInstances` | `CacheOrchestrator.Core` / Data Cache provider | map | `default` instance `InMemory` | Named Data Cache engines (Fusion L1±L2; Hybrid supports only `default`) |
+| `DomainDefaults` | `CacheOrchestrator.Core` + feature packages | object | — | Fallbacks for every domain; each package binds its owned nested settings |
+| `Domains` | `CacheOrchestrator.Core` + feature packages | map | — | Per-domain overrides (keys are domain names) |
+| `Admin` | `CacheOrchestrator.Core` + `CacheOrchestrator.AspNetCore` / `CacheOrchestrator.HttpBus` | object | disabled | Management policy plus Admin API route/auth settings (see [admin.md](admin.md)) |
+| `Cluster` | `CacheOrchestrator.Core` command handling + `CacheOrchestrator.HttpBus` transport | object | bus disabled | Cluster command and optional HttpBus settings (see below / [cluster-bus.md](cluster-bus.md)) |
 
-The JSON tree is stable even though no single public Core options type owns every row. Core, ASP.NET Core, FusionCache, and HttpBus bind package-specific projections from the same section.
+The JSON tree is stable even though no single public Core options type owns every row. `CacheOrchestrator.Core`, `CacheOrchestrator.AspNetCore`, `CacheOrchestrator.FusionCache`, and `CacheOrchestrator.HttpBus` bind package-specific projections from the same section.
 
-### Metrics (ASP.NET Core package)
+### Metrics (`CacheOrchestrator.AspNetCore`)
 
-Bound from `Cache:Metrics`. Controls labels on the `CacheOrchestrator` meter (not Admin Console App storage).
+Bound from `Cache:Metrics`. Controls labels on the meter named `CacheOrchestrator` (not Admin Console App storage).
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -70,9 +86,9 @@ Endpoint time series need a scrape of the meter and Admin Console App Metrics st
 Effective namespaces:
 
 - Output: `OutputCache.Namespace` ?? `{Namespace}-oc`
-- Data Cache **`default`** instance: `DataCacheInstances.default.Namespace` ?? `{Namespace}-fc`
-  (**no** `-default` suffix — keys look like `app-cache-fc:…`, not `app-cache-fc-default:…`. The `-fc` suffix is historical.)
-- Data Cache **named** instance (e.g. `pii`): `…Namespace` ?? `{Namespace}-fc-{name}`
+- Data Cache **`default`** instance: `DataCacheInstances.default.Namespace` ?? `{Namespace}-dc`
+  (**no** `-default` suffix — keys look like `app-cache-dc:…`, not `app-cache-dc-default:…`.)
+- Data Cache **named** instance (e.g. `pii`): `…Namespace` ?? `{Namespace}-dc-{name}`
 
 ## Provider options (`OutputCache` / `DataCacheInstances` entry)
 
@@ -86,6 +102,8 @@ Effective namespaces:
 
 Read **only** after a Redis backend is registered. The binding implementation lives in the transitive `CacheOrchestrator.Redis.Shared` support package and is intentionally not public API.
 
+Configure Redis **primarily through the StackExchange.Redis connection string** (`Configuration`): host, password, SSL, `defaultDatabase`, and most wire options belong there. The integer fields below are a thin overlay for common timeouts and keep-alive; they do not replace the connection string. This section is **connection / store wiring** — not Fusion L2 call resilience (that is [`Cache:Distributed`](#distributed-resilience-cachedistributed)).
+
 | Section | Role |
 |---------|------|
 | `Cache:Redis` | Global fallback connection |
@@ -94,7 +112,7 @@ Read **only** after a Redis backend is registered. The binding implementation li
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `Configuration` | — | StackExchange.Redis connection string |
+| `Configuration` | — | StackExchange.Redis connection string (primary Redis configuration surface) |
 | `ConnectTimeout` | 5000 | ms |
 | `SyncTimeout` | 5000 | ms |
 | `KeepAliveSeconds` | 60 | TCP keep-alive |
@@ -102,6 +120,8 @@ Read **only** after a Redis backend is registered. The binding implementation li
 ## Distributed resilience (`Cache:Distributed`)
 
 Core setting. Applied when a Data Cache instance `Provider` is **not** `InMemory` (Fusion L2 path).
+
+These knobs are **application-side L2 resilience** (how long Fusion waits on distributed cache I/O and how long the circuit stays open after failures). They are **not** Redis connection settings — put host, auth, SSL, and StackExchange timeouts in the [Redis connection string](#redis-connection-cacheorchestratorredis-package) (and the optional overlay fields there). Factory timeouts stay under per-domain `FusionCache.*`.
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -122,22 +142,22 @@ For one domain, the Core and ASP.NET Core options providers resolve values in th
 3. `Cache:DomainDefaults`.
 4. Library defaults.
 
-Core produces an immutable `DomainCacheOptions` snapshot for domain identity and Data Cache policy. ASP.NET Core composes it into `DomainHttpCacheOptions` for Output Cache, Client Cache, authentication, vary, ETag, and HTTP Data Cache key policy. A request reuses its HTTP snapshot; configuration reloads and later overlays affect newly resolved requests, not values already attached to the current request. Provider and connection sections such as `OutputCache`, `DataCacheInstances`, and `Redis` are host composition settings and do not participate in this per-domain merge.
+`CacheOrchestrator.Core` produces an immutable `DomainCacheOptions` snapshot for domain identity and Data Cache policy. `CacheOrchestrator.AspNetCore` composes it into `DomainHttpCacheOptions` for Output Cache, Client Cache, authentication, vary, ETag, and HTTP Data Cache key policy. A request reuses its HTTP snapshot; configuration reloads and later overlays affect newly resolved requests, not values already attached to the current request. Provider and connection sections such as `OutputCache`, `DataCacheInstances`, and `Redis` are host composition settings and do not participate in this per-domain merge.
 
 ### Nested sections
 
 | JSON section | Portable? | Meaning |
 |--------------|-----------|---------|
-| `DataCache` | Yes (Core) | Enable, instance name, TTL, vary / no-store — Fusion **or** Hybrid |
-| `OutputCache` | AspNet | HTTP response cache TTL and Output Cache behavior |
-| `ClientCache` | AspNet | Browser / CDN `Cache-Control` (+ schedule) |
-| `FusionCache` | Fusion package only | Hard TTL, fail-safe, factory timeouts, jitter, … |
+| `DataCache` | `CacheOrchestrator.Core` + `CacheOrchestrator.AspNetCore` | Core: enable, instance, TTL. AspNetCore HTTP keys under the same object: `RespectNoStore`, `VaryOnEncoding`, `VaryOnPublicAddress` — Fusion **or** Hybrid |
+| `OutputCache` | `CacheOrchestrator.AspNetCore` | HTTP response cache TTL and Output Cache behavior |
+| `ClientCache` | `CacheOrchestrator.AspNetCore` | Browser / CDN `Cache-Control` (+ schedule) |
+| `FusionCache` | `CacheOrchestrator.FusionCache` only | Hard TTL, fail-safe, factory timeouts, jitter, … |
 
 ### Feature flags and vary (domain root)
 
 | Property | Default* | Description |
 |----------|----------|-------------|
-| `AuthBypassMode` | `AuthenticatedOrAuthorization` | Prefer this: `Never` / `AuthenticatedIdentityOnly` / `AuthorizationHeaderOnly` / `AuthenticatedOrAuthorization` |
+| `AuthBypassMode` | `AuthenticatedOrAuthorization` | `Never` / `AuthenticatedIdentityOnly` / `AuthorizationHeaderOnly` / `AuthenticatedOrAuthorization` |
 | `VaryOutputCacheByUser` | true | When authentication is not bypassed, vary Output Cache (and Data Cache when intentional) by user, claims, or API-key hash |
 | `TreatAuthorizationAsAuthSignal` | true | `Authorization` counts as auth signal for OR-mode |
 | `AuthVaryIncludeAuthorizationHash` | true | Hash `Authorization` into auth-user when no identity |
@@ -158,13 +178,20 @@ Core produces an immutable `DomainCacheOptions` snapshot for domain identity and
 |----------|-------------|
 | `Version` | Bulk invalidation stamp string (e.g. "v1", "2026-08"). Missing → stable default "1" + warning log (stable keys, no auto-invalidate on restart) |
 
-### `DataCache` (portable)
+### `DataCache` (portable `CacheOrchestrator.Core`)
 
 | Property | Default* | Description |
 |----------|----------|-------------|
 | `Enabled` | true | Enable Data Cache for the domain |
 | `Instance` | `default` | Key in `DataCacheInstances` |
 | `TtlSeconds` | `3800` | Logical Data Cache TTL in seconds (Fusion soft/`Duration`; Hybrid expiration) |
+
+### `DataCache` (HTTP-only `CacheOrchestrator.AspNetCore`)
+
+Same JSON object as portable `DataCache`; bound by `CacheOrchestrator.AspNetCore`:
+
+| Property | Default* | Description |
+|----------|----------|-------------|
 | `RespectNoStore` | true | Skip Data Cache when request has `Cache-Control: no-store` |
 | `VaryOnEncoding` | true | Include Accept-Encoding in the Data Cache key |
 | `VaryOnPublicAddress` | true | Include scheme + host in the Data Cache key |
@@ -193,7 +220,7 @@ Core produces an immutable `DomainCacheOptions` snapshot for domain identity and
 
 See **[Client Cache Schedule](../guide/client-cache-schedule.md)** for phases, formula, and operational playbook.
 
-### `FusionCache` (Fusion package only)
+### `FusionCache` (`CacheOrchestrator.FusionCache` only)
 
 Bound from `Cache:DomainDefaults:FusionCache` / `Cache:Domains:{name}:FusionCache` by **CacheOrchestrator.FusionCache**. Ignored when Hybrid is the `IDataCacheProvider`.
 
@@ -225,7 +252,7 @@ Details: [admin.md](admin.md). Map with `MapCacheOrchestratorAdmin()`.
 
 Process id is **`Cache:InstanceId`** (root), not under `Admin`.
 
-Admin Console App (`AdminConsole` section) is configured only in `src/CacheOrchestrator.AdminConsole` — see [admin.md](admin.md#admin-console-app-process).
+Admin Console App (`AdminConsole` section) is configured only in `src/CacheOrchestrator.AdminConsole` — see [admin.md](admin.md#admin-console-app).
 
 ## Cluster bus (`Cache:Cluster:Bus`)
 
@@ -281,7 +308,7 @@ Package-owned validators run on start (`ValidateOnStart`). Core validates portab
 Resolved settings use two immutable runtime snapshots:
 
 - Core `DomainCacheOptions` contains `Domain`, `Version`, `VersionHex`, `DataCacheEnabled`, `DataCacheInstanceName`, `DataCacheTtl`, and `DataCacheNamespace`.
-- ASP.NET Core `DomainHttpCacheOptions` exposes the Core snapshot through `CoreOptions` and adds the HTTP-owned settings.
+- `CacheOrchestrator.AspNetCore` `DomainHttpCacheOptions` exposes the Core snapshot through `CoreOptions` and adds the HTTP-owned settings.
 
 Nested JSON seconds map to:
 
@@ -295,13 +322,13 @@ Nested JSON seconds map to:
 | `OutputCache.Enabled` | `DomainHttpCacheOptions.OutputCacheEnabled` |
 | `ClientCache.Cacheability` | `DomainHttpCacheOptions.ClientCacheability` |
 
-Fusion-only knobs stay on `DomainFusionCacheSettings` (Fusion package), not on Core `DomainCacheOptions`.
+Fusion-only knobs stay on `DomainFusionCacheSettings` (`CacheOrchestrator.FusionCache`), not on Core `DomainCacheOptions`.
 
 The JSON shape remains unified. `Cache:DomainDefaults` and `Cache:Domains:{domain}` are bound to package-owned models from the same configuration section:
 
-- Core owns `Version` and portable `DataCache.Enabled`, `Instance`, and `TtlSeconds`.
-- ASP.NET Core owns `OutputCache`, `ClientCache`, authentication/vary/ETag settings, and HTTP-only `DataCache.RespectNoStore`, `VaryOnPublicAddress`, and `VaryOnEncoding`.
-- FusionCache owns the nested `FusionCache` tuning section.
+- `CacheOrchestrator.Core` owns `Version` and portable `DataCache.Enabled`, `Instance`, and `TtlSeconds`.
+- `CacheOrchestrator.AspNetCore` owns `OutputCache`, `ClientCache`, authentication/vary/ETag settings, and HTTP-only `DataCache.RespectNoStore`, `VaryOnPublicAddress`, and `VaryOnEncoding`.
+- `CacheOrchestrator.FusionCache` owns the nested `FusionCache` tuning section.
 
 This split does not change any `appsettings.json` key.
 
@@ -328,9 +355,12 @@ See **[domain-profiles.md](../guide/domain-profiles.md)** for full **osm-tiles**
 
 ## Related
 
-- [packages.md](../guide/packages.md)  
-- [Guide](../guide/README.md)  
+- [Packages](../guide/packages.md) — which package owns which settings  
+- [Guide](../guide/README.md) — orientation and learning path  
+- [Topologies](../guide/topologies.md) — InMemory vs Redis vs HttpBus (when to share stores)  
+- [Deployment](deployment.md) — multi-instance layouts and **[shared configuration across instances](deployment.md#shared-configuration-across-instances)** (`appsettings.cache.json`, ConfigMap, identical policy on every node)  
 - [cache-keys.md](cache-keys.md) — Namespace and key composition  
-- [architecture.md](../contributor/architecture.md)  
-- [domain-profiles.md](../guide/domain-profiles.md)  
-- [invalidation.md](invalidation.md)  
+- [cluster-bus.md](cluster-bus.md) — optional HTTP command fan-out (invalidation / Admin distribute); not a substitute for shared Redis or shared policy config  
+- [invalidation.md](invalidation.md) — Version, tags, multi-instance purge  
+- [domain-profiles.md](../guide/domain-profiles.md) — example domain recipes  
+- [architecture.md](../contributor/architecture.md) — package layout and runtime snapshots  

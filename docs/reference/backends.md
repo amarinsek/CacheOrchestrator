@@ -1,17 +1,27 @@
 # Cache backends
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md). Canonical detail for Redis and custom registrars.
+> **Reference** — Output Cache / Fusion store registrars and Redis wiring.
 
 Policy (domains, TTLs, invalidation, Client Cache) is separate from **storage**. InMemory ships with the host packages and Redis is supplied by focused integration packages. Custom storage has three distinct boundaries: an Output Cache store, FusionCache L2/backplane, or a complete Data Cache engine. Do not use one registrar as though it configured all three.
+
+## Table of Contents
+
+- [First-party backends](#first-party-backends)
+- [Install](#install)
+- [Register](#register)
+- [Configure](#configure)
+- [What a backend implements](#what-a-backend-implements)
+- [Example: Fusion L2 on SQL Server](#example-fusion-l2-on-sql-server)
+- [Builder API summary](#builder-api-summary)
 
 ## First-party backends
 
 | Provider | Package | Registration | Output Cache | Data Cache L2 (Fusion) |
 |----------|---------|--------------|--------------|------------------------|
-| **InMemory** | Core / AspNetCore / meta | Automatic | ASP.NET in-process store (+ size limits) | None (L1 only) |
+| **InMemory** | `CacheOrchestrator.Core` / `CacheOrchestrator.AspNetCore` / `CacheOrchestrator` meta | Automatic | ASP.NET in-process store (+ size limits) | None (L1 only) |
 | **Redis** (meta) | `CacheOrchestrator.Redis` | `o.AddRedisBackend()` | Redis Output Cache store | Keyed Redis L2 + backplane |
 | **Redis** (Output Cache only) | `CacheOrchestrator.AspNetCore.Redis` | `o.AddRedisOutputCacheBackend()` | Redis Output Cache store | — |
-| **Redis** (Fusion only) | `CacheOrchestrator.FusionCache.Redis` | `AddRedisFusionCacheBackend(...)` | — | Keyed Redis L2 + backplane |
+| **Redis** (Fusion only) | `CacheOrchestrator.FusionCache.Redis` | `o.AddRedisFusionCacheBackend(...)` | — | Keyed Redis L2 + backplane |
 
 `CacheOrchestrator.Redis.Shared` is a **support** package (transitive). Do not install it alone.
 
@@ -62,14 +72,14 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o =>
 }
 ```
 
-`Cache:Redis` (and optional `…:OutputCache:Redis` / `…:DataCacheInstances:{name}:Redis`) is read by the **Redis package**, not by core `CacheOrchestratorOptions`.  
+`Cache:Redis` (and optional `…:OutputCache:Redis` / `…:DataCacheInstances:{name}:Redis`) is read by **`CacheOrchestrator.Redis`** (and the leaf Redis packages), not by core `CacheOrchestratorOptions`.  
 Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
 
 ## What a backend implements
 
 | Responsibility | Package / interface | How |
 |----------------|---------------------|-----|
-| **Output Cache store** | AspNetCore `IOutputCacheBackendRegistrar` | Implement `RegisterOutputCache` |
+| **Output Cache store** | `CacheOrchestrator.AspNetCore` `IOutputCacheBackendRegistrar` | Implement `RegisterOutputCache` |
 | **Data Cache L2 (Fusion)** | FusionCache `IFusionCacheBackendRegistrar` | `RegisterFusionCache` — **keyed** `IDistributedCache` per instance name; register via `AddFusionCacheBackend` or Redis `AddRedisBackend` |
 | **Complete Data Cache engine** | Core `IDataCacheProvider` | Implement get/create, set, named-instance isolation, generic values, and tag invalidation; register exactly one provider |
 | **Health probes** | Both (optional) | Register `ICacheOrchestratorHealthProbe` from the registrar's main registration method. Redis does this for Output Cache (`oc`) and each Fusion instance. |
@@ -81,14 +91,14 @@ Without `AddRedisBackend()`, `"Provider": "Redis"` fails validation.
 2. Prefer `context.RegisterStore(() => …)` for store packages that must run **after** `AddOutputCache`  
    (e.g. `AddStackExchangeRedisOutputCache`).  
 3. Implement this interface only when the provider has an ASP.NET Output Cache adapter. A Fusion-only provider implements only `IFusionCacheBackendRegistrar`.
-4. Use `context.OutputCacheNamespace` for store key isolation; the ASP.NET Core package owns and resolves Output Cache configuration.
+4. Use `context.OutputCacheNamespace` for store key isolation; `CacheOrchestrator.AspNetCore` owns and resolves Output Cache configuration.
 
 ### Fusion L2 rules (multi-instance safe)
 
 1. Register a **keyed** `IDistributedCache` with key = `context.InstanceName`.  
 2. Call `context.FusionBuilder.WithRegisteredKeyedDistributedCache(context.InstanceName)`.  
 3. Register a **keyed** `IDistributedCache` per Data Cache instance name. A single global `AddDistributedSqlServerCache` or `AddStackExchangeRedisCache` would let the last instance overwrite the others.
-4. Optional backplane: attach on `context.FusionBuilder` (Redis package does this).  
+4. Optional backplane: attach on `context.FusionBuilder` (`CacheOrchestrator.FusionCache.Redis` / Redis meta does this).  
 5. Bind settings from `context.BackendSection`  
    (`Cache:DataCacheInstances:{instance}:{Provider}`).
 
@@ -199,9 +209,9 @@ Config:
 
 ## Related
 
-- [packages.md](../guide/packages.md)  
-- [Guide — topologies](../guide/topologies.md)  
-- [configuration.md](configuration.md) — `Distributed`, Redis, providers  
-- [deployment.md](deployment.md) — multi-instance Redis  
-- [Extensibility](extensibility.md) — all application, provider, and host extension points
-- [architecture.md](../contributor/architecture.md) — public API surface  
+- [Packages](../guide/packages.md) — which package to choose (including Redis meta vs leaf)
+- [Topologies](../guide/topologies.md) — InMemory, Redis, HttpBus, and when to combine them
+- [Configuration](configuration.md) — `Distributed`, Redis connection options, and provider settings
+- [Deployment](deployment.md) — multi-instance Redis and shared-store layouts
+- [Extensibility](extensibility.md) — `IOutputCacheBackendRegistrar`, `IFusionCacheBackendRegistrar`, and `IDataCacheProvider`
+- [Architecture](../contributor/architecture.md) — package layout and public API surface

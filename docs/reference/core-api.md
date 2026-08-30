@@ -1,6 +1,6 @@
 # Core API
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [packages](../guide/packages.md). Catalog: [documentation index](../README.md). HTTP API: [Data Cache](data-cache.md).
+> **Reference** — HTTP-free `ICacheOrchestrator`, management, and entity operations.
 
 `CacheOrchestrator.Core` is the HTTP-free application API for class libraries, workers, message handlers, gRPC services, and other hosts that should not depend on ASP.NET Core. The primary abstraction is `ICacheOrchestrator`; a registered `IDataCacheProvider` owns physical storage. Without a provider, startup and health remain valid for hosts that never use Data Cache; the first actual Data Cache operation logs a warning and runs uncached.
 
@@ -14,6 +14,21 @@ application logical key
       → attach domain/entity tags
       → IDataCacheProvider
 ```
+
+## Table of Contents
+
+- [Package and namespaces](#package-and-namespaces)
+- [Management without HTTP](#management-without-http)
+- [`ICacheOrchestrator` surface](#icacheorchestrator-surface)
+- [`CacheDomainContext`](#cachedomaincontext)
+- [Basic get-or-create](#basic-get-or-create)
+- [`CacheEntryRequest`](#cacheentryrequest)
+- [One entity](#one-entity)
+- [Entity collections](#entity-collections)
+- [Factory-owned footprint](#factory-owned-footprint)
+- [Disabled domains and failures](#disabled-domains-and-failures)
+- [Coordinating Core and HTTP](#coordinating-core-and-http)
+- [Provider boundary](#provider-boundary)
 
 ## Package and namespaces
 
@@ -40,7 +55,7 @@ builder.Services.AddCacheOrchestratorCore(builder.Configuration);
 builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 ```
 
-Use `AddCacheOrchestratorHybridCache` instead of FusionCache when HybridCache is the chosen provider. Web hosts usually install the `CacheOrchestrator` meta package. See [package composition](../how-to/composition.md#scenario-7).
+Use `AddCacheOrchestratorHybridCache` instead of FusionCache when HybridCache is the chosen provider. Web hosts usually install the `CacheOrchestrator` meta package. See [package composition](../how-to/composition.md#scenario-6).
 
 ## Management without HTTP
 
@@ -58,7 +73,7 @@ AdminDomainMutationResultDto changed = await management.SetVersionAsync(
     cancellationToken);
 ```
 
-Core reports portable Data Cache configuration and has no resource endpoints to discover by default. A host can implement `IAdminEndpointCatalog` and `IAdminDomainConfigProvider` to add its resource inventory and host-specific policy. `CacheOrchestrator.AspNetCore` provides those adapters and maps the existing Local Admin HTTP routes onto the same management contract. See [Admin](admin.md#core-management-contract).
+Core reports portable Data Cache configuration and has no resource endpoints to discover by default. A host can implement `IAdminEndpointCatalog` and `IAdminDomainConfigProvider` to add its resource inventory and host-specific policy. `CacheOrchestrator.AspNetCore` provides those adapters and maps the existing Admin API routes onto the same management contract. See [Admin — Management API](admin.md#management-api).
 
 ## `ICacheOrchestrator` surface
 
@@ -108,7 +123,7 @@ public sealed class CatalogReader(ICacheOrchestrator cache)
 The physical key is:
 
 ```text
-{normalizedDomain}:{versionHex}:{logicalKey}
+co3:{escapedDomain}:{versionHex}:{logicalKey}
 ```
 
 The logical key must be deterministic, stable across processes, and free of secrets. Core does not derive keys from routes, query strings, headers, or users; those are ASP.NET concerns handled by `IDomainDataCache`.
@@ -141,7 +156,7 @@ ProductDto? product = await cache.GetOrCreateAsync(
 | `Footprint` | No | Early primary/member/dependency/alias tags |
 | `AdditionalTags` | No | Advanced custom invalidation tags; the domain tag is still added automatically |
 
-The physical-key bypass is internal to trusted HTTP adapters, so application code cannot accidentally omit domain and Version isolation.
+The physical-key bypass is internal to the trusted ASP.NET Core host path, so application code cannot accidentally omit domain and Version isolation.
 
 ## One entity
 
@@ -251,4 +266,4 @@ Applications should depend on `ICacheOrchestrator`, not `IDataCacheProvider`. Pr
 - [Invalidation](invalidation.md) — domain, entity, kind, and custom-tag invalidation
 - [Cache keys](cache-keys.md) — Core and HTTP key composition
 - [Extensibility](extensibility.md) — provider and host extension points
-- [Package composition](../how-to/composition.md#scenario-7) — class library and host wiring
+- [Package composition](../how-to/composition.md#scenario-6) — class library and host wiring

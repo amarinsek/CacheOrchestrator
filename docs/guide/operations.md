@@ -1,6 +1,6 @@
 # Operations
 
-> **Guide path:** [Client Cache Schedule](client-cache-schedule.md) → **Operations** → [FAQ](faq.md) · [Guide index](README.md)
+> **Guide** — diagnostics, Admin API vs Console App, and day-2 ops.
 
 Operating a cache means answering three questions quickly:
 
@@ -10,23 +10,36 @@ Operating a cache means answering three questions quickly:
 
 Start with one response, move to aggregate telemetry, and use Admin mutations only after you know the intended scope.
 
+## Table of Contents
+
+- [Read one request with `X-Cache`](#read-one-request-with-x-cache)
+- [Use metrics for trends](#use-metrics-for-trends)
+- [Use logs and traces for the reason](#use-logs-and-traces-for-the-reason)
+- [Probe backend health](#probe-backend-health)
+- [Choose the Admin surface](#choose-the-admin-surface)
+- [Match every mutation to its scope](#match-every-mutation-to-its-scope)
+- [Confirm the instance boundary](#confirm-the-instance-boundary)
+- [Security checklist](#security-checklist)
+- [Use a short incident checklist](#use-a-short-incident-checklist)
+
 ## Read one request with `X-Cache`
 
 Domain endpoints emit `X-Cache` by default:
 
 ```http
-X-Cache: domain=catalog; client=public; phase=n/a; oc=miss; dc=miss; fa=run; ms=12
+X-Cache: domain=catalog; version=v1; client=public; phase=n/a; oc=miss; dc=miss; fa=run; ms=12
 ```
 
-| Token | What it tells you |
-|-------|-------------------|
-| `domain` | Resolved domain name |
-| `client` | Client policy: `public`, `private`, `no-store`, or `blocked` |
-| `phase` | Client Cache Schedule phase |
-| `oc` | Output Cache result: `hit`, `miss`, `bypass`, or `off` |
-| `dc` | Data Cache result; omitted when Output Cache served the response |
-| `fa=run` | The application had to run factory/origin work to produce the result |
-| `ms` | Factory/origin elapsed milliseconds |
+| Token | Values | What it tells you |
+|-------|--------|-------------------|
+| `domain` | normalized name, or `_` | Resolved domain; `_` when the domain could not be resolved |
+| `version` | domain `Version` stamp, or `-` | Always present; `-` when unresolved |
+| `client` | `public` / `private` / `no-store` / `blocked` | Client Cache-Control class applied to the response |
+| `phase` | `calm` / `approaching` / `hold` / `n/a` | Client Cache Schedule phase (always present) |
+| `oc` | `hit` / `miss` / `bypass` / `off` | Output Cache outcome |
+| `dc` | `hit` / `miss` / `stale` / `bypass` / `off` / `unresolved` / `n/a` | Data Cache outcome. `n/a` when no Data Cache operation ran. Omitted on an Output Cache `hit`. |
+| `fa` | `run` | Application/origin work produced the result. Omitted on an Output Cache `hit` and on `dc=hit`. |
+| `ms` | integer milliseconds | Wall-clock of the timed server path (Data Cache get-or-set, including L1/L2 `dc=hit`, or direct origin when `dc=n/a`). Omitted on `oc=hit`. Not factory-only — see [observability.md](../reference/observability.md). |
 
 Common flows:
 
@@ -65,7 +78,7 @@ Start with these signals:
 
 By default, request instruments include a stable route-template label rather than raw resource paths. Disable `Cache:Metrics:IncludeEndpointLabel` if that cardinality is still too high, and keep the choice consistent across instances.
 
-Admin Console traffic charts require Prometheus. The local Admin `/stats` endpoint contains process-lifetime diagnostics and is not the source for time-window analytics.
+Admin Console App traffic charts require Prometheus. The Admin API `/stats` endpoint contains process-lifetime diagnostics and is not the source for time-window analytics.
 
 ## Use logs and traces for the reason
 
@@ -121,9 +134,9 @@ app.UseCacheOrchestrator();
 app.MapCacheOrchestratorAdmin();
 ```
 
-Use the API for automation. Add the Admin Console when operators need instance fan-out, domain comparisons, hints, and a visual workflow. The Console is not a NuGet package and is never on the end-user caching path.
+Use the Admin API for automation. Add the Admin Console App when operators need instance fan-out, domain comparisons, hints, and a visual workflow. The Admin Console App is not a NuGet package and is never on the end-user caching path.
 
-Setup and endpoint reference: [Admin](../reference/admin.md). Container runbook: [Deploy Admin Console](../../deploy/admin/README.md).
+Setup and endpoint reference: [Admin](../reference/admin.md). Container runbook: [Deploy Admin Console App](../../deploy/admin/README.md).
 
 ## Match every mutation to its scope
 
@@ -149,7 +162,7 @@ Before running an invalidation or settings change, identify the topology:
 - In a single process, local apply is the whole deployment.
 - Redis Output Cache uses a shared response store.
 - FusionCache Redis L2 plus backplane purges shared data and peer L1 entries.
-- In-memory peer stores require HttpBus commands or Admin Console fan-out.
+- In-memory peer stores require HttpBus commands or Admin Console App fan-out.
 - Runtime Version, TTL, and settings overlays do not travel through the FusionCache backplane.
 
 With HttpBus enabled, programmatic invalidation publishes to peers after local apply. Admin mutations distribute only when `distribute: true` is requested. A peer failure can leave the origin changed while one or more peers remain unchanged; there is no automatic rollback.
@@ -158,18 +171,19 @@ Treat a partial multi-instance mutation as an incident: record which instances a
 
 See [Topologies](topologies.md) and [Cluster bus](../reference/cluster-bus.md) for the complete matrix.
 
-## Secure the control plane
+## Security checklist
 
-Admin operations can evict cache entries and change live policy.
-
-- Keep Admin API and bus endpoints on a private network.
-- Set strong API keys through a secret provider; never commit them to configuration files.
-- Put VPN, SSO, or authenticated reverse-proxy access in front of the Admin Console. It has no built-in user login.
-- Use TLS between operators, Console, and application instances.
-- Restrict Prometheus and diagnostic headers when their labels reveal sensitive deployment details.
-- Audit invalidation and settings mutations outside the cache process when required.
-
-An enabled Admin API with an empty key is suitable only for isolated local development and produces a warning.
+> [!IMPORTANT]
+> Admin operations can evict cache entries and change live policy.
+>
+>  [ ] Keep Admin API and bus endpoints on a private network.
+>  [ ] Set strong API keys through a secret provider; never commit them to configuration files.
+>  [ ] Put VPN, SSO, or authenticated reverse-proxy access in front of the Admin Console App. It has no built-in user login.
+>  [ ] Use TLS between operators, Admin Console App, and application instances.
+>  [ ] Restrict Prometheus and diagnostic headers when their labels reveal sensitive deployment details.
+>  [ ] Audit invalidation and settings mutations outside the cache process when required.
+>
+> An enabled Admin API with an empty key is suitable only for isolated local development and produces a warning.
 
 ## Use a short incident checklist
 

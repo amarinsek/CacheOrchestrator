@@ -8,8 +8,6 @@ For Output Cache Redis only, use **CacheOrchestrator.AspNetCore.Redis**. For bot
 
 ## Install
 
-Available on nuget.org **from release 3.0.0-beta.3** onwards (until then, reference the project from source):
-
 ```bash
 dotnet add package CacheOrchestrator.FusionCache.Redis --prerelease
 ```
@@ -49,7 +47,7 @@ builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 builder.Services.AddRedisFusionCacheBackend(builder.Configuration);
 ```
 
-In an ASP.NET Core host, replace the Core registration with the ASP.NET Core host layer:
+In an ASP.NET Core host, replace the Core registration with `CacheOrchestrator.AspNetCore`:
 
 ```csharp
 builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);

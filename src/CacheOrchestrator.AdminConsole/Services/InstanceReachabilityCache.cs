@@ -52,7 +52,7 @@ public sealed class InstanceReachabilityCache
         return new CachedInstanceHealth(e.Status, e.Error, e.LatencyMs, e.CheckedAtUtc, e.ReportedInstanceId);
     }
 
-    /// <summary>Records a successful Local Admin call (any endpoint).</summary>
+    /// <summary>Records a successful Admin API call (any endpoint).</summary>
     public void RecordSuccess(string instanceId, string? reportedInstanceId = null, double? latencyMs = null)
     {
         DateTimeOffset now = _time.GetUtcNow();

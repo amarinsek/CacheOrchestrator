@@ -1,6 +1,6 @@
 # Domain vary dimensions
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md). Canonical detail for Accept / auth / contributors.
+> **Reference** — shared vary dimensions for Output Cache and Data Cache (query, headers, auth, contributors).
 
 CacheOrchestrator shares one **vary model** between **Output Cache** and **FusionCache** (where it makes sense). Built-in toggles and allowlists live on the domain; apps can add small custom dimensions via `ICacheVaryContributor` without replacing `IDomainKeyGenerator`.
 
@@ -8,7 +8,14 @@ CacheOrchestrator shares one **vary model** between **Output Cache** and **Fusio
 
 See also: [cache-keys.md](cache-keys.md), [Output Cache](output-cache.md), [configuration.md](configuration.md).
 
-Admin Console **Operations → Patch settings** can change these at runtime (bool / enum / numbers and comma-separated string lists). Playground domain **`vary-demo`** (`GET /api/vary-demo`) exercises Accept + `?lang=` allowlisting.
+Admin Console App **Operations → Patch settings** can change these at runtime (bool / enum / numbers and comma-separated string lists). Playground domain **`vary-demo`** (`GET /api/vary-demo`) exercises Accept + `?lang=` allowlisting.
+
+## Table of Contents
+
+- [Built-in settings](#built-in-settings)
+- [Authorization](#authorization)
+- [Custom vary (`ICacheVaryContributor`)](#custom-vary-icachevarycontributor)
+- [Security checklist](#security-checklist)
 
 ## Built-in settings
 
@@ -17,9 +24,9 @@ All under `Cache:Domains:{name}:` (and `DomainDefaults`).
 | Setting | Default | Output Cache | Data Cache | Notes |
 |---------|---------|--------------|------------|-------|
 | `VaryByAccept` | `true` | ✓ | ✓ | Separates negotiated representations such as JSON and XML. Disable it only when the endpoint always produces the same representation. |
-| `AcceptNormalizationList` | `null` | normalize | same | Optional prefer-list used to collapse equivalent `Accept` values. Without a list, the raw header value is used. |
+| `AcceptNormalizationList` | `null` | normalize | normalize | Optional prefer-list used to collapse equivalent `Accept` values. Without a list, the raw header value is used. |
 | `VaryByAcceptLanguage` | `false` | ✓ | ✓ | Locale. Stays off — most JSON APIs are language-agnostic; enabling fragments the cache. |
-| `AcceptLanguageNormalizationList` | `null` | normalize | same | e.g. `en`, `sl` when you opt into language vary |
+| `AcceptLanguageNormalizationList` | `null` | normalize | normalize | e.g. `en`, `sl` when you opt into language vary |
 | `VaryByHeaders` | `null` | ✓ | ✓ | Case-insensitive names; sensitive values hashed. Never auto-fill. |
 | `VaryByQueryKeys` | `null` | ✓ | ✓ | `null` = all non-tracking; `[]` = none; non-empty = allowlist |
 | `IgnoreQueryKeys` | `null` | ✓ | ✓ | Extra deny list on top of tracking prefixes |
@@ -32,22 +39,35 @@ Normalization changes cache identity, not the request. CacheOrchestrator stores 
 
 > **Note on query parameters:** Unlike native ASP.NET Core Output Caching (which ignores query parameters by default), CacheOrchestrator's default (`"VaryByQueryKeys": null`) **varies by all query parameters** (except tracking parameters like `utm_*`). To ignore all query parameters like native ASP.NET Core does, explicitly set `"VaryByQueryKeys": []`.
 
-### Query allowlist examples
+### Query key examples
+
+**Allowlist** — only listed keys enter the cache key; everything else is ignored:
 
 ```json
 {
-"catalog": {
-  "VaryByQueryKeys": [ "page", "pageSize", "sort" ],
-  "IgnoreQueryKeys": [ "debug" ]
-}
+  "catalog": {
+    "VaryByQueryKeys": [ "page", "pageSize", "sort" ]
+  }
 }
 ```
 
+**Ignore list** — with default `VaryByQueryKeys` (`null`), every non-tracking query key enters the cache key except those listed:
+
 ```json
 {
-"static-asset": {
-  "VaryByQueryKeys": []
+  "search": {
+    "IgnoreQueryKeys": [ "debug" ]
+  }
 }
+```
+
+**No query vary** — empty allowlist: query string never partitions the key (closest to native ASP.NET Core Output Cache default):
+
+```json
+{
+  "static-asset": {
+    "VaryByQueryKeys": []
+  }
 }
 ```
 
@@ -159,17 +179,23 @@ Most contributors should add the same dimension to both surfaces, as the example
 - Full key-shape replacement is still available via `IDomainKeyGenerator`.
 - The full application extension-point catalog is in [Extensibility](extensibility.md).
 
-## Security
+## Security checklist
 
-- Raw `Authorization` / cookie values never enter keys, vary dictionaries, logs, or `X-Cache`.
-- Cookie vary is opt-in only; document CSRF/session fixation risks.
-- Response `Vary` omits secrets-bearing headers; per-user Output Cache still needs a `private` Client Cache policy.
-- Startup validation rejects empty allowlist entries and caps sizes (e.g. max 8 headers / cookies).
+> [!IMPORTANT]
+> Vary settings change what enters keys and what browsers see. Before enabling extra dimensions in production:
+>
+> - [ ] Never put raw secrets in custom vary via `AddValue` — use `AddHashedValue` (or hashed header helpers)
+> - [ ] Treat `VaryByCookies` as opt-in only; document CSRF / session-fixation risk if you partition by session cookies
+> - [ ] Keep Client Cache `private` (or stricter) when Output Cache varies by authenticated user
+> - [ ] Confirm response `Vary` does not advertise secret-bearing headers (library omits those; do not work around it)
+> - [ ] Prefer tight `VaryByHeaders` / query allowlists — wide vary multiplies entries and can leak tenancy signals into key cardinality
+>
+> Library defaults already keep raw `Authorization` / cookie values out of keys, vary dictionaries, logs, and `X-Cache`. Startup validation rejects empty allowlist entries and caps sizes (e.g. max 8 headers / cookies).
 
 ## Related
 
-- [concepts](../guide/concepts.md)
-- [Output Cache](output-cache.md) — auth bypass on the policy
-- [cache-keys.md](cache-keys.md) — how vary material enters Fusion keys
-- [configuration.md](configuration.md) — domain flags
-- [faq.md](../guide/faq.md) — authenticated requests and JSON vs XML
+- [Guide — concepts](../guide/concepts.md) — domain model and layer overview  
+- [Output Cache](output-cache.md) — auth bypass on the policy  
+- [cache-keys.md](cache-keys.md) — how vary material enters Data Cache keys  
+- [configuration.md](configuration.md) — domain vary flags  
+- [faq.md](../guide/faq.md) — authenticated requests and JSON vs XML  

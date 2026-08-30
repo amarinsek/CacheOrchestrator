@@ -16,7 +16,7 @@ Not sure whether something is a bug? Open an issue anyway. Unexpected behavior a
 
 ## Help test v3
 
-CacheOrchestrator v3 is approaching its stable release, and feedback from real applications is especially useful. You can make a valuable contribution without writing library code.
+CacheOrchestrator v3 is in prerelease, and feedback from real applications is especially useful. You can make a valuable contribution without writing library code.
 
 We are particularly interested in:
 
@@ -36,7 +36,7 @@ Install the appropriate prerelease package:
 dotnet add package CacheOrchestrator --prerelease
 ```
 
-The meta package is the typical ASP.NET Core + FusionCache path. Other supported compositions are listed in the [package guide](docs/guide/packages.md) and [composition how-to](docs/how-to/composition.md).
+The `CacheOrchestrator` meta package is the typical `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache` path. Other supported compositions are listed in the [package guide](docs/guide/packages.md) and [composition how-to](docs/how-to/composition.md).
 
 Please do not test a new cache setup against production traffic first. Start in a local, development, or staging environment.
 
@@ -102,7 +102,7 @@ dotnet test tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.Fusi
 dotnet test tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj -c Release
 ```
 
-Use `-f net8.0` or `-f net10.0` to run one target framework. The Admin Console tests are `net10.0` only:
+Use `-f net8.0` or `-f net10.0` to run one target framework. The Admin Console App tests are `net10.0` only:
 
 ```bash
 dotnet test tests/CacheOrchestrator.AdminConsole.UnitTests/CacheOrchestrator.AdminConsole.UnitTests.csproj -c Release -f net10.0
@@ -121,7 +121,7 @@ The complete project-to-test mapping and CI commands are visible in [`.github/wo
 | Path | Role |
 |------|------|
 | `src/CacheOrchestrator.Core` | HTTP-free domain orchestration, invalidation, management, and shared contracts |
-| `src/CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP Data Cache helpers, and Local Admin HTTP adapter |
+| `src/CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP Data Cache helpers, and Admin API |
 | `src/CacheOrchestrator.FusionCache` | FusionCache Data Cache provider |
 | `src/CacheOrchestrator.HybridCache` | HybridCache Data Cache provider |
 | `src/CacheOrchestrator` | Meta package for the typical ASP.NET Core + FusionCache composition |
@@ -165,7 +165,7 @@ Put information in the narrowest appropriate documentation tier:
 4. [docs/reference](docs/reference/) for precise technical behavior;
 5. [docs/contributor](docs/contributor/) for architecture and maintainer procedures.
 
-Update examples, samples, and package READMEs when a public API or configuration surface changes. Do not edit `CHANGELOG.md` in an ordinary PR; record the user-facing outcome in the PR description or worklog so the maintainer can assemble release notes.
+Update examples, samples, and package READMEs when a public API or configuration surface changes. Record the user-facing outcome in the PR description or worklog so the maintainer can assemble the GitHub Release notes (and `PACKAGE_RELEASE_NOTES.md` for NuGet).
 
 ## Pull requests
 

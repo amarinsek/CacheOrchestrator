@@ -1,6 +1,6 @@
 # Cluster command bus (`CacheOrchestrator.HttpBus`)
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md). Canonical detail for membership, commands, and peer HTTP.
+> **Reference** — HttpBus membership, commands, delivery, and peer HTTP.
 
 When several instances must apply the same invalidate, Version, or TTL change, this package delivers those **commands** over HTTP. It does not move cache payloads. Peers run the same local purge or overlay they would have run if the call had been made on that process.
 
@@ -8,13 +8,28 @@ Package README: [src/CacheOrchestrator.HttpBus/README.md](../../src/CacheOrchest
 
 ---
 
+## Table of Contents
+
+- [When to use it](#when-to-use-it)
+- [Install](#install)
+- [Register](#register)
+- [Configuration](#configuration)
+- [Membership](#membership)
+- [Commands](#commands)
+- [HTTP endpoints](#http-endpoints)
+- [Admin Console App interaction](#admin-console-app-interaction)
+- [Bus vs Redis backplane](#bus-vs-redis-backplane)
+- [Observability](#observability)
+- [Zero effect / performance](#zero-effect-performance)
+- [Security checklist](#security-checklist)
+
 ## When to use it
 
 | Situation | Prefer |
 |-----------|--------|
 | Multi-instance **InMemory** Output Cache and Data Cache, with immediate purge required everywhere | **HttpBus** |
 | Runtime **Version / TTL** overlays on all InMemory nodes | **HttpBus** + Admin `distribute` (or Admin Console App auto mode) |
-| Shared Redis L2 + backplane | **Redis package** — HttpBus optional / redundant for tag invalidate |
+| Shared Redis L2 + backplane | **`CacheOrchestrator.Redis`** (or Fusion Redis leaf) — `CacheOrchestrator.HttpBus` optional / redundant for tag invalidate |
 | Sticky sessions + TTL-only expiry | Local invalidation may be enough |
 | Single instance | Do not install HttpBus (or leave `Enabled: false`) |
 
@@ -233,7 +248,7 @@ Base path = `Cache:Admin:RoutePrefix` (default `/cache-admin/local`), **even if 
 | Method | Path | Role |
 |--------|------|------|
 | `POST` | `…/cluster/apply` | ApplyLocal command body |
-| `GET` | `…/cluster/info` | instance id, namespace, bus enabled, membership, peer count. When **Admin is enabled**, Local Admin maps this route (Bus does not duplicate it). When Admin is off, Bus maps it. |
+| `GET` | `…/cluster/info` | instance id, namespace, bus enabled, membership, peer count. When **Admin is enabled**, Admin API maps this route (Bus does not duplicate it). When Admin is off, Bus maps it. |
 
 ### Auth
 
@@ -260,7 +275,7 @@ The Admin Console App probes `GET …/cluster/info` on configured instances (`GE
 | No bus | **fan-out** — HTTP to each target, `distribute: false` |
 | Bus enabled | **bus-distribute** — one healthy origin, `distribute: true` |
 
-Never combine full Admin Console App fan-out **and** `distribute: true` for the same action — the App chooses one path.  
+Never combine full Admin Console App fan-out **and** `distribute: true` for the same action — the Admin Console App chooses one path.  
 Operations UI shows mode banner + last-run summary.
 
 Details: [Admin — cluster distribution](admin.md#cluster-distribute-with-cacheorchestratorhttpbus).
@@ -314,11 +329,12 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 
 ## Security checklist
 
-- [ ] Set `Cluster:Bus:ApiKey` or `Admin:ApiKey`; never use `AllowUnauthenticated` on a reachable production network
-- [ ] Restrict peer HTTP to private networks / mesh  
-- [ ] Use TLS or mTLS between peers
-- [ ] Treat apply endpoints as admin-level (can purge cache)  
-- [ ] Do not expose Admin API / cluster routes on the public internet without auth  
+> [!IMPORTANT]
+> - [ ] Set `Cluster:Bus:ApiKey` or `Admin:ApiKey`; never use `AllowUnauthenticated` on a reachable production network
+> - [ ] Restrict peer HTTP to private networks / mesh
+> - [ ] Use TLS or mTLS between peers
+> - [ ] Treat apply endpoints as admin-level (can purge cache)
+> - [ ] Do not expose Admin API / cluster routes on the public internet without auth
 
 ---
 
@@ -329,6 +345,6 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 - [deployment.md](deployment.md) — topologies  
 - [admin.md](admin.md) — Admin API + Admin Console App  
 - [configuration.md](configuration.md) — options tables  
-- [backends.md](backends.md) — Redis package  
+- [backends.md](backends.md) — `CacheOrchestrator.Redis` and leaf Redis packages  
 - [Extensibility](extensibility.md) — custom membership, command bus, and host identity contracts
 - [architecture.md](../contributor/architecture.md) — layout  

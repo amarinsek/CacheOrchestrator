@@ -4,9 +4,21 @@ The Admin Console App gives operators one place to inspect multiple CacheOrchest
 
 <img src="../../docs/assets/admin-overview.png" alt="CacheOrchestrator Admin Console overview with instance health and cache statistics" width="800" />
 
+## Table of Contents
+
+- [Quick start](#quick-start)
+- [How it works](#how-it-works)
+- [Choose the next document](#choose-the-next-document)
+- [Enable the Admin API on each instance](#enable-the-admin-api-on-each-instance)
+- [Configure this host](#configure-this-host)
+- [Run locally](#run-locally)
+- [Docker](#docker)
+- [Recommendation hints](#recommendation-hints)
+- [Metrics (Prometheus)](#metrics-prometheus)
+
 ## Quick start
 
-From the repository root, start the Playground, Prometheus, and Admin Console together:
+From the repository root, start the Playground, Prometheus, and Admin Console App together:
 
 ```bash
 docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build -d
@@ -21,7 +33,7 @@ Open:
 For a direct host run, continue to [Run locally](#run-locally).
 
 > [!NOTE]
-> This host is not a NuGet package and targets .NET 10 only. Monitored applications may run on .NET 8 or .NET 10 because the Admin Console communicates with them over HTTP.
+> This host is not a NuGet package and targets .NET 10 only. Monitored applications may run on .NET 8 or .NET 10 because the Admin Console App communicates with them over HTTP.
 
 ## How it works
 
@@ -68,7 +80,7 @@ app.MapCacheOrchestratorAdmin();
     "ApiKey": "dev-admin-key",
     "RequestTimeoutMs": 3000,
     "Parallelism": 8,
-    "LocalPathPrefix": "/cache-admin/local",
+    "AdminApiPathPrefix": "/cache-admin/local",
     "Instances": [
       { "id": "app-1", "url": "http://localhost:5290" },
       { "id": "app-2", "url": "http://localhost:5291" }
@@ -88,7 +100,7 @@ app.MapCacheOrchestratorAdmin();
 
 - **ApiKey** is sent as `X-Cache-Admin-Key` (must match each instance).  
 - **Instances[].url** is the application base URL only.  
-- **LocalPathPrefix** must match `Cache:Admin:RoutePrefix`.  
+- **AdminApiPathPrefix** must match `Cache:Admin:RoutePrefix`.  
 - **Restart required** after changing `Instances`, `ApiKey`, timeouts, or `Metrics` (bound via `IOptions` snapshot). Hint packs (`Hints`) reload without restart.  
 - Production keys belong in a secret store; put VPN/SSO in front of this host.  
 - Invalidate / Version / TTL change live cache state — see [docs/reference/admin.md — Security](../../docs/reference/admin.md#security).
@@ -216,7 +228,7 @@ Repo architecture notes: [docs/contributor/admin-hints.md](../../docs/contributo
 
 ## Metrics (Prometheus)
 
-Traffic KPIs, time-window domain and endpoint tables, impact analysis, charts, and recommendation inputs come from Prometheus through `AdminConsole:Metrics` and `GET /api/stats/window`. The Local Admin API is used for health, effective configuration, discovery, and operations.
+Traffic KPIs, time-window domain and endpoint tables, impact analysis, charts, and recommendation inputs come from Prometheus through `AdminConsole:Metrics` and `GET /api/stats/window`. The Admin API is used for health, effective configuration, discovery, and operations.
 
 Instance process-lifetime `GET …/stats` remains available for diagnostics but is not used by the statistics UI. Prometheus must scrape the `CacheOrchestrator` meter, including measurements such as `cache_orchestrator.dc.requests` and `cache_orchestrator.factory.duration`.
 

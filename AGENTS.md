@@ -15,14 +15,14 @@ Internally it wires:
 Domains are named groups of data that share TTLs, providers, client headers, and version stamps.
 
 - Packages: `src/CacheOrchestrator.Core` (Http-free), `src/CacheOrchestrator.FusionCache`, `src/CacheOrchestrator.HybridCache` (Microsoft HybridCache data provider; subset of Fusion), `src/CacheOrchestrator.AspNetCore` (HTTP host; InMemory backend)  
-- Meta NuGet: `src/CacheOrchestrator` (PackageId `CacheOrchestrator` → AspNetCore + FusionCache)  
-- Redis: meta `src/CacheOrchestrator.Redis` (`AddRedisBackend`); leaves `AspNetCore.Redis` / `FusionCache.Redis`; support `Redis.Shared` (transitive only)  
+- Meta NuGet: `src/CacheOrchestrator` (PackageId `CacheOrchestrator` → `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`)  
+- Redis: meta `src/CacheOrchestrator.Redis` (`AddRedisBackend`); leaves `CacheOrchestrator.AspNetCore.Redis` / `CacheOrchestrator.FusionCache.Redis`; support `CacheOrchestrator.Redis.Shared` (transitive only)  
 - HttpBus package: `src/CacheOrchestrator.HttpBus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
 - EF invalidation package: `src/CacheOrchestrator.EFCore.Invalidation` (`AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation`)  
 - Admin Console App: `src/CacheOrchestrator.AdminConsole` (fan-out UI/API; not a NuGet package; **net10.0 only**)  
 - Target frameworks: libraries `net8.0` + `net10.0`; Admin Console App `net10.0` only; samples typically net10  
 - Version: **MinVer** from Git tags `v*` (do not hardcode `<Version>` in Directory.Build.props)  
-- Samples: `samples/CacheOrchestrator.Minimal` (1-minute InMemory), `samples/CacheOrchestrator.Sample` (playground; Redis package)  
+- Samples: `samples/CacheOrchestrator.Minimal` (1-minute InMemory), `samples/CacheOrchestrator.Sample` (playground; `CacheOrchestrator.Redis`)  
 - Tests: `tests/CacheOrchestrator.Core.UnitTests`, `tests/CacheOrchestrator.AspNetCore.UnitTests`, `tests/CacheOrchestrator.FusionCache.UnitTests`, `tests/CacheOrchestrator.HybridCache.UnitTests`, `tests/CacheOrchestrator.Redis.UnitTests`, `tests/CacheOrchestrator.HttpBus.UnitTests`, `tests/CacheOrchestrator.EFCore.Invalidation.UnitTests` (net8+net10), `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
 
 ## Non-goals
@@ -134,11 +134,11 @@ src/CacheOrchestrator.Core/         Http-free: options, Entity footprint, orches
 src/CacheOrchestrator.FusionCache/  Fusion IDataCacheProvider + named Ziggy instances + L2 registrars
 src/CacheOrchestrator.HybridCache/  HybridCache IDataCacheProvider
 src/CacheOrchestrator.AspNetCore/   HTTP: OutputCache, Vary, Admin API, IDomainDataCache (Core only)
-src/CacheOrchestrator/              meta NuGet: AspNetCore + FusionCache (`AddCacheOrchestrator` wires both)
+src/CacheOrchestrator/              meta NuGet: CacheOrchestrator.AspNetCore + CacheOrchestrator.FusionCache (`AddCacheOrchestrator` wires both)
 src/CacheOrchestrator.Redis.Shared/ support Redis options/config (transitive)
 src/CacheOrchestrator.AspNetCore.Redis/  Redis Output Cache store
 src/CacheOrchestrator.FusionCache.Redis/ Redis Fusion L2 + backplane
-src/CacheOrchestrator.Redis/        meta Redis (AspNetCore.Redis + FusionCache.Redis)
+src/CacheOrchestrator.Redis/        meta Redis (CacheOrchestrator.AspNetCore.Redis + CacheOrchestrator.FusionCache.Redis)
 src/CacheOrchestrator.HttpBus/      HTTP cluster command bus + membership
 src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges → invalidator (Core only)
 src/CacheOrchestrator.AdminConsole/ Admin Console App (not packable)
@@ -169,12 +169,12 @@ Doc layers (do not put reference into the root README):
 - **Reference:** `docs/reference/` (configuration, keys, deployment, …); hub: `docs/README.md`
 - **Contributor:** `docs/contributor/` (architecture, releasing, benchmarks, worklog template)
 
-Contributor / security: `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`.  
+Contributor / security: `CONTRIBUTING.md`, `SECURITY.md`.  
 Keep docs in sync when renaming public types or config keys. Put a change in the matching tier.
 
 Branch worklog: copy `docs/contributor/templates/worklog-template.md` (do not commit the filled copy). Summary → PR title and description; the rest is the PR appendix. Record **net outcomes** only — no chat, no rejected alternatives, no draft paths. A work item must still make sense a month later without the conversation.
 
-Do **not** edit `CHANGELOG.md` unless the user asks. User-facing notes go in the worklog Changelog. The maintainer updates `CHANGELOG.md` from merged PR worklogs.
+User-facing notes go in the worklog Changelog section. The maintainer assembles **GitHub Release** notes from merged PR worklogs and updates `PACKAGE_RELEASE_NOTES.md` (NuGet) with a link to that release tag.
 
 ## Safe change checklist
 

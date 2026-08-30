@@ -219,7 +219,7 @@ public class MetricsWindowStatsServiceTests
             Task.FromResult(InstantHandler(promQl));
     }
 
-    private sealed class FakeFanOutLocalClient(IReadOnlyList<AdminDomainConfigDto> domains) : ILocalAdminClient
+    private sealed class FakeFanOutLocalClient(IReadOnlyList<AdminDomainConfigDto> domains) : IAdminApiClient
     {
         public Task<InstanceCallOutcome<AdminHealthDto>> GetHealthAsync(
             AdminInstanceOptions instance,
@@ -262,10 +262,10 @@ public class MetricsWindowStatsServiceTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
+        public Task<InstanceCallOutcome<AdminApiClusterInfoDto>> GetClusterInfoAsync(
             AdminInstanceOptions instance,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(Fail<LocalClusterInfoDto>(instance.Id, "no bus"));
+            Task.FromResult(Fail<AdminApiClusterInfoDto>(instance.Id, "no bus"));
 
         private static InstanceCallOutcome<T> Ok<T>(string id, T value) =>
             new()

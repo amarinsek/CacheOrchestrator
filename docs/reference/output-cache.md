@@ -1,8 +1,20 @@
 # Output Cache
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md).
+> **Reference** — Output Cache policy, endpoint binding, headers, auth, and tags.
 
 Output Cache stores the **full HTTP response**. By default that means **GET** and **HEAD** with Url identity (path, query, host, domain vary). Other methods are not cached by Output Cache unless the endpoint opts in with **[endpoint cache identity](cache-identity.md)**. CacheOrchestrator applies ASP.NET Core Output Caching per **domain**: TTL, tags, vary rules, `Cache-Control`, and ETag all come from that domain.
+
+## Table of Contents
+
+- [Register](#register)
+- [Base policy and endpoints without a domain](#base-policy-and-endpoints-without-a-domain)
+- [Minimal APIs](#minimal-apis)
+- [Domain name templates](#domain-name-templates)
+- [Controllers](#controllers)
+- [Policy](#policy)
+- [Endpoint cache identity](#endpoint-cache-identity)
+- [Authenticated traffic](#authenticated-traffic)
+- [Headers](#headers)
 
 ## Register
 
@@ -37,20 +49,15 @@ app.MapGet("/api/products", () => /* ... */)
 
 app.MapGet("/api/products/{id}", () => /* ... */)
    .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
-
-app.MapGet("/api/t/{tenant}/items", (string tenant) => /* ... */)
-   .CacheOutputWithDomain(http => $"tenant-{http.Request.RouteValues["tenant"]}");
-
-app.MapGet("/api/t/{tenant}/items/{id}", (string tenant, string id) => /* ... */)
-   .CacheOutputWithDomain(
-       http => $"tenant-{http.Request.RouteValues["tenant"]}",
-       resourceRouteKey: "id",
-       entityKind: "items");
 ```
 
-`resourceRouteKey` and `entityKind` tag the Output Cache entry so `InvalidateEntityAsync` can purge that row. The delegate overload also accepts those two arguments for a dynamic domain with entity tags.
+`resourceRouteKey` and `entityKind` tag the Output Cache entry so `InvalidateEntityAsync` can purge that row.
 
-Use `CacheOutputWithDomainTemplate` when the same endpoint serves a finite set of configured domains. This keeps one endpoint implementation while each variant receives its own policy:
+## Domain name templates
+
+A **domain name template** selects which **configured** domain applies to the request. The profile of each selected domain stays in `Cache:Domains`.
+
+Use a string template when the same endpoint serves a finite set of named domains:
 
 ```csharp
 group.MapGet("{tileset}/{z:int}/{x:int}/{y:int}.{ext?}", HandleTileAsync)
@@ -69,7 +76,21 @@ group.MapGet("{tileset}/{z:int}/{x:int}/{y:int}.{ext?}", HandleTileAsync)
 }
 ```
 
-The template resolves `{route:tileset}` and selects `tiles-satellite`, `tiles-osm`, or `tiles-vehicle`. It never creates a domain at request time. An empty or unconfigured result fails closed: the handler still runs, but Output Cache and request-scoped Data Cache are bypassed, the response receives `Cache-Control: no-store`, and diagnostics use the bounded placeholder `domain=_` rather than echoing the unresolved value. Templates also support `{host}`, `{header:Name}`, `{query:key}`, and application-defined `{custom:key}` providers; see [Extensibility](extensibility.md#domain-template-tokens).
+The template resolves `{route:tileset}` to `tiles-satellite`, `tiles-osm`, or `tiles-vehicle`. It never creates a domain at request time. An empty or unknown name fails closed: the handler still runs, Output Cache and request-scoped Data Cache are bypassed, the response gets `Cache-Control: no-store`, and diagnostics use `domain=_` rather than echoing the unresolved value.
+
+Templates also support `{host}`, `{header:Name}`, `{query:key}`, and application-defined `{custom:key}` providers; see [Extensibility](extensibility.md#domain-template-token-providers).
+
+For arbitrary selection logic, use a short resolver instead of a string template:
+
+```csharp
+app.MapGet("/api/t/{tenant}/items/{id}", (string tenant, string id) => /* ... */)
+   .CacheOutputWithDomain(
+       http => $"tenant-{http.Request.RouteValues["tenant"]}",
+       resourceRouteKey: "id",
+       entityKind: "items");
+```
+
+List every name the template or resolver may return under `Cache:Domains` (shared defaults can live in `DomainDefaults`).
 
 ## Controllers
 
@@ -138,7 +159,7 @@ app.MapPost("/graphql", ...)
 
 By default any signed-in user or `Authorization` header skips Output Cache (`AuthBypassMode: AuthenticatedOrAuthorization`). That is the safe setting for mixed public and private APIs.
 
-- **AuthBypassMode** — preferred control (`Never`, `AuthenticatedIdentityOnly`, `AuthorizationHeaderOnly`, `AuthenticatedOrAuthorization`).
+- **AuthBypassMode** — `Never`, `AuthenticatedIdentityOnly`, `AuthorizationHeaderOnly`, or `AuthenticatedOrAuthorization`.
 - **VaryOutputCacheByUser** (default `true`) — when you allow authenticated caching, partition entries by user, selected claims, or an Authorization hash.
 - **DataCacheRespectAuthBypass** (default `true`) — Data Cache also skips when Output Cache would bypass. Set it to `false` only when the object cached by Data Cache is shared between callers.
 
@@ -196,9 +217,10 @@ On response start the policy sets:
 
 ## Related
 
-- [concepts](../guide/concepts.md)
-- [vary.md](vary.md)
-- [cache-keys.md](cache-keys.md)
-- [configuration.md](configuration.md)
-- [invalidation.md](invalidation.md)
-- [observability.md](observability.md)
+- [Guide — concepts](../guide/concepts.md) — domain model and the three cache layers  
+- [vary.md](vary.md) — shared vary matrix for Output Cache and Data Cache  
+- [cache-keys.md](cache-keys.md) — Output Cache prefix, vary, and Version  
+- [cache-identity.md](cache-identity.md) — per-method identity bindings (`WithCacheIdentity`, content-hash)  
+- [configuration.md](configuration.md) — `OutputCache` / `ClientCache` domain settings  
+- [invalidation.md](invalidation.md) — tags, Version, entity wiring  
+- [observability.md](observability.md) — `X-Cache`, metrics, health  

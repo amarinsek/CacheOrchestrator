@@ -10,7 +10,7 @@ This folder ships with the **CacheOrchestrator Admin Console App**. It holds:
 | **`*.json`** (your packs) | Custom rules when listed in `RuleFiles` (Development default: this folder) |
 | **`disabled.local.json`** | Enable/disable from the Settings UI (**do not commit**; machine-local) |
 
-Hints are **read-only recommendations** built from the Console **Prometheus window** stats model (and domain config), not from Local Admin process counters. `/api/stats/window` derives shares and **impact** (`domain.impact.*` / `endpoint.impact.*`) before rules run. They never change TTLs, Version, or invalidation.
+Hints are **read-only recommendations** built from the Admin Console App **Prometheus window** stats model (and domain config), not from Admin API process counters. `/api/stats/window` derives shares and **impact** (`domain.impact.*` / `endpoint.impact.*`) before rules run. They never change TTLs, Version, or invalidation.
 
 You can add rules **without recompiling** the Admin Console App: drop a JSON file where `RuleFiles` points, then **Settings → Reload**.
 
@@ -24,6 +24,16 @@ You can add rules **without recompiling** the Admin Console App: drop a JSON fil
 In Docker, keep **`core-hints.json` in the image** (do not mount over all of `/app/hints`). Put only your packs under the operator `data/` volume. Step-by-step: [deploy/admin/README.md](../../../deploy/admin/README.md).
 
 ---
+
+## Table of Contents
+
+- [Why customize](#why-customize)
+- [Config](#config)
+- [Step-by-step: add a new rule](#step-by-step-add-a-new-rule)
+- [Document shape](#document-shape)
+- [Fact paths (allowlist)](#fact-paths-allowlist)
+- [Settings UI & API](#settings-ui-api)
+- [Design checklist](#design-checklist)
 
 ## Why customize
 
@@ -260,6 +270,7 @@ Full list: Admin **Settings → Known paths**, or `GET /api/hints/rules` → `kn
 
 ## Related
 
-- [Guide — operations](../../../docs/guide/operations.md)  
-- Admin Console App overview: `../README.md`  
-- Repository architecture notes: monorepo `docs/contributor/admin-hints.md` and `docs/reference/admin.md` (source checkout; may not ship with a standalone Admin publish)
+- [Guide — operations](../../../docs/guide/operations.md) — day-2 ops and Admin wiring  
+- [Admin Console App README](../README.md) — host overview and configuration  
+- [admin-hints.md](../../../docs/contributor/admin-hints.md) — contributor notes for the hint engine (source checkout)  
+- [admin.md](../../../docs/reference/admin.md) — Admin API vs Console App (source checkout; may not ship with a standalone Admin publish)  

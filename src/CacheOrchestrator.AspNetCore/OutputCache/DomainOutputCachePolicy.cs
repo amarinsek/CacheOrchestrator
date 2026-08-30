@@ -150,7 +150,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     /// <summary>
     /// Normalized domain when this policy was constructed with a constant domain name;
     /// <see langword="null"/> when the domain is resolved per request (func/template).
-    /// Used by Local Admin endpoint discovery.
+    /// Used by Admin API endpoint discovery.
     /// </summary>
     public string? FixedDomain { get; }
 

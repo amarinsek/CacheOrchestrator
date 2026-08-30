@@ -1,10 +1,18 @@
 # Invalidation
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [domain profiles](../guide/domain-profiles.md). Catalog: [documentation index](../README.md).
+> **Reference** — Version cutovers, tags, observers, and multi-instance purge.
 
 When data changes, retire it in **every** layer that still holds it — Data Cache tags, Output Cache tags, and (via Version or Client Cache Schedule) the client generation story.
 
 Prefer **`ICacheOrchestratorInvalidator`** over talking to Data Cache or Output Cache stores directly. Multi-instance behaviour depends on topology ([deployment](deployment.md), [cluster bus](cluster-bus.md)).
+
+## Table of Contents
+
+- [Version (preferred for bulk cutovers)](#version-preferred-for-bulk-cutovers)
+- [Programmatic API (`ICacheOrchestratorInvalidator`)](#programmatic-api-icacheorchestratorinvalidator)
+- [When to use which](#when-to-use-which)
+- [EF Core SaveChanges (`CacheOrchestrator.EFCore.Invalidation`)](#ef-core-savechanges-cacheorchestratorefcoreinvalidation)
+- [Multi-instance invalidation](#multi-instance-invalidation)
 
 ## Version (preferred for bulk cutovers)
 
@@ -46,8 +54,7 @@ if (!r1.Succeeded)
 
 // Several domains
 CacheInvalidationResult r2 = await invalidator.InvalidateDomainsAsync(
-    ["products", "catalog"],
-    cancellationToken);
+    ["products", "catalog"], cancellationToken);
 
 // Single entity — requires entries stored with entityKind + resource id / resourceRouteKey
 CacheInvalidationResult r3 = await invalidator.InvalidateEntityAsync(
@@ -63,8 +70,7 @@ CacheInvalidationResult r5 = await invalidator.InvalidateEntityKindAsync(
 
 // Custom or multiple tags (all Data Cache instances + Output Cache)
 CacheInvalidationResult r6 = await invalidator.InvalidateTagsAsync(
-    ["domain:store", "entity:store:products:42", "custom:batch-7"],
-    cancellationToken);
+    ["domain:store", "entity:store:products:42", "custom:batch-7"], cancellationToken);
 ```
 
 Use the generic entity overloads with the ID's natural type, as above. `int`, `long`, `Guid`, and other `IFormattable` values are converted with invariant culture, so callers do not need manual `.ToString()` calls. The string overload remains appropriate for identifiers that are genuinely strings, such as `"ABC-42"`.
@@ -135,10 +141,7 @@ public sealed class AuditInvalidationObserver : ICacheInvalidationObserver
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnAfterInvalidateAsync(
-        CacheInvalidationContext context,
-        CacheInvalidationResult result,
-        CancellationToken cancellationToken)
+    public ValueTask OnAfterInvalidateAsync(CacheInvalidationContext context, CacheInvalidationResult result, CancellationToken cancellationToken)
     {
         // result.Succeeded, result.Errors
         return ValueTask.CompletedTask;
@@ -289,7 +292,7 @@ app.MapCacheOrchestratorHttpBus(); // independent of Admin
 
 Prefer Redis L2 and the backplane when instances share Fusion data. Use HttpBus when stores are in-memory and you still need commands on every node, including runtime Version and TTL overlays.
 
-`ICacheInvalidationObserver` remains for **audit/webhooks only** — not a second cluster bus when HttpBus is registered.
+`ICacheInvalidationObserver` is for **audit/webhooks only** — not a second cluster bus when HttpBus is registered.
 
 ### Choosing an approach (multi-instance)
 
@@ -307,9 +310,9 @@ Prefer Redis L2 and the backplane when instances share Fusion data. Use HttpBus 
 - [cache-keys.md](cache-keys.md) — keys vs tags, Version in key material  
 - [domain-profiles.md](../guide/domain-profiles.md) — Snapshot vs Dynamic + config recipes  
 - [deployment.md](deployment.md) — multi-instance topologies + shared configuration  
-- [configuration.md](configuration.md)  
-- [Output Cache](output-cache.md)
-- [Data Cache](data-cache.md)
-- [backends.md](backends.md) — Redis package  
+- [configuration.md](configuration.md) — Version, TTLs, and domain options  
+- [Output Cache](output-cache.md) — tag stamping and `resourceRouteKey`  
+- [Data Cache](data-cache.md) — entity keys and footprint tags  
+- [backends.md](backends.md) — Redis L2 / backplane packages  
 - [cluster-bus.md](cluster-bus.md) — optional multi-instance command bus  
 

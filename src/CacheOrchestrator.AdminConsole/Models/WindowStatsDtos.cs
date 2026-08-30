@@ -4,7 +4,7 @@ namespace CacheOrchestrator.AdminConsole.Models;
 
 /// <summary>
 /// Cluster stats derived from Prometheus for a selected time window
-/// (Prometheus-only; Local Admin process counters are not used).
+/// (Prometheus-only; Admin API process counters are not used).
 /// </summary>
 public sealed class WindowStatsDto
 {

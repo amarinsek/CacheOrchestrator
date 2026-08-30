@@ -1,6 +1,6 @@
 # Package composition
 
-> **How-to.** Product overview: [root README](../../README.md). Catalog: [documentation index](../README.md). Which NuGet: [Packages guide](../guide/packages.md). First endpoint: [getting-started](../guide/getting-started.md).
+> **How-to** — install, register, and configure CacheOrchestrator by scenario.
 
 Copy-paste wiring for common stacks. Domain rules stay the same; only **packages**, **registration**, and **config** change.
 
@@ -8,38 +8,30 @@ Without `.CacheOutputWithDomain` / `[CacheDomain]`, the base Output Cache policy
 
 Decision tables: [packages](../guide/packages.md) · [topologies](../guide/topologies.md).
 
-## Scenarios
+## Table of Contents
 
-- [§1. Typical web (InMemory Fusion)](#scenario-1)
-- [§2. Output Cache only](#scenario-2)
-- [§3. Data Cache only](#scenario-3)
-- [§4. Redis Data Cache L2](#scenario-4)
-- [§5. HybridCache](#scenario-5)
-- [§6. Dynamic domain](#scenario-6)
-- [§7. Class library + host](#scenario-7)
-- [§8. EF invalidation (web app)](#scenario-8)
-- [§9. EF in library + web host](#scenario-9)
+- [1. Typical web app](#scenario-1)
+- [2. Output Cache only](#scenario-2)
+- [3. Data Cache only](#scenario-3)
+- [4. Redis Data Cache L2](#scenario-4)
+- [5. HybridCache](#scenario-5)
+- [6. Class library + host](#scenario-6)
+- [7. EF invalidation in a web app](#scenario-7)
+- [8. EF in a library + web host](#scenario-8)
 
 ---
 <a id="scenario-1"></a>
-## 1. Typical web — Output Cache + Data Cache + Client Cache (InMemory Fusion)
+## 1. Typical web app
 
-Uses the **meta** package `CacheOrchestrator` (`AddCacheOrchestrator` = AspNetCore + Fusion). You can instead install the two packages separately:
+**Layers:** Output Cache, Data Cache (Fusion), Client Cache — all InMemory.
 
-```bash
-dotnet add package CacheOrchestrator.AspNetCore --prerelease
-dotnet add package CacheOrchestrator.FusionCache --prerelease
-```
-
-and call `AddCacheOrchestratorAspNetCore` then `AddCacheOrchestratorFusionCache`.
-
-Per-domain `OutputCache:Enabled` / `DataCache:Enabled` turn layers on or off in config without changing the endpoint code (see also §2 / §3 when you want fewer packages).
-
-**Packages**
+**Packages:** meta `CacheOrchestrator` (`CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`).
 
 ```bash
 dotnet add package CacheOrchestrator --prerelease
 ```
+
+Alternatively install the two packages separately and call `AddCacheOrchestratorAspNetCore` then `AddCacheOrchestratorFusionCache`. Per-domain `OutputCache:Enabled` / `DataCache:Enabled` turn layers on or off without changing endpoint code (see also 2 / 3 for fewer packages).
 
 **Registration**
 
@@ -80,11 +72,11 @@ app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDat
 ---
 
 <a id="scenario-2"></a>
-## 2. Output Cache only (AspNetCore package)
+## 2. Output Cache only
 
-No Fusion / Hybrid. Handler does not use `IDomainDataCache`.
+**Layers:** Output Cache and Client Cache — InMemory. No Data Cache provider; the handler does not use `IDomainDataCache`.
 
-**Packages**
+**Packages:** `CacheOrchestrator.AspNetCore`.
 
 ```bash
 dotnet add package CacheOrchestrator.AspNetCore --prerelease
@@ -127,11 +119,11 @@ app.MapGet("/api/products/{id:int}", async (int id) =>
 ---
 
 <a id="scenario-3"></a>
-## 3. Data Cache only (AspNetCore + FusionCache)
+## 3. Data Cache only
 
-Not the meta package. No `.CacheOutputWithDomain` — base Output Cache policy is `NoCache`.
+**Layers:** Data Cache (Fusion) via `IDomainDataCache`. No Output Cache on endpoints (base policy `NoCache`; do not use `.CacheOutputWithDomain`).
 
-**Packages**
+**Packages:** `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache` (not the meta package).
 
 ```bash
 dotnet add package CacheOrchestrator.AspNetCore --prerelease
@@ -161,7 +153,7 @@ builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 }
 ```
 
-**Code** — same `GetOrSetAsync` shape as §1; pass the domain because the route has no Output Cache domain metadata:
+**Code** — same `GetOrSetAsync` shape as 1; pass the domain because the route has no Output Cache domain metadata:
 
 ```csharp
 app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
@@ -174,9 +166,11 @@ app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDat
 ---
 
 <a id="scenario-4"></a>
-## 4. Redis Data Cache L2 (Fusion) + InMemory Output Cache
+## 4. Redis Data Cache L2
 
-**Packages**
+**Layers:** Output Cache InMemory; Data Cache (Fusion) with Redis L2 and backplane; Client Cache as in 1.
+
+**Packages:** `CacheOrchestrator` + `CacheOrchestrator.Redis`.
 
 ```bash
 dotnet add package CacheOrchestrator --prerelease
@@ -209,7 +203,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration, o => o.AddRedisBack
 }
 ```
 
-**Code** (same as §1)
+**Code** (same as 1)
 
 ```csharp
 app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
@@ -225,9 +219,11 @@ For Redis as the Output Cache store as well, set `"OutputCache": { "Provider": "
 ---
 
 <a id="scenario-5"></a>
-## 5. HybridCache data provider
+## 5. HybridCache
 
-**Packages**
+**Layers:** Output Cache and Client Cache — InMemory; Data Cache via Microsoft HybridCache.
+
+**Packages:** `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.HybridCache` (+ `Microsoft.Extensions.Caching.Hybrid`).
 
 ```bash
 dotnet add package CacheOrchestrator.AspNetCore --prerelease
@@ -262,7 +258,7 @@ builder.Services.AddCacheOrchestratorHybridCache();
 }
 ```
 
-**Code** (same as §1)
+**Code** (same as 1)
 
 ```csharp
 app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
@@ -276,62 +272,11 @@ app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDat
 ---
 
 <a id="scenario-6"></a>
-## 6. Dynamic domain from the route
+## 6. Class library + host
 
-Same packages as §1 (meta, or AspNetCore + Fusion separately).
+**Layers:** Library uses Core Data Cache (`ICacheOrchestrator`). Web host adds Output Cache and Client Cache; worker stays HTTP-free.
 
-**Packages**
-
-```bash
-dotnet add package CacheOrchestrator --prerelease
-```
-
-**Registration**
-
-```csharp
-builder.Services.AddCacheOrchestrator(builder.Configuration);
-```
-
-**Config** — defaults shared by every allowed name, plus one `Domains` entry per value the resolver may select:
-
-```json
-{
-  "Cache": {
-    "OutputCache": { "Provider": "InMemory" },
-    "DataCacheInstances": { "default": { "Provider": "InMemory" } },
-    "DomainDefaults": {
-      "DataCache": { "Enabled": true, "TtlSeconds": 300 },
-      "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
-      "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 }
-    },
-    "Domains": {
-      "tenant-acme": { "Version": "1" },
-      "tenant-contoso": { "Version": "1" }
-    }
-  }
-}
-```
-
-**Code**
-
-```csharp
-static string CatalogDomain(HttpContext http) =>
-    $"tenant-{http.Request.RouteValues["tenant"]}";
-
-app.MapGet("/t/{tenant}/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
-{
-    var data = await cache.GetOrSetAsync(http, CatalogDomain(http), ct => LoadProductAsync(id, ct));
-    return Results.Json(data);
-})
-.CacheOutputWithDomain(CatalogDomain);
-```
-
-The resolver selects a configured domain; it does not create one. An empty or unknown result bypasses Output Cache and request-scoped Data Cache and emits `Cache-Control: no-store`. The handler still decides whether an unknown tenant returns `404`, `403`, or another application response.
-
----
-
-<a id="scenario-7"></a>
-## 7. Class library + host
+**Packages:** library `CacheOrchestrator.Core`; web host same as 1; worker `CacheOrchestrator.Core` + `CacheOrchestrator.FusionCache`.
 
 **Library packages**
 
@@ -344,19 +289,12 @@ dotnet add package CacheOrchestrator.Core --prerelease
 ```csharp
 public sealed class CatalogService(ICacheOrchestrator cache)
 {
-    public ValueTask<ProductDto?> GetProductAsync(
-        CacheDomainContext cacheDomain,
-        int id,
-        CancellationToken cancellationToken) =>
-        cache.GetOrCreateAsync(
-            cacheDomain,
-            logicalKey: $"product:{id}",
-            async ct => await LoadProductAsync(id, ct),
-            cancellationToken);
+    public ValueTask<ProductDto?> GetProductAsync(CacheDomainContext cacheDomain, int id, CancellationToken cancellationToken) =>
+        cache.GetOrCreateAsync(cacheDomain, logicalKey: $"product:{id}", async ct => await LoadProductAsync(id, ct), cancellationToken);
 }
 ```
 
-**Host packages** (web — same as §1)
+**Host packages** (web — same as 1)
 
 ```bash
 dotnet add package CacheOrchestrator --prerelease
@@ -369,7 +307,7 @@ builder.Services.AddCacheOrchestrator(builder.Configuration);
 builder.Services.AddScoped<CatalogService>();
 ```
 
-**Config** (same shape as §1)
+**Config** (same shape as 1)
 
 ```json
 {
@@ -401,14 +339,12 @@ app.MapGet("/api/products/{id:int}", async (int id, CatalogService catalog, Canc
 .CacheOutputWithDomain(catalogDomain.Domain);
 ```
 
-**Code** (dynamic domain — same library)
+**Code** (per-request domain name — same library; see [Output Cache — domain name templates](../reference/output-cache.md#domain-name-templates))
 
 ```csharp
-CacheDomainContext CatalogDomain(HttpContext http) =>
-    new($"tenant-{http.Request.RouteValues["tenant"]}");
+CacheDomainContext CatalogDomain(HttpContext http) => new($"tenant-{http.Request.RouteValues["tenant"]}");
 
-app.MapGet("/t/{tenant}/products/{id:int}", async (
-    HttpContext http, int id, CatalogService catalog, CancellationToken ct) =>
+app.MapGet("/t/{tenant}/products/{id:int}", async (HttpContext http, int id, CatalogService catalog, CancellationToken ct) =>
 {
     var data = await catalog.GetProductAsync(CatalogDomain(http), id, ct);
     return Results.Json(data);
@@ -436,12 +372,12 @@ This composition is HTTP-free. `AddCacheOrchestratorCore` registers domain optio
 
 ---
 
-<a id="scenario-8"></a>
-## 8. EF Core invalidation — all in the web app
+<a id="scenario-7"></a>
+## 7. EF invalidation in a web app
 
-Same read path as §1, plus SaveChanges → automatic entity tag purge. Domain and `entityKind` on the GET must match the EF mapping (`[CacheEntity]`, Fluent `CacheInvalidate`, or `Map<T>`). Details: [ef-core-invalidation.md](../reference/ef-core-invalidation.md).
+**Layers:** Same as 1, plus SaveChanges → automatic entity tag purge. Domain and `entityKind` on the GET must match the EF mapping (`[CacheEntity]`, Fluent `CacheInvalidate`, or `Map<T>`). Details: [ef-core-invalidation.md](../reference/ef-core-invalidation.md).
 
-**Packages**
+**Packages:** `CacheOrchestrator` + `CacheOrchestrator.EFCore.Invalidation`.
 
 ```bash
 dotnet add package CacheOrchestrator --prerelease
@@ -461,7 +397,7 @@ builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
 });
 ```
 
-**Config** (same shape as §1)
+**Config** (same shape as 1)
 
 ```json
 {
@@ -490,7 +426,7 @@ app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDat
 {
     var data = await cache.GetOrSetEntityAsync(http, async ct =>
     {
-        Product? p = await db.Products.AsNoTracking().FirstOrDefaultAsync(x => x.Id.ToString() == id, ct);
+        Product? p = await db.Products.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         return p is null ? null : new ProductDto(p.Id, p.Price);
     });
     return data is null ? Results.NotFound() : Results.Json(data);
@@ -508,15 +444,18 @@ app.MapPut("/api/products/{id:int}", async (int id, UpdatePriceBody body, AppDbC
 
 ---
 
-<a id="scenario-9"></a>
-## 9. EF Core in a class library + web host
+<a id="scenario-8"></a>
+## 8. EF in a library + web host
 
-Library owns DbContext usage and cache reads/writes. Host wires CacheOrchestrator, the EF interceptor, and HTTP. Keep the same domain / `entityKind` in mapping, `CacheDomainContext`, and `.CacheOutputWithDomain`.
+**Layers:** Library owns DbContext and Core Data Cache reads/writes; web host adds Output Cache, Client Cache, and the EF interceptor. Keep the same domain / `entityKind` in mapping, `CacheDomainContext`, and `.CacheOutputWithDomain`.
+
+**Packages:** library `CacheOrchestrator.Core` + `CacheOrchestrator.EFCore.Invalidation` (+ EF Core); host same as 1 plus EF invalidation registration.
 
 **Library packages**
 
 ```bash
 dotnet add package CacheOrchestrator.Core --prerelease
+dotnet add package CacheOrchestrator.EFCore.Invalidation --prerelease
 dotnet add package Microsoft.EntityFrameworkCore
 ```
 
@@ -528,15 +467,8 @@ public class Product { public int Id { get; set; } public decimal Price { get; s
 
 public sealed class CatalogService(ICacheOrchestrator cache, AppDbContext db)
 {
-    public ValueTask<ProductDto?> GetProductAsync(
-        CacheDomainContext cacheDomain,
-        int id,
-        CancellationToken cancellationToken) =>
-        cache.GetOrCreateEntityAsync(
-            cacheDomain,
-            logicalKey: $"product:{id}",
-            resourceId: id,
-            async ct =>
+    public ValueTask<ProductDto?> GetProductAsync(CacheDomainContext cacheDomain, int id, CancellationToken cancellationToken) =>
+        cache.GetOrCreateEntityAsync(cacheDomain, logicalKey: $"product:{id}", resourceId: id, async ct =>
             {
                 Product? p = await db.Products.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -580,7 +512,7 @@ builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
 builder.Services.AddScoped<CatalogService>();
 ```
 
-**Config** (same shape as §1 / §8)
+**Config** (same shape as 1 / 7)
 
 ```json
 {
@@ -622,8 +554,10 @@ app.MapPut("/api/products/{id:int}", async (int id, UpdatePriceBody body, Catalo
 
 ## Related
 
-- [Packages guide](../guide/packages.md) — which NuGet to install  
-- [Topologies](../guide/topologies.md)  
-- [Configuration](../reference/configuration.md)  
-- [Data Cache](../reference/data-cache.md)
-- [EF Core invalidation](../reference/ef-core-invalidation.md)  
+- [Packages](../guide/packages.md) — which package to choose for your stack
+- [Topologies](../guide/topologies.md) — InMemory, Redis, HttpBus, and when to combine them
+- [Configuration](../reference/configuration.md) — `Cache` schema, defaults, and ownership
+- [Output Cache](../reference/output-cache.md) — domain binding, including domain name templates
+- [Data Cache](../reference/data-cache.md) — `IDomainDataCache`, providers, and domain resolution
+- [EF Core invalidation](../reference/ef-core-invalidation.md) — SaveChanges mapping and purge rules
+- [Root README — Packages and applications](../../README.md#packages-and-applications) — NuGet catalog and Admin Console App

@@ -51,7 +51,7 @@ public sealed class CatalogService(ICacheOrchestrator cache)
 }
 ```
 
-The worker installs Core plus one provider package. A reusable class library needs only Core; its host owns registration. Add the ASP.NET Core package only when the host needs Output Cache, Client Cache headers, or HTTP helpers.
+The worker installs `CacheOrchestrator.Core` plus one provider package. A reusable class library needs only Core; its host owns registration. Add `CacheOrchestrator.AspNetCore` only when the host needs Output Cache, Client Cache headers, or HTTP helpers.
 
 ## Documentation
 

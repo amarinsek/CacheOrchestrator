@@ -1,10 +1,23 @@
 # EF Core SaveChanges invalidation
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md).
+> **Reference** — purge mapped entities after EF Core `SaveChanges`.
 
 Package **`CacheOrchestrator.EFCore.Invalidation`**. After a successful `SaveChanges` / `SaveChangesAsync`, the cache for the rows that changed is purged through `ICacheOrchestratorInvalidator`.
 
 Package README: [src/CacheOrchestrator.EFCore.Invalidation/README.md](../../src/CacheOrchestrator.EFCore.Invalidation/README.md). See also [invalidation.md](invalidation.md), [domain-profiles.md](../guide/domain-profiles.md), [Data Cache](data-cache.md), [configuration.md](configuration.md).
+
+## Table of Contents
+
+- [How it works](#how-it-works)
+- [Related cache entries (footprint tags)](#related-cache-entries-footprint-tags)
+- [When to use it](#when-to-use-it)
+- [Install and composition](#install-and-composition)
+- [Mapping (code only)](#mapping-code-only)
+- [What runs on SaveChanges](#what-runs-on-savechanges)
+- [SaveChanges vs `Execute*`](#savechanges-vs-execute)
+- [Multi-instance](#multi-instance)
+- [Configuration (`Cache:EFCore:Invalidation`)](#configuration-cacheefcoreinvalidation)
+- [Limits](#limits)
 
 ## How it works
 
@@ -32,8 +45,20 @@ SavedChanges                    SaveChangesFailed
 InvalidateEntitiesAsync  or  InvalidateEntityKindAsync (OnBulk)
         │
         ├─ local Output Cache + Data Cache tag purge
-        └─ Redis backplane / HttpBus  (if those packages are configured)
+        ├─ Fusion Redis backplane  (if Redis Fusion L2 is configured — drops peer L1)
+        └─ HttpBus                 (if CacheOrchestrator.HttpBus is configured — peer ApplyLocal)
 ```
+
+### Related cache entries (footprint tags)
+
+EF does not walk FK graphs or `DependsOn` / `Members`. It only purges tags for the mapped `(domain, entityKind, id)`. Related entries disappear when they were **tagged at cache-write time** — for example a product detail that depended on a brand:
+
+```csharp
+return EntityCache.Create(productDetailDto)
+    .DependsOn("brands", dto.BrandId);
+```
+
+Saving `Brand` `7` then invalidates `entity:…:brands:7` and drops that product detail entry too. Wire those links with [Entity footprint](entity-footprint.md); the EF package only supplies the purge call.
 
 ---
 
@@ -50,7 +75,7 @@ InvalidateEntitiesAsync  or  InvalidateEntityKindAsync (OnBulk)
 
 ## Install and composition
 
-Full **packages + registration + config + endpoint** samples (in-app EF, and EF inside a class library): [packages.md §8–§9](../guide/packages.md).
+Full **packages + registration + config + endpoint** samples (in-app EF, and EF inside a class library): [composition.md — 7](../how-to/composition.md#scenario-7) and [8](../how-to/composition.md#scenario-8).
 
 ```bash
 dotnet add package CacheOrchestrator --prerelease
@@ -102,7 +127,7 @@ builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration, o
 });
 ```
 
-The HTTP / library cache path must use the **same** domain and `entityKind` as the mapping — see [packages.md §8–§9](../guide/packages.md).
+The HTTP / library cache path must use the **same** domain and `entityKind` as the mapping — see [composition.md — 7–8](../how-to/composition.md#scenario-7).
 
 Primary keys: stringify each PK part with invariant culture (`byte[]` uses lowercase hexadecimal), percent-encode each composite part independently, then join parts with `:`. The resulting resource id stays opaque; GUIDs use canonical lowercase `D` format. A route `resourceRouteKey` must produce the same string. Entity kinds use `DomainName.NormalizeEntityKind` and remain restricted normalized schema names.
 
@@ -132,7 +157,7 @@ TPH: Fluent `CacheInvalidate` and `Map<T>` match the **exact** `ClrType` — map
 
 ## SaveChanges vs `Execute*`
 
-Composition samples (GET + PUT): [packages.md §8–§9](../guide/packages.md).
+Composition samples (GET + PUT): [composition.md — 7](../how-to/composition.md#scenario-7) and [8](../how-to/composition.md#scenario-8).
 
 | Path | Invalidation |
 |------|----------------|
@@ -162,9 +187,9 @@ The EF package does not talk to Redis or the Bus. It only calls `ICacheOrchestra
 | `CacheOrchestrator.HttpBus` (InMemory multi-node) | One `InvalidateCommand` per `(domain, entityKind)` group; peers ApplyLocal |
 | Neither | Other nodes keep stale L1 until TTL / Version |
 
-Use the same `entityKind` on every node. Mixed 1.0 / 2.0 entity tags do not match.
+Use the same `entityKind` and tag shape on every node. Mismatched tag formats do not match across the cluster.
 
-Upgrade all nodes together before relying on entity Bus commands (2.0 tag shape).
+Roll the same package build to every node before relying on entity Bus commands.
 
 ---
 
@@ -187,13 +212,14 @@ Operational flags only. Bound from the same root section as `AddCacheOrchestrato
 - `Execute*` and raw SQL need a manual `Invalidate*` call.
 - Composite primary keys are joined with `:`, then normalized. Binary keys are **hex** (`Convert.ToHexString`) — the HTTP `resourceId` must use the same convention.
 - `BulkThreshold <= 0` disables the bulk path (always `InvalidateEntitiesAsync`).
-- There is no ambient `Suppress()` yet; turn the feature off with `Enabled: false` or omit the interceptor on that context.
+- There is no ambient `Suppress()` API; turn the feature off with `Enabled: false` or omit the interceptor on that context.
 
 ## Related
 
-- [Guide — topologies](../guide/topologies.md)  
+- [Guide — topologies](../guide/topologies.md) — when Redis / bus matter for purge reach  
 - [invalidation.md](invalidation.md) — tags, invalidator, multi-instance strategies  
-- [Data Cache](data-cache.md) — `GetOrSetEntityAsync`
-- [Output Cache](output-cache.md) — `resourceRouteKey` + `entityKind`
-- [faq.md](../guide/faq.md) — `ExecuteUpdate`
-- Package README — copy-paste samples  
+- [Data Cache](data-cache.md) — `GetOrSetEntityAsync`  
+- [Output Cache](output-cache.md) — `resourceRouteKey` + `entityKind`  
+- [entity-footprint.md](entity-footprint.md) — members / depends-on / aliases  
+- [faq.md](../guide/faq.md) — `ExecuteUpdate` and bulk-update caveats  
+- [Package composition](../how-to/composition.md) — copy-paste package wiring  

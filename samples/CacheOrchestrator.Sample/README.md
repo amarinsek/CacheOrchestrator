@@ -6,6 +6,17 @@ The interactive companion to the [Minimal sample](../CacheOrchestrator.Minimal).
 
 ---
 
+## Table of Contents
+
+- [Choose your path](#choose-your-path)
+- [Solo (host)](#solo-host)
+- [What to try](#what-to-try)
+- [Reading responses](#reading-responses)
+- [Getting started playground](#getting-started-playground)
+- [Vary playground](#vary-playground)
+- [POST identity (playground)](#post-identity-playground)
+- [Next](#next)
+
 ## Choose your path
 
 | Path | Best for |

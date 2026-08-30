@@ -1,8 +1,18 @@
 # FAQ
 
-> **Guide page.** Start with [Getting started](getting-started.md), follow the [Guide index](README.md), or use this page to diagnose a specific symptom.
+> **Guide** — common mistakes and symptom-oriented answers.
 
 These are short answers to common mistakes and boundary questions. Follow the linked guide or reference page for the complete model.
+
+## Table of Contents
+
+- [Hits, misses, and domain resolution](#hits-misses-and-domain-resolution)
+- [Authentication and request variation](#authentication-and-request-variation)
+- [Freshness, invalidation, and ETags](#freshness-invalidation-and-etags)
+- [Packages and topology](#packages-and-topology)
+- [Admin and multi-instance operations](#admin-and-multi-instance-operations)
+- [Output Cache methods and identity](#output-cache-methods-and-identity)
+- [Product boundaries](#product-boundaries)
 
 ## Hits, misses, and domain resolution
 
@@ -173,13 +183,13 @@ If invalidation fails after the commit, the database is still authoritative. Ins
 
 ### Which package should a typical ASP.NET Core app install?
 
-Start with the `CacheOrchestrator` meta package. It combines the ASP.NET Core integration and FusionCache data provider.
+Start with the `CacheOrchestrator` meta package. It combines `CacheOrchestrator.AspNetCore` and `CacheOrchestrator.FusionCache`.
 
-Use focused packages when you need Output Cache only, HybridCache instead of FusionCache, or an HTTP-free Core dependency in a reusable library. See [Packages](packages.md).
+Use focused packages when you need Output Cache only, `CacheOrchestrator.HybridCache` instead of `CacheOrchestrator.FusionCache`, or an HTTP-free `CacheOrchestrator.Core` dependency in a reusable library. See [Packages](packages.md).
 
 ### Why does `Provider: Redis` fail during startup?
 
-Configuration selects a registered provider; it does not install one. Add the appropriate Redis package and registrar:
+Configuration selects a registered provider; it does not install one. Add the matching Redis package and registrar:
 
 - `CacheOrchestrator.Redis` + `AddRedisBackend()` for Redis Output Cache and Fusion L2;
 - `CacheOrchestrator.AspNetCore.Redis` + `AddRedisOutputCacheBackend()` for Output Cache only;
@@ -195,7 +205,7 @@ Configuration selects a registered provider; it does not install one. Add the ap
 | Share Output Cache responses | Redis Output Cache store |
 | Purge in-memory Output Cache on peer nodes | HttpBus |
 | Coordinate several in-memory nodes without Redis | HttpBus |
-| Distribute runtime Version/TTL/settings overlays | HttpBus or Admin Console fan-out |
+| Distribute runtime Version/TTL/settings overlays | HttpBus or Admin Console App fan-out |
 
 HttpBus carries commands, not cache values. Using it alongside the Redis backplane is safe but can be redundant for Fusion tag invalidation. See [Topologies](topologies.md).
 
@@ -221,18 +231,20 @@ Yes, but the extension point depends on what the storage system does:
 - implement `IFusionCacheBackendRegistrar` for FusionCache L2 storage or a backplane;
 - implement `IDataCacheProvider` only for a complete Data Cache engine.
 
-The same provider name may have separate registrars for the first two surfaces. `IOutputCacheBackendRegistrar` does not configure `DataCacheInstances`.
+The same provider name may have separate registrars for Output Cache and Fusion L2. `IOutputCacheBackendRegistrar` does not configure `DataCacheInstances`. `AddRedisBackend` / `AddRedisFusionCacheBackend` apply to Fusion, not HybridCache.
 
-See [Cache backends](../reference/backends.md) and the complete [extensibility catalog](../reference/extensibility.md).
+> With HybridCache as the Data Cache engine, configure distributed storage through Microsoft HybridCache / `IDistributedCache` (outside CacheOrchestrator) — there is no Hybrid-specific backend registrar;
+
+See [Cache backends](../reference/backends.md), [Data Cache — HybridCache](../reference/data-cache.md#hybridcache-provider), and the complete [extensibility catalog](../reference/extensibility.md).
 
 ## Admin and multi-instance operations
 
-### What is the difference between Admin API and Admin Console?
+### What is the difference between Admin API and Admin Console App?
 
 - **Admin API** is an opt-in route group inside each application process. It exposes health, effective domains, invalidation, and runtime settings operations.
-- **Admin Console App** is a separate application that discovers and controls several Admin APIs through one UI.
+- **Admin Console App** is a separate application that discovers and controls the Admin API on each instance through one UI.
 
-Traffic charts in the Console use Prometheus. The Console has no built-in user login, so protect it with private networking and external authentication.
+Traffic charts in the Admin Console App use Prometheus. The Admin Console App has no built-in user login, so protect it with private networking and external authentication.
 
 See [Operations](operations.md#choose-the-admin-surface) and [Admin](../reference/admin.md).
 
@@ -241,7 +253,7 @@ See [Operations](operations.md#choose-the-admin-surface) and [Admin](../referenc
 Runtime overlays are local unless the operation is distributed.
 
 - With HttpBus, use `distribute: true` so the origin publishes to peers.
-- Without HttpBus, the Admin Console must fan out to every target instance.
+- Without HttpBus, the Admin Console App must fan out to every target instance.
 - The FusionCache Redis backplane does not carry Version, TTL, or settings overlays.
 
 A down peer can leave the deployment partially updated. Inspect the operation result and reconcile failed instances.
@@ -261,7 +273,7 @@ Yes, but only with an explicit cache identity binding.
 
 Without identity metadata, Output Cache supports `GET` and `HEAD` with URL identity. Applying a domain alone does not cache `POST`, `PUT`, or other methods.
 
-Duplicate bindings for one method fail during registration or through analyzer `COIDENTITY001`. See [Endpoint cache identity](../reference/cache-identity.md).
+See [Endpoint cache identity](../reference/cache-identity.md).
 
 ## Product boundaries
 
@@ -281,4 +293,4 @@ No. It resolves connection options and uses Redis as a backend. Provisioning, ac
 
 No. Application code should depend on public interfaces such as `IDomainDataCache`, `ICacheOrchestrator`, and `ICacheOrchestratorInvalidator`, then obtain implementations through dependency injection.
 
-Still stuck? Follow the request-level checklist in [Operations](operations.md#use-a-short-incident-checklist), then use the topic links above for exact configuration and API contracts.
+

@@ -25,7 +25,7 @@ builder.Services
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<InstanceReachabilityCache>();
-builder.Services.AddHttpClient(LocalAdminClient.HttpClientName)
+builder.Services.AddHttpClient(AdminApiClient.HttpClientName)
     .ConfigureHttpClient((sp, client) =>
     {
         AdminConsoleOptions opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AdminConsoleOptions>>().Value;
@@ -45,7 +45,7 @@ builder.Services.AddHttpClient(PrometheusMetricsQueryClient.HttpClientName)
         }
     });
 
-builder.Services.AddSingleton<ILocalAdminClient, LocalAdminClient>();
+builder.Services.AddSingleton<IAdminApiClient, AdminApiClient>();
 builder.Services.AddSingleton<IHintRuleDisableStore, HintRuleDisableStore>();
 builder.Services.AddSingleton<HintRuleRegistry>();
 builder.Services.AddSingleton<HintEngine>();

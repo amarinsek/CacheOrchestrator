@@ -19,9 +19,9 @@ A request can pass through the following cache layers:
 - **Output Cache (OC)** — serves the stored HTTP response so the endpoint need not run.
 - **Data Cache (L1/L2)** — serves the stored object so the factory (your database or service) need not run.
 
-In real-world applications, these layers are often fragmented—for example, an in-memory Output Cache on one end and FusionCache with Redis L2 Data Cache on the other, all with varying TTLs. When these layers are not synchronized, they can work against each other. CacheOrchestrator unifies them within a single **domain** model, keeping their lifetimes and policies coordinated.
+In real-world applications, caching layers are often fragmented. You might have an in-memory Output Cache on one end and a Redis-backed FusionCache on the other, each operating with different TTLs. When these isolated layers aren't synchronized, they easily work against each other. CacheOrchestrator unifies them under a **single domain** model to coordinate their lifecycles and policies. This is especially critical for cache **invalidation**: clearing the Data Cache is pointless if the Output Cache continues serving stale HTTP responses. By tying these layers together, CacheOrchestrator ensures that all corresponding server-side representations are invalidated simultaneously.
 
-Cache **invalidation** presents the same coordination problem. Clearing the Data Cache is not enough if Output Cache still serves an older HTTP response. CacheOrchestrator invalidates matching server-side representations together. A response already stored by a browser or CDN remains valid until its Client Cache lifetime expires, so that lifetime must reflect how quickly clients need to observe unscheduled changes.
+---
 
 ## Table of Contents
 
@@ -32,6 +32,8 @@ Cache **invalidation** presents the same coordination problem. Clearing the Data
 - [Packages and applications](#packages-and-applications)
 - [Prerelease status](#prerelease-status)
 - [Documentation](#documentation)
+
+---
 
 ## Why CacheOrchestrator
 
@@ -47,6 +49,7 @@ Cache **invalidation** presents the same coordination problem. Clearing the Data
 
 - **Observable and extensible** — Expose cache and orchestration behavior through diagnostics and metrics, while keeping cache engines, transports, and integrations replaceable.
 
+---
 
 ## Quick start
 
@@ -71,7 +74,7 @@ Sample notes: [samples/CacheOrchestrator.Minimal](samples/CacheOrchestrator.Mini
 
 ### Add it to your app
 
-Install the meta package (AspNetCore + FusionCache):
+Install the `CacheOrchestrator` meta package (`CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`):
 
 ```bash
 dotnet add package CacheOrchestrator --prerelease
@@ -123,9 +126,7 @@ app.MapGet("/api/promotions", () => new
 .CacheOutputWithDomain("promotions");
 ```
 
-The `promotions` domain applies Output Cache and Client Cache without requiring Data Cache. Request the endpoint twice and inspect `X-Cache`: the first request is an Output Cache miss and the second can be a hit.
-
-Next, apply the `catalog` domain to a product endpoint. Declare entity identity once on the route (`resourceRouteKey` + `entityKind`); `IDomainDataCache` reuses the same domain policies:
+Next, apply the `catalog` domain to a product endpoint. Declare entity identity once on the route (`entityKind` + `resourceRouteKey`); `IDomainDataCache` reuses the same domain policies:
 
 ```csharp
 app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDataCache cache) =>
@@ -160,9 +161,9 @@ for a playground with TTLs, scheduling, and CRUD.
 
 ### Scale it with Redis
 
-To add Redis-backed caching, install the Redis package, register its backends, and update the configuration. Your endpoint code stays completely **unchanged**.
+To add Redis-backed caching, install `CacheOrchestrator.Redis`, register its backends, and update the configuration. Your endpoint code stays completely **unchanged**.
 
-Install Redis package:
+Install the Redis meta package:
 
 ```bash
 dotnet add package CacheOrchestrator.Redis --prerelease
@@ -189,11 +190,13 @@ Merge these settings into `appsettings.json` to use Redis for Fusion Data Cache 
 
 This keeps Output Cache in memory and moves the Fusion Data Cache L2 and backplane to Redis. Set `OutputCache:Provider` to `Redis` when instances should share complete HTTP responses as well.
 
+---
+
 ## Why domains
 
-A domain is a named set of cache rules: lifetimes, which layers to use, and how they are backed. Different types of data require different cache configurations. For example:
+A domain is a named set of cache rules: lifetimes, which layers to use, and how they are backed. For example, in a fleet tracking application, different types of data require different cache configurations:
 
-- **Static public assets** may change once a year. Long Output Cache and Client Cache lifetimes are enough; Data Cache is optional.
+- **Static mapping assets** may change once a year. Long Output Cache and Client Cache lifetimes are enough; Data Cache is optional.
 - **Map tiles and batched datasets** change on a published schedule. Client lifetimes can stay long during the calm period and automatically shorten as the cutover approaches. The [Client Cache Schedule](docs/guide/client-cache-schedule.md) coordinates that countdown without changing Output Cache or Data Cache TTLs.
 - **Fleet telemetry** ages in minutes. A short lifetime, in-memory Output Cache, and a shared Redis Data Cache with a backplane keep several instances consistent.
 - **Live vehicle positions** age in seconds. FusionCache locking and fail-safe stop a stampede when many callers miss at once; Output Cache stays off or very short.
@@ -202,9 +205,11 @@ The endpoint code is the same shape in every case. The domain is what differs.
 
 Domains are the unit of configuration. Within a domain you can optionally use **entity identity** (`entityKind` + id, and related footprints) so per-entity keys and invalidation are possible.
 
+---
+
 ## Playground topology labs
 
-To try **multi-layer layouts** (Admin Console, Prometheus, Redis L2, multiple instances, cluster bus) without wiring Docker yourself, use the playground **topology labs** — one Compose command per stage. 
+To try **multi-layer layouts** (Admin Console App, Prometheus, Redis L2, multiple instances, cluster bus) without wiring Docker yourself, use the playground **topology labs** — one Compose command per stage. 
 
 ```bash
 docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build
@@ -214,15 +219,17 @@ Stages climb from a single in-memory playground to a dual Redis + HTTP bus archi
 
 **Full guide & diagrams:** [samples/CacheOrchestrator.Sample/labs/README.md](samples/CacheOrchestrator.Sample/labs/README.md) — See what each stage teaches and how they evolve.
 
+---
+
 ## Packages and applications
 
-The library is **modular**. The Core package provides the foundational policies, `ICacheOrchestrator`, and the transport-independent management API. From there, you can opt into specific packages to match your stack: FusionCache or HybridCache for Data Cache, the ASP.NET Core host for Output Cache and Client Cache, Redis, an HTTP cluster bus, and EF Core invalidation. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
+The library is **modular**. `CacheOrchestrator.Core` provides the foundational policies, `ICacheOrchestrator`, and the transport-independent Management API. From there, you can opt into specific packages to match your stack: `CacheOrchestrator.FusionCache` or `CacheOrchestrator.HybridCache` for Data Cache, `CacheOrchestrator.AspNetCore` for Output Cache and Client Cache, Redis packages, `CacheOrchestrator.HttpBus`, and `CacheOrchestrator.EFCore.Invalidation`. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
 
 | Package | Purpose |
 |---------|---------|
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package: AspNetCore + FusionCache (for typical web apps). |
+| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package: `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache` (for typical web apps). |
 | [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Domain models, orchestration, invalidation, and management contracts (no ASP.NET dependency). |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, HTTP helpers, and the Local Admin HTTP adapter. |
+| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, HTTP helpers, and the Admin API. |
 | [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | ZiggyCreatures FusionCache Data Cache provider. |
 | [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache Data Cache provider. |
 | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Meta Redis: Output Cache store and Fusion L2 / backplane (`AddRedisBackend`). |
@@ -232,24 +239,24 @@ The library is **modular**. The Core package provides the foundational policies,
 | [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | Automatic cache invalidation after a successful Entity Framework Core `SaveChanges`. |
 
 
-
 | Application | Purpose |
-|---------|---------|
-| [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Standalone Admin Console for live stats, domain configuration, triggering invalidations, and adjusting Versions or TTLs on the fly. Available as a Docker image: `ghcr.io/amarinsek/cacheorchestrator-admin-console` — see [Admin Console](src/CacheOrchestrator.AdminConsole/) · [Deploy Admin](deploy/admin/README.md). |
+|-------------|---------|
+| [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Standalone Admin Console App for live stats, domain configuration, triggering invalidations, and adjusting Versions or TTLs on the fly. Available as a Docker image. See [Admin Console README](src/CacheOrchestrator.AdminConsole/) · [Deploy Admin Console App](deploy/admin/README.md). |
 
+---
 
 ## Prerelease status
 
-> [!NOTE]
-> **v3 is in prerelease (beta)**
+> [!IMPORTANT]
+> CacheOrchestrator v3 is a **full redesign**, not an incremental evolution of 1.x / 2.x. Previous published lines (v1.0.0 and v2.1.x) are maintained for legacy continuity only. The v3 does not preserve a direct migration story or API compatibility with them; please treat v3 as a new architectural surface under the same name.
 >
-> CacheOrchestrator **v3** is a **full redesign**. It is **not** API-compatible with **v1.0.0** or **v2.1.x**, and there is **no migration path** from those lines. Legacy packages remain on NuGet only for existing environments; they are not under active feature development.
+>**v3 is in prerelease (beta)**
 >
-> **Try v3 now** with the Quick start above (`dotnet add package … --prerelease`). Expect breaking changes until the stable **v3.0.0** release.
->
-> **Help test v3.** Reports from real ASP.NET Core applications, standalone workers, Redis deployments, browsers, and playground labs are especially valuable. Successful results and confusing behavior are welcome too — see [Contributing](CONTRIBUTING.md#help-test-v3).
->
-> Prefer building from source or contributing code? Clone this repository — `main` tracks the same v3 work and may move faster than the latest beta package.
+> This documentation describes **CacheOrchestrator v3**. Public APIs may change until the stable **v3.0.0** release. Install the prerelease with the Quick start above (`dotnet add package … --prerelease`).<br>
+> **Help test the prerelease.** Reports from real ASP.NET Core applications, standalone workers, Redis deployments, browsers, and playground labs are especially valuable. Successful results and confusing behavior are welcome too — see [Contributing](CONTRIBUTING.md#help-test-v3).<br>
+> To build from source or contribute code, clone this repository — `main` tracks the same v3 work and may move faster than the latest beta package.
+
+---
 
 ## Documentation
 
@@ -258,7 +265,6 @@ The library is **modular**. The Core package provides the foundational policies,
 - [Documentation index](docs/README.md) — configuration, keys, deployment, architecture
 - [FAQ](docs/guide/faq.md) — common mistakes and limits
 - [Comparison](docs/guide/comparison.md) — the usual stack versus CacheOrchestrator
-- [CHANGELOG](CHANGELOG.md)
 - [CONTRIBUTING](CONTRIBUTING.md)
 - [SECURITY](SECURITY.md)
 - [LICENSE](LICENSE.md) (MIT)

@@ -43,7 +43,7 @@ public sealed class FanOutResultDto<T>
     /// <summary>When bus-distribute: the single origin instance id contacted by Admin Console App.</summary>
     public string? BusOriginInstanceId { get; init; }
 
-    /// <summary>Whether Local Admin requests used <c>distribute: true</c>.</summary>
+    /// <summary>Whether Admin API requests used <c>distribute: true</c>.</summary>
     public bool Distribute { get; init; }
 
     /// <summary>
@@ -96,8 +96,8 @@ public sealed class FanOutResultDto<T>
     }
 }
 
-/// <summary>Cluster bus capability snapshot from Local <c>GET …/cluster/info</c>.</summary>
-public sealed class LocalClusterInfoDto
+/// <summary>Cluster bus capability snapshot from Admin API <c>GET …/cluster/info</c>.</summary>
+public sealed class AdminApiClusterInfoDto
 {
     /// <summary>Process instance id.</summary>
     public string? InstanceId { get; set; }
@@ -156,7 +156,7 @@ public sealed class InstanceClusterProbeDto
     public string? Error { get; set; }
 }
 
-/// <summary>Outcome of one Local Admin HTTP call.</summary>
+/// <summary>Outcome of one Admin API call.</summary>
 public sealed class InstanceCallResultDto
 {
     /// <summary>Configured instance id.</summary>
@@ -175,8 +175,8 @@ public sealed class InstanceCallResultDto
     public double LatencyMs { get; init; }
 }
 
-/// <summary>Local Admin <c>409</c> body when <c>distribute:true</c> peer publish is incomplete.</summary>
-public sealed class LocalAdminClusterPublishIncompleteDto
+/// <summary>Admin API <c>409</c> body when <c>distribute:true</c> peer publish is incomplete.</summary>
+public sealed class AdminApiClusterPublishIncompleteDto
 {
     /// <summary>Short error message.</summary>
     public string? Error { get; set; }
@@ -188,11 +188,11 @@ public sealed class LocalAdminClusterPublishIncompleteDto
     public bool LocalApplied { get; set; }
 
     /// <summary>Peers that did not apply.</summary>
-    public List<LocalAdminPeerFailureDto>? PeerFailures { get; set; }
+    public List<AdminApiPeerFailureDto>? PeerFailures { get; set; }
 }
 
-/// <summary>One peer failure from a Local Admin cluster-publish incomplete response.</summary>
-public sealed class LocalAdminPeerFailureDto
+/// <summary>One peer failure from an Admin API cluster-publish incomplete response.</summary>
+public sealed class AdminApiPeerFailureDto
 {
     /// <summary>Membership peer id.</summary>
     public string? PeerId { get; set; }

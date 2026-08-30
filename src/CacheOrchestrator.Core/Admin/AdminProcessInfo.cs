@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace CacheOrchestrator.Admin;
 
 /// <summary>
-/// Process lifetime anchors for Local Admin health (uptime).
+/// Process lifetime anchors for Admin API health (uptime).
 /// </summary>
 internal static class AdminProcessInfo
 {

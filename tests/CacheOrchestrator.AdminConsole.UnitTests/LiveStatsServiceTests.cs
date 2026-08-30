@@ -203,7 +203,7 @@ public class LiveStatsServiceTests
             Task.FromResult(InstantHandler(promQl));
     }
 
-    private sealed class FakeLocal(IReadOnlyList<AdminDomainConfigDto> domains) : ILocalAdminClient
+    private sealed class FakeLocal(IReadOnlyList<AdminDomainConfigDto> domains) : IAdminApiClient
     {
         public Task<InstanceCallOutcome<AdminHealthDto>> GetHealthAsync(
             AdminInstanceOptions instance,
@@ -260,10 +260,10 @@ public class LiveStatsServiceTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
+        public Task<InstanceCallOutcome<AdminApiClusterInfoDto>> GetClusterInfoAsync(
             AdminInstanceOptions instance,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new InstanceCallOutcome<LocalClusterInfoDto>
+            Task.FromResult(new InstanceCallOutcome<AdminApiClusterInfoDto>
             {
                 InstanceId = instance.Id,
                 Succeeded = false,

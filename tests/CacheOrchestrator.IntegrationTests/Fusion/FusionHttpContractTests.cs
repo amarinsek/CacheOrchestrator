@@ -144,7 +144,7 @@ public class FusionHttpContractTests
             x2.Should().Contain("dc=hit");
             Volatile.Read(ref entityCalls).Should().Be(1);
             Volatile.Read(ref listCalls).Should().Be(1,
-                "URL-shaped GetOrSet after entity GetOrSet must not stay on the :id: key");
+                "URL-shaped GetOrSet after entity GetOrSet must not stay on the :e: key");
 
             CacheInvalidationResult inv = await app.Services
                 .GetRequiredService<ICacheOrchestratorInvalidator>()

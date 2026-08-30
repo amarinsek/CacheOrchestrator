@@ -1,21 +1,8 @@
 # CacheOrchestrator documentation
 
-CacheOrchestrator configures and coordinates ASP.NET Output Cache, a **Data Cache** engine (FusionCache or HybridCache), and Client Cache under one **domain** model. It is not a cache of its own.
+## Product
 
 Start with the [root README](../README.md) for the product overview and quick start. Then pick a path below.
-
-## Layers
-
-| Layer | Start here | For |
-|-------|------------|-----|
-| **Product** | [Root README](../README.md) | What it is, quick start, package table |
-| **Guide** | [Guide](guide/README.md) | How to think, which topology, how to operate |
-| **How-to** | [Composition](how-to/composition.md) | Copy-paste install / register / config / code |
-| **Reference** | Topic pages below | Schema, APIs, keys, deployment wiring |
-
-```
-README.md  →  docs/guide/  →  docs/how-to/  →  docs/reference/
-```
 
 ## Guide
 
@@ -25,8 +12,9 @@ README.md  →  docs/guide/  →  docs/how-to/  →  docs/reference/
 4. [Packages](guide/packages.md) — which NuGet to install
 5. [Topologies](guide/topologies.md) — InMemory, Redis, HttpBus, mixed
 6. [Client Cache Schedule](guide/client-cache-schedule.md) — client `max-age` before a cutover
-7. [Operations](guide/operations.md) — diagnostics map, Admin API vs Console
-8. [Comparison](guide/comparison.md) — hand-rolled stack vs this library
+7. [Operations](guide/operations.md) — diagnostics map, Admin API vs Admin Console App
+8. [Comparison](guide/comparison.md) — hand-rolled stack vs this library  
+   - [Worked example: one endpoint](guide/comparison-endpoint-example.md) — with CO first, then hand-rolled (vary, CCS, ETag, …)  
 9. [FAQ](guide/faq.md) — common mistakes
 
 ### Learn by running
@@ -37,7 +25,7 @@ README.md  →  docs/guide/  →  docs/how-to/  →  docs/reference/
 
 ## How-to
 
-- [Package composition](how-to/composition.md) — scenarios 1–9 (typical web, Hybrid, Redis, library, EF, …)
+- [Package composition](how-to/composition.md) — scenarios 1–8 (typical web, Hybrid, Redis, library, EF, …)
 
 ## Reference
 
@@ -55,7 +43,7 @@ The reference describes exact configuration paths, API contracts, key material, 
 - [Core API](reference/core-api.md) — HTTP-free orchestration, management, domain contexts, keys, and entity operations
 - [Output Cache](reference/output-cache.md) — policy selection, endpoint metadata, status rules, headers, and authentication
 - [Data Cache](reference/data-cache.md) — providers, domain resolution, key generation, results, and entity reads
-- [Client Cache Schedule algorithm](reference/client-cache-schedule-algorithm.md) — exact phase and `max-age` calculation
+- [Client Cache Schedule](guide/client-cache-schedule.md) — phase and `max-age` calculation (guide)
 - [Entity footprint](reference/entity-footprint.md) — primary entities, members, dependencies, collections, batches, and aliases
 - [Invalidation](reference/invalidation.md) — Version cutovers, tags, results, observers, and multi-instance behavior
 - [EF Core invalidation](reference/ef-core-invalidation.md) — entity mapping and purge after `SaveChanges`
@@ -67,8 +55,8 @@ The reference describes exact configuration paths, API contracts, key material, 
 - [Deployment](reference/deployment.md) — single-instance, Redis, InMemory clusters, and shared configuration
 - [Cluster command bus](reference/cluster-bus.md) — membership, commands, delivery, authentication, and partial failure
 - [Observability](reference/observability.md) — `X-Cache`, metrics, traces, logs, and health checks
-- [Admin](reference/admin.md) — local Admin API, Admin Console App, trust boundaries, and operational endpoints
-- [Admin Console Docker](../deploy/admin/README.md) — image, volumes, and logs
+- [Admin](reference/admin.md) — Admin API, Admin Console App, trust boundaries, and operational endpoints
+- [Admin Console App Docker](../deploy/admin/README.md) — image, volumes, and logs
 
 ### Common technical paths
 
@@ -82,31 +70,16 @@ The reference describes exact configuration paths, API contracts, key material, 
 
 ## Packages
 
-XML docs ship with the NuGets. Choices: [packages](guide/packages.md). Scenarios: [composition](how-to/composition.md).
+- [Packages](guide/packages.md) — which package to choose
+- [Composition](how-to/composition.md) — copy-paste install / register / config
+- [Root README — Packages and applications](../README.md#packages-and-applications) — NuGet catalog, versions, Admin Console App
 
-| Package | |
-|---------|--|
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator) | Meta (AspNetCore + FusionCache) |
-| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core) | Domains, `ICacheOrchestrator` |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore) | Output Cache, Client Cache, Admin |
-| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache) | Fusion Data Cache provider |
-| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache) | Hybrid Data Cache provider |
-| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis) | Meta Redis (Output Cache + Fusion L2) |
-| [CacheOrchestrator.AspNetCore.Redis](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore.Redis) | Redis Output Cache only |
-| [CacheOrchestrator.FusionCache.Redis](https://www.nuget.org/packages/CacheOrchestrator.FusionCache.Redis) | Redis Fusion L2 only |
-| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus) | Cluster HTTP bus |
-| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation) | `SaveChanges` → purge |
 
-Admin Console App (not a NuGet package): [source](../src/CacheOrchestrator.AdminConsole/README.md) · [Docker](../deploy/admin/README.md).
+## For contributor
 
-## Contributor
-
-Maintainer material — not required to ship a first domain.
-
-- [Architecture](contributor/architecture.md)
-- [Admin hints](contributor/admin-hints.md) · [writing hint rules](../src/CacheOrchestrator.AdminConsole/hints/README.md)
-- [Benchmarks](contributor/benchmarks/results.md)
-- [Releasing](contributor/releasing.md)
 - [Contributing](../CONTRIBUTING.md)
+- [Releasing](contributor/releasing.md)
 - [Worklog template](contributor/templates/worklog-template.md)
-- [CHANGELOG](../CHANGELOG.md)
+- [Benchmarks](contributor/benchmarks/results.md)
+
+

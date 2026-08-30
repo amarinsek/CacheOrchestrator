@@ -145,8 +145,8 @@ public class MultiInstanceOptionsTests
 
         DomainHttpCacheOptions opts = provider.GetOrCreateDomainOptions("products");
 
-        // default has no explicit Namespace â†’ falls back to "{Namespace}-fc" (no -default suffix)
-        opts.DataCacheNamespace.Should().Be("my-app-fc");
+        // default has no explicit Namespace → falls back to "{Namespace}-dc" (no -default suffix)
+        opts.DataCacheNamespace.Should().Be("my-app-dc");
     }
 
     // =========================

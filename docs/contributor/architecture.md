@@ -1,14 +1,24 @@
 # Architecture
 
-> **Contributor.** Product overview: [root README](../../README.md). Orientation: [Guide — concepts](../guide/concepts.md). Catalog: [documentation index](../README.md). Packages: [packages.md](../guide/packages.md).
+> **Contributor** — package layout, request flow, and internal boundaries.
 
 How the library is put together.
 
 A **domain** is a named group of data (`products`, `reports`, …) with its own TTLs, flags, and Version. Core resolves its HTTP-free identity and Data Cache policy as `DomainCacheOptions`. ASP.NET Core composes that snapshot into `DomainHttpCacheOptions` for Output Cache, Client Cache, authentication, vary, ETag, and HTTP key policy.
 
-1. **ASP.NET Core Output Caching** — full HTTP responses; GET/HEAD + Url without identity bindings, other methods via endpoint [cache identity](../reference/cache-identity.md) (AspNetCore package).
+1. **ASP.NET Core Output Caching** — full HTTP responses; GET/HEAD + Url without identity bindings, other methods via endpoint [cache identity](../reference/cache-identity.md) (`CacheOrchestrator.AspNetCore`).
 2. **Data Cache** — objects from your factory via `ICacheOrchestrator` / `IDomainDataCache` (Fusion or Hybrid as `IDataCacheProvider`; L1 memory, optional L2 / backplane for Fusion).
 3. **Client Cache** — browser and CDN headers, including Client Cache Schedule.
+
+## Table of Contents
+
+- [Design principles](#design-principles)
+- [High-level diagram](#high-level-diagram)
+- [Source layout (`src/`)](#source-layout-src)
+- [Public API surface](#public-api-surface)
+- [Request flow — Output Cache](#request-flow-output-cache)
+- [Request flow — Data Cache](#request-flow-data-cache)
+- [Backends](#backends)
 
 ## Design principles
 
@@ -42,7 +52,7 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
                   DomainCacheOptions
                            │
                            ▼
-              IRequestDomainCacheOptions (AspNetCore)
+              IRequestDomainCacheOptions (CacheOrchestrator.AspNetCore)
               (ICacheOrchestratorFeature + process cache)
                            │
                            ▼
@@ -56,8 +66,8 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 | `CacheOrchestrator.Core` | Domains, Version, portable `DataCache` settings, entity footprint, `ICacheOrchestrator`, invalidation and cluster **contracts**, diagnostics |
 | `CacheOrchestrator.FusionCache` | ZiggyCreatures Fusion as `IDataCacheProvider`; JSON `FusionCache` knobs |
 | `CacheOrchestrator.HybridCache` | Microsoft HybridCache as `IDataCacheProvider` |
-| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP vary/diagnostics/Admin settings, Admin HTTP API, `IDomainDataCache`, host `AddCacheOrchestrator` |
-| `CacheOrchestrator` | Meta NuGet: AspNetCore + FusionCache |
+| `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP vary/diagnostics/Admin settings, Admin API, `IDomainDataCache`, host `AddCacheOrchestratorAspNetCore` |
+| `CacheOrchestrator` | Meta package: `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache` (`AddCacheOrchestrator`) |
 | `CacheOrchestrator.Redis` | Redis Output Cache store + Fusion L2 + backplane |
 | `CacheOrchestrator.HttpBus` | HTTP cluster command bus + transport, authentication, Static / ServiceDiscovery membership settings |
 | `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation — [ef-core-invalidation.md](../reference/ef-core-invalidation.md) |
@@ -74,10 +84,10 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | Public (stable contract) | Internal (not for app code) |
 |--------------------------|-----------------------------|
 | `AddCacheOrchestratorCore` / `ICacheOrchestrator` / `IDataCacheProvider` (**Core**) | Core host registration / orchestrator / provider boundary |
-| `AddCacheOrchestrator` / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` / `ICacheOrchestratorBuilder` | ASP.NET Core composition and `DefaultCacheOrchestratorBuilder` |
+| `AddCacheOrchestrator` (**meta `CacheOrchestrator`**) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` / `ICacheOrchestratorBuilder` (**`CacheOrchestrator.AspNetCore`**) | Meta wires `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`; `CacheOrchestrator.AspNetCore` owns host composition and `DefaultCacheOrchestratorBuilder` |
 | `IDomainDataCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainDataCacheService` |
 | `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainDataCacheSettings`, `DomainName` (**Core**) | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator` |
-| `IRequestDomainCacheOptions`, `DomainHttpCacheOptions`, HTTP domain setting types, `ICacheOrchestratorFeature` (**AspNetCore**) | `RequestDomainCacheOptionsProvider`, `CacheOrchestratorHttpOptions`, `CacheOrchestratorHttpOptionsValidator`, `CacheOrchestratorFeature` |
+| `IRequestDomainCacheOptions`, `DomainHttpCacheOptions`, HTTP domain setting types, `ICacheOrchestratorFeature` (**`CacheOrchestrator.AspNetCore`**) | `RequestDomainCacheOptionsProvider`, `CacheOrchestratorHttpOptions`, `CacheOrchestratorHttpOptionsValidator`, `CacheOrchestratorFeature` |
 | `ICacheOrchestratorInvalidator`, `CacheInvalidationResult`, `ICacheInvalidationObserver`, `CacheTags` | `CacheOrchestratorInvalidator` |
 | `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records (`InvalidateCommand`, `VersionBumpCommand`, `SettingsPatchCommand`, …) | `DefaultClusterCommandHandler` |
 | — | `NullClusterCommandBus`, `NullClusterMembership` |
@@ -85,15 +95,15 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | Redis: `AddRedisBackend` (**CacheOrchestrator.Redis**) | `RedisCacheBackendRegistrar`, `RedisCacheHealthProbe`, all `Redis.Shared` implementation types |
 | HttpBus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` (**CacheOrchestrator.HttpBus**) | `HttpClusterCommandBus`, versioned HTTP wire DTOs, `ClusterEndpointAuth` |
 | `ICacheOrchestratorManagement`, management DTOs and host adapter contracts (**Core**) | `CacheOrchestratorManagement`, `CoreAdminDomainConfigProvider` |
-| `MapCacheOrchestratorAdmin` (**AspNetCore HTTP adapter**) | `AdminLocalApi`, `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
-| `AuthBypassMode`, `ETagMode`, `ClientCacheability`, `DomainAuthEvaluator` (**AspNetCore**) | — |
+| `MapCacheOrchestratorAdmin` (**`CacheOrchestrator.AspNetCore` Admin API**) | `AdminApi`, `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
+| `AuthBypassMode`, `ETagMode`, `ClientCacheability`, `DomainAuthEvaluator` (**`CacheOrchestrator.AspNetCore`**) | — |
 | `ICacheVaryContributor`, `CacheVaryMaterializer`, `ICacheVaryBuilder` | — |
 | `DomainOutputCachePolicy`, `[CacheDomain]`, `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheDomainConvention` |
 | Identity: `.WithCacheIdentity` / `.WithContentHashCacheIdentity`, `[CacheIdentity]` / `[ContentHashCacheIdentity]`, `ICacheIdentityContract`, `AddCacheIdentityContract<T>()`, `CacheIdentities.Url` | `CacheIdentityResolutionHostedService`, binding applicators |
 | Health: `AddCacheOrchestrator()`, `ICacheOrchestratorHealthProbe` | `CacheOrchestratorHealthCheck` |
 | Meter/activity **names** (`CacheOrchestrator`) | `CacheOrchestratorMetrics.Record*` |
 
-Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features` (domain options, entity identity, disposition, pending footprint). Prefer `http.GetDomainCacheOptions()` for the resolved snapshot. The old `CacheOrchestratorKeys` / `HttpContext.Items` slots were removed.
+Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features` (domain options, entity identity, disposition, pending footprint). Read the resolved snapshot with `http.GetDomainCacheOptions()`.
 
 ## Request flow — Output Cache
 
@@ -135,12 +145,12 @@ Output Cache and Data Cache providers can differ (for example, InMemory Output C
 
 ## Related
 
-- [packages.md](../guide/packages.md)  
-- [Guide — concepts](../guide/concepts.md)  
-- [cluster-bus.md](../reference/cluster-bus.md)  
-- [cache-keys.md](../reference/cache-keys.md)  
-- [configuration.md](../reference/configuration.md)  
-- [Output Cache](../reference/output-cache.md)
-- [Data Cache](../reference/data-cache.md)
-- [vary.md](../reference/vary.md)  
-- [deployment.md](../reference/deployment.md)  
+- [Packages](../guide/packages.md) — NuGet layout and ownership  
+- [Guide — concepts](../guide/concepts.md) — product mental model  
+- [cluster-bus.md](../reference/cluster-bus.md) — HttpBus and membership  
+- [cache-keys.md](../reference/cache-keys.md) — key and tag composition  
+- [configuration.md](../reference/configuration.md) — options binding and runtime snapshots  
+- [Output Cache](../reference/output-cache.md) — HTTP policy layer  
+- [Data Cache](../reference/data-cache.md) — Fusion / Hybrid orchestration  
+- [vary.md](../reference/vary.md) — shared vary materializer  
+- [deployment.md](../reference/deployment.md) — multi-instance topologies  

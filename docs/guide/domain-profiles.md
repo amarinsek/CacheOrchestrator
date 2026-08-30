@@ -1,15 +1,23 @@
 # Domain profiles
 
-> **Guide path:** [Concepts](concepts.md) → **Domain profiles** → [Packages](packages.md) · [Guide index](README.md)
+> **Guide** — snapshot vs changing-record domain recipes.
 
 The most important domain decision is how the underlying data changes.
 
 - A **snapshot domain** changes as one coordinated generation: map tiles, annual imagery, a monthly export, or a published price list.
-- A **dynamic domain** changes one entity at a time: products, accounts, orders, or other CRUD data.
+- A **dynamic / CRUD domain** changes one entity at a time: products, accounts, orders, or other CRUD data.
 
 The same application can use both profiles. Give them separate domains because their freshness rules are fundamentally different.
 
-Here **dynamic / CRUD profile** describes how data changes inside one stable domain such as `catalog`. It is different from a [dynamically resolved domain name](../reference/output-cache.md#minimal-apis), where request state selects one configured domain such as `tiles-lsi` or `tiles-osm`.
+## Table of Contents
+
+- [Choose the freshness boundary first](#choose-the-freshness-boundary-first)
+- [Snapshot profile](#snapshot-profile)
+- [Dynamic / CRUD profile](#dynamic-crud-profile)
+- [Collections and related data](#collections-and-related-data)
+- [Choose an ETag policy deliberately](#choose-an-etag-policy-deliberately)
+- [Account for authenticated traffic](#account-for-authenticated-traffic)
+- [When neither profile fits exactly](#when-neither-profile-fits-exactly)
 
 ## Choose the freshness boundary first
 
@@ -100,11 +108,11 @@ For a planned September release:
 4. Set the next scheduled update, or clear `ScheduledUpdateUtc` if no date is known.
 5. Watch `X-Cache`, metrics, and origin load while the new generation warms.
 
-Requests now use new cache keys. Old server entries are no longer selected and expire naturally; a domain purge is optional cleanup, not the freshness mechanism.
+Requests use cache keys for the new Version stamp. Entries under the previous stamp are not selected and expire naturally; a domain purge is optional cleanup, not the freshness mechanism.
 
 ## Dynamic / CRUD profile
 
-Use a dynamic domain when one resource can change without releasing the whole dataset. Product `42` may change while products `7` and `99` remain valid.
+Use a **dynamic / CRUD** domain when one resource can change without releasing the whole dataset. Product `42` may change while products `7` and `99` remain valid.
 
 Keep the domain `Version` stable for ordinary writes. Give each detail endpoint an entity identity and invalidate that identity after the write succeeds.
 
@@ -153,10 +161,7 @@ app.MapGet("/api/products/{id:int}", async (
 
     return product is null ? Results.NotFound() : Results.Json(product);
 })
-.CacheOutputWithDomain(
-    "catalog",
-    entityKind: "products",
-    resourceRouteKey: "id");
+.CacheOutputWithDomain("catalog", entityKind: "products", resourceRouteKey: "id");
 ```
 
 The endpoint declares the identity once:
@@ -172,17 +177,12 @@ The endpoint declares the identity once:
 ```csharp
 app.MapPut("/api/products/{id:int}", async (
     int id,
-    ProductUpdate request,
+    ProductUpdate product,
     ICacheOrchestratorInvalidator invalidator,
     CancellationToken cancellationToken) =>
 {
-    await SaveProductAsync(id, request, cancellationToken);
-
-    await invalidator.InvalidateEntityAsync(
-        "catalog",
-        "products",
-        id,
-        cancellationToken);
+    await SaveProductAsync(id, product, cancellationToken);
+    await invalidator.InvalidateEntityAsync("catalog", "products", id, cancellationToken);
 
     return Results.NoContent();
 });
@@ -194,12 +194,13 @@ The resulting flow is:
 
 ```text
 GET /api/products/42  → miss → database says 10.00 → store Output Cache + Data Cache entries
-PUT /api/products/42  → database says 12.50 → invalidate product 42
+GET /api/products/7   → miss → database says 19.50 → store Output Cache + Data Cache entries
+PUT /api/products/42  → database save 12.50 → invalidate product 42
 GET /api/products/42  → miss → database says 12.50 → store new entries
 GET /api/products/7   → still a hit
 ```
 
-If writes already go through Entity Framework Core, the optional EF integration can invalidate changed entities after a successful `SaveChanges` call. See [EF Core invalidation](../reference/ef-core-invalidation.md).
+> The optional Entity Framework Core integration can automatically invalidate changed entities upon a successful `SaveChanges` call. See [EF Core invalidation](../reference/ef-core-invalidation.md).
 
 ## Collections and related data
 

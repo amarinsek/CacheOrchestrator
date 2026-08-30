@@ -1,12 +1,22 @@
 # Data Cache
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [concepts](../guide/concepts.md). Catalog: [documentation index](../README.md).
+> **Reference** — Data Cache providers, domain resolution, keys, and entity reads.
 
 The **Data Cache** stores **application objects** from your factory (DTOs, tiles, aggregates) — not full HTTP responses. CacheOrchestrator scopes it to the same **domain** as Output Cache and Client Cache. A registered **`IDataCacheProvider`** owns the store (Fusion or Hybrid).
 
 - Portable policy: nested **`DataCache`** (`TtlSeconds`, `Enabled`, `Instance`, …).
 - Web: **`IDomainDataCache`**. Libraries / workers: Core **`ICacheOrchestrator`** + `CacheDomainContext`.
 - Which NuGet: [packages](../guide/packages.md). Copy-paste stacks: [composition](../how-to/composition.md).
+
+## Table of Contents
+
+- [Providers](#providers)
+- [How the Data Cache finds the domain](#how-the-data-cache-finds-the-domain)
+- [When the factory runs uncached](#when-the-factory-runs-uncached)
+- [Cache key](#cache-key)
+- [Results (`X-Cache` `dc=` and `DataCacheResult`)](#results-x-cache-dc-and-datacacheresult)
+- [FusionCache provider](#fusioncache-provider)
+- [HybridCache provider](#hybridcache-provider)
 
 ## Providers
 
@@ -15,11 +25,11 @@ The **Data Cache** stores **application objects** from your factory (DTOs, tiles
 | **CacheOrchestrator.FusionCache** | ZiggyCreatures FusionCache (default in the meta package) | `DataCache.*` + nested **`FusionCache.*`** (hard TTL, fail-safe, jitter, factory timeouts, …) |
 | **CacheOrchestrator.HybridCache** | Microsoft HybridCache | `DataCache.TtlSeconds` only — ignores `FusionCache` |
 
-Register exactly one provider. Meta `AddCacheOrchestrator` = AspNetCore + Fusion.
+Register exactly one provider. Meta `AddCacheOrchestrator` = `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`.
 
 An Output-Cache-only host does not need to configure `DataCache.Enabled`. Without a Data Cache provider, startup and health remain healthy; only an actual `IDomainDataCache` / `ICacheOrchestrator` operation logs a one-time warning and runs its factory uncached.
 
-**Hybrid instead of Fusion:** call `AddHybridCache()`, then `AddCacheOrchestratorAspNetCore`, then `AddCacheOrchestratorHybridCache` (replaces any prior `IDataCacheProvider`). Nested `FusionCache.*` domain knobs are ignored. Full sample: [composition §5](../how-to/composition.md#scenario-5).
+**Hybrid instead of Fusion:** call `AddHybridCache()`, then `AddCacheOrchestratorAspNetCore`, then `AddCacheOrchestratorHybridCache` (replaces any prior `IDataCacheProvider`). Nested `FusionCache.*` domain knobs are ignored. Full sample: [composition.md — 5](../how-to/composition.md#scenario-5).
 
 Package READMEs: [FusionCache](../../src/CacheOrchestrator.FusionCache/README.md), [HybridCache](../../src/CacheOrchestrator.HybridCache/README.md). Domain resolution, keys, entity identity, and `dc=` results below are **shared** across providers.
 
@@ -50,9 +60,7 @@ app.MapGet("/api/products", async (HttpContext http, IDomainDataCache cache) =>
 public class ProductsController : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Get(
-        [FromServices] IDomainDataCache cache,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Get([FromServices] IDomainDataCache cache, CancellationToken cancellationToken)
     {
         var data = await cache.GetOrSetAsync(HttpContext, LoadAsync, cancellationToken);
         return Ok(data);
@@ -113,14 +121,15 @@ The same footprint model also covers lists, references, aggregates, nested colle
 
 Also: [domain-profiles.md](../guide/domain-profiles.md), [invalidation.md](invalidation.md), [cache-keys.md](cache-keys.md).
 
-For a Data-Cache-only endpoint, set a natural typed ID through the generic extension:
+For a Data-Cache-only endpoint, bind the domain and a natural typed ID, then call `GetOrSetEntityAsync(http, factory)`:
 
 ```csharp
+domains.EnsureDomainOptions(http, "store");
 cache.SetEntityIdentity(http, "products", 42);
-await cache.GetOrSetEntityAsync(http, "store", factory, cancellationToken);
+await cache.GetOrSetEntityAsync(http, factory, cancellationToken);
 ```
 
-The extension formats `IFormattable` values with invariant culture. Use a string only when the identifier itself is a string, for example `"ABC-42"`.
+`SetEntityIdentity` formats `IFormattable` values with invariant culture. Use a string only when the identifier itself is a string, for example `"ABC-42"`.
 
 ## When the factory runs uncached
 
@@ -136,15 +145,23 @@ The extension formats `IFormattable` values with invariant culture. Use a string
 With entity identity (`GetOrSetEntityAsync`):
 
 ```text
-co3:{escapedDomain}:{versionHex}:id:{entityKind}:{resourceId}:{hash}
+co3:{escapedDomain}:{versionHex}:e:{hash}
 ```
 
-Without a resource id (URL-shaped):
+URL-shaped (`GetOrSetAsync` / collections):
+
+```text
+co3:{escapedDomain}:{versionHex}:u:{hash}
+```
+
+Hash material for URL-shaped keys includes:
 
 1. Route pattern and route values (or path)
 2. Query string (tracking parameters omitted: `utm_*`, `gclid`, …)
 3. `Accept-Encoding` if `DataCache.VaryOnEncoding`
 4. Scheme and host if `DataCache.VaryOnPublicAddress`
+
+Entity keys hash `entityKind` + `resourceId` (plus the same encoding / public-address flags when enabled), not path or query. The lookup string carries only the `u` / `e` marker and hash — kind and id stay in tags for invalidation.
 
 The string includes **domain** and **Version**. Every entry is tagged `domain:{name}`.
 
@@ -202,7 +219,7 @@ There is **no** `DataCacheResult.Fail` and **no** `dc=fail` on `X-Cache`. A hard
 
 When `dc` is not `hit`, `X-Cache` also includes `fa=run`. `dc=n/a` means the endpoint generated the response without making a Data Cache operation; it is a header-only state, not a `DataCacheResult` enum value. Admin and factory instruments still count that application/origin work. An Output Cache `hit` omits `dc` and `fa`.
 
-Admin Console's exclusive pipeline mix is **Output Cache hit + fresh Data Cache hit + factory run**. Factory run is the share of requests that require application/origin work, including direct `dc=n/a`, `off`, `unresolved`, bypass with factory, miss, and stale. **Data Cache stale %** is an overlay on requests, not a fourth mix segment. Layer `bypass` remains an authentication or `no-store` skip, not “caching disabled”.
+Admin Console App's exclusive pipeline mix is **Output Cache hit + fresh Data Cache hit + factory run**. Factory run is the share of requests that require application/origin work, including direct `dc=n/a`, `off`, `unresolved`, bypass with factory, miss, and stale. **Data Cache stale %** is an overlay on requests, not a fourth mix segment. Layer `bypass` remains an authentication or `no-store` skip, not “caching disabled”.
 
 ---
 
@@ -221,11 +238,11 @@ Admin Console's exclusive pipeline mix is **Output Cache hit + fresh Data Cache 
 | `FusionCache.FactorySoftTimeoutSeconds` / `FactoryHardTimeoutSeconds` | `FactorySoftTimeout` / `FactoryHardTimeout` |
 | `FusionCache.AllowBackground*` | distributed and backplane background work |
 
-Stampede protection and fail-safe stale serve come from FusionCache itself. Nested JSON schema: [configuration.md](configuration.md#fusioncache-fusion-package-only).
+Stampede protection and fail-safe stale serve come from FusionCache itself. Nested JSON schema: [configuration.md](configuration.md#fusioncache-cacheorchestratorfusioncache-only).
 
 Effective Fusion settings are merged and cached per normalized domain and runtime-override stamp. Prepared `FusionCacheEntryOptions` are also reused while the Core and Fusion snapshots are unchanged, so a normal L1 hit does not traverse Configuration Binder or rebuild entry options. Configuration reload and Admin overrides replace the cached snapshots.
 
-The provider stores a small typed envelope around the application value so it can distinguish a value materialized by the current call from a cached or fail-safe stale value. This is an internal v3 storage format; all nodes sharing an L2 store must be upgraded together.
+The provider stores a small typed envelope around the application value so it can distinguish a value materialized by the current call from a cached or fail-safe stale value. Every node that shares that L2 store must run a build that understands the same envelope.
 
 ---
 
@@ -246,7 +263,7 @@ builder.Services.AddCacheOrchestratorHybridCache();
 - Optional L2: configure HybridCache / `IDistributedCache` as usual (outside this package) — not Fusion `AddRedisBackend`.
 - Prefer **Fusion** when you need fail-safe, eager refresh, or the full Fusion surface.
 
-Like the Fusion provider, HybridCache stores an internal typed envelope used to report whether this call materialized the returned value. Upgrade nodes that share its distributed storage together.
+Like the Fusion provider, HybridCache stores an internal typed envelope used to report whether this call materialized the returned value. Run the same package build on every node that shares that distributed store.
 
 Package README: [CacheOrchestrator.HybridCache](../../src/CacheOrchestrator.HybridCache/README.md).
 
@@ -254,10 +271,11 @@ Package README: [CacheOrchestrator.HybridCache](../../src/CacheOrchestrator.Hybr
 
 ## Related
 
-- [Guide — concepts](../guide/concepts.md)
-- [packages.md](../guide/packages.md)
-- [cache-keys.md](cache-keys.md)
-- [configuration.md](configuration.md)
-- [invalidation.md](invalidation.md)
-- [architecture.md](../contributor/architecture.md)
-- [Output Cache](output-cache.md)
+- [Guide — concepts](../guide/concepts.md) — domain model and Data Cache role  
+- [Packages](../guide/packages.md) — Fusion vs Hybrid vs meta packages  
+- [cache-keys.md](cache-keys.md) — `u:` / `e:` provider keys and hash material  
+- [configuration.md](configuration.md) — `DataCache` / `DataCacheInstances` / `Distributed`  
+- [invalidation.md](invalidation.md) — domain and entity tag purge  
+- [entity-footprint.md](entity-footprint.md) — members, depends-on, aliases  
+- [Output Cache](output-cache.md) — HTTP policy and domain binding on endpoints  
+- [architecture.md](../contributor/architecture.md) — request flow and package layout  

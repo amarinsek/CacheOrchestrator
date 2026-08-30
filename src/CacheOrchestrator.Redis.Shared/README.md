@@ -8,7 +8,7 @@ This package contains shared Redis connection options and configuration resoluti
 
 **Do not install this package directly.** It is pulled in transitively by the public Redis packages and does not expose an application-level registration API.
 
-Choose the Redis package that matches your host in the [package composition guide](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md).
+Choose `CacheOrchestrator.Redis`, `CacheOrchestrator.AspNetCore.Redis`, or `CacheOrchestrator.FusionCache.Redis` to match your host in the [package composition guide](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md).
 
 ## Documentation
 

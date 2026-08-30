@@ -1,10 +1,10 @@
 # Deployment
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide — topologies](../guide/topologies.md). Catalog: [documentation index](../README.md).
+> **Reference** — single- and multi-instance topologies, Redis, and shared configuration.
 
 How to run CacheOrchestrator on one process or on several: in-memory stores, Redis, the backplane, and the cluster bus.
 
-**Redis package:** any topology below that uses `"Provider": "Redis"` requires:
+**`CacheOrchestrator.Redis`:** any topology below that uses `"Provider": "Redis"` requires:
 
 ```bash
 dotnet add package CacheOrchestrator.Redis --prerelease
@@ -27,6 +27,16 @@ app.MapCacheOrchestratorHttpBus();
 ```
 
 ---
+
+## Table of Contents
+
+- [Single instance (in-memory only)](#single-instance-in-memory-only)
+- [Multiple instances with Redis](#multiple-instances-with-redis)
+- [Multiple instances without Redis (InMemory Data Cache, no backplane)](#multiple-instances-without-redis-inmemory-data-cache-no-backplane)
+- [Mixed backends (Output Cache InMemory + Data Cache Redis)](#mixed-backends-output-cache-inmemory-data-cache-redis)
+- [Using multiple Data Cache instances](#using-multiple-data-cache-instances)
+- [Shared configuration across instances](#shared-configuration-across-instances)
+- [Security checklist](#security-checklist)
 
 ## Single instance (in-memory only)
 
@@ -99,10 +109,10 @@ Data Cache (Fusion) invalidation:
 Instance B's L1 memory would still hold stale data until its TTL expired. The Redis backplane
 (pub/sub) delivers the invalidation signal so L1 is cleared immediately on all nodes.
 
-**Backplane channel:** `{DataCacheNamespace}:backplane` (e.g. `my-app-fc:backplane`).
-Effective Data Cache namespace is `Cache:DataCacheInstances:{name}:Namespace` if set, else `{Cache:Namespace}-fc` for instance `default`, else `{Cache:Namespace}-fc-{instanceName}`. The `-fc` suffix is historical. Multiple apps on the same Redis cluster stay isolated when those prefixes differ.
+**Backplane channel:** `{DataCacheNamespace}:backplane` (e.g. `my-app-dc:backplane`).
+Effective Data Cache namespace is `Cache:DataCacheInstances:{name}:Namespace` if set, else `{Cache:Namespace}-dc` for instance `default`, else `{Cache:Namespace}-dc-{instanceName}`. Multiple apps on the same Redis cluster stay isolated when those prefixes differ.
 
-Runtime Version / TTL / **settings** overlays are **not** carried by the Fusion backplane. Use the [cluster bus](cluster-bus.md) (`CacheOrchestrator.HttpBus`) or Admin Console fan-out for those.
+Runtime Version / TTL / **settings** overlays are **not** carried by the Fusion backplane. Use the [cluster bus](cluster-bus.md) (`CacheOrchestrator.HttpBus`) or Admin Console App fan-out for those.
 
 ---
 
@@ -174,7 +184,7 @@ while the Fusion Data Cache provider uses Redis so object data is shared and inv
 | Data Cache L1 (Fusion) | Per-process memory | No (but invalidated via backplane) |
 | Data Cache L2 (Fusion) | Redis | Yes |
 
-Output Cache will eventually diverge between instances (until TTL expires or endpoint is not hit on that instance yet).
+Output Cache will eventually diverge between instances (until TTL expires, or that instance has not served the endpoint since the change).
 Fusion object data stays consistent because Redis is the shared source of truth and the backplane keeps L1 in sync.
 
 ---
@@ -287,28 +297,20 @@ Keep host-specific settings in `appsettings.json` / environment; put **cluster-w
       "Provider": "InMemory"
     },
     "DataCacheInstances": {
-      "default": {
-        "Provider": "Redis"
-      }
+      "default": { "Provider": "Redis" }
     },
     "Redis": {
       "Configuration": "redis-primary:6379"
     },
     "DomainDefaults": {
-      "ClientCache": {
-        "Cacheability": "Public",
-        "TtlMinSeconds": 60
-      }
+      "ClientCache": {"Cacheability": "Public", "TtlMinSeconds": 60 }
     },
     "Domains": {
       "catalog": {
         "Version": "2026-08",
         "DataCache": { "TtlSeconds": 3800 },
         "OutputCache": { "TtlSeconds": 3700 },
-        "ClientCache": {
-          "TtlSeconds": 3600,
-          "ScheduledUpdateUtc": "2026-09-01T00:00:00Z"
-        }
+        "ClientCache": { "TtlSeconds": 3600, "ScheduledUpdateUtc": "2026-09-01T00:00:00Z" }
       },
       "live-tracking": {
         "Version": "1",
@@ -334,14 +336,26 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 | Browser caches near a data cutover | [Client Cache Schedule](../guide/client-cache-schedule.md) |
 | One product row changed under same Version | [Entity invalidation](invalidation.md) / [domain profiles](../guide/domain-profiles.md) |
 
+## Security checklist
+
+> [!IMPORTANT]
+> Multi-instance layouts share stores and (optionally) command paths. Treat configuration and network as part of the threat model:
+>
+> - [ ] Keep the same `Cache:Namespace`, domain `Version` / TTLs, and Redis targets on every instance that shares a store ([shared configuration](#shared-configuration-across-instances))
+> - [ ] Do not expose Admin API or cluster receive routes on the public internet — see [admin.md](admin.md#security-checklist) and [cluster-bus.md](cluster-bus.md#security-checklist)
+> - [ ] Put Redis (Output Cache / Fusion L2 / backplane) on a private network; use auth and TLS as your platform requires
+> - [ ] Use distinct namespaces (or Redis instances) when apps or environments must not share keyspace
+> - [ ] Prefer secret stores for Redis connection strings and Admin/Bus API keys — never commit production secrets
+
 ## Related
 
 - [Guide — topologies](../guide/topologies.md) — which layout to pick  
 - [configuration.md](configuration.md) — namespaces, providers, full schema  
-- [backends.md](backends.md) — Redis package and custom registrars  
-- [Data Cache](data-cache.md)
-- [invalidation.md](invalidation.md)  
-- [observability.md](observability.md)  
+- [backends.md](backends.md) — `CacheOrchestrator.Redis` and custom registrars  
+- [Data Cache](data-cache.md) — providers, instances, and L2 behaviour  
+- [invalidation.md](invalidation.md) — purge strategies across instances  
+- [observability.md](observability.md) — metrics, `X-Cache`, health  
+- [cluster-bus.md](cluster-bus.md) — HTTP fan-out when Redis backplane is not enough  
 - [faq.md](../guide/faq.md) — multi-instance and InMemory limitations  
-- [comparison.md](../guide/comparison.md) — when Redis Output Cache alone is enough
+- [comparison.md](../guide/comparison.md) — when Redis Output Cache alone is enough  
 - [domain-profiles.md](../guide/domain-profiles.md) — Version vs TTL cutovers  

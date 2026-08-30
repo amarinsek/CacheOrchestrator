@@ -6,9 +6,9 @@ using CacheOrchestrator.Invalidation;
 namespace CacheOrchestrator.AdminConsole.Services;
 
 /// <summary>
-/// HTTP client for a single instance's Local Admin API.
+/// HTTP client for a single instance's Admin API.
 /// </summary>
-public interface ILocalAdminClient
+public interface IAdminApiClient
 {
     /// <summary>GET health for one instance.</summary>
     Task<InstanceCallOutcome<AdminHealthDto>> GetHealthAsync(
@@ -48,12 +48,12 @@ public interface ILocalAdminClient
     /// <summary>
     /// GET cluster bus info (<c>…/cluster/info</c>). Fails when bus receive endpoints are not mapped.
     /// </summary>
-    Task<InstanceCallOutcome<LocalClusterInfoDto>> GetClusterInfoAsync(
+    Task<InstanceCallOutcome<AdminApiClusterInfoDto>> GetClusterInfoAsync(
         AdminInstanceOptions instance,
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>Typed outcome of a Local Admin call including latency metadata.</summary>
+/// <summary>Typed outcome of a Admin API call including latency metadata.</summary>
 public sealed class InstanceCallOutcome<T>
 {
     /// <summary>Configured instance id.</summary>
@@ -75,12 +75,12 @@ public sealed class InstanceCallOutcome<T>
     public double LatencyMs { get; init; }
 
     /// <summary>
-    /// When Local Admin returned 409 cluster-publish incomplete: origin already applied locally.
+    /// When Admin API returned 409 cluster-publish incomplete: origin already applied locally.
     /// </summary>
     public bool LocalApplied { get; init; }
 
     /// <summary>Peer failures from a 409 cluster-publish incomplete response.</summary>
-    public IReadOnlyList<LocalAdminPeerFailureDto> PeerFailures { get; init; } = [];
+    public IReadOnlyList<AdminApiPeerFailureDto> PeerFailures { get; init; } = [];
 
     /// <summary>Maps to the fan-out result DTO (without payload).</summary>
     public InstanceCallResultDto ToResultDto() =>

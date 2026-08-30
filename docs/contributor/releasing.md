@@ -1,8 +1,18 @@
 # Releasing CacheOrchestrator
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [Guide](../guide/README.md). Catalog: [documentation index](../../README.md). Contributor procedure.
+> **Contributor** — versioning, packaging, and release procedure.
 
 How versions, NuGet packages, and GitHub Releases fit together.
+
+## Table of Contents
+
+- [Versioning (MinVer)](#versioning-minver)
+- [Release notes](#release-notes)
+- [Package READMEs (NuGet vs GitHub)](#package-readmes-nuget-vs-github)
+- [Compatibility and package gates](#compatibility-and-package-gates)
+- [Checklist](#checklist)
+- [Optional: package signing](#optional-package-signing)
+- [Local pack smoke test](#local-pack-smoke-test)
 
 ## Versioning (MinVer)
 
@@ -22,12 +32,12 @@ dotnet build src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -v:m
 
 **Requires full Git history** on CI (`fetch-depth: 0` — already set in workflows).
 
-## Release notes (two files)
+## Release notes
 
-| File | Audience | Role |
-|------|----------|------|
-| [CHANGELOG.md](../../CHANGELOG.md) | Humans / GitHub | Full history |
-| [PACKAGE_RELEASE_NOTES.md](../../PACKAGE_RELEASE_NOTES.md) | nuget.org | Short notes for **this** version only |
+| Surface | Audience | Role |
+|---------|----------|------|
+| [GitHub Releases](https://github.com/amarinsek/CacheOrchestrator/releases) | Humans | Full history per tag (canonical) |
+| [PACKAGE_RELEASE_NOTES.md](../../PACKAGE_RELEASE_NOTES.md) | nuget.org | Short notes for **this** version only; link to the matching `releases/tag/v…` |
 
 ## Package READMEs (NuGet vs GitHub)
 
@@ -88,7 +98,7 @@ dotnet pack src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj \
   -c Release --no-build -o ./nupkg
 ```
 
-The repository does not currently set `PackageValidationBaselineVersion`, so this gate does **not** compare prerelease v3 packages with the last package published on nuget.org. That is intentional for the v3 major cutover. After a stable v3 baseline exists, a maintainer can explicitly compare a later compatible release with it:
+The repository does not set `PackageValidationBaselineVersion`, so this gate does **not** compare packages against nuget.org by default. To compare a release against a chosen baseline version:
 
 ```bash
 dotnet pack src/CacheOrchestrator.Core/CacheOrchestrator.Core.csproj \
@@ -102,8 +112,8 @@ Use the latest applicable stable version from the same major line. Baseline vali
 
 Analyzer unit tests verify `COIDENTITY001` logic. The **Package analyzer consumer smoke** step in [`.github/workflows/build.yml`](../../.github/workflows/build.yml) additionally verifies delivery from the generated packages on every pull request to `main` and every push to `main`:
 
-1. Pack Core, FusionCache, AspNetCore, and the `CacheOrchestrator` meta package.
-2. Confirm that the AspNetCore nupkg contains `analyzers/dotnet/cs/CacheOrchestrator.Analyzers.dll`.
+1. Pack `CacheOrchestrator.Core`, `CacheOrchestrator.FusionCache`, `CacheOrchestrator.AspNetCore`, and the `CacheOrchestrator` meta package.
+2. Confirm that the `CacheOrchestrator.AspNetCore` nupkg contains `analyzers/dotnet/cs/CacheOrchestrator.Analyzers.dll`.
 3. Create an external `net8.0` project with only the meta package installed.
 4. Compile an action with duplicate `GET` identity bindings.
 5. Require the consumer build to fail with `COIDENTITY001` from the packaged analyzer.
@@ -115,7 +125,7 @@ The release publish workflow packs the final package set and therefore runs SDK 
 ## Checklist
 
 1. Merge all release work to `main`.
-2. Update **CHANGELOG.md** and **PACKAGE_RELEASE_NOTES.md**.
+2. Update **PACKAGE_RELEASE_NOTES.md** (short NuGet blurb + link to the release tag you are about to create). Draft the **GitHub Release** body from merged PR worklogs.
 3. Commit on `main`; wait for **Build and Test** to pass, including the packaged-analyzer consumer smoke.
 4. Create an **annotated tag**:
 
@@ -126,7 +136,7 @@ The release publish workflow packs the final package set and therefore runs SDK 
 
 5. Create a **GitHub Release** for that tag (**not** marked pre-release for a stable release).  
    This triggers [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml):
-   - unit tests (Core / Fusion / Hybrid / AspNetCore / Redis.Shared / AspNetCore.Redis / FusionCache.Redis / Redis meta / HttpBus / EF) on net8 + net10; Admin Console on net10
+   - unit tests (`Core` / `FusionCache` / `HybridCache` / `AspNetCore` / `Redis.Shared` / `AspNetCore.Redis` / `FusionCache.Redis` / Redis meta / `HttpBus` / EF) on net8 + net10; Admin Console App on net10
    - integration tests on net8/net10 + Testcontainers Redis; Minimal sample smoke
    - `dotnet pack` for **all** packable NuGet libraries → `.nupkg` + `.snupkg` (includes Redis.Shared as support; see pack list in `publish.yml`); each pack runs SDK package validation
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)
@@ -145,7 +155,7 @@ The release publish workflow packs the final package set and therefore runs SDK 
 
 ## Optional: package signing
 
-Not enabled in CI. See historical notes: sign locally with `dotnet nuget sign` if you have a certificate.
+Not enabled in CI. Sign locally with `dotnet nuget sign` if you have a certificate.
 
 ## Local pack smoke test
 

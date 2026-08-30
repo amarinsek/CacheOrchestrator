@@ -16,6 +16,18 @@ For a single process on your machine without Docker, use the [Playground sample]
 
 ---
 
+## Table of Contents
+
+- [Experiment (this is the point)](#experiment-this-is-the-point)
+- [Stage 01 — Observability](#stage-01-observability)
+- [Stage 02 — Redis as Fusion L2](#stage-02-redis-as-fusion-l2)
+- [Stage 03 — Two playgrounds + shared Redis L2](#stage-03-two-playgrounds-shared-redis-l2)
+- [Stage 04 — Cluster bus](#stage-04-cluster-bus)
+- [Stage 05 — OC Redis + FC Redis + Cluster bus](#stage-05-oc-redis-fc-redis-cluster-bus)
+- [Lab vs production](#lab-vs-production)
+- [Troubleshooting](#troubleshooting)
+- [Where to read more](#where-to-read-more)
+
 ## Experiment (this is the point)
 
 Each lab gives you a **running playground** (and Admin Console + Prometheus). Treat it as a sandpit:
@@ -147,7 +159,8 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/02-redis.yml up 
 ### When this layout fits
 
 - You can lose HTTP response cache on recycle, but not expensive object rebuilds  
-- Preparing for a second replica without running two apps yet  
+- Single-process rehearsal for a second replica  
+
 
 ### What to try
 
@@ -461,14 +474,14 @@ Other simplifications exist for the same reason: **focus on cache behaviour** (O
 | Settings back to defaults after `down` (stages 01–02) | Expected for single-node labs |
 | Multi-lab settings still changed after `down` (no `-v`) | Named volume keeps policy — use `down -v` then `up` to re-seed from `appsettings.seed.json` |
 | POST identity tab: unknown domain `product-search` / options miss | Stages **03–05** shared volume may predate that domain — `down -v` then `up --build` to re-seed. Stages **01–02**: rebuild playground image so baked `appsettings.json` includes `product-search`. |
-| `Error response from daemon: open /var/lib/docker/tmp/...` on `up --build` | Old compose used a **volume file subpath** mount (fragile on Docker Desktop). Current labs mount `/shared` as a directory + entrypoint symlink. Pull latest compose/Dockerfile; one-time `down -v` if an old broken mount is stuck, then `up --build -d`. |
+| `Error response from daemon: open /var/lib/docker/tmp/...` on `up --build` | Compose must mount `/shared` as a **directory** (file subpath mounts break on Docker Desktop); labs use a directory mount plus an entrypoint symlink. Run `down -v`, then `up --build -d`. |
 | Bus not distributing | Stages 04–05 only; peers use Docker DNS URLs in lab config |
 | No **BROWSER-CACHE**, or always server hits | Header toggle **Disable browser HTTP cache** is **on by default** (for server OC/FC demos). Uncheck only when you want client `max-age` / BROWSER-CACHE. The Playground uses a per-request echo to distinguish browser responses from cached responses whose old `X-Cache` header says `oc=hit`. |
 | OC-HIT then sudden MISS / FACTORY | Domain **TTL** expired — check `OutputCache.TtlSeconds` vs `DataCache.TtlSeconds` / `fusionCache.hardTtlSeconds` for that domain in `Cache:Domains` |
 | Always FACTORY, never hits | Domain disabled? Wrong endpoint/domain? Keys differ (query, host — multi-lab keys note in Stage 03)? |
 | Client headers not what you expect | `ClientCache.TtlSeconds` / schedule / **Disable browser HTTP cache** (Fetch uses `no-store` when on) |
 | A vs B disagree | Topology (bus off, OC InMemory local) — not a TTL bug; see Stages 03–05 |
-| appsettings Save: `cat` in container is new, HTTP GET / UI still old | Output Cache **base policy** was caching `/api/demo/appsettings`. Fixed with `NoStore` on demo control routes — rebuild playground image. |
+| appsettings Save: `cat` in container is new, HTTP GET / UI still old | Demo control routes must use `NoStore` so `/api/demo/appsettings` is not served from Output Cache — rebuild the playground image if badges look stale after Save. |
 | A Save applies on A; B settings UI shows new JSON but Fetch still old Version/TTL | B reads the file for the editor, but runtime options need a config **reload**. Sample polls the shared volume (~1s) and reloads; rebuild playground image. Stage 03 has no bus — file share + poll is intentional. |
 
 ---

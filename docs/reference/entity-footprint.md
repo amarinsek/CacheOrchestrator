@@ -1,10 +1,27 @@
 # Entity footprint
 
-> **Reference.** Product overview: [root README](../../README.md). Orientation: [domain profiles](../guide/domain-profiles.md). Catalog: [documentation index](../README.md). Data Cache API: [Data Cache](data-cache.md).
+> **Reference** — which entities a cached value depends on, for targeted invalidation.
 
 An entity footprint describes which business entities contributed to a cached value. It lets invalidation retire the affected details, lists, references, aggregates, nested collections, batches, and aliases without bumping the whole domain `Version`.
 
 Declare primary identity on the endpoint (`resourceRouteKey` + `entityKind`, or `entityKind` alone for collections). Extend the footprint in the factory with `EntityCache` or `EntitySet`. The normal read APIs are `GetOrSetEntityAsync` and `GetOrSetEntitySetAsync`.
+
+## Table of Contents
+
+- [Model (short)](#model-short)
+- [Detail (primary only)](#detail-primary-only)
+- [Negative cache](#negative-cache)
+- [References / expanded graph](#references-expanded-graph)
+- [Aggregate (root + children)](#aggregate-root-children)
+- [List / search / page](#list-search-page)
+- [Filtered view](#filtered-view)
+- [Nested resource](#nested-resource)
+- [Batch `?ids=`](#batch-ids)
+- [Derived / computed](#derived-computed)
+- [Alternate key (alias)](#alternate-key-alias)
+- [Dashboard / composite widget](#dashboard-composite-widget)
+- [Fusion-only (no Output Cache entity metadata)](#fusion-only-no-output-cache-entity-metadata)
+- [Snapshot list without member tags](#snapshot-list-without-member-tags)
 
 ## Model (short)
 

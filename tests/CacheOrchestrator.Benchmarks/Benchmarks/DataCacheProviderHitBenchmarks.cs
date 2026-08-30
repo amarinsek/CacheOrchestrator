@@ -61,7 +61,7 @@ public class DataCacheProviderHitBenchmarks
                 VersionHex = "01",
                 DataCacheEnabled = true,
                 DataCacheInstanceName = "default",
-                DataCacheNamespace = "bench-fc",
+                DataCacheNamespace = "bench-dc",
                 DataCacheTtl = TimeSpan.FromMinutes(5)
             }
         };

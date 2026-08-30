@@ -1,7 +1,7 @@
 namespace CacheOrchestrator.Admin;
 
 /// <summary>
-/// Live in-process counters for Local Admin API. No-op when Admin is disabled.
+/// Live in-process counters for Admin API. No-op when Admin is disabled.
 /// </summary>
 public interface IAdminStatsCollector
 {

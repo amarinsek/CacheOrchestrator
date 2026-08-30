@@ -1,10 +1,22 @@
 # Topologies
 
-> **Guide path:** [Packages](packages.md) → **Topologies** → [Client Cache Schedule](client-cache-schedule.md) · [Guide index](README.md)
+> **Guide** — where cached values live and how instances learn about changes.
 
 A domain says how data should be cached. A topology says where cached values live and how application instances learn about changes.
 
 Start with one process and in-memory stores. Add Redis or the HTTP cluster bus only when a deployment requirement calls for it.
+
+## Table of Contents
+
+- [Separate storage from coordination](#separate-storage-from-coordination)
+- [Topology 1: one process, all in memory](#topology-1-one-process-all-in-memory)
+- [Topology 2: several instances, both stores in Redis](#topology-2-several-instances-both-stores-in-redis)
+- [Topology 3: local Output Cache, shared Data Cache](#topology-3-local-output-cache-shared-data-cache)
+- [Topology 4: several in-memory instances with HttpBus](#topology-4-several-in-memory-instances-with-httpbus)
+- [Choose Redis, HttpBus, or both](#choose-redis-httpbus-or-both)
+- [Named Data Cache instances isolate workloads](#named-data-cache-instances-isolate-workloads)
+- [Namespace every application](#namespace-every-application)
+- [Learn the layouts in the topology labs](#learn-the-layouts-in-the-topology-labs)
 
 ## Separate storage from coordination
 
@@ -21,7 +33,7 @@ These components have distinct jobs:
 | Redis Output Cache store | Yes, HTTP responses | Eviction operates on the shared store | No |
 | FusionCache Redis L2 | Yes, data objects | Shared L2 is purged | No |
 | FusionCache Redis backplane | No | Clears Fusion L1 entries on peers | No |
-| CacheOrchestrator HttpBus | No | Tells peers to run the same local purge | Yes, for distributed Admin operations |
+| `CacheOrchestrator.HttpBus` | No | Tells peers to run the same local purge | Yes, for distributed Admin operations |
 
 The bus never handles normal cache reads and never transports cached payloads.
 
@@ -145,7 +157,7 @@ Every instance must:
 
 With the bus enabled, a programmatic `Invalidate*` call applies locally and publishes an invalidation command. Peers apply the same purge locally without republishing it.
 
-Admin changes to runtime Version, TTL, or settings are distributed only when the operation requests `distribute: true`. The Admin Console chooses between bus distribution and direct fan-out.
+Admin changes to runtime Version, TTL, or settings are distributed only when the operation requests `distribute: true`. The Admin Console App chooses between bus distribution and direct fan-out.
 
 This topology coordinates invalidation but does not share warm entries. Each process still fills and stores its own copy, and all entries disappear when that process restarts.
 
@@ -158,7 +170,7 @@ This topology coordinates invalidation but does not share warm entries. Each pro
 | Share FusionCache data objects and clear peer L1 entries | Redis L2 + backplane |
 | Purge in-memory Output Cache on every node | HttpBus |
 | Coordinate nodes without Redis | HttpBus |
-| Apply runtime Version/TTL/settings overlays on every node | HttpBus or Admin Console fan-out |
+| Apply runtime Version/TTL/settings overlays on every node | HttpBus or Admin Console App fan-out |
 | Redis Fusion L2 plus local Output Cache | Redis + optionally HttpBus for the Output Cache gap |
 
 Using the Redis backplane and HttpBus together for the same Fusion tag purge is safe because purges are idempotent, but it is often redundant. Add both only when the bus has another job, such as local Output Cache eviction or runtime overlays.
@@ -210,7 +222,7 @@ The playground includes five Docker Compose stages:
 
 | Lab | Adds | Lesson |
 |-----|------|--------|
-| 01 | InMemory app, Prometheus, Admin Console | Observe one process |
+| 01 | InMemory app, Prometheus, Admin Console App | Observe one process |
 | 02 | FusionCache Redis L2 | Share data objects while Output Cache stays local |
 | 03 | A second app instance | Expose the local Output Cache gap |
 | 04 | HttpBus | Send commands to every node |

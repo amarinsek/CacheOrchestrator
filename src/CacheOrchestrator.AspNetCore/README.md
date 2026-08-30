@@ -2,7 +2,7 @@
 
 [**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
-This package is the **ASP.NET Core host** layer: Output Cache domain policies, Client Cache headers, Admin API, vary rules, and HTTP **`IDomainDataCache`** (a thin projection over Core `ICacheOrchestrator`). It depends on **Core** only. You still need a Data Cache provider package (Fusion or Hybrid) unless you use Output Cache alone.
+This package is the HTTP host layer: Output Cache domain policies, Client Cache headers, Admin API, vary rules, and HTTP **`IDomainDataCache`** (a thin projection over `CacheOrchestrator.Core` `ICacheOrchestrator`). It depends on **`CacheOrchestrator.Core`** only. You still need a Data Cache provider package (`CacheOrchestrator.FusionCache` or `CacheOrchestrator.HybridCache`) unless you use Output Cache alone.
 
 ## Install
 
@@ -57,7 +57,7 @@ Without `.CacheOutputWithDomain` / `[CacheDomain]`, Output Cache does not store 
 
 Without identity bindings, Output Cache applies to **GET/HEAD** with Url identity. For other methods (or a custom GET key), use `.WithCacheIdentity` / `[CacheIdentity]` or `.WithContentHashCacheIdentity` / `[ContentHashCacheIdentity]` (`CacheOrchestrator.Identity`). Register named contracts with `AddCacheIdentityContract<T>()`. Docs: [endpoint cache identity](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/cache-identity.md).
 
-For a single NuGet reference that already includes AspNetCore + Fusion, see **CacheOrchestrator**.
+For a single NuGet reference that already includes `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`, see the **`CacheOrchestrator`** meta package.
 
 ## Documentation
 

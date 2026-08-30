@@ -8,17 +8,17 @@ using Microsoft.Extensions.Options;
 namespace CacheOrchestrator.AdminConsole.Services;
 
 /// <summary>
-/// Orchestrates parallel fan-out to Local Admin APIs and aggregates results.
+/// Orchestrates parallel fan-out to Admin APIs and aggregates results.
 /// </summary>
 public sealed class AdminFanOutService
 {
-    private readonly ILocalAdminClient _client;
+    private readonly IAdminApiClient _client;
     private readonly AdminConsoleOptions _options;
     private readonly TimeProvider _time;
     private readonly InstanceReachabilityCache _reachability;
 
     public AdminFanOutService(
-        ILocalAdminClient client,
+        IAdminApiClient client,
         IOptions<AdminConsoleOptions> options,
         InstanceReachabilityCache reachability,
         TimeProvider? timeProvider = null)
@@ -176,7 +176,7 @@ public sealed class AdminFanOutService
         CancellationToken cancellationToken)
     {
         IReadOnlyList<AdminInstanceOptions> all = GetConfiguredInstances();
-        List<InstanceCallOutcome<LocalClusterInfoDto>> outcomes =
+        List<InstanceCallOutcome<AdminApiClusterInfoDto>> outcomes =
             await FanOutAsync(
                     all,
                     _client.GetClusterInfoAsync,
@@ -185,7 +185,7 @@ public sealed class AdminFanOutService
                 .ConfigureAwait(false);
         // Cluster info may be missing when the bus is off — do not mark instances Down.
         // A successful probe still refreshes reachability as Up.
-        foreach (InstanceCallOutcome<LocalClusterInfoDto> o in outcomes)
+        foreach (InstanceCallOutcome<AdminApiClusterInfoDto> o in outcomes)
         {
             if (o.Succeeded && !IsSkippedDownError(o.Error))
                 _reachability.RecordSuccess(o.InstanceId, o.Value?.InstanceId, o.LatencyMs);
@@ -353,10 +353,10 @@ public sealed class AdminFanOutService
     }
 
     /// <summary>
-    /// Maps Local Admin outcomes to Console results. A 409 cluster-publish incomplete response
+    /// Maps Admin API outcomes to Console results. A 409 cluster-publish incomplete response
     /// (origin applied, peers failed) expands into origin success + per-peer failure rows.
     /// </summary>
-    /// <summary>Expands Local Admin outcomes (including bus peer failures) into Console result rows.</summary>
+    /// <summary>Expands Admin API outcomes (including bus peer failures) into Console result rows.</summary>
     public static IReadOnlyList<InstanceCallResultDto> ExpandWriteResults<T>(
         IEnumerable<InstanceCallOutcome<T>> outcomes)
     {
@@ -374,7 +374,7 @@ public sealed class AdminFanOutService
                     LatencyMs = o.LatencyMs,
                 });
 
-                foreach (LocalAdminPeerFailureDto peer in o.PeerFailures)
+                foreach (AdminApiPeerFailureDto peer in o.PeerFailures)
                 {
                     string peerId = peer.PeerId!.Trim();
                     results.Add(new InstanceCallResultDto

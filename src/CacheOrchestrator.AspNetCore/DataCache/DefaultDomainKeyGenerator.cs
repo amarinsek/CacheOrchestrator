@@ -81,6 +81,7 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
             CacheVaryMaterial vary = _materializer.Build(http, opts, CacheVarySurface.Fusion);
 
             // 0. Entity identity (CRUD) — both kind and id are required; no id-only key shape.
+            // Lookup string is co3:…:e:{hash}; kind/id are hash material only (tags carry them for purge).
             ICacheOrchestratorFeature? feature = http.Features.Get<ICacheOrchestratorFeature>();
             if (shape != DomainCacheKeyShape.Url
                 && feature?.EntityKind is { Length: > 0 } entityKind
@@ -98,12 +99,10 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                     AppendPublicAddress(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
                 ulong resourceHash = hasher.GetCurrentHashAsUInt64();
-                string encodedEntityKind = EncodeVisibleSegment(entityKind);
-                string encodedResourceId = EncodeVisibleSegment(resourceId);
                 return string.Create(
                     null,
-                    stackalloc char[256],
-                    $"{opts.CoreOptions.PhysicalKeyPrefix}id:{encodedEntityKind}:{encodedResourceId}:{resourceHash:x16}");
+                    stackalloc char[160],
+                    $"{opts.CoreOptions.PhysicalKeyPrefix}e:{resourceHash:x16}");
             }
 
             // 1. Route / path
@@ -142,7 +141,7 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
                 AppendPublicAddress(hasher, http, ref byteBuffer, ref rentedBytes, ref charBuffer, ref rentedChars);
 
             ulong hash = hasher.GetCurrentHashAsUInt64();
-            return string.Create(null, stackalloc char[160], $"{opts.CoreOptions.PhysicalKeyPrefix}{hash:x16}");
+            return string.Create(null, stackalloc char[160], $"{opts.CoreOptions.PhysicalKeyPrefix}u:{hash:x16}");
         }
         finally
         {
@@ -385,8 +384,6 @@ public sealed class DefaultDomainKeyGenerator : IDomainKeyGenerator
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void AppendRaw(XxHash3 hasher, ReadOnlySpan<byte> data) => hasher.Append(data);
-
-    private static string EncodeVisibleSegment(string value) => Uri.EscapeDataString(value);
 
     private static void AppendString(
         XxHash3 hasher,

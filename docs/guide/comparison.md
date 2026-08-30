@@ -1,10 +1,21 @@
 # Comparison
 
-> **Guide page.** Start with [Getting started](getting-started.md) for a working example or return to the [Guide index](README.md).
+> **Guide** — hand-rolled caching stack vs CacheOrchestrator.
 
 CacheOrchestrator is useful when an application must keep several cache layers and several domains consistent. It replaces repeated policy and coordination code, not the underlying cache engines.
 
 This page compares the responsibilities you own with direct ASP.NET Core and FusionCache usage against the same application using CacheOrchestrator.
+
+## Table of Contents
+
+- [The underlying stack stays the same](#the-underlying-stack-stays-the-same)
+- [How much application code you own](#how-much-application-code-you-own)
+- [Compare one snapshot endpoint](#compare-one-snapshot-endpoint)
+- [Compare dynamic entity invalidation](#compare-dynamic-entity-invalidation)
+- [Responsibility matrix](#responsibility-matrix)
+- [When CacheOrchestrator is a strong fit](#when-cacheorchestrator-is-a-strong-fit)
+- [When direct platform APIs may be simpler](#when-direct-platform-apis-may-be-simpler)
+- [Adopt it incrementally](#adopt-it-incrementally)
 
 ## The underlying stack stays the same
 
@@ -27,6 +38,16 @@ Domain configuration
 ```
 
 The benefit grows when those policies would otherwise be repeated or allowed to drift.
+
+## How much application code you own
+
+The engines stay. What shrinks is **application-owned coordination** — vary lists, TTLs, Version, client headers, auth alignment, tags, and diagnostics that would otherwise be hard-coded next to each endpoint.
+
+For a concrete GET with Output Cache + Data Cache + query/Accept vary + client max-age, see the side-by-side:
+
+[Worked example: one endpoint with and without CacheOrchestrator](comparison-endpoint-example.md)
+
+The sections below stay shorter: snapshot cutover and entity invalidation at the responsibility level.
 
 ## Compare one snapshot endpoint
 
@@ -180,7 +201,7 @@ The invalidator removes matching Output Cache and Data Cache entries. Multi-inst
 | Snapshot generation | Add version material to every key and validator | Domain `Version` |
 | Data engine selection | Application DI and engine-specific calls | Provider packages behind stable APIs |
 | Request diagnostics | Build headers, meters, traces, and logs | Built-in `X-Cache` and telemetry |
-| Multi-instance commands | Custom transport or direct fan-out | Optional HttpBus / Admin Console fan-out |
+| Multi-instance commands | Custom transport or direct fan-out | Optional HttpBus / Admin Console App fan-out |
 
 CacheOrchestrator reduces application-owned coordination. It does not remove the need to choose sensible TTLs, identities, topology, or security boundaries.
 
@@ -223,3 +244,9 @@ You do not need to enable every layer at once.
 Endpoint domain names and the core invalidation model remain stable as infrastructure grows.
 
 Try the complete first path in [Getting started](getting-started.md), or use the [FAQ](faq.md) when evaluating a specific edge case.
+
+## Related
+
+- [Worked example: one endpoint](comparison-endpoint-example.md) — with CO first, then hand-rolled for the same `GET`  
+- [Getting started](getting-started.md) — minimal host wiring  
+- [FAQ](faq.md) — boundary questions  

@@ -24,7 +24,7 @@ Please report privately so we can fix and, if needed, coordinate a release befor
 
 - Acknowledgement when the report is received (typically within a few days)
 - A fix or mitigation plan for confirmed issues
-- Credit in the advisory / changelog if you want it (optional)
+- Credit in the advisory / GitHub Release notes if you want it (optional)
 
 ## Non-security bugs
 
@@ -34,7 +34,7 @@ Use [GitHub Issues](https://github.com/amarinsek/CacheOrchestrator/issues) with 
 
 CacheOrchestrator configures and scopes ASP.NET Core Output Cache and FusionCache. Security-sensitive defaults include:
 
-- **Authenticated traffic is not Output-Cached by default** (`AuthBypassMode: AuthenticatedOrAuthorization`). The obsolete `BypassWhenAuthenticated` bool still binds when the mode is unset.
+- **Authenticated traffic is not Output-Cached by default** (`AuthBypassMode: AuthenticatedOrAuthorization`). Choose another `AuthBypassMode` value when authenticated responses must be cached.
 - Client cache is **blocked** for that traffic unless you explicitly opt in
 
 Misconfiguration (e.g. caching private user data as `public` without per-user vary) is an application responsibility — see [docs/guide/faq.md](docs/guide/faq.md) and [docs/reference/output-cache.md](docs/reference/output-cache.md).

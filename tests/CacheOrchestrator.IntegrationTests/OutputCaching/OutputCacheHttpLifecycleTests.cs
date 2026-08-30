@@ -60,7 +60,7 @@ public class OutputCacheHttpLifecycleTests
 
         if (attachTestUserMiddleware)
         {
-            // Sets an authenticated principal from X-Test-User for BypassWhenAuthenticated / vary-by-user scenarios.
+            // Sets an authenticated principal from X-Test-User for AuthBypassMode / vary-by-user scenarios.
             app.Use(async (ctx, next) =>
             {
                 if (ctx.Request.Headers.TryGetValue("X-Test-User", out Microsoft.Extensions.Primitives.StringValues user)
@@ -336,7 +336,7 @@ public class OutputCacheHttpLifecycleTests
     }
 
     // =========================================================================
-    // A4 — BypassWhenAuthenticated false + VaryOutputCacheByUser true
+    // A4 — AuthBypassMode Never + VaryOutputCacheByUser true
     // =========================================================================
 
     [Fact]
@@ -394,7 +394,7 @@ public class OutputCacheHttpLifecycleTests
     }
 
     // =========================================================================
-    // A5 — BypassWhenAuthenticated false + VaryOutputCacheByUser false (shared OC)
+    // A5 — AuthBypassMode Never + VaryOutputCacheByUser false (shared OC)
     // =========================================================================
 
     [Fact]

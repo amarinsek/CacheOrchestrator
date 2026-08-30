@@ -13,9 +13,9 @@ using System.Text.Json.Serialization;
 namespace CacheOrchestrator.HttpBus;
 
 /// <summary>
-/// Maps cluster receive endpoints (independent of Local Admin <c>Enabled</c>).
+/// Maps cluster receive endpoints (independent of Admin API <c>Enabled</c>).
 /// </summary>
-internal static class ClusterLocalApi
+internal static class ClusterReceiveApi
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -125,7 +125,7 @@ internal static class ClusterLocalApi
             });
         });
 
-        // When Local Admin is enabled it already maps GET …/cluster/info (same prefix).
+        // When Admin API is enabled it already maps GET …/cluster/info (same prefix).
         // Skip a second registration to avoid ambiguous routes.
         if (!opts.Admin.Enabled)
         {

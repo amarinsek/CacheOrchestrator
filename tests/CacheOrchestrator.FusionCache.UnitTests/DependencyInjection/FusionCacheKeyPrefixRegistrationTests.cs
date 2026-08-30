@@ -24,8 +24,8 @@ public class FusionCacheKeyPrefixRegistrationTests
         _ = provider.GetCache("pii");
 
         IOptionsMonitor<FusionCacheOptions> options = sp.GetRequiredService<IOptionsMonitor<FusionCacheOptions>>();
-        options.Get("default").CacheKeyPrefix.Should().Be("myapp-fc:");
-        options.Get("pii").CacheKeyPrefix.Should().Be("myapp-fc-pii:");
+        options.Get("default").CacheKeyPrefix.Should().Be("myapp-dc:");
+        options.Get("pii").CacheKeyPrefix.Should().Be("myapp-dc-pii:");
     }
 
     [Fact]
@@ -35,14 +35,14 @@ public class FusionCacheKeyPrefixRegistrationTests
         {
             ["Cache:Namespace"] = "myapp",
             ["Cache:DataCacheInstances:default:Provider"] = "InMemory",
-            ["Cache:DataCacheInstances:default:Namespace"] = "custom-fc",
+            ["Cache:DataCacheInstances:default:Namespace"] = "custom-dc",
         });
 
         _ = sp.GetRequiredService<IFusionCacheProvider>().GetCache("default");
 
         sp.GetRequiredService<IOptionsMonitor<FusionCacheOptions>>()
             .Get("default")
-            .CacheKeyPrefix.Should().Be("custom-fc:");
+            .CacheKeyPrefix.Should().Be("custom-dc:");
     }
 
     private static ServiceProvider BuildProvider(Dictionary<string, string?> settings)
