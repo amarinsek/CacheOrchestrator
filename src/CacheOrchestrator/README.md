@@ -2,7 +2,7 @@
 
 [**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
-This **meta** package is the usual starting point for web apps: it includes **AspNetCore** + **FusionCache**.
+This **meta** package is the usual starting point for web apps: it includes **`CacheOrchestrator.AspNetCore`** + **`CacheOrchestrator.FusionCache`**.
 
 Targets **.NET 8** and **.NET 10**.
 

@@ -69,7 +69,7 @@ Sample notes: [samples/CacheOrchestrator.Minimal](samples/CacheOrchestrator.Mini
 
 ### Add it to your app
 
-Install the meta package (AspNetCore + FusionCache):
+Install the `CacheOrchestrator` meta package (`CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`):
 
 ```bash
 dotnet add package CacheOrchestrator --prerelease
@@ -156,9 +156,9 @@ for a playground with TTLs, scheduling, and CRUD.
 
 ### Scale it with Redis
 
-To add Redis-backed caching, install the Redis package, register its backends, and update the configuration. Your endpoint code stays completely **unchanged**.
+To add Redis-backed caching, install `CacheOrchestrator.Redis`, register its backends, and update the configuration. Your endpoint code stays completely **unchanged**.
 
-Install Redis package:
+Install the Redis meta package:
 
 ```bash
 dotnet add package CacheOrchestrator.Redis --prerelease
@@ -212,18 +212,18 @@ Stages climb from a single in-memory playground to a dual Redis + HTTP bus archi
 
 ## Packages and applications
 
-The library is **modular**. The Core package provides the foundational policies, `ICacheOrchestrator`, and the transport-independent management API. From there, you can opt into specific packages to match your stack: FusionCache or HybridCache for Data Cache, the ASP.NET Core host for Output Cache and Client Cache, Redis, an HTTP cluster bus, and EF Core invalidation. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
+The library is **modular**. `CacheOrchestrator.Core` provides the foundational policies, `ICacheOrchestrator`, and the transport-independent management API. From there, you can opt into specific packages to match your stack: `CacheOrchestrator.FusionCache` or `CacheOrchestrator.HybridCache` for Data Cache, `CacheOrchestrator.AspNetCore` for Output Cache and Client Cache, Redis packages, `CacheOrchestrator.HttpBus`, and `CacheOrchestrator.EFCore.Invalidation`. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
 
 | Package | Purpose |
 |---------|---------|
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package: AspNetCore + FusionCache (for typical web apps). |
+| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.2) | Meta package: `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache` (for typical web apps). |
 | [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core/3.0.0-beta.2) | Domain models, orchestration, invalidation, and management contracts (no ASP.NET dependency). |
 | [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore/3.0.0-beta.2) | Output Cache, Client Cache, HTTP helpers, and the Admin API. |
 | [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | ZiggyCreatures FusionCache Data Cache provider. |
 | [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache Data Cache provider. |
 | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Meta Redis: Output Cache store and Fusion L2 / backplane (`AddRedisBackend`). |
-| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache store only (`AddRedisOutputCacheBackend`). From **3.0.0-beta.3**. |
-| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 / backplane only (`AddRedisFusionCacheBackend`). From **3.0.0-beta.3**. |
+| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache store only (`AddRedisOutputCacheBackend`). From **3.0.0-beta.3**.|
+| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 / backplane only (`AddRedisFusionCacheBackend`). From **3.0.0-beta.3**.|
 | [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.2) | Syncs invalidations, versions, and settings across all instances via HTTP cluster bus. |
 | [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | Automatic cache invalidation after a successful Entity Framework Core `SaveChanges`. |
 

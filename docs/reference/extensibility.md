@@ -159,7 +159,7 @@ builder.Services.AddSingleton<ICacheOrchestratorHealthProbe, SearchClusterCacheP
 | `RegisterOutputCache(OutputCacheRegistrationContext)` | Configure `OutputCacheOptions` and register the store |
 
 Use `context.Configure(...)` instead of calling `AddOutputCache` yourself. Use `context.RegisterStore(...)` when an adapter must register after the shared Output Cache services. Backend-specific configuration is available at `context.BackendSection` under `{root}:OutputCache:{Provider}`.
-`context.OutputCacheNamespace` is the effective namespace already resolved by the ASP.NET Core host; a store adapter should use it instead of binding root options itself.
+`context.OutputCacheNamespace` is the effective namespace already resolved by `CacheOrchestrator.AspNetCore`; a store adapter should use it instead of binding root options itself.
 
 Register it through `ICacheOrchestratorBuilder.AddOutputCacheBackend`:
 
@@ -289,7 +289,7 @@ These contracts are public for host and satellite-package integration. Ordinary 
 | `ICacheOrchestratorManagement` | Transport-independent management queries and operations | Inject from Core; expose through a host-appropriate secured adapter |
 | `IAdminDomainConfigProvider` | Enrich the Core domain view with host-specific policy | Built-in Core Data Cache view or ASP.NET Core HTTP view |
 | `IAdminStatsCollector` / `IAdminEndpointCatalog` | Management instrumentation and host resource discovery | Admin API and metrics |
-| `IFusionDomainSettingsProvider` / `IFusionDomainRuntimeOverrideStore` | Fusion package policy and overlay integration | Domain configuration and Admin PATCH |
+| `IFusionDomainSettingsProvider` / `IFusionDomainRuntimeOverrideStore` | `CacheOrchestrator.FusionCache` policy and overlay integration | Domain configuration and Admin PATCH |
 
 Replacing one of these contracts means taking responsibility for its caching, normalization, concurrency, reload, and lifecycle semantics.
 
@@ -297,7 +297,7 @@ Replacing one of these contracts means taking responsibility for its caching, no
 
 ## Public utility types
 
-The packages also expose pure helpers and DTOs. Core owns HTTP-free types such as `DomainName`, `CacheTags`, `FactoryResultSize`, Admin DTOs, and cluster command records. ASP.NET Core owns `ClientCacheHeaderGenerator`, `CacheETagFactory`, and `XCacheHeaderFormatter`. They are documented on the reference page for the behavior they represent and in NuGet XML documentation. They are not service replacement points unless listed above.
+The packages also expose pure helpers and DTOs. `CacheOrchestrator.Core` owns HTTP-free types such as `DomainName`, `CacheTags`, `FactoryResultSize`, Admin DTOs, and cluster command records. `CacheOrchestrator.AspNetCore` owns `ClientCacheHeaderGenerator`, `CacheETagFactory`, and `XCacheHeaderFormatter`. They are documented on the reference page for the behavior they represent and in NuGet XML documentation. They are not service replacement points unless listed above.
 
 ## Related
 

@@ -33,7 +33,7 @@ These components have distinct jobs:
 | Redis Output Cache store | Yes, HTTP responses | Eviction operates on the shared store | No |
 | FusionCache Redis L2 | Yes, data objects | Shared L2 is purged | No |
 | FusionCache Redis backplane | No | Clears Fusion L1 entries on peers | No |
-| CacheOrchestrator HttpBus | No | Tells peers to run the same local purge | Yes, for distributed Admin operations |
+| `CacheOrchestrator.HttpBus` | No | Tells peers to run the same local purge | Yes, for distributed Admin operations |
 
 The bus never handles normal cache reads and never transports cached payloads.
 

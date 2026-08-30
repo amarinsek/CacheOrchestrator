@@ -6,7 +6,7 @@ How the library is put together.
 
 A **domain** is a named group of data (`products`, `reports`, …) with its own TTLs, flags, and Version. Core resolves its HTTP-free identity and Data Cache policy as `DomainCacheOptions`. ASP.NET Core composes that snapshot into `DomainHttpCacheOptions` for Output Cache, Client Cache, authentication, vary, ETag, and HTTP key policy.
 
-1. **ASP.NET Core Output Caching** — full HTTP responses; GET/HEAD + Url without identity bindings, other methods via endpoint [cache identity](../reference/cache-identity.md) (AspNetCore package).
+1. **ASP.NET Core Output Caching** — full HTTP responses; GET/HEAD + Url without identity bindings, other methods via endpoint [cache identity](../reference/cache-identity.md) (`CacheOrchestrator.AspNetCore`).
 2. **Data Cache** — objects from your factory via `ICacheOrchestrator` / `IDomainDataCache` (Fusion or Hybrid as `IDataCacheProvider`; L1 memory, optional L2 / backplane for Fusion).
 3. **Client Cache** — browser and CDN headers, including Client Cache Schedule.
 
@@ -52,7 +52,7 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
                   DomainCacheOptions
                            │
                            ▼
-              IRequestDomainCacheOptions (AspNetCore)
+              IRequestDomainCacheOptions (CacheOrchestrator.AspNetCore)
               (ICacheOrchestratorFeature + process cache)
                            │
                            ▼
@@ -67,7 +67,7 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 | `CacheOrchestrator.FusionCache` | ZiggyCreatures Fusion as `IDataCacheProvider`; JSON `FusionCache` knobs |
 | `CacheOrchestrator.HybridCache` | Microsoft HybridCache as `IDataCacheProvider` |
 | `CacheOrchestrator.AspNetCore` | Output Cache, Client Cache, HTTP vary/diagnostics/Admin settings, Admin API, `IDomainDataCache`, host `AddCacheOrchestratorAspNetCore` |
-| `CacheOrchestrator` | Meta NuGet: AspNetCore + FusionCache (`AddCacheOrchestrator`) |
+| `CacheOrchestrator` | Meta package: `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache` (`AddCacheOrchestrator`) |
 | `CacheOrchestrator.Redis` | Redis Output Cache store + Fusion L2 + backplane |
 | `CacheOrchestrator.HttpBus` | HTTP cluster command bus + transport, authentication, Static / ServiceDiscovery membership settings |
 | `CacheOrchestrator.EFCore.Invalidation` | SaveChanges interceptor → entity invalidation — [ef-core-invalidation.md](../reference/ef-core-invalidation.md) |
@@ -84,10 +84,10 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | Public (stable contract) | Internal (not for app code) |
 |--------------------------|-----------------------------|
 | `AddCacheOrchestratorCore` / `ICacheOrchestrator` / `IDataCacheProvider` (**Core**) | Core host registration / orchestrator / provider boundary |
-| `AddCacheOrchestrator` (**meta `CacheOrchestrator`**) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` / `ICacheOrchestratorBuilder` (**AspNetCore**) | Meta wires AspNetCore + Fusion; AspNetCore owns host composition and `DefaultCacheOrchestratorBuilder` |
+| `AddCacheOrchestrator` (**meta `CacheOrchestrator`**) / `AddCacheOrchestratorAspNetCore` / `UseCacheOrchestrator` / `ICacheOrchestratorBuilder` (**`CacheOrchestrator.AspNetCore`**) | Meta wires `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`; `CacheOrchestrator.AspNetCore` owns host composition and `DefaultCacheOrchestratorBuilder` |
 | `IDomainDataCache`, `IDomainKeyGenerator`, `DefaultDomainKeyGenerator` | `DomainDataCacheService` |
 | `IDomainCacheOptionsProvider`, `DomainCacheOptions`, `DomainDataCacheSettings`, `DomainName` (**Core**) | `DomainCacheOptionsProvider`, `CacheOrchestratorOptionsValidator` |
-| `IRequestDomainCacheOptions`, `DomainHttpCacheOptions`, HTTP domain setting types, `ICacheOrchestratorFeature` (**AspNetCore**) | `RequestDomainCacheOptionsProvider`, `CacheOrchestratorHttpOptions`, `CacheOrchestratorHttpOptionsValidator`, `CacheOrchestratorFeature` |
+| `IRequestDomainCacheOptions`, `DomainHttpCacheOptions`, HTTP domain setting types, `ICacheOrchestratorFeature` (**`CacheOrchestrator.AspNetCore`**) | `RequestDomainCacheOptionsProvider`, `CacheOrchestratorHttpOptions`, `CacheOrchestratorHttpOptionsValidator`, `CacheOrchestratorFeature` |
 | `ICacheOrchestratorInvalidator`, `CacheInvalidationResult`, `ICacheInvalidationObserver`, `CacheTags` | `CacheOrchestratorInvalidator` |
 | `IClusterCommandBus`, `IClusterMembership`, `IClusterCommandHandler`, `IInstanceIdProvider`, command records (`InvalidateCommand`, `VersionBumpCommand`, `SettingsPatchCommand`, …) | `DefaultClusterCommandHandler` |
 | — | `NullClusterCommandBus`, `NullClusterMembership` |
@@ -95,8 +95,8 @@ Prefer **interfaces and DI entry points**. Concrete services are `internal`.
 | Redis: `AddRedisBackend` (**CacheOrchestrator.Redis**) | `RedisCacheBackendRegistrar`, `RedisCacheHealthProbe`, all `Redis.Shared` implementation types |
 | HttpBus: `AddHttpClusterBus` / `MapCacheOrchestratorHttpBus` (**CacheOrchestrator.HttpBus**) | `HttpClusterCommandBus`, versioned HTTP wire DTOs, `ClusterEndpointAuth` |
 | `ICacheOrchestratorManagement`, management DTOs and host adapter contracts (**Core**) | `CacheOrchestratorManagement`, `CoreAdminDomainConfigProvider` |
-| `MapCacheOrchestratorAdmin` (**AspNetCore Admin API**) | `AdminLocalApi`, `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
-| `AuthBypassMode`, `ETagMode`, `ClientCacheability`, `DomainAuthEvaluator` (**AspNetCore**) | — |
+| `MapCacheOrchestratorAdmin` (**`CacheOrchestrator.AspNetCore` Admin API**) | `AdminLocalApi`, `HttpAdminDomainConfigProvider`, `InMemoryAdminStatsCollector` |
+| `AuthBypassMode`, `ETagMode`, `ClientCacheability`, `DomainAuthEvaluator` (**`CacheOrchestrator.AspNetCore`**) | — |
 | `ICacheVaryContributor`, `CacheVaryMaterializer`, `ICacheVaryBuilder` | — |
 | `DomainOutputCachePolicy`, `[CacheDomain]`, `CacheOutputWithDomain` / `CacheOutputWithDomainTemplate` / `CacheOutputWithDomainAttribute` | `CacheDomainConvention` |
 | Identity: `.WithCacheIdentity` / `.WithContentHashCacheIdentity`, `[CacheIdentity]` / `[ContentHashCacheIdentity]`, `ICacheIdentityContract`, `AddCacheIdentityContract<T>()`, `CacheIdentities.Url` | `CacheIdentityResolutionHostedService`, binding applicators |

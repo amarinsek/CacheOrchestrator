@@ -47,7 +47,7 @@ builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 builder.Services.AddRedisFusionCacheBackend(builder.Configuration);
 ```
 
-In an ASP.NET Core host, replace the Core registration with the ASP.NET Core host layer:
+In an ASP.NET Core host, replace the Core registration with `CacheOrchestrator.AspNetCore`:
 
 ```csharp
 builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);

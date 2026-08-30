@@ -59,7 +59,7 @@ Client Cache is different from the server-side layers. Once a browser or CDN has
 
 ## One request uses one resolved snapshot
 
-At the start of a domain request, CacheOrchestrator resolves two aligned snapshots. Core's `DomainCacheOptions` contains domain identity, Version, and Data Cache policy. ASP.NET Core wraps it in `DomainHttpCacheOptions`, which adds Output Cache, Client Cache, authentication, vary, ETag, and HTTP key policy. The request pins the HTTP snapshot, so every layer sees one consistent view while Core remains independent of HTTP.
+At the start of a domain request, CacheOrchestrator resolves two aligned snapshots. `CacheOrchestrator.Core`'s `DomainCacheOptions` contains domain identity, Version, and Data Cache policy. `CacheOrchestrator.AspNetCore` wraps it in `DomainHttpCacheOptions`, which adds Output Cache, Client Cache, authentication, vary, ETag, and HTTP key policy. The request pins the HTTP snapshot, so every layer sees one consistent view while Core remains independent of HTTP.
 
 For the common HTTP path, the endpoint metadata is enough:
 

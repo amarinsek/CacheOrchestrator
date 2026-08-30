@@ -183,13 +183,13 @@ If invalidation fails after the commit, the database is still authoritative. Ins
 
 ### Which package should a typical ASP.NET Core app install?
 
-Start with the `CacheOrchestrator` meta package. It combines the ASP.NET Core integration and FusionCache data provider.
+Start with the `CacheOrchestrator` meta package. It combines `CacheOrchestrator.AspNetCore` and `CacheOrchestrator.FusionCache`.
 
-Use focused packages when you need Output Cache only, HybridCache instead of FusionCache, or an HTTP-free Core dependency in a reusable library. See [Packages](packages.md).
+Use focused packages when you need Output Cache only, `CacheOrchestrator.HybridCache` instead of `CacheOrchestrator.FusionCache`, or an HTTP-free `CacheOrchestrator.Core` dependency in a reusable library. See [Packages](packages.md).
 
 ### Why does `Provider: Redis` fail during startup?
 
-Configuration selects a registered provider; it does not install one. Add the appropriate Redis package and registrar:
+Configuration selects a registered provider; it does not install one. Add the matching Redis package and registrar:
 
 - `CacheOrchestrator.Redis` + `AddRedisBackend()` for Redis Output Cache and Fusion L2;
 - `CacheOrchestrator.AspNetCore.Redis` + `AddRedisOutputCacheBackend()` for Output Cache only;

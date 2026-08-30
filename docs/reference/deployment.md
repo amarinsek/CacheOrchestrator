@@ -4,7 +4,7 @@
 
 How to run CacheOrchestrator on one process or on several: in-memory stores, Redis, the backplane, and the cluster bus.
 
-**Redis package:** any topology below that uses `"Provider": "Redis"` requires:
+**`CacheOrchestrator.Redis`:** any topology below that uses `"Provider": "Redis"` requires:
 
 ```bash
 dotnet add package CacheOrchestrator.Redis --prerelease
@@ -347,7 +347,7 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 
 - [Guide — topologies](../guide/topologies.md) — which layout to pick  
 - [configuration.md](configuration.md) — namespaces, providers, full schema  
-- [backends.md](backends.md) — Redis package and custom registrars  
+- [backends.md](backends.md) — `CacheOrchestrator.Redis` and custom registrars  
 - [Data Cache](data-cache.md)
 - [invalidation.md](invalidation.md)  
 - [observability.md](observability.md)  

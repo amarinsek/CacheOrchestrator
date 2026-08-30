@@ -36,7 +36,7 @@ Install the appropriate prerelease package:
 dotnet add package CacheOrchestrator --prerelease
 ```
 
-The meta package is the typical ASP.NET Core + FusionCache path. Other supported compositions are listed in the [package guide](docs/guide/packages.md) and [composition how-to](docs/how-to/composition.md).
+The `CacheOrchestrator` meta package is the typical `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache` path. Other supported compositions are listed in the [package guide](docs/guide/packages.md) and [composition how-to](docs/how-to/composition.md).
 
 Please do not test a new cache setup against production traffic first. Start in a local, development, or staging environment.
 

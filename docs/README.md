@@ -86,7 +86,7 @@ XML docs ship with the NuGets. Choices: [packages](guide/packages.md). Scenarios
 
 | Package | |
 |---------|--|
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator) | Meta (AspNetCore + FusionCache) |
+| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator) | Meta (`CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`) |
 | [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core) | Domains, `ICacheOrchestrator` |
 | [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore) | Output Cache, Client Cache, Admin |
 | [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache) | Fusion Data Cache provider |

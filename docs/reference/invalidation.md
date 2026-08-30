@@ -318,6 +318,6 @@ Prefer Redis L2 and the backplane when instances share Fusion data. Use HttpBus 
 - [configuration.md](configuration.md)  
 - [Output Cache](output-cache.md)
 - [Data Cache](data-cache.md)
-- [backends.md](backends.md) — Redis package  
+- [backends.md](backends.md) — `CacheOrchestrator.Redis`  
 - [cluster-bus.md](cluster-bus.md) — optional multi-instance command bus  
 

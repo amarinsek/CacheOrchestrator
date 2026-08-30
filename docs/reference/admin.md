@@ -6,8 +6,8 @@ The management model has three layers:
 
 | Piece | What it is | Where it runs |
 |-------|------------|----------------|
-| **Management API** | Transport-independent queries and operations through `ICacheOrchestratorManagement` | Core package; available to web apps, workers, command handlers, and custom adapters |
-| **Admin API** | Opt-in HTTP routes that delegate to the Management API | AspNetCore package (`Cache:Admin` + `MapCacheOrchestratorAdmin`) |
+| **Management API** | Transport-independent queries and operations through `ICacheOrchestratorManagement` | `CacheOrchestrator.Core`; available to web apps, workers, command handlers, and custom adapters |
+| **Admin API** | Opt-in HTTP routes that delegate to the Management API | `CacheOrchestrator.AspNetCore` (`Cache:Admin` + `MapCacheOrchestratorAdmin`) |
 | **Admin Console App** | Dashboard that fans out to each instance Admin API | Separate process / Docker image — not a NuGet package |
 
 Use the Core contract from application code or a custom transport. Use the Admin API for scripts and the Console for multi-instance UI. **Traffic charts need Prometheus.** Security matters: management operations mutate cache state.
@@ -89,7 +89,7 @@ public sealed class CacheOperations(ICacheOrchestratorManagement management)
 }
 ```
 
-Core supplies a Data Cache domain view and an empty resource catalog. Host packages can enrich these through `IAdminDomainConfigProvider` and `IAdminEndpointCatalog`; the ASP.NET Core package supplies both adapters. `Admin:Enabled` controls HTTP route exposure and live Admin counters, not whether application code can resolve the Core management contract.
+Core supplies a Data Cache domain view and an empty resource catalog. Host packages can enrich these through `IAdminDomainConfigProvider` and `IAdminEndpointCatalog`; `CacheOrchestrator.AspNetCore` supplies both adapters. `Admin:Enabled` controls HTTP route exposure and live Admin counters, not whether application code can resolve the Core management contract.
 
 Mutation methods validate input with `ArgumentException`. A distributed Version or settings result carries `ClusterPublish`; adapters decide how to represent partial peer failure. The built-in Admin API returns `409 Conflict` after the local change has already been applied.
 

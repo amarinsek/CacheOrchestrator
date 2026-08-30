@@ -24,7 +24,7 @@ Decision tables: [packages](../guide/packages.md) · [topologies](../guide/topol
 <a id="scenario-1"></a>
 ## 1. Typical web — Output Cache + Data Cache + Client Cache (InMemory Fusion)
 
-Uses the **meta** package `CacheOrchestrator` (`AddCacheOrchestrator` = AspNetCore + Fusion). You can instead install the two packages separately:
+Uses the **meta** package `CacheOrchestrator` (`AddCacheOrchestrator` = `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`). You can instead install the two packages separately:
 
 ```bash
 dotnet add package CacheOrchestrator.AspNetCore --prerelease
@@ -80,7 +80,7 @@ app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDat
 ---
 
 <a id="scenario-2"></a>
-## 2. Output Cache only (AspNetCore package)
+## 2. Output Cache only (`CacheOrchestrator.AspNetCore`)
 
 No Fusion / Hybrid. Handler does not use `IDomainDataCache`.
 
@@ -127,7 +127,7 @@ app.MapGet("/api/products/{id:int}", async (int id) =>
 ---
 
 <a id="scenario-3"></a>
-## 3. Data Cache only (AspNetCore + FusionCache)
+## 3. Data Cache only (`CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`)
 
 Not the meta package. No `.CacheOutputWithDomain` — base Output Cache policy is `NoCache`.
 
@@ -278,7 +278,7 @@ app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDat
 <a id="scenario-6"></a>
 ## 6. Dynamic domain from the route
 
-Same packages as §1 (meta, or AspNetCore + Fusion separately).
+Same packages as §1 (meta, or `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache` separately).
 
 **Packages**
 

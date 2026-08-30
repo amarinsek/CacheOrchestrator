@@ -11,7 +11,7 @@ If you have not used CacheOrchestrator before, begin with [Getting started](gett
 1. [Getting started](getting-started.md) — build and run the first cached endpoints.
 2. [Concepts](concepts.md) — understand domains, the three layers, and the difference between TTL, invalidation, and `Version`.
 3. [Domain profiles](domain-profiles.md) — decide whether data changes as a snapshot or one entity at a time.
-4. [Packages](packages.md) — select the host integration, data engine, Redis packages, and optional integrations.
+4. [Packages](packages.md) — select host, Data Cache engine, Redis, and optional integrations.
 5. [Topologies](topologies.md) — place stores in memory or Redis and decide how instances coordinate.
 6. [Client Cache Schedule](client-cache-schedule.md) — prepare browsers and CDNs for a planned snapshot cutover.
 7. [Operations](operations.md) — read `X-Cache`, use telemetry, and apply safe runtime changes.

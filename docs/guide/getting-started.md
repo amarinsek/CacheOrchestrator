@@ -31,7 +31,7 @@ Install the `CacheOrchestrator` meta package:
 dotnet add package CacheOrchestrator --prerelease
 ```
 
-The meta package combines the ASP.NET Core integration with FusionCache, which is the usual starting point for a web application. Both the Output Cache and Data Cache can run in memory, so this is all you need for the tutorial.
+The meta package combines `CacheOrchestrator.AspNetCore` with `CacheOrchestrator.FusionCache`, which is the usual starting point for a web application. Both the Output Cache and Data Cache can run in memory, so this is all you need for the tutorial.
 
 ## 2. Define the cache domains
 

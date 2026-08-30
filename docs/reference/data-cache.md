@@ -25,7 +25,7 @@ The **Data Cache** stores **application objects** from your factory (DTOs, tiles
 | **CacheOrchestrator.FusionCache** | ZiggyCreatures FusionCache (default in the meta package) | `DataCache.*` + nested **`FusionCache.*`** (hard TTL, fail-safe, jitter, factory timeouts, …) |
 | **CacheOrchestrator.HybridCache** | Microsoft HybridCache | `DataCache.TtlSeconds` only — ignores `FusionCache` |
 
-Register exactly one provider. Meta `AddCacheOrchestrator` = AspNetCore + Fusion.
+Register exactly one provider. Meta `AddCacheOrchestrator` = `CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`.
 
 An Output-Cache-only host does not need to configure `DataCache.Enabled`. Without a Data Cache provider, startup and health remain healthy; only an actual `IDomainDataCache` / `ICacheOrchestrator` operation logs a one-time warning and runs its factory uncached.
 

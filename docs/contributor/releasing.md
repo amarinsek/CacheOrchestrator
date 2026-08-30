@@ -112,8 +112,8 @@ Use the latest applicable stable version from the same major line. Baseline vali
 
 Analyzer unit tests verify `COIDENTITY001` logic. The **Package analyzer consumer smoke** step in [`.github/workflows/build.yml`](../../.github/workflows/build.yml) additionally verifies delivery from the generated packages on every pull request to `main` and every push to `main`:
 
-1. Pack Core, FusionCache, AspNetCore, and the `CacheOrchestrator` meta package.
-2. Confirm that the AspNetCore nupkg contains `analyzers/dotnet/cs/CacheOrchestrator.Analyzers.dll`.
+1. Pack `CacheOrchestrator.Core`, `CacheOrchestrator.FusionCache`, `CacheOrchestrator.AspNetCore`, and the `CacheOrchestrator` meta package.
+2. Confirm that the `CacheOrchestrator.AspNetCore` nupkg contains `analyzers/dotnet/cs/CacheOrchestrator.Analyzers.dll`.
 3. Create an external `net8.0` project with only the meta package installed.
 4. Compile an action with duplicate `GET` identity bindings.
 5. Require the consumer build to fail with `COIDENTITY001` from the packaged analyzer.
@@ -136,7 +136,7 @@ The release publish workflow packs the final package set and therefore runs SDK 
 
 5. Create a **GitHub Release** for that tag (**not** marked pre-release for a stable release).  
    This triggers [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml):
-   - unit tests (Core / Fusion / Hybrid / AspNetCore / Redis.Shared / AspNetCore.Redis / FusionCache.Redis / Redis meta / HttpBus / EF) on net8 + net10; Admin Console on net10
+   - unit tests (`Core` / `FusionCache` / `HybridCache` / `AspNetCore` / `Redis.Shared` / `AspNetCore.Redis` / `FusionCache.Redis` / Redis meta / `HttpBus` / EF) on net8 + net10; Admin Console on net10
    - integration tests on net8/net10 + Testcontainers Redis; Minimal sample smoke
    - `dotnet pack` for **all** packable NuGet libraries → `.nupkg` + `.snupkg` (includes Redis.Shared as support; see pack list in `publish.yml`); each pack runs SDK package validation
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)

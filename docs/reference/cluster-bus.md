@@ -29,7 +29,7 @@ Package README: [src/CacheOrchestrator.HttpBus/README.md](../../src/CacheOrchest
 |-----------|--------|
 | Multi-instance **InMemory** Output Cache and Data Cache, with immediate purge required everywhere | **HttpBus** |
 | Runtime **Version / TTL** overlays on all InMemory nodes | **HttpBus** + Admin `distribute` (or Admin Console App auto mode) |
-| Shared Redis L2 + backplane | **Redis package** — HttpBus optional / redundant for tag invalidate |
+| Shared Redis L2 + backplane | **`CacheOrchestrator.Redis`** (or Fusion Redis leaf) — `CacheOrchestrator.HttpBus` optional / redundant for tag invalidate |
 | Sticky sessions + TTL-only expiry | Local invalidation may be enough |
 | Single instance | Do not install HttpBus (or leave `Enabled: false`) |
 
@@ -344,6 +344,6 @@ When enabled: `IHttpClientFactory`, parallel peer posts, per-peer timeout, cappe
 - [deployment.md](deployment.md) — topologies  
 - [admin.md](admin.md) — Admin API + Admin Console App  
 - [configuration.md](configuration.md) — options tables  
-- [backends.md](backends.md) — Redis package  
+- [backends.md](backends.md) — `CacheOrchestrator.Redis` and leaf Redis packages  
 - [Extensibility](extensibility.md) — custom membership, command bus, and host identity contracts
 - [architecture.md](../contributor/architecture.md) — layout  

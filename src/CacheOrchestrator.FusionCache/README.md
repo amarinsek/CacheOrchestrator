@@ -44,7 +44,7 @@ builder.Services.AddCacheOrchestratorCore(builder.Configuration);
 builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 ```
 
-In an ASP.NET Core host, pair with AspNetCore for Output Cache and HTTP helpers:
+In an ASP.NET Core host, pair with `CacheOrchestrator.AspNetCore` for Output Cache and HTTP helpers:
 
 ```bash
 dotnet add package CacheOrchestrator.AspNetCore --prerelease
@@ -56,7 +56,7 @@ builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration);
 builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 ```
 
-For a typical web app, the `CacheOrchestrator` meta package already includes AspNetCore and FusionCache.
+For a typical web app, the `CacheOrchestrator` meta package already includes `CacheOrchestrator.AspNetCore` and `CacheOrchestrator.FusionCache`.
 
 ## Documentation
 
