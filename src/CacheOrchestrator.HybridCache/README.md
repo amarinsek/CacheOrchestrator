@@ -49,8 +49,8 @@ Keys and tags are namespaced before they reach HybridCache, so applications can 
 
 ## Documentation
 
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
-- [Data Cache / Hybrid](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/data-cache.md#hybridcache-provider)
+- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

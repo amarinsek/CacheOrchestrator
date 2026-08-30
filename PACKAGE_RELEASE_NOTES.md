@@ -1,5 +1,5 @@
-CacheOrchestrator 3.0.0-beta.2
+CacheOrchestrator 3.0.0-beta.3
 
-CacheOrchestrator v3 beta: modular packages with an HTTP-free core, ASP.NET host integration, and FusionCache / HybridCache providers. Published for early integration testing and community feedback.
+v3 beta.3 continues the modular package split and host integrations for early testing. Highlights: Redis leaf packages (`AspNetCore.Redis`, `FusionCache.Redis`) beside the Redis meta package; endpoint cache identity for non-GET reads; docs and playground multi-instance product store improvements.
 
-Full notes: https://github.com/amarinsek/CacheOrchestrator/releases/tag/v3.0.0-beta.2
+Full notes: https://github.com/amarinsek/CacheOrchestrator/releases/tag/v3.0.0-beta.3

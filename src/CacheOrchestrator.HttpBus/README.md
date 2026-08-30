@@ -55,9 +55,8 @@ Invalidate / Version / settings from Admin or `ICacheOrchestratorInvalidator` ar
 
 ## Documentation
 
-- [Cluster bus](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/cluster-bus.md)
-- [Topologies](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/topologies.md)
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
+- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

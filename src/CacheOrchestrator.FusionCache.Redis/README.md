@@ -59,9 +59,8 @@ For Output Cache **and** Fusion Redis L2 in one reference, use `CacheOrchestrato
 
 ## Documentation
 
-- [Backends](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/backends.md)
-- [Data Cache](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/data-cache.md)
-- [Packages](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
+- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

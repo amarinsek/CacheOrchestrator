@@ -59,6 +59,8 @@ dotnet build src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -v:m
 
 Do **not** pack the root README into library packages (HTML/logo does not render well on nuget.org). Admin Console App is **not** a NuGet package (Docker / GHCR only). `Redis.Shared` is published so leaf/meta packages restore; apps should not reference it directly.
 
+Each packable library README keeps a short Install / Usage story for that package. The **Documentation** section is the same everywhere: root README, docs index, and repository URL (deep links belong in prose above that section or in `docs/`).
+
 ## Compatibility and package gates
 
 Three separate gates cover different failure modes. A successful `dotnet build` does not replace a package validation run, and analyzer unit tests do not prove that the analyzer reached a NuGet consumer.

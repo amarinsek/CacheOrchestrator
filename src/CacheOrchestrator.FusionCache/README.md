@@ -60,8 +60,8 @@ For a typical web app, the `CacheOrchestrator` meta package already includes `Ca
 
 ## Documentation
 
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
-- [Data Cache / Fusion](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/data-cache.md) (Fusion section)
+- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License
