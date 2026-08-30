@@ -29,7 +29,7 @@ The path deliberately chooses the domain policy before infrastructure. The endpo
 | Compare InMemory, Redis, backplane, and HttpBus | [Topologies](topologies.md) |
 | Shorten client TTLs before a known release | [Client Cache Schedule](client-cache-schedule.md) |
 | Diagnose or change a running deployment | [Operations](operations.md) |
-| Evaluate direct platform APIs against the domain model | [Comparison](comparison.md) |
+| Evaluate direct platform APIs against the domain model | [Comparison](comparison.md) · [endpoint worked example](comparison-endpoint-example.md) |
 | Answer a specific symptom or boundary question | [FAQ](faq.md) |
 
 ## Know which documentation layer you need

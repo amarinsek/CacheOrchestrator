@@ -13,7 +13,8 @@ Start with the [root README](../README.md) for the product overview and quick st
 5. [Topologies](guide/topologies.md) — InMemory, Redis, HttpBus, mixed
 6. [Client Cache Schedule](guide/client-cache-schedule.md) — client `max-age` before a cutover
 7. [Operations](guide/operations.md) — diagnostics map, Admin API vs Admin Console App
-8. [Comparison](guide/comparison.md) — hand-rolled stack vs this library
+8. [Comparison](guide/comparison.md) — hand-rolled stack vs this library  
+   - [Worked example: one endpoint](guide/comparison-endpoint-example.md) — with CO first, then hand-rolled (vary, CCS, ETag, …)  
 9. [FAQ](guide/faq.md) — common mistakes
 
 ### Learn by running

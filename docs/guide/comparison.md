@@ -9,6 +9,7 @@ This page compares the responsibilities you own with direct ASP.NET Core and Fus
 ## Table of Contents
 
 - [The underlying stack stays the same](#the-underlying-stack-stays-the-same)
+- [How much application code you own](#how-much-application-code-you-own)
 - [Compare one snapshot endpoint](#compare-one-snapshot-endpoint)
 - [Compare dynamic entity invalidation](#compare-dynamic-entity-invalidation)
 - [Responsibility matrix](#responsibility-matrix)
@@ -37,6 +38,16 @@ Domain configuration
 ```
 
 The benefit grows when those policies would otherwise be repeated or allowed to drift.
+
+## How much application code you own
+
+The engines stay. What shrinks is **application-owned coordination** — vary lists, TTLs, Version, client headers, auth alignment, tags, and diagnostics that would otherwise be hard-coded next to each endpoint.
+
+For a concrete GET with Output Cache + Data Cache + query/Accept vary + client max-age, see the side-by-side:
+
+[Worked example: one endpoint without and with CacheOrchestrator](comparison-endpoint-example.md)
+
+The sections below stay shorter: snapshot cutover and entity invalidation at the responsibility level.
 
 ## Compare one snapshot endpoint
 
@@ -233,3 +244,9 @@ You do not need to enable every layer at once.
 Endpoint domain names and the core invalidation model remain stable as infrastructure grows.
 
 Try the complete first path in [Getting started](getting-started.md), or use the [FAQ](faq.md) when evaluating a specific edge case.
+
+## Related
+
+- [Worked example: one endpoint](comparison-endpoint-example.md) — with CO first, then hand-rolled for the same `GET`  
+- [Getting started](getting-started.md) — minimal host wiring  
+- [FAQ](faq.md) — boundary questions  
