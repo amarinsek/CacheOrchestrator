@@ -2,7 +2,7 @@
 
 > **Guide path:** [Domain profiles](domain-profiles.md) → **Packages** → [Topologies](topologies.md) · [Guide index](README.md)
 
-This page is how to **choose** a package for your stack. Copy-paste wiring is in [composition](../how-to/composition.md). Full package list, NuGet links, and the Admin Console App is in [root README Packages and applications](../../README.md#packages-and-applications).
+This page is how to **choose** a package for your stack. Copy-paste wiring is in [composition](../how-to/composition.md). Full package list, NuGet links, and the Admin Console App are in [Root README — Packages and applications](../../README.md#packages-and-applications).
 
 The getting-started tutorial installed the `CacheOrchestrator` meta package because it is the shortest path for a typical web app. Production applications can compose the same model from smaller packages.
 

@@ -111,7 +111,7 @@ Instance B's L1 memory would still hold stale data until its TTL expired. The Re
 **Backplane channel:** `{DataCacheNamespace}:backplane` (e.g. `my-app-fc:backplane`).
 Effective Data Cache namespace is `Cache:DataCacheInstances:{name}:Namespace` if set, else `{Cache:Namespace}-fc` for instance `default`, else `{Cache:Namespace}-fc-{instanceName}`. Multiple apps on the same Redis cluster stay isolated when those prefixes differ.
 
-Runtime Version / TTL / **settings** overlays are **not** carried by the Fusion backplane. Use the [cluster bus](cluster-bus.md) (`CacheOrchestrator.HttpBus`) or Admin Console fan-out for those.
+Runtime Version / TTL / **settings** overlays are **not** carried by the Fusion backplane. Use the [cluster bus](cluster-bus.md) (`CacheOrchestrator.HttpBus`) or Admin Console App fan-out for those.
 
 ---
 

@@ -560,4 +560,4 @@ app.MapPut("/api/products/{id:int}", async (int id, UpdatePriceBody body, Catalo
 - [Output Cache](../reference/output-cache.md) — domain binding, including domain name templates
 - [Data Cache](../reference/data-cache.md) — `IDomainDataCache`, providers, and domain resolution
 - [EF Core invalidation](../reference/ef-core-invalidation.md) — SaveChanges mapping and purge rules
-- [Root README — Packages and applications](../../README.md#packages-and-applications) — NuGet catalog and Admin Console
+- [Root README — Packages and applications](../../README.md#packages-and-applications) — NuGet catalog and Admin Console App

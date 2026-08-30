@@ -275,7 +275,7 @@ The Admin Console App probes `GET …/cluster/info` on configured instances (`GE
 | No bus | **fan-out** — HTTP to each target, `distribute: false` |
 | Bus enabled | **bus-distribute** — one healthy origin, `distribute: true` |
 
-Never combine full Admin Console App fan-out **and** `distribute: true` for the same action — the App chooses one path.  
+Never combine full Admin Console App fan-out **and** `distribute: true` for the same action — the Admin Console App chooses one path.  
 Operations UI shows mode banner + last-run summary.
 
 Details: [Admin — cluster distribution](admin.md#cluster-distribute-with-cacheorchestratorhttpbus).

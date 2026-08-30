@@ -136,7 +136,7 @@ The release publish workflow packs the final package set and therefore runs SDK 
 
 5. Create a **GitHub Release** for that tag (**not** marked pre-release for a stable release).  
    This triggers [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml):
-   - unit tests (`Core` / `FusionCache` / `HybridCache` / `AspNetCore` / `Redis.Shared` / `AspNetCore.Redis` / `FusionCache.Redis` / Redis meta / `HttpBus` / EF) on net8 + net10; Admin Console on net10
+   - unit tests (`Core` / `FusionCache` / `HybridCache` / `AspNetCore` / `Redis.Shared` / `AspNetCore.Redis` / `FusionCache.Redis` / Redis meta / `HttpBus` / EF) on net8 + net10; Admin Console App on net10
    - integration tests on net8/net10 + Testcontainers Redis; Minimal sample smoke
    - `dotnet pack` for **all** packable NuGet libraries → `.nupkg` + `.snupkg` (includes Redis.Shared as support; see pack list in `publish.yml`); each pack runs SDK package validation
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)

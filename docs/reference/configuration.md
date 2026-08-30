@@ -248,7 +248,7 @@ Details: [admin.md](admin.md). Map with `MapCacheOrchestratorAdmin()`.
 
 Process id is **`Cache:InstanceId`** (root), not under `Admin`.
 
-Admin Console App (`AdminConsole` section) is configured only in `src/CacheOrchestrator.AdminConsole` — see [admin.md](admin.md#admin-console-app-process).
+Admin Console App (`AdminConsole` section) is configured only in `src/CacheOrchestrator.AdminConsole` — see [admin.md](admin.md#admin-console-app).
 
 ## Cluster bus (`Cache:Cluster:Bus`)
 

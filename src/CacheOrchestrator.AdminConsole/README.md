@@ -18,7 +18,7 @@ The Admin Console App gives operators one place to inspect multiple CacheOrchest
 
 ## Quick start
 
-From the repository root, start the Playground, Prometheus, and Admin Console together:
+From the repository root, start the Playground, Prometheus, and Admin Console App together:
 
 ```bash
 docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build -d
@@ -33,7 +33,7 @@ Open:
 For a direct host run, continue to [Run locally](#run-locally).
 
 > [!NOTE]
-> This host is not a NuGet package and targets .NET 10 only. Monitored applications may run on .NET 8 or .NET 10 because the Admin Console communicates with them over HTTP.
+> This host is not a NuGet package and targets .NET 10 only. Monitored applications may run on .NET 8 or .NET 10 because the Admin Console App communicates with them over HTTP.
 
 ## How it works
 

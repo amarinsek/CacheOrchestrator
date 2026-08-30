@@ -157,7 +157,7 @@ Every instance must:
 
 With the bus enabled, a programmatic `Invalidate*` call applies locally and publishes an invalidation command. Peers apply the same purge locally without republishing it.
 
-Admin changes to runtime Version, TTL, or settings are distributed only when the operation requests `distribute: true`. The Admin Console chooses between bus distribution and direct fan-out.
+Admin changes to runtime Version, TTL, or settings are distributed only when the operation requests `distribute: true`. The Admin Console App chooses between bus distribution and direct fan-out.
 
 This topology coordinates invalidation but does not share warm entries. Each process still fills and stores its own copy, and all entries disappear when that process restarts.
 
@@ -170,7 +170,7 @@ This topology coordinates invalidation but does not share warm entries. Each pro
 | Share FusionCache data objects and clear peer L1 entries | Redis L2 + backplane |
 | Purge in-memory Output Cache on every node | HttpBus |
 | Coordinate nodes without Redis | HttpBus |
-| Apply runtime Version/TTL/settings overlays on every node | HttpBus or Admin Console fan-out |
+| Apply runtime Version/TTL/settings overlays on every node | HttpBus or Admin Console App fan-out |
 | Redis Fusion L2 plus local Output Cache | Redis + optionally HttpBus for the Output Cache gap |
 
 Using the Redis backplane and HttpBus together for the same Fusion tag purge is safe because purges are idempotent, but it is often redundant. Add both only when the bus has another job, such as local Output Cache eviction or runtime overlays.
@@ -222,7 +222,7 @@ The playground includes five Docker Compose stages:
 
 | Lab | Adds | Lesson |
 |-----|------|--------|
-| 01 | InMemory app, Prometheus, Admin Console | Observe one process |
+| 01 | InMemory app, Prometheus, Admin Console App | Observe one process |
 | 02 | FusionCache Redis L2 | Share data objects while Output Cache stays local |
 | 03 | A second app instance | Expose the local Output Cache gap |
 | 04 | HttpBus | Send commands to every node |

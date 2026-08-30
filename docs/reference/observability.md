@@ -4,7 +4,7 @@
 
 How to see what the cache is doing: the **`X-Cache`** response header, the **`CacheOrchestrator`** meter and activity source, logs, and health checks.
 
-Operator dashboards and multi-instance actions: [admin](admin.md). Admin Console **traffic** charts are **Prometheus-only** (point `AdminConsole:Metrics` at a scrape of the meter). Try Prometheus with the playground [topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) — sample Compose only, not a NuGet dependency.
+Operator dashboards and multi-instance actions: [admin](admin.md). Admin Console App **traffic** charts are **Prometheus-only** (point `AdminConsole:Metrics` at a scrape of the meter). Try Prometheus with the playground [topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) — sample Compose only, not a NuGet dependency.
 
 ## Table of Contents
 
@@ -140,7 +140,7 @@ All arguments shown are the defaults. `timeout` is the health-check registration
 
 See [Extensibility](extensibility.md#health-probe-icacheorchestratorhealthprobe) for a custom probe implementation.
 
-Admin API `GET …/health` is a **separate** endpoint: it still returns HTTP 200 when a registered cache probe fails, with `Healthy: false` (Admin Console maps that to **Degraded**). See [admin.md](admin.md#health-semantics-admin-console-app-mapping).
+Admin API `GET …/health` is a **separate** endpoint: it still returns HTTP 200 when a registered cache probe fails, with `Healthy: false` (Admin Console App maps that to **Degraded**). See [admin.md](admin.md#health-semantics-admin-console-app-mapping).
 
 ## Related
 

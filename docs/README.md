@@ -1,21 +1,8 @@
 # CacheOrchestrator documentation
 
-CacheOrchestrator configures and coordinates ASP.NET Output Cache, a **Data Cache** engine (FusionCache or HybridCache), and Client Cache under one **domain** model. It is not a cache of its own.
+## Product
 
 Start with the [root README](../README.md) for the product overview and quick start. Then pick a path below.
-
-## Layers
-
-| Layer | Start here | For |
-|-------|------------|-----|
-| **Product** | [Root README](../README.md) | What it is, quick start, package table |
-| **Guide** | [Guide](guide/README.md) | How to think, which topology, how to operate |
-| **How-to** | [Composition](how-to/composition.md) | Copy-paste install / register / config / code |
-| **Reference** | Topic pages below | Schema, APIs, keys, deployment wiring |
-
-```
-README.md  →  docs/guide/  →  docs/how-to/  →  docs/reference/
-```
 
 ## Guide
 
@@ -25,7 +12,7 @@ README.md  →  docs/guide/  →  docs/how-to/  →  docs/reference/
 4. [Packages](guide/packages.md) — which NuGet to install
 5. [Topologies](guide/topologies.md) — InMemory, Redis, HttpBus, mixed
 6. [Client Cache Schedule](guide/client-cache-schedule.md) — client `max-age` before a cutover
-7. [Operations](guide/operations.md) — diagnostics map, Admin API vs Console
+7. [Operations](guide/operations.md) — diagnostics map, Admin API vs Admin Console App
 8. [Comparison](guide/comparison.md) — hand-rolled stack vs this library
 9. [FAQ](guide/faq.md) — common mistakes
 
@@ -68,7 +55,7 @@ The reference describes exact configuration paths, API contracts, key material, 
 - [Cluster command bus](reference/cluster-bus.md) — membership, commands, delivery, authentication, and partial failure
 - [Observability](reference/observability.md) — `X-Cache`, metrics, traces, logs, and health checks
 - [Admin](reference/admin.md) — Admin API, Admin Console App, trust boundaries, and operational endpoints
-- [Admin Console Docker](../deploy/admin/README.md) — image, volumes, and logs
+- [Admin Console App Docker](../deploy/admin/README.md) — image, volumes, and logs
 
 ### Common technical paths
 
@@ -84,17 +71,14 @@ The reference describes exact configuration paths, API contracts, key material, 
 
 - [Packages](guide/packages.md) — which package to choose
 - [Composition](how-to/composition.md) — copy-paste install / register / config
-- [Root README Packages and applications](../README.md#packages-and-applications) — NuGet catalog, versions, Admin Console
+- [Root README — Packages and applications](../README.md#packages-and-applications) — NuGet catalog, versions, Admin Console App
 
 
-## Contributor
+## For contributor
 
-Maintainer material — not required to ship a first domain.
-
-- [Architecture](contributor/architecture.md)
-- [Admin hints](contributor/admin-hints.md) · [writing hint rules](../src/CacheOrchestrator.AdminConsole/hints/README.md)
-- [Benchmarks](contributor/benchmarks/results.md)
-- [Releasing](contributor/releasing.md)
 - [Contributing](../CONTRIBUTING.md)
+- [Releasing](contributor/releasing.md)
 - [Worklog template](contributor/templates/worklog-template.md)
-- [Releases](https://github.com/amarinsek/CacheOrchestrator/releases)
+- [Benchmarks](contributor/benchmarks/results.md)
+
+

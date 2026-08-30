@@ -78,7 +78,7 @@ Start with these signals:
 
 By default, request instruments include a stable route-template label rather than raw resource paths. Disable `Cache:Metrics:IncludeEndpointLabel` if that cardinality is still too high, and keep the choice consistent across instances.
 
-Admin Console traffic charts require Prometheus. The Admin API `/stats` endpoint contains process-lifetime diagnostics and is not the source for time-window analytics.
+Admin Console App traffic charts require Prometheus. The Admin API `/stats` endpoint contains process-lifetime diagnostics and is not the source for time-window analytics.
 
 ## Use logs and traces for the reason
 
@@ -134,9 +134,9 @@ app.UseCacheOrchestrator();
 app.MapCacheOrchestratorAdmin();
 ```
 
-Use the API for automation. Add the Admin Console when operators need instance fan-out, domain comparisons, hints, and a visual workflow. The Console is not a NuGet package and is never on the end-user caching path.
+Use the Admin API for automation. Add the Admin Console App when operators need instance fan-out, domain comparisons, hints, and a visual workflow. The Admin Console App is not a NuGet package and is never on the end-user caching path.
 
-Setup and endpoint reference: [Admin](../reference/admin.md). Container runbook: [Deploy Admin Console](../../deploy/admin/README.md).
+Setup and endpoint reference: [Admin](../reference/admin.md). Container runbook: [Deploy Admin Console App](../../deploy/admin/README.md).
 
 ## Match every mutation to its scope
 
@@ -162,7 +162,7 @@ Before running an invalidation or settings change, identify the topology:
 - In a single process, local apply is the whole deployment.
 - Redis Output Cache uses a shared response store.
 - FusionCache Redis L2 plus backplane purges shared data and peer L1 entries.
-- In-memory peer stores require HttpBus commands or Admin Console fan-out.
+- In-memory peer stores require HttpBus commands or Admin Console App fan-out.
 - Runtime Version, TTL, and settings overlays do not travel through the FusionCache backplane.
 
 With HttpBus enabled, programmatic invalidation publishes to peers after local apply. Admin mutations distribute only when `distribute: true` is requested. A peer failure can leave the origin changed while one or more peers remain unchanged; there is no automatic rollback.
@@ -178,8 +178,8 @@ See [Topologies](topologies.md) and [Cluster bus](../reference/cluster-bus.md) f
 >
 >- Keep Admin API and bus endpoints on a private network.
 >- Set strong API keys through a secret provider; never commit them to configuration files.
->- Put VPN, SSO, or authenticated reverse-proxy access in front of the Admin Console. It has no built-in user login.
->- Use TLS between operators, Console, and application instances.
+>- Put VPN, SSO, or authenticated reverse-proxy access in front of the Admin Console App. It has no built-in user login.
+>- Use TLS between operators, Admin Console App, and application instances.
 >- Restrict Prometheus and diagnostic headers when their labels reveal sensitive deployment details.
 >- Audit invalidation and settings mutations outside the cache process when required.
 >

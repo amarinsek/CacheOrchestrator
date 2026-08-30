@@ -200,7 +200,7 @@ Domains are the unit of configuration. Within a domain you can optionally use **
 
 ## Playground topology labs
 
-To try **multi-layer layouts** (Admin Console, Prometheus, Redis L2, multiple instances, cluster bus) without wiring Docker yourself, use the playground **topology labs** — one Compose command per stage. 
+To try **multi-layer layouts** (Admin Console App, Prometheus, Redis L2, multiple instances, cluster bus) without wiring Docker yourself, use the playground **topology labs** — one Compose command per stage. 
 
 ```bash
 docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build
@@ -212,7 +212,7 @@ Stages climb from a single in-memory playground to a dual Redis + HTTP bus archi
 
 ## Packages and applications
 
-The library is **modular**. `CacheOrchestrator.Core` provides the foundational policies, `ICacheOrchestrator`, and the transport-independent management API. From there, you can opt into specific packages to match your stack: `CacheOrchestrator.FusionCache` or `CacheOrchestrator.HybridCache` for Data Cache, `CacheOrchestrator.AspNetCore` for Output Cache and Client Cache, Redis packages, `CacheOrchestrator.HttpBus`, and `CacheOrchestrator.EFCore.Invalidation`. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
+The library is **modular**. `CacheOrchestrator.Core` provides the foundational policies, `ICacheOrchestrator`, and the transport-independent Management API. From there, you can opt into specific packages to match your stack: `CacheOrchestrator.FusionCache` or `CacheOrchestrator.HybridCache` for Data Cache, `CacheOrchestrator.AspNetCore` for Output Cache and Client Cache, Redis packages, `CacheOrchestrator.HttpBus`, and `CacheOrchestrator.EFCore.Invalidation`. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
 
 | Package | Purpose |
 |---------|---------|
@@ -230,19 +230,17 @@ The library is **modular**. `CacheOrchestrator.Core` provides the foundational p
 
 | Application | Purpose |
 |-------------|---------|
-| [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Standalone Admin Console for live stats, domain configuration, triggering invalidations, and adjusting Versions or TTLs on the fly. Available as a Docker image. See [Admin Console](src/CacheOrchestrator.AdminConsole/) · [Deploy Admin](deploy/admin/README.md). |
+| [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Standalone Admin Console App for live stats, domain configuration, triggering invalidations, and adjusting Versions or TTLs on the fly. Available as a Docker image. See [Admin Console README](src/CacheOrchestrator.AdminConsole/) · [Deploy Admin Console App](deploy/admin/README.md). |
 
 ## Prerelease status
 
-> [!NOTE]
-> **v3 is in prerelease (beta)**
->
+> [!IMPORTANT]
 > CacheOrchestrator v3 is a **full redesign**, not an incremental evolution of 1.x / 2.x. Previous published lines (v1.0.0 and v2.1.x) are maintained for legacy continuity only. The v3 does not preserve a direct migration story or API compatibility with them; please treat v3 as a new architectural surface under the same name.
 >
-> This documentation describes **CacheOrchestrator v3**. Public APIs may change until the stable **v3.0.0** release. Install the prerelease with the Quick start above (`dotnet add package … --prerelease`).
+>**v3 is in prerelease (beta)**
 >
-> **Help test the prerelease.** Reports from real ASP.NET Core applications, standalone workers, Redis deployments, browsers, and playground labs are especially valuable. Successful results and confusing behavior are welcome too — see [Contributing](CONTRIBUTING.md#help-test-v3).
->
+> This documentation describes **CacheOrchestrator v3**. Public APIs may change until the stable **v3.0.0** release. Install the prerelease with the Quick start above (`dotnet add package … --prerelease`).<br>
+> **Help test the prerelease.** Reports from real ASP.NET Core applications, standalone workers, Redis deployments, browsers, and playground labs are especially valuable. Successful results and confusing behavior are welcome too — see [Contributing](CONTRIBUTING.md#help-test-v3).<br>
 > To build from source or contribute code, clone this repository — `main` tracks the same v3 work and may move faster than the latest beta package.
 
 ## Documentation
@@ -252,7 +250,6 @@ The library is **modular**. `CacheOrchestrator.Core` provides the foundational p
 - [Documentation index](docs/README.md) — configuration, keys, deployment, architecture
 - [FAQ](docs/guide/faq.md) — common mistakes and limits
 - [Comparison](docs/guide/comparison.md) — the usual stack versus CacheOrchestrator
-- [Releases](https://github.com/amarinsek/CacheOrchestrator/releases)
 - [CONTRIBUTING](CONTRIBUTING.md)
 - [SECURITY](SECURITY.md)
 - [LICENSE](LICENSE.md) (MIT)

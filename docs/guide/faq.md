@@ -205,7 +205,7 @@ Configuration selects a registered provider; it does not install one. Add the ma
 | Share Output Cache responses | Redis Output Cache store |
 | Purge in-memory Output Cache on peer nodes | HttpBus |
 | Coordinate several in-memory nodes without Redis | HttpBus |
-| Distribute runtime Version/TTL/settings overlays | HttpBus or Admin Console fan-out |
+| Distribute runtime Version/TTL/settings overlays | HttpBus or Admin Console App fan-out |
 
 HttpBus carries commands, not cache values. Using it alongside the Redis backplane is safe but can be redundant for Fusion tag invalidation. See [Topologies](topologies.md).
 
@@ -239,12 +239,12 @@ See [Cache backends](../reference/backends.md), [Data Cache — HybridCache](../
 
 ## Admin and multi-instance operations
 
-### What is the difference between Admin API and Admin Console?
+### What is the difference between Admin API and Admin Console App?
 
 - **Admin API** is an opt-in route group inside each application process. It exposes health, effective domains, invalidation, and runtime settings operations.
 - **Admin Console App** is a separate application that discovers and controls the Admin API on each instance through one UI.
 
-Traffic charts in the Console use Prometheus. The Console has no built-in user login, so protect it with private networking and external authentication.
+Traffic charts in the Admin Console App use Prometheus. The Admin Console App has no built-in user login, so protect it with private networking and external authentication.
 
 See [Operations](operations.md#choose-the-admin-surface) and [Admin](../reference/admin.md).
 
@@ -253,7 +253,7 @@ See [Operations](operations.md#choose-the-admin-surface) and [Admin](../referenc
 Runtime overlays are local unless the operation is distributed.
 
 - With HttpBus, use `distribute: true` so the origin publishes to peers.
-- Without HttpBus, the Admin Console must fan out to every target instance.
+- Without HttpBus, the Admin Console App must fan out to every target instance.
 - The FusionCache Redis backplane does not carry Version, TTL, or settings overlays.
 
 A down peer can leave the deployment partially updated. Inspect the operation result and reconcile failed instances.

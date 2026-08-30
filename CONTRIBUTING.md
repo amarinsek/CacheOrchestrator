@@ -102,7 +102,7 @@ dotnet test tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.Fusi
 dotnet test tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj -c Release
 ```
 
-Use `-f net8.0` or `-f net10.0` to run one target framework. The Admin Console tests are `net10.0` only:
+Use `-f net8.0` or `-f net10.0` to run one target framework. The Admin Console App tests are `net10.0` only:
 
 ```bash
 dotnet test tests/CacheOrchestrator.AdminConsole.UnitTests/CacheOrchestrator.AdminConsole.UnitTests.csproj -c Release -f net10.0

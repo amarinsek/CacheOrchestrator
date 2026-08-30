@@ -8,18 +8,17 @@ The management model has three layers:
 |-------|------------|----------------|
 | **Management API** | Transport-independent queries and operations through `ICacheOrchestratorManagement` | `CacheOrchestrator.Core`; available to web apps, workers, command handlers, and custom adapters |
 | **Admin API** | Opt-in HTTP routes that delegate to the Management API | `CacheOrchestrator.AspNetCore` (`Cache:Admin` + `MapCacheOrchestratorAdmin`) |
-| **Admin Console App** | Dashboard that fans out to each instance Admin API | Separate process / Docker image — not a NuGet package |
+| **Admin Console App** | Dashboard that fans out to each instance Admin API | Separate process / Docker image — not a NuGet package, [deploy/admin](../../deploy/admin/README.md), [Admin Console README](../../src/CacheOrchestrator.AdminConsole/README.md) |
 
-Use the Core contract from application code or a custom transport. Use the Admin API for scripts and the Console for multi-instance UI. **Traffic charts need Prometheus.** Security matters: management operations mutate cache state.
-
-Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Admin Console README](../../src/CacheOrchestrator.AdminConsole/README.md).
+Use the **Management API** from application code or a custom transport. Use the **Admin API** for scripts and HTTP automation. Use the **Admin Console App** for multi-instance UI.
 
 ## Table of Contents
 
 - [Architecture](#architecture)
 - [Distribution](#distribution)
-- [Admin API (library)](#admin-api-library)
-- [Admin Console App (process)](#admin-console-app-process)
+- [Management API](#management-api)
+- [Admin API](#admin-api)
+- [Admin Console App](#admin-console-app)
 - [Security](#security)
 - [Common pitfalls](#common-pitfalls)
 - [Out of scope](#out-of-scope)
@@ -39,8 +38,8 @@ Docker runbook: [deploy/admin](../../deploy/admin/README.md). Local Console: [Ad
       Operators
 ```
 
-- Admin Console App is **never** on the end-user caching hot path.  
-- **Console traffic stats** come only from the OTEL meter scraped into Prometheus (`increase()` over the selected Range per domain/route/`instance_id`). Admin API `/stats` is a compact process-lifetime raw snapshot for diagnostics.
+- The Admin Console App is **never** on the end-user caching hot path.  
+- **Admin Console App traffic stats** come only from the OTEL meter scraped into Prometheus (`increase()` over the selected Range per domain/route/`instance_id`). Admin API `/stats` is a compact process-lifetime raw snapshot for diagnostics.
 - Runtime **Version** and **TTL** overlays are **process-local** on each node unless the optional [cluster bus](cluster-bus.md) publishes them (`distribute: true` / Admin Console App **bus-distribute**). Without bus, Admin Console App **fan-out** must hit every instance that should change.
 
 ---
@@ -63,11 +62,9 @@ Run the Admin Console App as an internal ops service (Docker or Helm, VPN only).
 
 ---
 
-## Admin API (library)
+## Management API
 
-### Core management contract
-
-`AddCacheOrchestratorCore` registers `ICacheOrchestratorManagement`. The contract does not reference ASP.NET Core and supports:
+`AddCacheOrchestratorCore` registers `ICacheOrchestratorManagement`. The Management API supports:
 
 - health, cluster identity, domain configuration, host resource discovery, and diagnostic statistics;
 - domain, entity, entity-kind, and tag invalidation;
@@ -89,9 +86,13 @@ public sealed class CacheOperations(ICacheOrchestratorManagement management)
 }
 ```
 
-Core supplies a Data Cache domain view and an empty resource catalog. Host packages can enrich these through `IAdminDomainConfigProvider` and `IAdminEndpointCatalog`; `CacheOrchestrator.AspNetCore` supplies both adapters. `Admin:Enabled` controls HTTP route exposure and live Admin counters, not whether application code can resolve the Core management contract.
+Core supplies a Data Cache domain view and an empty resource catalog. Host packages can enrich these through `IAdminDomainConfigProvider` and `IAdminEndpointCatalog`; `CacheOrchestrator.AspNetCore` supplies both adapters.
 
-Mutation methods validate input with `ArgumentException`. A distributed Version or settings result carries `ClusterPublish`; adapters decide how to represent partial peer failure. The built-in Admin API returns `409 Conflict` after the local change has already been applied.
+Mutation methods validate input with `ArgumentException`. A distributed Version or settings result carries `ClusterPublish` so a host can report partial peer failure; how that appears on the wire is up to the host (for HTTP, see [Admin API](#admin-api)).
+
+## Admin API
+
+HTTP adapter over the Management API. Opt in per app instance with `Cache:Admin` and `MapCacheOrchestratorAdmin`. `Cache:Admin:Enabled` controls these HTTP routes and live Admin counters; it does not affect whether application code can resolve the Management API.
 
 ### Enable (each app instance)
 
@@ -148,9 +149,9 @@ With **`distribute: true`**, Admin API applies the change on the origin first, t
 | No bus | **fan-out** — HTTP to every target with `distribute:false` |
 | Bus enabled (Static/ServiceDiscovery) | **bus-distribute** — one healthy origin with `distribute:true` (peers via bus) |
 
-Console write APIs return **200** only when every contacted instance succeeded; otherwise **409** with `outcome` (`partialFailure` / `failed`), `failedInstanceIds`, and `warning`. Operations UI confirms before Run when probes show down instances, and shows a critical alert on incomplete writes.
+Admin Console App write APIs return **200** only when every contacted instance succeeded; otherwise **409** with `outcome` (`partialFailure` / `failed`), `failedInstanceIds`, and `warning`. Operations UI confirms before Run when probes show down instances, and shows a critical alert on incomplete writes.
 
-Never combine full Admin Console App fan-out **and** `distribute:true` for the same action — the App chooses one path automatically.
+Never combine full Admin Console App fan-out **and** `distribute:true` for the same action — the Admin Console App chooses one path automatically.
 
 Receive path for peers: `MapCacheOrchestratorHttpBus()` (not gated on `Admin:Enabled`).
 
@@ -174,7 +175,7 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 |--------|------|---------|
 | GET | `/health` | `Healthy` (probes + counters), `InstanceId`, `StartedAtUtc`, `UptimeSeconds`, `Requests` |
 | GET | `/cluster/info` | Bus/membership snapshot (mapped even **without** the Bus package) |
-| GET | `/stats` | Process-lifetime raw counters — diagnostics / external tools only; Admin Console does **not** use this for the traffic UI |
+| GET | `/stats` | Process-lifetime raw counters — diagnostics / external tools only; the Admin Console App does **not** use this for the traffic UI |
 | GET | `/endpoints` | Discovered + counted routes |
 | GET | `/domains` | Effective domain options snapshot |
 | GET | `/domains/{name}` | One domain; **404** if unknown |
@@ -185,7 +186,7 @@ Base path = `RoutePrefix` (default `/cache-admin/local`).
 
 Responses are **not** stored in Output Cache (`NoStore` on the admin group).
 
-The management contract and HTTP endpoint expose the same `AdminLiveStatsRawSnapshot` shape. Time-window analytics should use the OTEL meter `CacheOrchestrator` (Prometheus) and Console `GET /api/stats/window`.
+The Management API and Admin API expose the same `AdminLiveStatsRawSnapshot` shape. Time-window analytics should use the OTEL meter `CacheOrchestrator` (Prometheus) and the Admin Console App `GET /api/stats/window`.
 
 ### Mutation request bodies
 
@@ -249,11 +250,11 @@ A successful Version or settings mutation returns the normalized `domain` and co
 
 ### Admin API `/stats` (process-lifetime raw snapshot)
 
-Designed for curl/scripts and management adapters: process-lifetime counters without presentation shares or rates. When `Cache:Admin:TrackLatency` / `TrackResultSize` are on, factory duration and result-size sums are included.
+Designed for curl/scripts and Management API hosts: process-lifetime counters without presentation shares or rates. When `Cache:Admin:TrackLatency` / `TrackResultSize` are on, factory duration and result-size sums are included.
 
-**Prefer** Prometheus for multi-instance and time windows. Admin Console traffic UI is Prom-only.
+**Prefer** Prometheus for multi-instance and time windows. Admin Console App traffic UI is Prom-only.
 
-The Admin Console derives presentation shares and rates from Prometheus window counters, not from the local raw snapshot. Its request denominator is:
+The Admin Console App derives presentation shares and rates from Prometheus window counters, not from the Admin API raw snapshot. Its request denominator is:
 
 ```text
 requests = (outputCacheHits+outputCacheMisses+outputCacheBypass+outputCacheOff) if > 0
@@ -305,7 +306,7 @@ If Output Cache absorbs almost all traffic, Data Cache hit **share** is still tr
 
 `Requests` / uptime on the instance row come from health when the probe succeeds.
 
-`Healthy` is **not** “the HTTP endpoint answered”. It is `true` only when live counters can be read **and** every registered `ICacheOrchestratorHealthProbe` succeeds (InMemory with no probes stays `true`). A failed Redis (or other backend) probe returns HTTP 200 with `Healthy: false` so the Console can show **Degraded**.
+`Healthy` is **not** “the HTTP endpoint answered”. It is `true` only when live counters can be read **and** every registered `ICacheOrchestratorHealthProbe` succeeds (InMemory with no probes stays `true`). A failed Redis (or other backend) probe returns HTTP 200 with `Healthy: false` so the Admin Console App can show **Degraded**.
 
 ### Limitations (Admin API)
 
@@ -315,9 +316,11 @@ If Output Cache absorbs almost all traffic, Data Cache hit **share** is still tr
 
 ---
 
-## Admin Console App (process)
+## Admin Console App
 
-Standalone host targeting **net10.0** only (ops tool). Target apps may still run on **net8.0** or **net10.0** independently — Admin talks HTTP only and does not need to match instance runtimes.
+Standalone host targeting **net10.0** only (ops tool). Target apps may still run on **net8.0** or **net10.0** independently — the Admin Console App talks HTTP to each instance Admin API and does not need to match instance runtimes.
+
+**Traffic UI, windowed stats, impact, and hints require a metrics store.** Configure `AdminConsole:Metrics` against a **Prometheus-compatible** HTTP API that scrapes meter `CacheOrchestrator` from your apps (Prometheus, or Mimir / VictoriaMetrics / Thanos Query with the same API). The only supported `Provider` value today is **`Prometheus`**. Without Metrics enabled, health, domain config, and operations still work via the Admin API; charts and recommendation inputs stay offline.
 
 ### Configuration
 
@@ -368,7 +371,7 @@ Minimal config (everything else has defaults). The Admin Console App in this rep
 }
 ```
 
-Dev stack (Playground + Prometheus + Admin Console labs): [samples/CacheOrchestrator.Sample/labs/README.md](../../samples/CacheOrchestrator.Sample/labs/README.md) (sample only, not a library dependency).
+Dev stack (Playground + Prometheus + Admin Console App labs): [samples/CacheOrchestrator.Sample/labs/README.md](../../samples/CacheOrchestrator.Sample/labs/README.md) (sample only, not a library dependency).
 
 | Key | Default | Notes |
 |-----|---------|--------|
@@ -382,16 +385,16 @@ Dev stack (Playground + Prometheus + Admin Console labs): [samples/CacheOrchestr
 
 When **not configured**, statistics and charts are unavailable (UI shows Metrics offline); health, domain config, and operations still work via Admin API. When **configured but unreachable**, the UI shows **Disconnected** with the same **Provider · host** (from `BaseUrl`) plus not connected / error text — so the target is always visible even when the probe fails (no fake zeros). Metrics store status also appears on **Instances**.
 
-#### Windowed stats (Prometheus) — Console traffic source
+#### Windowed stats (Prometheus) — Admin Console App traffic source
 
-| Console API | Role |
+| Admin Console App API | Role |
 |-------------|------|
 | `GET /api/stats/window` | Domain/endpoint counters + shares + impact + hints for the selected window (`range` and/or `from`/`to`, optional `domains`) |
 
 | `GET /api/metrics/series` | Chart panels (`range`, `from`/`to`, `panels`, `domains`, `instances`, `routes`) |
 | `GET /api/metrics/summary` | Compact rates/shares for the window |
 
-Overview, Domains, Endpoints, detail **traffic**, header KPIs, and **Hints** use `/api/stats/window` only. **Green underline** = current config/identity (Version, TTL, …), not the window. Admin API process counters are **not** used for Console stats.
+Overview, Domains, Endpoints, detail **traffic**, header KPIs, and **Hints** use `/api/stats/window` only. **Green underline** = current config/identity (Version, TTL, …), not the window. Admin API process counters are **not** used for Admin Console App stats.
 
 Window aggregates use Prometheus **`increase(metric[range])`** over the selected Range (the same principle as chart `rate` / `increase`), so domains and endpoints that had traffic mid-window still count even if OTEL later stops exporting those labels. Instant `now − offset` is not used for that reason. Rows with **zero requests** and no invalidations in the window are omitted from domain and endpoint tables; charts may still draw historical curves for series present in TSDB. A new series with only one scrape may under-count until the next scrape (fallback: current value when the series did not exist at the start of the window). Output Cache, Data Cache, and invalidation series group by `domain` / `result`; endpoints group by `route`. Factory duration uses histogram `_sum` / `_count`. Data Cache meter `result=fail` maps a hard factory exception to a factory failure. Per-instance views use scrape label `instance_id` (lab: `playground-1`); missing labels become **`undefined`**.
 
@@ -425,7 +428,7 @@ Quick operator steps: [Admin Console App README](../../src/CacheOrchestrator.Adm
 Evaluated **only in the Admin Console App** on Prometheus window stats (`HintEngine` + JSON packs), plus domain config for config-only rules.  
 **Customizable:** product defaults in `hints/core-hints.json`; extra packs via `AdminConsole:Hints:RuleFiles`; enable/disable in **Settings**. UI does not invent rules.
 
-Step-by-step custom rules (ships with Admin): [hints/README.md](../../src/CacheOrchestrator.AdminConsole/hints/README.md).  
+Step-by-step custom rules (ships with the Admin Console App): [hints/README.md](../../src/CacheOrchestrator.AdminConsole/hints/README.md).  
 Repo overview: [admin-hints.md](../contributor/admin-hints.md).
 
 ### Admin Console App HTTP API (for the SPA / automation)
@@ -437,7 +440,7 @@ Repo overview: [admin-hints.md](../contributor/admin-hints.md).
 | GET | `/api/distribution` | Probe `…/cluster/info`; recommended write mode (fan-out vs bus-distribute) |
 | GET | `/api/live` | **Live** snapshot: fixed 1m rates + instance health (not Range-scoped) |
 | GET | `/api/stats/window?range=&from=&to=&domains=` | **Traffic stats** (Prometheus): domains/endpoints + impact + Peak RPS + hints |
-| GET | `/api/about` | Console host version (UI pill) |
+| GET | `/api/about` | Admin Console App host version (UI pill) |
 | GET | `/api/domains` | Domain config fan-out |
 | GET | `/api/domain-settings/catalog` | Overlay field catalog |
 | GET | `/api/metrics/status` | Metrics store probe (`NotConfigured` / `Disconnected` / `Connected`) |
@@ -513,7 +516,7 @@ You may enable Admin API for scripts only. Still set `ApiKey` and lock down netw
 | Empty domains/endpoints | No traffic yet; all targets down; filters set to **None** |
 | Version/TTL “didn’t stick” cluster-wide | Overlay is **process-local** without bus; use fan-out to all nodes, or bus-distribute; node down during write |
 | High Fusion miss rate while everything appears healthy | Prefer **factory share** (also known as origin) and Output Cache hit share; see shares vs rates |
-| Scalar OpenAPI missing | OpenAPI + Scalar are mapped in **all** environments on the Admin Console App (`/scalar`; requires net10 runtime for the Admin host) |
+| Scalar OpenAPI missing | OpenAPI + Scalar are mapped in **all** environments on the Admin Console App (`/scalar`; requires net10 runtime for the Admin Console App host) |
 | CORS issues calling Admin API from a browser | Prefer Admin Console App fan-out; Admin API is for server-side callers |
 
 ---

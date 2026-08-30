@@ -190,7 +190,7 @@ The invalidator removes matching Output Cache and Data Cache entries. Multi-inst
 | Snapshot generation | Add version material to every key and validator | Domain `Version` |
 | Data engine selection | Application DI and engine-specific calls | Provider packages behind stable APIs |
 | Request diagnostics | Build headers, meters, traces, and logs | Built-in `X-Cache` and telemetry |
-| Multi-instance commands | Custom transport or direct fan-out | Optional HttpBus / Admin Console fan-out |
+| Multi-instance commands | Custom transport or direct fan-out | Optional HttpBus / Admin Console App fan-out |
 
 CacheOrchestrator reduces application-owned coordination. It does not remove the need to choose sensible TTLs, identities, topology, or security boundaries.
 

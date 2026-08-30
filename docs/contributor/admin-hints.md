@@ -39,8 +39,8 @@ Hints never change cache behaviour, TTLs, or invalidation.
 ## Architecture (repository)
 
 ```
-Prometheus (OTEL meter)  →  Admin Console /api/stats/window  (Range)
-                         →  Admin Console /api/live          (fixed 1m)
+Prometheus (OTEL meter)  →  Admin Console App /api/stats/window  (Range)
+                         →  Admin Console App /api/live          (fixed 1m)
                          →  HintEngine (JSON rules)
                          →  entity.Hints[] + HintSummary
                          →  SPA (badges, Hints page, Live, Settings)
@@ -145,7 +145,7 @@ Exact thresholds, messages, and `badge` labels: open **`core-hints.json`** or Se
 | Declarative compiler / conditions | `Services/Hints/Declarative/` |
 | Disable store | `Services/Hints/HintRuleDisableStore.cs` |
 | Product + operator packs | `hints/` |
-| Console DTOs (SPA / fan-out) | `Models/` (`OverviewDtos`, `FanOutDtos`, `WriteRequestDtos`, …) |
+| Admin Console App DTOs (SPA / fan-out) | `Models/` (`OverviewDtos`, `FanOutDtos`, `WriteRequestDtos`, …) |
 | Settings UI | `wwwroot/js/views-settings.js` (`renderSettingsPage`; routed from thin `views.js`) |
 | Attachment on window stats | `Services/Metrics/MetricsWindowStatsService.cs` (`HintEngine`) |
 

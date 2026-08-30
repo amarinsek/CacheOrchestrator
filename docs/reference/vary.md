@@ -8,7 +8,7 @@ CacheOrchestrator shares one **vary model** between **Output Cache** and **Fusio
 
 See also: [cache-keys.md](cache-keys.md), [Output Cache](output-cache.md), [configuration.md](configuration.md).
 
-Admin Console **Operations → Patch settings** can change these at runtime (bool / enum / numbers and comma-separated string lists). Playground domain **`vary-demo`** (`GET /api/vary-demo`) exercises Accept + `?lang=` allowlisting.
+Admin Console App **Operations → Patch settings** can change these at runtime (bool / enum / numbers and comma-separated string lists). Playground domain **`vary-demo`** (`GET /api/vary-demo`) exercises Accept + `?lang=` allowlisting.
 
 ## Table of Contents
 

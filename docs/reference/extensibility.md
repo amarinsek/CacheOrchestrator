@@ -129,7 +129,7 @@ Observers receive before/after callbacks for audit, metrics, or webhooks. They e
 
 Each public invalidator call produces one observer pair. A multi-domain call uses `CacheInvalidationKind.Domains`; its after result exposes ordered per-domain `Parts`, including partial and cluster-publish failures.
 
-Observers do not distribute invalidations. Use Redis backplane, HttpBus, or Admin Console fan-out for peer processes. See [invalidation observers](invalidation.md#observers-audit--webhooks).
+Observers do not distribute invalidations. Use Redis backplane, HttpBus, or Admin Console App fan-out for peer processes. See [invalidation observers](invalidation.md#observers-audit--webhooks).
 
 ## Health probe: `ICacheOrchestratorHealthProbe`
 
@@ -286,7 +286,7 @@ These contracts are public for host and satellite-package integration. Ordinary 
 | `IRequestDomainCacheOptions` | Resolve and attach `DomainHttpCacheOptions` to `HttpContext` | Endpoint metadata or explicit `IDomainDataCache` domain overload |
 | `ICacheOrchestratorFeature` | Per-request options, identity, disposition, and staged footprint | `HttpContext.GetDomainCacheOptions()` and Data Cache helpers |
 | `IHttpCacheInvalidationSink` | HTTP-free bridge from Core invalidation to Output Cache | `ICacheOrchestratorInvalidator` |
-| `ICacheOrchestratorManagement` | Transport-independent management queries and operations | Inject from Core; expose through a host-appropriate secured adapter |
+| `ICacheOrchestratorManagement` | Management API — transport-independent queries and operations | Inject from Core; expose through a host-appropriate secured adapter (e.g. Admin API) |
 | `IAdminDomainConfigProvider` | Enrich the Core domain view with host-specific policy | Built-in Core Data Cache view or ASP.NET Core HTTP view |
 | `IAdminStatsCollector` / `IAdminEndpointCatalog` | Management instrumentation and host resource discovery | Admin API and metrics |
 | `IFusionDomainSettingsProvider` / `IFusionDomainRuntimeOverrideStore` | `CacheOrchestrator.FusionCache` policy and overlay integration | Domain configuration and Admin PATCH |
