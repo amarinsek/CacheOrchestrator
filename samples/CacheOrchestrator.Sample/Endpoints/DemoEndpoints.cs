@@ -4,6 +4,7 @@ using CacheOrchestrator.Entity;
 using CacheOrchestrator.Identity;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.OutputCache;
+using CacheOrchestrator.Sample.Data;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Primitives;
 using System.Diagnostics;
@@ -281,19 +282,18 @@ public static class DemoEndpoints
         }));
 
         // --- Dynamic CRUD demo (entity invalidation under a stable Version) ---
-        // In-memory "DB" for the playground only.
-        var productStore = new System.Collections.Concurrent.ConcurrentDictionary<string, ProductRecord>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["42"] = new ProductRecord("42", "Demo Widget", 10.00m, DateTimeOffset.UtcNow),
-            ["7"] = new ProductRecord("7", "Sample Gadget", 19.50m, DateTimeOffset.UtcNow)
-        };
-
-        app.MapGet("/api/crud/products/{id}", async (HttpContext http, string id, IDomainDataCache cache) =>
+        // Same SQLite store as Getting started (/api/products).
+        app.MapGet("/api/crud/products/{id}", async (
+            HttpContext http,
+            string id,
+            IDomainDataCache cache,
+            PlaygroundProductStore store) =>
         {
             var product = await cache.GetOrSetEntityAsync(http, async ct =>
             {
-                await Task.Delay(40, ct);
-                if (!productStore.TryGetValue(id, out ProductRecord? row))
+                await Task.Delay(40, ct).ConfigureAwait(false);
+                PlaygroundProduct? row = await store.GetAsync(id, ct).ConfigureAwait(false);
+                if (row is null)
                     return null;
                 return new
                 {
@@ -311,18 +311,26 @@ public static class DemoEndpoints
         app.MapPut("/api/crud/products/{id}", async (
             string id,
             ProductUpdateDto body,
-            ICacheOrchestratorInvalidator inv) =>
+            PlaygroundProductStore store,
+            ICacheOrchestratorInvalidator inv,
+            CancellationToken cancellationToken) =>
         {
-            var updated = new ProductRecord(
+            PlaygroundProduct updated = new(
                 id,
                 string.IsNullOrWhiteSpace(body.Name) ? $"Product {id}" : body.Name,
                 body.Price,
                 DateTimeOffset.UtcNow);
 
-            productStore[id] = updated;
+            await store.UpsertAsync(
+                updated.Id,
+                updated.Name,
+                updated.Price,
+                updated.UpdatedAt,
+                cancellationToken).ConfigureAwait(false);
 
             // Same Version — only this entity is purged from OC + FC.
-            await inv.InvalidateEntityAsync("product-crud", "products", id);
+            await inv.InvalidateEntityAsync("product-crud", "products", id, cancellationToken)
+                .ConfigureAwait(false);
             return Results.Json(new
             {
                 saved = true,
@@ -332,11 +340,13 @@ public static class DemoEndpoints
             });
         });
 
-        app.MapGet("/api/crud/products", () =>
-            Results.Json(productStore.Values.OrderBy(p => p.Id)));
+        app.MapGet("/api/crud/products", async (PlaygroundProductStore store, CancellationToken cancellationToken) =>
+        {
+            IReadOnlyList<PlaygroundProduct> products = await store.ListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            return Results.Json(products);
+        });
     }
-
-    private sealed record ProductRecord(string Id, string Name, decimal Price, DateTimeOffset UpdatedAt);
 
     private sealed class ProductUpdateDto
     {

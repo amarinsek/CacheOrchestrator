@@ -28,6 +28,7 @@ services:
         if [ ! -f /shared/appsettings.json ]; then
           cp /seed/appsettings.json /shared/appsettings.json
         fi
+        chmod 777 /shared
         chmod 666 /shared/appsettings.json
     networks: [lab]
 
@@ -40,6 +41,7 @@ services:
       - "5289:8080"
     environment:
       Cache__InstanceId: playground-a
+      Sample__SqlitePath: /shared/playground.db
     volumes:
       - ../config/03/playground.Production.json:/app/appsettings.Production.json:ro
       - playground-appsettings:/shared
@@ -56,6 +58,7 @@ services:
       - "5290:8080"
     environment:
       Cache__InstanceId: playground-b
+      Sample__SqlitePath: /shared/playground.db
     volumes:
       - ../config/03/playground.Production.json:/app/appsettings.Production.json:ro
       - playground-appsettings:/shared

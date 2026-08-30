@@ -73,9 +73,11 @@ Open the **Getting started** tab and work through its three numbered steps:
 
 - Fetch promotions twice to see the Output Cache hit.
 - Fetch product `42` twice to see Data Cache and Output Cache working together.
-- Enter a new price and select **Update price**. The `PUT` writes the value and invalidates `products/42`; the next GET misses the server caches and returns the new price.
+- Enter a new price and select **Update price**. The `PUT` writes the value to SQLite and invalidates `products/42`; the next GET misses the server caches and returns the new price.
 
 Suggested UI flow: promotions twice → product twice → update price → product once.
+
+Products are stored in SQLite (`Sample:SqlitePath`, default `Data/playground.db`). Multi-instance labs **03–05** share `/shared/playground.db` so a price update on Playground A is visible to B after invalidation without an extra GET on A.
 
 ```bash
 curl -i http://localhost:5289/api/products/42

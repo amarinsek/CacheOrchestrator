@@ -42,7 +42,7 @@ There is no single “correct” click path. Change settings, invalidate, compar
 
 **TTLs are playground-tuned on purpose.** Domain values are shorter than the [Getting started](../../../docs/guide/getting-started.md) values so you can **see expiry at each layer** without waiting minutes. They are still long enough to fetch a few times, read badges, and think. Domains differ by intent: **promotions** expires quickly, while **catalog**, **product-crud**, and **product-search** stay warmer so multi-step flows work. Open **appsettings** → `Cache:Domains` to inspect or change them.
 
-The product dictionary is a per-process stand-in for a database. In stages 03–05, run a product GET/PUT sequence against the same Playground node; real application replicas normally read and write a shared database. The labs use multiple nodes to demonstrate cache and command propagation, not distributed persistence.
+Product data lives in **SQLite**. Stages **01–02** (and local `dotnet run`) use a file under the app’s `Data/` folder. Stages **03–05** point both playgrounds at `/shared/playground.db` on the same named volume as appsettings, so a price `PUT` on A is what B’s factory reads after cache invalidation — like replicas sharing a database. The labs still teach **cache and command** topology; SQLite is only the shared source of truth for demo products.
 
 If behaviour looks surprising, see **[Troubleshooting](#troubleshooting)** (browser cache toggle, TTLs, keys, multi-instance gaps, …).
 
@@ -222,7 +222,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/03-multi.yml up 
 
 ### In this stage
 
-Two processes, one Redis L2. **Shared:** Fusion L2 objects + Fusion **backplane** (L1 invalidation). **Not shared:** InMemory OC bodies and process-local overlays.
+Two processes, one Redis L2. **Shared:** Fusion L2 objects + Fusion **backplane** (L1 invalidation), domain policy JSON, and **SQLite** products (`/shared/playground.db`). **Not shared:** InMemory OC bodies and process-local overlays.
 
 **Bus is off on purpose.** Redis L2 + backplane ≠ full multi-node consistency:
 
@@ -245,8 +245,9 @@ That gap is real multi-instance behaviour with OC InMemory and no command bus. S
 1. Warm on **A** past factory → same path on **B**: expect **OC-MISS**, **FC** from L2 (no second factory)  
 2. Warm **both** so each has its own OC entry  
 3. Invalidate on A only → fetch **B**: often still **OC-HIT** (stale OC body)  
-4. Admin **Instances** — two rows; change TTL on A’s UI → both nodes load shared policy  
-5. When you want OC cleared on every node too → **Stage 04**  
+4. Getting started: `PUT` price on **A**, then `GET` on **B** (no extra GET on A) — factory on B returns the new price from shared SQLite  
+5. Admin **Instances** — two rows; change TTL on A’s UI → both nodes load shared policy  
+6. When you want OC cleared on every node too → **Stage 04**  
 
 ### Limits
 
@@ -404,6 +405,7 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/05-dual-redis-bu
 | Share **objects** / skip factory | FC L2 → `redis-fc` |
 | Drop remote **L1** | Fusion backplane on `redis-fc` |
 | Apply **commands** everywhere | HTTP bus |
+| Share **product rows** (demo DB) | SQLite → `/shared/playground.db` |
 | Operate | Admin Console + Prometheus |
 
 Shared OC store ≠ bus: Redis OC shares **payloads**; the bus still distributes **commands** (Version/TTL overlays, Admin distribute, other process-local state). Two Redis instances in the lab so you **see** separate roles — production may use one Redis (keys/DBs) or two (isolation). Per-layer connection strings: `OutputCache:Redis` vs `DataCacheInstances:…:Redis`.
@@ -421,8 +423,9 @@ Host/port vary is off in multi-instance labs (same note as Stage 03).
 
 1. Warm on A until **OC-HIT** → same route on B → **OC-HIT** from shared Redis  
 2. Invalidate; both nodes stay coherent  
-3. Admin distribute / bus for Version or domain invalidate  
-4. Optional: `redis-cli` on host **6380** (OC) vs **6381** (FC)  
+3. Getting started: `PUT` on A → `GET` on B → new price from shared SQLite after miss/factory  
+4. Admin distribute / bus for Version or domain invalidate  
+5. Optional: `redis-cli` on host **6380** (OC) vs **6381** (FC)  
 
 ### Limits
 
@@ -448,6 +451,7 @@ These stacks are **teaching environments**, not blueprints for a production edge
 | TLS, auth at the edge, private networks | Plain HTTP on localhost |
 | Managed Redis, HA, monitoring as a platform concern | Single-container Redis (or two) for clarity |
 | **Same cache policy on every node** (shared config / ConfigMap / vault, rolling deploy) | Stages **03–05**: both nodes share one Docker **named volume** (`/shared/appsettings.json`, seeded from `appsettings.seed.json`); entrypoint symlinks it to `/app/appsettings.json`. **Instance id** stays per process (`Cache__InstanceId`) |
+| Shared application database behind every replica | Stages **03–05**: same volume also holds `/shared/playground.db` (`Sample__SqlitePath`); Getting started + CRUD product APIs share that file |
 | Config change process is controlled (pipeline, not two writers racing a JSON file) | Lab volume is shared RW — fine for demos; last save wins if you edit A and B at once |
 
 **Why separate browser URLs for each instance?**  
@@ -456,8 +460,11 @@ With a load balancer you would not know which process answered. Here the goal is
 **Why shared settings on multi-instance labs?**  
 In production you must not run different TTLs or Versions on different replicas of the same app. The lab keeps **one shared policy file** so a UI save on A is what B loads too. On stages **03–05** a Docker **named volume** holds that file (seeded from `config/0N/appsettings.seed.json`); both playgrounds use it, the peer reloads within about a second after Save. Topology (Redis, bus, providers) stays in read-only `playground.Production.json`.
 
-Reset policy to seed / leave a stage: each stage ends with **Clean Docker for next lab** (`down -v`).  
-Normal rebuild (keep edited policy on stages 03–05): `docker compose -f …/0N-….yml up --build -d` — no `-v`.
+**Why shared SQLite on 03–05?**  
+So product `PUT`/`GET` across A and B matches real replicas (shared DB + cache invalidation), without teaching people to keep traffic on one node. `down -v` resets both policy and the product DB.
+
+Reset policy/DB to seed / leave a stage: each stage ends with **Clean Docker for next lab** (`down -v`).  
+Normal rebuild (keep edited policy and product DB on stages 03–05): `docker compose -f …/0N-….yml up --build -d` — no `-v`.
 
 Other simplifications exist for the same reason: **focus on cache behaviour** (OC / Fusion / client headers, backplane, bus, Admin). The labs omit production-grade networking, certificate management, auto-scaling, and hardened Redis. After the cache story is clear, map the same ideas onto your real proxy, cluster, and ops stack — CacheOrchestrator’s domain model does not require the lab’s simplified front door.
 
@@ -472,7 +479,8 @@ Other simplifications exist for the same reason: **focus on cache behaviour** (O
 | Metrics empty | Traffic generated? Wait ~5–10s scrape; Prometheus targets UP? |
 | Redis connection errors | Stage config uses service name `redis` / `redis-oc` / `redis-fc`, not `localhost` inside containers |
 | Settings back to defaults after `down` (stages 01–02) | Expected for single-node labs |
-| Multi-lab settings still changed after `down` (no `-v`) | Named volume keeps policy — use `down -v` then `up` to re-seed from `appsettings.seed.json` |
+| Multi-lab settings still changed after `down` (no `-v`) | Named volume keeps policy **and** SQLite products — use `down -v` then `up` to re-seed policy and demo DB |
+| Product price wrong across A/B after PUT | Rebuild playground image so SQLite store is present; stages **03–05** need `Sample__SqlitePath=/shared/playground.db` and writable `/shared` |
 | POST identity tab: unknown domain `product-search` / options miss | Stages **03–05** shared volume may predate that domain — `down -v` then `up --build` to re-seed. Stages **01–02**: rebuild playground image so baked `appsettings.json` includes `product-search`. |
 | `Error response from daemon: open /var/lib/docker/tmp/...` on `up --build` | Compose must mount `/shared` as a **directory** (file subpath mounts break on Docker Desktop); labs use a directory mount plus an entrypoint symlink. Run `down -v`, then `up --build -d`. |
 | Bus not distributing | Stages 04–05 only; peers use Docker DNS URLs in lab config |
@@ -480,7 +488,8 @@ Other simplifications exist for the same reason: **focus on cache behaviour** (O
 | OC-HIT then sudden MISS / FACTORY | Domain **TTL** expired — check `OutputCache.TtlSeconds` vs `DataCache.TtlSeconds` / `fusionCache.hardTtlSeconds` for that domain in `Cache:Domains` |
 | Always FACTORY, never hits | Domain disabled? Wrong endpoint/domain? Keys differ (query, host — multi-lab keys note in Stage 03)? |
 | Client headers not what you expect | `ClientCache.TtlSeconds` / schedule / **Disable browser HTTP cache** (Fetch uses `no-store` when on) |
-| A vs B disagree | Topology (bus off, OC InMemory local) — not a TTL bug; see Stages 03–05 |
+| A vs B disagree on **cache** badges | Topology (bus off, OC InMemory local) — not a TTL bug; see Stages 03–05 |
+| A vs B disagree on **product price** after factory | Should not happen on 03–05 with shared SQLite; confirm both use `/shared/playground.db` |
 | appsettings Save: `cat` in container is new, HTTP GET / UI still old | Demo control routes must use `NoStore` so `/api/demo/appsettings` is not served from Output Cache — rebuild the playground image if badges look stale after Save. |
 | A Save applies on A; B settings UI shows new JSON but Fetch still old Version/TTL | B reads the file for the editor, but runtime options need a config **reload**. Sample polls the shared volume (~1s) and reloads; rebuild playground image. Stage 03 has no bus — file share + poll is intentional. |
 

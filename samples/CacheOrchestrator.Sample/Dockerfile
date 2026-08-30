@@ -50,9 +50,11 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 EXPOSE 8080
 
 # APP_UID owns /app so the entrypoint can replace appsettings.json with a symlink to /shared.
+# Data/ holds the local SQLite file for single-instance runs (labs 01–02 / plain container).
 COPY --from=build --chown=$APP_UID:$APP_UID /app/publish .
 COPY samples/CacheOrchestrator.Sample/docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chown $APP_UID:$APP_UID /app /app/docker-entrypoint.sh \
+RUN mkdir -p /app/Data \
+    && chown -R $APP_UID:$APP_UID /app /app/docker-entrypoint.sh /app/Data \
     && chmod 755 /app/docker-entrypoint.sh
 USER $APP_UID
 
