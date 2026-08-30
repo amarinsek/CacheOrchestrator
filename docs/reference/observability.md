@@ -57,7 +57,7 @@ A hard factory throw is recorded by factory failure telemetry (`result=fail` on 
 
 `dc=stale` has a deliberately narrow meaning: CacheOrchestrator observed a factory failure in this request and the provider returned its fail-safe value. `dc=hit` does not promise that provider-specific eager-refresh or timeout metadata says the value is fresh; the current provider contract does not expose a reliable stale signal for every background-refresh path.
 
-An empty or unconfigured dynamic domain fails closed with `Cache-Control: no-store`. When diagnostics are enabled, `X-Cache` uses `domain=_; version=-; client=no-store; phase=n/a; oc=bypass; dc=n/a; fa=run` and never echoes the unresolved value.
+An empty or unconfigured **domain name template** / resolver result fails closed with `Cache-Control: no-store`. When diagnostics are enabled, `X-Cache` uses `domain=_; version=-; client=no-store; phase=n/a; oc=bypass; dc=n/a; fa=run` and never echoes the unresolved value.
 
 ## Metrics
 

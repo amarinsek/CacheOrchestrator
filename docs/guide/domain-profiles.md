@@ -112,7 +112,7 @@ Requests use cache keys for the new Version stamp. Entries under the previous st
 
 ## Dynamic / CRUD profile
 
-Use a dynamic domain when one resource can change without releasing the whole dataset. Product `42` may change while products `7` and `99` remain valid.
+Use a **dynamic / CRUD** domain when one resource can change without releasing the whole dataset. Product `42` may change while products `7` and `99` remain valid.
 
 Keep the domain `Version` stable for ordinary writes. Give each detail endpoint an entity identity and invalidate that identity after the write succeeds.
 

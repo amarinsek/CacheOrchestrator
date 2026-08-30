@@ -252,7 +252,7 @@ Implementation: shared helper used by `DefaultDomainKeyGenerator` and `DomainOut
 ## Design rationale (summary)
 
 1. **Namespace** isolates **applications** on shared infrastructure; it is not a substitute for domain.  
-2. **Domain** is the unit of policy and purge. The Data Cache embeds it in the key because the data API is domain-first. Output Cache typically binds one fixed domain per route, so path + tags suffice; dynamic domains need an extra vary dimension.
+2. **Domain** is the unit of policy and purge. The Data Cache embeds it in the key because the data API is domain-first. Output Cache typically binds one fixed domain per route, so path + tags suffice; a **domain name template** (or resolver) needs an extra vary dimension so each selected name partitions correctly.
 3. **Version** partitions **generations** inside a domain without mass-deleting keys (prefer bump + TTL expiry for bulk cutovers).  
 4. **Request material** (path, query, host, encoding, optional identity) partitions **resources** inside a generation.  
 5. **Tags** answer “what to delete,” not “what to return on GET.”  
@@ -281,6 +281,6 @@ See [Data Cache](data-cache.md#custom-key-generator).
 - [invalidation.md](invalidation.md) — Version, domain/entity tags  
 - [configuration.md](configuration.md) — `Namespace`, domain `Version`, vary flags  
 - [architecture.md](../contributor/architecture.md) — request flow  
-- [domain-profiles.md](../guide/domain-profiles.md) — snapshot vs dynamic domains  
+- [domain-profiles.md](../guide/domain-profiles.md) — snapshot vs dynamic / CRUD profiles  
 
 

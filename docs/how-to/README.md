@@ -6,4 +6,4 @@ Copy-paste wiring. These pages assume you already know what a **domain** is — 
 
 | Page | Covers |
 |------|--------|
-| [Package composition](composition.md) | Scenarios 1–9: typical web, Output Cache only, Data Cache only, Redis L2, Hybrid, dynamic domain, class library, EF |
+| [Package composition](composition.md) | Scenarios 1–8: typical web, Output Cache only, Data Cache only, Redis L2, Hybrid, class library, EF |

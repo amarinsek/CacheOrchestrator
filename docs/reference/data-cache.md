@@ -29,7 +29,7 @@ Register exactly one provider. Meta `AddCacheOrchestrator` = `CacheOrchestrator.
 
 An Output-Cache-only host does not need to configure `DataCache.Enabled`. Without a Data Cache provider, startup and health remain healthy; only an actual `IDomainDataCache` / `ICacheOrchestrator` operation logs a one-time warning and runs its factory uncached.
 
-**Hybrid instead of Fusion:** call `AddHybridCache()`, then `AddCacheOrchestratorAspNetCore`, then `AddCacheOrchestratorHybridCache` (replaces any prior `IDataCacheProvider`). Nested `FusionCache.*` domain knobs are ignored. Full sample: [composition §5](../how-to/composition.md#scenario-5).
+**Hybrid instead of Fusion:** call `AddHybridCache()`, then `AddCacheOrchestratorAspNetCore`, then `AddCacheOrchestratorHybridCache` (replaces any prior `IDataCacheProvider`). Nested `FusionCache.*` domain knobs are ignored. Full sample: [composition.md — 5](../how-to/composition.md#scenario-5).
 
 Package READMEs: [FusionCache](../../src/CacheOrchestrator.FusionCache/README.md), [HybridCache](../../src/CacheOrchestrator.HybridCache/README.md). Domain resolution, keys, entity identity, and `dc=` results below are **shared** across providers.
 

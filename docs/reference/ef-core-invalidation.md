@@ -62,7 +62,7 @@ InvalidateEntitiesAsync  or  InvalidateEntityKindAsync (OnBulk)
 
 ## Install and composition
 
-Full **packages + registration + config + endpoint** samples (in-app EF, and EF inside a class library): [composition.md §8](../how-to/composition.md#scenario-8) and [§9](../how-to/composition.md#scenario-9).
+Full **packages + registration + config + endpoint** samples (in-app EF, and EF inside a class library): [composition.md — 7](../how-to/composition.md#scenario-7) and [8](../how-to/composition.md#scenario-8).
 
 ```bash
 dotnet add package CacheOrchestrator --prerelease
@@ -114,7 +114,7 @@ builder.Services.AddCacheOrchestratorEfCoreInvalidation(builder.Configuration, o
 });
 ```
 
-The HTTP / library cache path must use the **same** domain and `entityKind` as the mapping — see [composition.md §8–§9](../how-to/composition.md#scenario-8).
+The HTTP / library cache path must use the **same** domain and `entityKind` as the mapping — see [composition.md — 7–8](../how-to/composition.md#scenario-7).
 
 Primary keys: stringify each PK part with invariant culture (`byte[]` uses lowercase hexadecimal), percent-encode each composite part independently, then join parts with `:`. The resulting resource id stays opaque; GUIDs use canonical lowercase `D` format. A route `resourceRouteKey` must produce the same string. Entity kinds use `DomainName.NormalizeEntityKind` and remain restricted normalized schema names.
 
@@ -144,7 +144,7 @@ TPH: Fluent `CacheInvalidate` and `Map<T>` match the **exact** `ClrType` — map
 
 ## SaveChanges vs `Execute*`
 
-Composition samples (GET + PUT): [composition.md §8](../how-to/composition.md#scenario-8) and [§9](../how-to/composition.md#scenario-9).
+Composition samples (GET + PUT): [composition.md — 7](../how-to/composition.md#scenario-7) and [8](../how-to/composition.md#scenario-8).
 
 | Path | Invalidation |
 |------|----------------|

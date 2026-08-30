@@ -37,7 +37,7 @@ README.md  →  docs/guide/  →  docs/how-to/  →  docs/reference/
 
 ## How-to
 
-- [Package composition](how-to/composition.md) — scenarios 1–9 (typical web, Hybrid, Redis, library, EF, …)
+- [Package composition](how-to/composition.md) — scenarios 1–8 (typical web, Hybrid, Redis, library, EF, …)
 
 ## Reference
 
@@ -82,22 +82,10 @@ The reference describes exact configuration paths, API contracts, key material, 
 
 ## Packages
 
-XML docs ship with the NuGets. Choices: [packages](guide/packages.md). Scenarios: [composition](how-to/composition.md).
+- [Packages](guide/packages.md) — which package to choose
+- [Composition](how-to/composition.md) — copy-paste install / register / config
+- [Root README Packages and applications](../README.md#packages-and-applications) — NuGet catalog, versions, Admin Console
 
-| Package | |
-|---------|--|
-| [CacheOrchestrator](https://www.nuget.org/packages/CacheOrchestrator) | Meta (`CacheOrchestrator.AspNetCore` + `CacheOrchestrator.FusionCache`) |
-| [CacheOrchestrator.Core](https://www.nuget.org/packages/CacheOrchestrator.Core) | Domains, `ICacheOrchestrator` |
-| [CacheOrchestrator.AspNetCore](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore) | Output Cache, Client Cache, Admin |
-| [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache) | Fusion Data Cache provider |
-| [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache) | Hybrid Data Cache provider |
-| [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis) | Meta Redis (Output Cache + Fusion L2) |
-| [CacheOrchestrator.AspNetCore.Redis](https://www.nuget.org/packages/CacheOrchestrator.AspNetCore.Redis) | Redis Output Cache only |
-| [CacheOrchestrator.FusionCache.Redis](https://www.nuget.org/packages/CacheOrchestrator.FusionCache.Redis) | Redis Fusion L2 only |
-| [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus) | Cluster HTTP bus |
-| [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation) | `SaveChanges` → purge |
-
-Admin Console App (not a NuGet package): [source](../src/CacheOrchestrator.AdminConsole/README.md) · [Docker](../deploy/admin/README.md).
 
 ## Contributor
 

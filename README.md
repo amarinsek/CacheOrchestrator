@@ -222,17 +222,15 @@ The library is **modular**. `CacheOrchestrator.Core` provides the foundational p
 | [CacheOrchestrator.FusionCache](https://www.nuget.org/packages/CacheOrchestrator.FusionCache/3.0.0-beta.2) | ZiggyCreatures FusionCache Data Cache provider. |
 | [CacheOrchestrator.HybridCache](https://www.nuget.org/packages/CacheOrchestrator.HybridCache/3.0.0-beta.2) | Microsoft HybridCache Data Cache provider. |
 | [CacheOrchestrator.Redis](https://www.nuget.org/packages/CacheOrchestrator.Redis/3.0.0-beta.2) | Meta Redis: Output Cache store and Fusion L2 / backplane (`AddRedisBackend`). |
-| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache store only (`AddRedisOutputCacheBackend`). From **3.0.0-beta.3**.|
-| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 / backplane only (`AddRedisFusionCacheBackend`). From **3.0.0-beta.3**.|
+| `CacheOrchestrator.AspNetCore.Redis` | Redis Output Cache store only (`AddRedisOutputCacheBackend`). From **3.0.0-beta.3**. |
+| `CacheOrchestrator.FusionCache.Redis` | Redis Fusion L2 / backplane only (`AddRedisFusionCacheBackend`). From **3.0.0-beta.3**. |
 | [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.2) | Syncs invalidations, versions, and settings across all instances via HTTP cluster bus. |
 | [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.2) | Automatic cache invalidation after a successful Entity Framework Core `SaveChanges`. |
 
 
-
 | Application | Purpose |
-|---------|---------|
-| [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Standalone Admin Console for live stats, domain configuration, triggering invalidations, and adjusting Versions or TTLs on the fly. Available as a Docker image: `ghcr.io/amarinsek/cacheorchestrator-admin-console` — see [Admin Console](src/CacheOrchestrator.AdminConsole/) · [Deploy Admin](deploy/admin/README.md). |
-
+|-------------|---------|
+| [CacheOrchestrator.AdminConsole](src/CacheOrchestrator.AdminConsole/) | Standalone Admin Console for live stats, domain configuration, triggering invalidations, and adjusting Versions or TTLs on the fly. Available as a Docker image. See [Admin Console](src/CacheOrchestrator.AdminConsole/) · [Deploy Admin](deploy/admin/README.md). |
 
 ## Prerelease status
 

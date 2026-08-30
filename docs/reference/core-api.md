@@ -55,7 +55,7 @@ builder.Services.AddCacheOrchestratorCore(builder.Configuration);
 builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
 ```
 
-Use `AddCacheOrchestratorHybridCache` instead of FusionCache when HybridCache is the chosen provider. Web hosts usually install the `CacheOrchestrator` meta package. See [package composition](../how-to/composition.md#scenario-7).
+Use `AddCacheOrchestratorHybridCache` instead of FusionCache when HybridCache is the chosen provider. Web hosts usually install the `CacheOrchestrator` meta package. See [package composition](../how-to/composition.md#scenario-6).
 
 ## Management without HTTP
 
@@ -266,4 +266,4 @@ Applications should depend on `ICacheOrchestrator`, not `IDataCacheProvider`. Pr
 - [Invalidation](invalidation.md) — domain, entity, kind, and custom-tag invalidation
 - [Cache keys](cache-keys.md) — Core and HTTP key composition
 - [Extensibility](extensibility.md) — provider and host extension points
-- [Package composition](../how-to/composition.md#scenario-7) — class library and host wiring
+- [Package composition](../how-to/composition.md#scenario-6) — class library and host wiring

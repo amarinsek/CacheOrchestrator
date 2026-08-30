@@ -9,6 +9,7 @@ Output Cache stores the **full HTTP response**. By default that means **GET** an
 - [Register](#register)
 - [Base policy and endpoints without a domain](#base-policy-and-endpoints-without-a-domain)
 - [Minimal APIs](#minimal-apis)
+- [Domain name templates](#domain-name-templates)
 - [Controllers](#controllers)
 - [Policy](#policy)
 - [Endpoint cache identity](#endpoint-cache-identity)
@@ -48,20 +49,15 @@ app.MapGet("/api/products", () => /* ... */)
 
 app.MapGet("/api/products/{id}", () => /* ... */)
    .CacheOutputWithDomain("store", resourceRouteKey: "id", entityKind: "products");
-
-app.MapGet("/api/t/{tenant}/items", (string tenant) => /* ... */)
-   .CacheOutputWithDomain(http => $"tenant-{http.Request.RouteValues["tenant"]}");
-
-app.MapGet("/api/t/{tenant}/items/{id}", (string tenant, string id) => /* ... */)
-   .CacheOutputWithDomain(
-       http => $"tenant-{http.Request.RouteValues["tenant"]}",
-       resourceRouteKey: "id",
-       entityKind: "items");
 ```
 
-`resourceRouteKey` and `entityKind` tag the Output Cache entry so `InvalidateEntityAsync` can purge that row. The delegate overload also accepts those two arguments for a dynamic domain with entity tags.
+`resourceRouteKey` and `entityKind` tag the Output Cache entry so `InvalidateEntityAsync` can purge that row.
 
-Use `CacheOutputWithDomainTemplate` when the same endpoint serves a finite set of configured domains. This keeps one endpoint implementation while each variant receives its own policy:
+## Domain name templates
+
+A **domain name template** selects which **configured** domain applies to the request. It is not a dynamic / CRUD *profile* ([domain profiles](../guide/domain-profiles.md)); the profile of each selected domain stays in `Cache:Domains`.
+
+Use a string template when the same endpoint serves a finite set of named domains:
 
 ```csharp
 group.MapGet("{tileset}/{z:int}/{x:int}/{y:int}.{ext?}", HandleTileAsync)
@@ -80,7 +76,21 @@ group.MapGet("{tileset}/{z:int}/{x:int}/{y:int}.{ext?}", HandleTileAsync)
 }
 ```
 
-The template resolves `{route:tileset}` and selects `tiles-satellite`, `tiles-osm`, or `tiles-vehicle`. It never creates a domain at request time. An empty or unconfigured result fails closed: the handler still runs, but Output Cache and request-scoped Data Cache are bypassed, the response receives `Cache-Control: no-store`, and diagnostics use the bounded placeholder `domain=_` rather than echoing the unresolved value. Templates also support `{host}`, `{header:Name}`, `{query:key}`, and application-defined `{custom:key}` providers; see [Extensibility](extensibility.md#domain-template-tokens).
+The template resolves `{route:tileset}` to `tiles-satellite`, `tiles-osm`, or `tiles-vehicle`. It never creates a domain at request time. An empty or unknown name fails closed: the handler still runs, Output Cache and request-scoped Data Cache are bypassed, the response gets `Cache-Control: no-store`, and diagnostics use `domain=_` rather than echoing the unresolved value.
+
+Templates also support `{host}`, `{header:Name}`, `{query:key}`, and application-defined `{custom:key}` providers; see [Extensibility](extensibility.md#domain-template-tokens).
+
+For arbitrary selection logic, use a short resolver instead of a string template:
+
+```csharp
+app.MapGet("/api/t/{tenant}/items/{id}", (string tenant, string id) => /* ... */)
+   .CacheOutputWithDomain(
+       http => $"tenant-{http.Request.RouteValues["tenant"]}",
+       resourceRouteKey: "id",
+       entityKind: "items");
+```
+
+List every name the template or resolver may return under `Cache:Domains` (shared defaults can live in `DomainDefaults`).
 
 ## Controllers
 

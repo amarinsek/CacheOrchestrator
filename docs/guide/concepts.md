@@ -122,7 +122,7 @@ Other products remain cached. Domain- and entity-kind-level invalidation are ava
 
 Use a version change for snapshot cutovers, large coordinated releases, or representation changes. Do not bump the whole domain for an ordinary single-row update when entity invalidation is available.
 
-The next page turns these choices into two practical designs: [snapshot and dynamic domain profiles](domain-profiles.md).
+The next page turns these choices into two practical designs: [snapshot and dynamic / CRUD domain profiles](domain-profiles.md).
 
 ## Entity identity enables targeted invalidation
 
@@ -179,4 +179,4 @@ Choose packages after you know which policies and topology you need. The guide c
 - Entity identity connects a route, its cached object, and targeted invalidation.
 - Providers and Redis topology can change without changing the domain applied by the endpoint.
 
-Next: choose between a [snapshot or dynamic domain profile](domain-profiles.md).
+Next: choose between a [snapshot or dynamic / CRUD domain profile](domain-profiles.md).
