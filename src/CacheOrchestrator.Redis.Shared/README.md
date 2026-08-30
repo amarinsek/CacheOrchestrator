@@ -12,8 +12,7 @@ Choose `CacheOrchestrator.Redis`, `CacheOrchestrator.AspNetCore.Redis`, or `Cach
 
 ## Documentation
 
-- [Backends](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/backends.md)
-- [Packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md)
+- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
 - [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 

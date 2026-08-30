@@ -55,7 +55,8 @@ The worker installs `CacheOrchestrator.Core` plus one provider package. A reusab
 
 ## Documentation
 
-- [Core API](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/core-api.md) · [packages and composition](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md)
+- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

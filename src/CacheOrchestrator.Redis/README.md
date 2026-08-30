@@ -44,8 +44,8 @@ app.UseCacheOrchestrator();
 
 ## Documentation
 
-- [Packages](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md)
-- [Getting started](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/getting-started.md)
+- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License

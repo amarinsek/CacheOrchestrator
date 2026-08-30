@@ -42,8 +42,8 @@ Add a Data Cache provider separately when endpoints use Data Cache. For Output C
 
 ## Documentation
 
-- [Backends](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/backends.md)
-- [Packages](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md)
+- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
 - [Repository](https://github.com/amarinsek/CacheOrchestrator)
 
 ## License
