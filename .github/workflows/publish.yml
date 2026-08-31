@@ -135,13 +135,13 @@ jobs:
         test "$snupkg_count" -eq 11
 
     # NuGet Trusted Publishing: exchange GitHub OIDC token for a temporary API key.
-    # Policy on nuget.org must match: owner, repo, workflow file publish.yml
-    # Prefer Environment empty on nuget.org unless this job sets environment: ...
+    # Policy on nuget.org must match GitHub Repository Owner/Repo (CacheOrchestrator/CacheOrchestrator)
+    # and workflow file publish.yml. Prefer Environment empty unless this job sets environment: ...
     - name: NuGet login (OIDC)
       uses: NuGet/login@v1
       id: nuget-login
       with:
-        # nuget.org profile username (not email) — package owner in your Trusted Publishing policy
+        # nuget.org profile username (not email / not GitHub org) — owns the packages on nuget.org
         user: amarinsek
 
     - name: Push packages and symbols to NuGet

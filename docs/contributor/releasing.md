@@ -36,7 +36,7 @@ dotnet build src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -v:m
 
 | Surface | Audience | Role |
 |---------|----------|------|
-| [GitHub Releases](https://github.com/amarinsek/CacheOrchestrator/releases) | Humans | Full history per tag (canonical) |
+| [GitHub Releases](https://github.com/CacheOrchestrator/CacheOrchestrator/releases) | Humans | Full history per tag (canonical) |
 | [PACKAGE_RELEASE_NOTES.md](../../PACKAGE_RELEASE_NOTES.md) | nuget.org | Short notes for **this** version only; link to the matching `releases/tag/v…` |
 
 ## Package READMEs (NuGet vs GitHub)
@@ -142,7 +142,7 @@ The release publish workflow packs the final package set and therefore runs SDK 
    - integration tests on net8/net10 + Testcontainers Redis; Minimal sample smoke
    - `dotnet pack` for **all** packable NuGet libraries → `.nupkg` + `.snupkg` (includes Redis.Shared as support; see pack list in `publish.yml`); each pack runs SDK package validation
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)
-   - **Admin Console App Docker image** → `ghcr.io/amarinsek/cacheorchestrator-admin-console` (same version tags)
+   - **Admin Console App Docker image** → `ghcr.io/cacheorchestrator/cacheorchestrator-admin-console` (same version tags)
 
 6. Confirm nuget.org for **all** packages produced by `publish.yml` (including support `Redis.Shared`); optionally **unlist** old pre-release versions.  
    Confirm GHCR package **cacheorchestrator-admin-console** (see [deploy/admin/README.md](../../deploy/admin/README.md)).  
@@ -151,9 +151,15 @@ The release publish workflow packs the final package set and therefore runs SDK 
 ### NuGet Trusted Publishing
 
 1. nuget.org → **Trusted Publishing**
-2. Policy: owner `amarinsek`, repo `CacheOrchestrator`, workflow **`publish.yml`**, **Environment empty**
-3. GitHub secret **`NUGET_USER`** = nuget.org username (`amarinsek`)
-4. First successful publish within 7 days fully activates a new policy
+2. Policy (GitHub repo after org transfer):
+   - **Repository Owner:** `CacheOrchestrator`
+   - **Repository:** `CacheOrchestrator`
+   - **Workflow file:** `publish.yml`
+   - **Environment:** empty
+   - Package glob: `CacheOrchestrator*`
+   - Scopes: at least **Push new packages and package versions**
+3. `NuGet/login` in `publish.yml` uses nuget.org username `amarinsek` (package owner on nuget.org — not the GitHub org name). Optional secret **`NUGET_USER`** if you prefer not to hardcode it.
+4. First successful OIDC login/publish within 7 days fully activates a new policy when the UI shows a temporary window (common for private repos).
 
 ## Optional: package signing
 

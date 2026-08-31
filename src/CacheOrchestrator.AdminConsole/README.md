@@ -142,7 +142,7 @@ In Development, `Instances` point at the **Playground** sample (`:5289`), which 
 Published image (GitHub Container Registry, on each GitHub Release):
 
 ```text
-ghcr.io/amarinsek/cacheorchestrator-admin-console:<version>
+ghcr.io/cacheorchestrator/cacheorchestrator-admin-console:<version>
 ```
 
 **Operator volume** (recommended):

@@ -3,9 +3,9 @@
     <Authors>Ales Marinsek</Authors>
     <Company>Ales Marinsek</Company>
     <Copyright>Copyright © 2026 Ales Marinsek</Copyright>
-    <RepositoryUrl>https://github.com/amarinsek/CacheOrchestrator</RepositoryUrl>
+    <RepositoryUrl>https://github.com/CacheOrchestrator/CacheOrchestrator</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://github.com/amarinsek/CacheOrchestrator</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/CacheOrchestrator/CacheOrchestrator</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
 
     <!--

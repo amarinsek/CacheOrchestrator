@@ -9,7 +9,7 @@ You do **not** need a git checkout to run it — only Docker, a small config fil
 Published image (after a GitHub Release):
 
 ```text
-ghcr.io/amarinsek/cacheorchestrator-admin-console:<version>
+ghcr.io/cacheorchestrator/cacheorchestrator-admin-console:<version>
 ```
 
 Use the same version as the NuGet packages when possible (e.g. `1.2.3` from tag `v1.2.3`).
@@ -164,7 +164,7 @@ docker run --rm -p 5188:8080 \
   -v "$PWD/admin-appsettings.json:/app/appsettings.Production.json:ro" \
   -v "$PWD/data:/app/data" \
   --add-host=host.docker.internal:host-gateway \
-  ghcr.io/amarinsek/cacheorchestrator-admin-console:latest
+  ghcr.io/cacheorchestrator/cacheorchestrator-admin-console:latest
 ```
 
 - Playground: keep `dev-admin-key` and start the sample on port 5289. For your apps, change the env key to match their `Cache:Admin:ApiKey` (overrides the file if both are set).  
@@ -185,7 +185,7 @@ Same folder layout. Save as `docker-compose.yml` (or use [docker-compose.example
 
 services:
   admin:
-    image: ghcr.io/amarinsek/cacheorchestrator-admin-console:latest
+    image: ghcr.io/cacheorchestrator/cacheorchestrator-admin-console:latest
     ports:
       - "5188:8080"
     environment:
@@ -281,7 +281,7 @@ docker build -f src/CacheOrchestrator.AdminConsole/Dockerfile -t cacheorchestrat
 cacheorchestrator-admin-console:local
 ```
 
-instead of `ghcr.io/amarinsek/cacheorchestrator-admin-console:latest`.
+instead of `ghcr.io/cacheorchestrator/cacheorchestrator-admin-console:latest`.
 
 ---
 

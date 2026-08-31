@@ -15,7 +15,7 @@
 
 services:
   admin:
-    image: ghcr.io/amarinsek/cacheorchestrator-admin-console:latest
+    image: ghcr.io/cacheorchestrator/cacheorchestrator-admin-console:latest
     ports:
       - "5188:8080"
     environment:

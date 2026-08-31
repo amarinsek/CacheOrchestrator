@@ -54,7 +54,7 @@ Use the **Management API** from application code or a custom transport. Use the 
 
 | Image | |
 |-------|--|
-| Registry | `ghcr.io/amarinsek/cacheorchestrator-admin-console` |
+| Registry | `ghcr.io/cacheorchestrator/cacheorchestrator-admin-console` |
 | Tags | Release version (e.g. `1.2.3`), plus `latest` for stable releases |
 | Docs | **[deploy/admin/README.md](../../deploy/admin/README.md)** — config mount, `data/` volume for custom hints + disabled state, logs |
 

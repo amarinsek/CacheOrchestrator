@@ -1,6 +1,6 @@
 # CacheOrchestrator.Analyzers
 
-[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
+[**CacheOrchestrator**](https://github.com/CacheOrchestrator/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
 This project contains the Roslyn analyzers for CacheOrchestrator attribute usage. It is **not published as a separate NuGet package**: the analyzer assembly is embedded in `CacheOrchestrator.AspNetCore` and reaches applications transitively through that package or the `CacheOrchestrator` meta package.
 
@@ -18,10 +18,10 @@ Within this repository, `CacheOrchestrator.AspNetCore` references the project wi
 
 ## Documentation
 
-- [Endpoint cache identity](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/reference/cache-identity.md)
-- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
-- [Repository](https://github.com/amarinsek/CacheOrchestrator)
+- [Endpoint cache identity](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/docs/reference/cache-identity.md)
+- [Documentation index](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/docs/README.md)
+- [Repository](https://github.com/CacheOrchestrator/CacheOrchestrator)
 
 ## License
 
-MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)
+MIT — [LICENSE.md](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/LICENSE.md)

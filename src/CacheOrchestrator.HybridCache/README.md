@@ -1,6 +1,6 @@
 # CacheOrchestrator.HybridCache
 
-[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
+[**CacheOrchestrator**](https://github.com/CacheOrchestrator/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
 This package registers Microsoft **HybridCache** as the **`IDataCacheProvider`**. It uses portable **`DataCache.TtlSeconds`** and the resolved Data Cache namespace. Fusion-specific options (fail-safe, hard TTL, factory timeouts) are not applied. HybridCache supports only `DataCacheInstances:default`; startup validation rejects named instances.
 
@@ -49,10 +49,10 @@ Keys and tags are namespaced before they reach HybridCache, so applications can 
 
 ## Documentation
 
-- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
-- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
-- [Repository](https://github.com/amarinsek/CacheOrchestrator)
+- [README](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/docs/README.md)
+- [Repository](https://github.com/CacheOrchestrator/CacheOrchestrator)
 
 ## License
 
-MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)
+MIT — [LICENSE.md](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/LICENSE.md)

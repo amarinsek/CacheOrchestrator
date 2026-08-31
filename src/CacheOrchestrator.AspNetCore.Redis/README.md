@@ -1,6 +1,6 @@
 # CacheOrchestrator.AspNetCore.Redis
 
-[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
+[**CacheOrchestrator**](https://github.com/CacheOrchestrator/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
 This package registers **Redis** as the ASP.NET Core **Output Cache** store. Use it when several instances must share full HTTP responses, without taking the Fusion Redis L2 package.
 
@@ -42,10 +42,10 @@ Add a Data Cache provider separately when endpoints use Data Cache. For Output C
 
 ## Documentation
 
-- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
-- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
-- [Repository](https://github.com/amarinsek/CacheOrchestrator)
+- [README](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/docs/README.md)
+- [Repository](https://github.com/CacheOrchestrator/CacheOrchestrator)
 
 ## License
 
-MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)
+MIT — [LICENSE.md](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/LICENSE.md)

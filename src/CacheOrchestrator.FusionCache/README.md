@@ -1,6 +1,6 @@
 # CacheOrchestrator.FusionCache
 
-[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
+[**CacheOrchestrator**](https://github.com/CacheOrchestrator/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
 This package registers ZiggyCreatures **FusionCache** as the **`IDataCacheProvider`**. It wires named engines from `DataCacheInstances` and owns nested JSON **`FusionCache`** settings (hard TTL, fail-safe, factory timeouts, …). Portable TTL stays under **`DataCache`**.
 
@@ -60,10 +60,10 @@ For a typical web app, the `CacheOrchestrator` meta package already includes `Ca
 
 ## Documentation
 
-- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
-- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
-- [Repository](https://github.com/amarinsek/CacheOrchestrator)
+- [README](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/docs/README.md)
+- [Repository](https://github.com/CacheOrchestrator/CacheOrchestrator)
 
 ## License
 
-MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)
+MIT — [LICENSE.md](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/LICENSE.md)
