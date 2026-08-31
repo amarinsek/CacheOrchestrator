@@ -52,7 +52,7 @@ Continue with the [playground lab guide](samples/CacheOrchestrator.Sample/labs/R
 
 ### Share the result
 
-Use the [**v3 testing feedback** issue template](https://github.com/amarinsek/CacheOrchestrator/issues/new?template=v3_testing_feedback.md). A useful report includes as much of the following as is practical:
+Use the [**v3 testing feedback** issue template](https://github.com/CacheOrchestrator/CacheOrchestrator/issues/new?template=v3_testing_feedback.md). A useful report includes as much of the following as is practical:
 
 - CacheOrchestrator package names and versions;
 - .NET version, operating system, and hosting model;
@@ -65,8 +65,8 @@ Successful reports are welcome too. Knowing which compositions work in real envi
 
 ## Report bugs and request features
 
-- For a bug, use the [**bug report** template](https://github.com/amarinsek/CacheOrchestrator/issues/new?template=bug_report.md) and include a minimal reproduction when possible.
-- For v3 evaluation results, including usability or documentation feedback, use the [**v3 testing feedback** template](https://github.com/amarinsek/CacheOrchestrator/issues/new?template=v3_testing_feedback.md).
+- For a bug, use the [**bug report** template](https://github.com/CacheOrchestrator/CacheOrchestrator/issues/new?template=bug_report.md) and include a minimal reproduction when possible.
+- For v3 evaluation results, including usability or documentation feedback, use the [**v3 testing feedback** template](https://github.com/CacheOrchestrator/CacheOrchestrator/issues/new?template=v3_testing_feedback.md).
 - For a feature, lead with the problem and use case. An API proposal is helpful but not required.
 - For security vulnerabilities, do **not** open a public issue. Follow [SECURITY.md](SECURITY.md).
 
@@ -84,7 +84,7 @@ The Admin Console App, its tests, and the samples target `net10.0`. Packaged lib
 ### Clone and build
 
 ```bash
-git clone https://github.com/amarinsek/CacheOrchestrator.git
+git clone https://github.com/CacheOrchestrator/CacheOrchestrator.git
 cd CacheOrchestrator
 
 dotnet restore CacheOrchestrator.slnx

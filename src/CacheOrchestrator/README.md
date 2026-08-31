@@ -1,6 +1,6 @@
 # CacheOrchestrator
 
-[**CacheOrchestrator**](https://github.com/amarinsek/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
+[**CacheOrchestrator**](https://github.com/CacheOrchestrator/CacheOrchestrator) is a multi-tier cache coordination and synchronized invalidation library for .NET.
 
 This **meta** package is the usual starting point for web apps: it includes **`CacheOrchestrator.AspNetCore`** + **`CacheOrchestrator.FusionCache`**.
 
@@ -47,14 +47,14 @@ app.MapGet("/api/products/{id:int}", async (HttpContext http, int id, IDomainDat
 .CacheOutputWithDomain("catalog");
 ```
 
-More layouts (Redis, Hybrid, libraries, EF): [packages.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/how-to/composition.md).
+More layouts (Redis, Hybrid, libraries, EF): [packages.md](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/docs/guide/packages.md) · [composition how-to](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/docs/how-to/composition.md).
 
 ## Documentation
 
-- [README](https://github.com/amarinsek/CacheOrchestrator/blob/main/README.md)
-- [Documentation index](https://github.com/amarinsek/CacheOrchestrator/blob/main/docs/README.md)
-- [Repository](https://github.com/amarinsek/CacheOrchestrator)
+- [README](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/README.md)
+- [Documentation index](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/docs/README.md)
+- [Repository](https://github.com/CacheOrchestrator/CacheOrchestrator)
 
 ## License
 
-MIT — [LICENSE.md](https://github.com/amarinsek/CacheOrchestrator/blob/main/LICENSE.md)
+MIT — [LICENSE.md](https://github.com/CacheOrchestrator/CacheOrchestrator/blob/main/LICENSE.md)

@@ -8,7 +8,7 @@ Please report privately so we can fix and, if needed, coordinate a release befor
 
 ### Preferred
 
-1. Open a **[GitHub Security Advisory](https://github.com/amarinsek/CacheOrchestrator/security/advisories/new)** on this repository (private), **or**
+1. Open a **[GitHub Security Advisory](https://github.com/CacheOrchestrator/CacheOrchestrator/security/advisories/new)** on this repository (private), **or**
 2. Email the maintainer via the address on the [GitHub profile](https://github.com/amarinsek) with subject  
    `CacheOrchestrator security: <short title>`
 
@@ -28,7 +28,7 @@ Please report privately so we can fix and, if needed, coordinate a release befor
 
 ## Non-security bugs
 
-Use [GitHub Issues](https://github.com/amarinsek/CacheOrchestrator/issues) with the bug template.
+Use [GitHub Issues](https://github.com/CacheOrchestrator/CacheOrchestrator/issues) with the bug template.
 
 ## Scope notes for this library
 

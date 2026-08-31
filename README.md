@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2010.0-blueviolet.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.3)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/amarinsek/CacheOrchestrator/build.yml?branch=main&style=flat-square)](https://github.com/amarinsek/CacheOrchestrator/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/CacheOrchestrator/CacheOrchestrator/build.yml?branch=main&style=flat-square)](https://github.com/CacheOrchestrator/CacheOrchestrator/actions)
 [![NuGet](https://img.shields.io/nuget/vpre/CacheOrchestrator.svg?style=flat-square)](https://www.nuget.org/packages/CacheOrchestrator/3.0.0-beta.3)
 
 **CacheOrchestrator is a multi-tier cache coordination and synchronized invalidation library for .NET.**
