@@ -41,7 +41,7 @@ Misconfiguration (e.g. caching private user data as `public` without per-user va
 
 ### Diagnostic response headers
 
-By default the library emits **`X-Cache`** (hit/miss, domain, schedule phase). This is useful for operations and debugging but is client-visible. To disable diagnostic headers in production:
+By default the library emits **`X-CacheOrchestrator`** (hit/miss, domain, schedule phase). This is useful for operations and debugging but is client-visible. To disable diagnostic headers in production:
 
 ```json
 "Cache": { "EmitDiagnosticsHeaders": false }

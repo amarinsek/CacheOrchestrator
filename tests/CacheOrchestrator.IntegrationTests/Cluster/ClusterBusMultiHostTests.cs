@@ -169,7 +169,7 @@ public class ClusterBusMultiHostTests
         string baseUrl = $"http://127.0.0.1:{port}";
         HttpClient client = new() { BaseAddress = new Uri(baseUrl) };
         if (!string.IsNullOrEmpty(apiKey))
-            client.DefaultRequestHeaders.TryAddWithoutValidation("X-Cache-Admin-Key", apiKey);
+            client.DefaultRequestHeaders.TryAddWithoutValidation("X-CacheOrchestrator-Admin-Key", apiKey);
 
         return new ClusterHost
         {
@@ -295,7 +295,7 @@ public class ClusterBusMultiHostTests
             }).CacheOutputWithDomain(domain, resourceRouteKey: "id", entityKind: "products");
             await app.StartAsync(Ct);
             HttpClient client = new() { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
-            client.DefaultRequestHeaders.TryAddWithoutValidation("X-Cache-Admin-Key", "bus-key");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("X-CacheOrchestrator-Admin-Key", "bus-key");
             return new ClusterHost
             {
                 InstanceId = instanceId,
@@ -350,7 +350,7 @@ public class ClusterBusMultiHostTests
         };
 
         using HttpRequestMessage req = new(HttpMethod.Post, urlB + "/cache-admin/local/cluster/apply");
-        req.Headers.TryAddWithoutValidation("X-Cache-Admin-Key", "k");
+        req.Headers.TryAddWithoutValidation("X-CacheOrchestrator-Admin-Key", "k");
         req.Content = CreateCommandContent(foreign);
 
         using HttpResponseMessage response = await new HttpClient().SendAsync(req, Ct);
@@ -381,7 +381,7 @@ public class ClusterBusMultiHostTests
         };
 
         using HttpRequestMessage req = new(HttpMethod.Post, url + "/cache-admin/local/cluster/apply");
-        req.Headers.TryAddWithoutValidation("X-Cache-Admin-Key", "k");
+        req.Headers.TryAddWithoutValidation("X-CacheOrchestrator-Admin-Key", "k");
         req.Content = CreateCommandContent(selfCmd);
 
         using HttpResponseMessage response = await new HttpClient().SendAsync(req, Ct);
@@ -421,7 +421,7 @@ public class ClusterBusMultiHostTests
         async Task PostOnce()
         {
             using HttpRequestMessage req = new(HttpMethod.Post, url + "/cache-admin/local/cluster/apply");
-            req.Headers.TryAddWithoutValidation("X-Cache-Admin-Key", "k");
+            req.Headers.TryAddWithoutValidation("X-CacheOrchestrator-Admin-Key", "k");
             req.Content = CreateCommandContent(cmd);
             using HttpResponseMessage response = await new HttpClient().SendAsync(req, Ct);
             response.EnsureSuccessStatusCode();

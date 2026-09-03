@@ -194,7 +194,7 @@ CacheOrchestrator.Configuration.OutputCacheResult.Bypass = 2 -> CacheOrchestrato
 CacheOrchestrator.Configuration.OutputCacheResult.Hit = 0 -> CacheOrchestrator.Configuration.OutputCacheResult
 CacheOrchestrator.Configuration.OutputCacheResult.Miss = 1 -> CacheOrchestrator.Configuration.OutputCacheResult
 CacheOrchestrator.Configuration.OutputCacheResult.Off = 3 -> CacheOrchestrator.Configuration.OutputCacheResult
-CacheOrchestrator.Configuration.XCacheHeaderFormatter
+CacheOrchestrator.Configuration.CacheOrchestratorHeaderFormatter
 CacheOrchestrator.DataCache.DefaultDomainKeyGenerator
 CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.DefaultDomainKeyGenerator() -> void
 CacheOrchestrator.DataCache.DefaultDomainKeyGenerator.DefaultDomainKeyGenerator(CacheOrchestrator.Vary.CacheVaryMaterializer! materializer) -> void
@@ -329,8 +329,8 @@ static CacheOrchestrator.Configuration.DomainAuthEvaluator.GetEffectiveAuthBypas
 static CacheOrchestrator.Configuration.DomainAuthEvaluator.HasAuthSignal(Microsoft.AspNetCore.Http.HttpContext! http, CacheOrchestrator.Configuration.DomainHttpCacheOptions! options) -> bool
 static CacheOrchestrator.Configuration.DomainAuthEvaluator.ResolveAuthenticatedVaryKey(Microsoft.AspNetCore.Http.HttpContext! http, CacheOrchestrator.Configuration.DomainHttpCacheOptions! options) -> string!
 static CacheOrchestrator.Configuration.DomainAuthEvaluator.ShouldBypassForAuth(Microsoft.AspNetCore.Http.HttpContext! http, CacheOrchestrator.Configuration.DomainHttpCacheOptions! options) -> bool
-static CacheOrchestrator.Configuration.XCacheHeaderFormatter.Format(string! domain, CacheOrchestrator.Configuration.ClientCacheClass client, CacheOrchestrator.Configuration.OutputCacheResult output, CacheOrchestrator.Configuration.DataCacheResult? data, long? ms, string! version, CacheOrchestrator.Configuration.ClientCacheSchedulePhase phase = CacheOrchestrator.Configuration.ClientCacheSchedulePhase.NotApplicable) -> string!
-static CacheOrchestrator.Configuration.XCacheHeaderFormatter.PhaseToString(CacheOrchestrator.Configuration.ClientCacheSchedulePhase phase) -> string!
+static CacheOrchestrator.Configuration.CacheOrchestratorHeaderFormatter.Format(string! domain, CacheOrchestrator.Configuration.ClientCacheClass client, CacheOrchestrator.Configuration.OutputCacheResult output, CacheOrchestrator.Configuration.DataCacheResult? data, long? ms, string! version, CacheOrchestrator.Configuration.ClientCacheSchedulePhase phase = CacheOrchestrator.Configuration.ClientCacheSchedulePhase.NotApplicable) -> string!
+static CacheOrchestrator.Configuration.CacheOrchestratorHeaderFormatter.PhaseToString(CacheOrchestrator.Configuration.ClientCacheSchedulePhase phase) -> string!
 static CacheOrchestrator.DataCache.IDomainDataCacheExtensions.SetEntityIdentity<TId>(this CacheOrchestrator.DataCache.IDomainDataCache! cache, Microsoft.AspNetCore.Http.HttpContext! http, string! entityKind, TId resourceId) -> void
 static CacheOrchestrator.DependencyInjection.ApplicationBuilderExtensions.MapCacheOrchestratorAdmin(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
 static CacheOrchestrator.DependencyInjection.ApplicationBuilderExtensions.UseCacheOrchestrator(this Microsoft.AspNetCore.Builder.IApplicationBuilder! app) -> Microsoft.AspNetCore.Builder.IApplicationBuilder!

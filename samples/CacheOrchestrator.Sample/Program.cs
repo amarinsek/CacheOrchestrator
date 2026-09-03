@@ -1,5 +1,7 @@
 using CacheOrchestrator.DependencyInjection;
 using CacheOrchestrator.Diagnostics;
+using CacheOrchestrator.Edge.DependencyInjection;
+using CacheOrchestrator.Edge.Varnish;
 using CacheOrchestrator.HttpBus;
 using CacheOrchestrator.Identity;
 using CacheOrchestrator.Redis;
@@ -24,6 +26,13 @@ builder.Services.AddCacheOrchestratorAspNetCore(builder.Configuration, o =>
     o.AddHttpClusterBus();
 });
 builder.Services.AddCacheOrchestratorFusionCache(builder.Configuration);
+if (builder.Configuration.GetSection("Cache:EdgeInstances").Exists())
+{
+    // Optional provider used by Docker Lab 06; the default playground stays edge-free.
+    builder.Services.AddCacheOrchestratorEdge(
+        builder.Configuration,
+        edge => edge.AddVarnish());
+}
 builder.Services.AddCacheIdentityContract<ProductSearchIdentityContract>();
 
 // Prometheus scrape endpoint for Admin Console App Metrics (compose labs or host scrape).

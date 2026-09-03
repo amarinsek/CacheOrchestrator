@@ -1,6 +1,6 @@
 namespace CacheOrchestrator.Configuration;
 
-/// <summary>Client-visible cache class used in X-Cache and response header decisions.</summary>
+/// <summary>Client-visible cache class used in X-CacheOrchestrator and response header decisions.</summary>
 public enum ClientCacheClass : byte
 {
     /// <summary>Publicly cacheable response.</summary>

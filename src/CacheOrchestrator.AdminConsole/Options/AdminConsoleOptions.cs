@@ -21,7 +21,7 @@ public sealed class AdminConsoleOptions
     public List<AdminInstanceOptions> Instances { get; set; } = [];
 
     /// <summary>
-    /// Shared API key sent as <c>X-Cache-Admin-Key</c> to each instance.
+    /// Shared API key sent as <c>X-CacheOrchestrator-Admin-Key</c> to each instance.
     /// </summary>
     public string? ApiKey { get; set; }
 

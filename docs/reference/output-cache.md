@@ -213,7 +213,7 @@ See [vary.md](vary.md), [configuration.md](configuration.md), and [domain-profil
 On response start the policy sets:
 
 - **Cache-Control** — from `ClientCacheHeaderGenerator`, including the [Client Cache Schedule](../guide/client-cache-schedule.md) ramp when `ScheduledUpdateUtc` is set.
-- **X-Cache** — domain, client, output (and data / ms when Output Cache missed). Written when `Cache:EmitDiagnosticsHeaders` is `true` (the default). See [observability.md](observability.md).
+- **X-CacheOrchestrator** — domain, client, output (and data / ms when Output Cache missed). Written when `Cache:EmitDiagnosticsHeaders` is `true` (the default). See [observability.md](observability.md).
 
 ## Related
 
@@ -223,4 +223,4 @@ On response start the policy sets:
 - [cache-identity.md](cache-identity.md) — per-method identity bindings (`WithCacheIdentity`, content-hash)  
 - [configuration.md](configuration.md) — `OutputCache` / `ClientCache` domain settings  
 - [invalidation.md](invalidation.md) — tags, Version, entity wiring  
-- [observability.md](observability.md) — `X-Cache`, metrics, health  
+- [observability.md](observability.md) — `X-CacheOrchestrator`, metrics, health

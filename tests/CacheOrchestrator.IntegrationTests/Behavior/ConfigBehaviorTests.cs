@@ -77,14 +77,14 @@ public class ConfigBehaviorTests
             HttpResponseMessage r1 = await client.GetAsync("/ver", TestContext.Current.CancellationToken);
             r1.IsSuccessStatusCode.Should().BeTrue();
             (await r1.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be("body-v1-generation");
-            GetXCache(r1).Should().Contain("oc=miss");
-            GetXCache(r1).Should().Contain("version=v1");
+            GetCacheOrchestratorHeader(r1).Should().Contain("oc=miss");
+            GetCacheOrchestratorHeader(r1).Should().Contain("version=v1");
             Volatile.Read(ref handlerCalls).Should().Be(1);
 
             HttpResponseMessage r2 = await client.GetAsync("/ver", TestContext.Current.CancellationToken);
             r2.IsSuccessStatusCode.Should().BeTrue();
-            GetXCache(r2).Should().Contain("oc=hit");
-            GetXCache(r2).Should().Contain("version=v1");
+            GetCacheOrchestratorHeader(r2).Should().Contain("oc=hit");
+            GetCacheOrchestratorHeader(r2).Should().Contain("version=v1");
             Volatile.Read(ref handlerCalls).Should().Be(1, "Output Cache hit must not re-run the endpoint");
 
             // --- Live config reload: Version v1 → v2 (same process, IOptionsMonitor path) ---
@@ -96,15 +96,15 @@ public class ConfigBehaviorTests
             // --- Generation v2: must miss (new data-version vary key), then hit ---
             HttpResponseMessage r3 = await client.GetAsync("/ver", TestContext.Current.CancellationToken);
             r3.IsSuccessStatusCode.Should().BeTrue();
-            GetXCache(r3).Should().Contain("oc=miss",
+            GetCacheOrchestratorHeader(r3).Should().Contain("oc=miss",
                 "Version bump must change OC key so the v1 entry is not served");
-            GetXCache(r3).Should().Contain("version=v2");
+            GetCacheOrchestratorHeader(r3).Should().Contain("version=v2");
             Volatile.Read(ref handlerCalls).Should().Be(2, "OC miss after Version cutover must execute the endpoint again");
 
             HttpResponseMessage r4 = await client.GetAsync("/ver", TestContext.Current.CancellationToken);
             r4.IsSuccessStatusCode.Should().BeTrue();
-            GetXCache(r4).Should().Contain("oc=hit");
-            GetXCache(r4).Should().Contain("version=v2");
+            GetCacheOrchestratorHeader(r4).Should().Contain("oc=hit");
+            GetCacheOrchestratorHeader(r4).Should().Contain("version=v2");
             Volatile.Read(ref handlerCalls).Should().Be(2);
         }
         finally
@@ -114,8 +114,8 @@ public class ConfigBehaviorTests
         }
     }
 
-    private static string GetXCache(HttpResponseMessage response) =>
-        response.Headers.TryGetValues("X-Cache", out IEnumerable<string>? values)
+    private static string GetCacheOrchestratorHeader(HttpResponseMessage response) =>
+        response.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? values)
             ? string.Join(",", values)
             : string.Empty;
 

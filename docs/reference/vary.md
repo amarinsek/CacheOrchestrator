@@ -190,7 +190,7 @@ Most contributors should add the same dimension to both surfaces, as the example
 > - [ ] Confirm response `Vary` does not advertise secret-bearing headers (library omits those; do not work around it)
 > - [ ] Prefer tight `VaryByHeaders` / query allowlists — wide vary multiplies entries and can leak tenancy signals into key cardinality
 >
-> Library defaults already keep raw `Authorization` / cookie values out of keys, vary dictionaries, logs, and `X-Cache`. Startup validation rejects empty allowlist entries and caps sizes (e.g. max 8 headers / cookies).
+> Library defaults already keep raw `Authorization` / cookie values out of keys, vary dictionaries, logs, and `X-CacheOrchestrator`. Startup validation rejects empty allowlist entries and caps sizes (e.g. max 8 headers / cookies).
 
 ## Related
 

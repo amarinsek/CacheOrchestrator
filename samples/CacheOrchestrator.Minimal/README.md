@@ -1,6 +1,6 @@
 # CacheOrchestrator Minimal sample
 
-The smallest application that uses CacheOrchestrator. One endpoint, in-memory stores, no extra packages. You get a working miss and then a hit in `X-Cache` before you open a larger sample.
+The smallest application that uses CacheOrchestrator. One endpoint, in-memory stores, no extra packages. You get a working miss and then a hit in `X-CacheOrchestrator` before you open a larger sample.
 
 ## Run
 
@@ -26,7 +26,7 @@ The domain lives in `appsettings.json` (`Cache:Domains:hello`). The endpoint use
 This sample turns the Admin API on with a development key. `Program.cs` calls `MapCacheOrchestratorAdmin()`.
 
 ```bash
-curl -i -H "X-Cache-Admin-Key: dev-admin-key" http://localhost:5290/cache-admin/local/health
+curl -i -H "X-CacheOrchestrator-Admin-Key: dev-admin-key" http://localhost:5290/cache-admin/local/health
 ```
 
 For a multi-instance UI, run [CacheOrchestrator.AdminConsole](../../src/CacheOrchestrator.AdminConsole) and point `AdminConsole:Instances` at this port. See [docs/reference/admin.md](../../docs/reference/admin.md).

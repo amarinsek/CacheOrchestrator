@@ -14,7 +14,7 @@ The **Data Cache** stores **application objects** from your factory (DTOs, tiles
 - [How the Data Cache finds the domain](#how-the-data-cache-finds-the-domain)
 - [When the factory runs uncached](#when-the-factory-runs-uncached)
 - [Cache key](#cache-key)
-- [Results (`X-Cache` `dc=` and `DataCacheResult`)](#results-x-cache-dc-and-datacacheresult)
+- [Results (`X-CacheOrchestrator` `dc=` and `DataCacheResult`)](#results-x-cacheorchestrator-dc-and-datacacheresult)
 - [FusionCache provider](#fusioncache-provider)
 - [HybridCache provider](#hybridcache-provider)
 
@@ -87,7 +87,7 @@ If you omit the domain:
 
 - a Warning is logged (`Data cache skipped: no domain resolved…`)
 - metric `cache_orchestrator.dc.requests` is recorded with `domain=_`, `result=unresolved`
-- `X-Cache` may show `dc=unresolved; fa=run` when Output Cache still writes headers
+- `X-CacheOrchestrator` may show `dc=unresolved; fa=run` when Output Cache still writes headers
 
 After endpoint policy resolution or `EnsureDomainOptions`, advanced handler code can inspect the immutable request snapshot:
 
@@ -204,7 +204,7 @@ public sealed class TenantKeyGenerator : IDomainKeyGenerator
 Keys must be deterministic, must not contain secrets (they land in Redis and in logs), and should stay short.
 `context.Shape` is part of the contract: URL-shaped and collection calls must not accidentally inherit entity identity already present on the request.
 
-## Results (`X-Cache` `dc=` and `DataCacheResult`)
+## Results (`X-CacheOrchestrator` `dc=` and `DataCacheResult`)
 
 | Result | Meaning |
 |--------|---------|
@@ -215,9 +215,9 @@ Keys must be deterministic, must not contain secrets (they land in Redis and in 
 | `Off` | Data Cache disabled for the domain. The factory still runs and counts as a factory invocation (FA run). |
 | `Unresolved` | No domain resolved; factory ran uncached (also a factory invocation). |
 
-There is **no** `DataCacheResult.Fail` and **no** `dc=fail` on `X-Cache`. A hard factory throw with no fail-safe value is recorded on the meter as `cache_orchestrator.dc.requests` `result=fail` (and `factory.duration`), then the exception propagates.
+There is **no** `DataCacheResult.Fail` and **no** `dc=fail` on `X-CacheOrchestrator`. A hard factory throw with no fail-safe value is recorded on the meter as `cache_orchestrator.dc.requests` `result=fail` (and `factory.duration`), then the exception propagates.
 
-When `dc` is not `hit`, `X-Cache` also includes `fa=run`. `dc=n/a` means the endpoint generated the response without making a Data Cache operation; it is a header-only state, not a `DataCacheResult` enum value. Admin and factory instruments still count that application/origin work. An Output Cache `hit` omits `dc` and `fa`.
+When `dc` is not `hit`, `X-CacheOrchestrator` also includes `fa=run`. `dc=n/a` means the endpoint generated the response without making a Data Cache operation; it is a header-only state, not a `DataCacheResult` enum value. Admin and factory instruments still count that application/origin work. An Output Cache `hit` omits `dc` and `fa`.
 
 Admin Console App's exclusive pipeline mix is **Output Cache hit + fresh Data Cache hit + factory run**. Factory run is the share of requests that require application/origin work, including direct `dc=n/a`, `off`, `unresolved`, bypass with factory, miss, and stale. **Data Cache stale %** is an overlay on requests, not a fourth mix segment. Layer `bypass` remains an authentication or `no-store` skip, not “caching disabled”.
 

@@ -1,4 +1,5 @@
 using CacheOrchestrator.Configuration;
+using CacheOrchestrator.Entity;
 using CacheOrchestrator.OutputCache;
 using CacheOrchestrator.Vary;
 using Microsoft.AspNetCore.Http;
@@ -67,7 +68,7 @@ public class DomainOutputCachePolicyTests
 
         context.EnableOutputCaching.Should().BeFalse();
         http.Response.Headers.CacheControl.ToString().Should().Be("no-store");
-        http.Response.Headers["X-Cache"].ToString().Should().Contain("domain=_").And.Contain("oc=bypass");
+        http.Response.Headers["X-CacheOrchestrator"].ToString().Should().Contain("domain=_").And.Contain("oc=bypass");
     }
 
     [Fact]
@@ -80,8 +81,8 @@ public class DomainOutputCachePolicyTests
 
         context.EnableOutputCaching.Should().BeFalse();
         http.Response.Headers.CacheControl.ToString().Should().Be("no-store");
-        http.Response.Headers["X-Cache"].ToString().Should().Contain("domain=_");
-        http.Response.Headers["X-Cache"].ToString().Should().NotContain("tiles-attacker");
+        http.Response.Headers["X-CacheOrchestrator"].ToString().Should().Contain("domain=_");
+        http.Response.Headers["X-CacheOrchestrator"].ToString().Should().NotContain("tiles-attacker");
     }
 
     [Theory]
@@ -191,8 +192,8 @@ public class DomainOutputCachePolicyTests
         await policy.CacheRequestAsync(context, CancellationToken.None);
         await FlushHeadersAsync(http);
 
-        http.Response.Headers["X-Cache"].ToString().Should().Contain("oc=off");
-        http.Response.Headers["X-Cache"].ToString().Should().NotContain("oc=bypass");
+        http.Response.Headers["X-CacheOrchestrator"].ToString().Should().Contain("oc=off");
+        http.Response.Headers["X-CacheOrchestrator"].ToString().Should().NotContain("oc=bypass");
     }
 
     [Fact]
@@ -402,7 +403,7 @@ public class DomainOutputCachePolicyTests
     }
 
     // =========================
-    // OnStarting headers (X-Cache, schedule, client)
+    // OnStarting headers (X-CacheOrchestrator, schedule, client)
     // =========================
 
     [Fact]
@@ -415,13 +416,86 @@ public class DomainOutputCachePolicyTests
         await policy.ServeFromCacheAsync(context, CancellationToken.None);
         await FlushHeadersAsync(http);
 
-        string xcache = http.Response.Headers["X-Cache"].ToString();
+        string xcache = http.Response.Headers["X-CacheOrchestrator"].ToString();
         xcache.Should().Contain("oc=hit");
         xcache.Should().NotContain("dc=");
         xcache.Should().NotContain("fa=");
         xcache.Should().NotContain("ms=");
         xcache.Should().Contain("phase=");
         xcache.Should().Contain("domain=products");
+    }
+
+    [Fact]
+    public async Task OnStarting_ContributesFinalizedDynamicEntityTags()
+    {
+        ICacheResponseContributor contributor = Substitute.For<ICacheResponseContributor>();
+        var policy = new DomainOutputCachePolicy("products");
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(contributor: contributor);
+
+        await policy.CacheRequestAsync(context, TestContext.Current.CancellationToken);
+        ICacheOrchestratorFeature feature = http.Features.Get<ICacheOrchestratorFeature>()!;
+        feature.PendingEntityFootprint = new EntityFootprint(
+            new EntityRef("products", "42"),
+            dependsOn: [new EntityRef("categories", "7")]);
+        CacheResponseTagStaging.Update(http);
+        await FlushHeadersAsync(http);
+
+        await contributor.Received(1).ContributeAsync(
+            Arg.Is<CacheResponseContext>(response =>
+                response.OutputCacheResult == OutputCacheResult.Miss
+                && response.SharedCacheEligible
+                && response.Tags.Contains("domain:products")
+                && response.Tags.Contains("entity:products:products:42")
+                && response.Tags.Contains("entity:products:categories:7")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OnStarting_ThenServeResponse_ContributesOnlyOnce()
+    {
+        ICacheResponseContributor contributor = Substitute.For<ICacheResponseContributor>();
+        var policy = new DomainOutputCachePolicy("products");
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(contributor: contributor);
+
+        await policy.CacheRequestAsync(context, TestContext.Current.CancellationToken);
+        await FlushHeadersAsync(http);
+        await policy.ServeResponseAsync(context, TestContext.Current.CancellationToken);
+
+        await contributor.Received(1).ContributeAsync(
+            Arg.Any<CacheResponseContext>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OnStarting_WhenSetCookiePresent_ContributesAsNotSharedCacheEligible()
+    {
+        ICacheResponseContributor contributor = Substitute.For<ICacheResponseContributor>();
+        var policy = new DomainOutputCachePolicy("products");
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(contributor: contributor);
+
+        await policy.CacheRequestAsync(context, TestContext.Current.CancellationToken);
+        http.Response.Headers.SetCookie = "session=abc";
+        await FlushHeadersAsync(http);
+
+        await contributor.Received(1).ContributeAsync(
+            Arg.Is<CacheResponseContext>(response => !response.SharedCacheEligible),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ServeResponse_ThenOnStarting_ContributesOnlyOnce()
+    {
+        ICacheResponseContributor contributor = Substitute.For<ICacheResponseContributor>();
+        var policy = new DomainOutputCachePolicy("products");
+        (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(contributor: contributor);
+
+        await policy.CacheRequestAsync(context, TestContext.Current.CancellationToken);
+        await policy.ServeResponseAsync(context, TestContext.Current.CancellationToken);
+        await FlushHeadersAsync(http);
+
+        await contributor.Received(1).ContributeAsync(
+            Arg.Any<CacheResponseContext>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -440,7 +514,7 @@ public class DomainOutputCachePolicyTests
         await FlushHeadersAsync(http);
 
         http.Response.Headers.CacheControl.ToString().Should().Be("public, max-age=90");
-        http.Response.Headers["X-Cache"].ToString().Should().Contain("phase=hold");
+        http.Response.Headers["X-CacheOrchestrator"].ToString().Should().Contain("phase=hold");
     }
 
     [Fact]
@@ -459,7 +533,7 @@ public class DomainOutputCachePolicyTests
         await FlushHeadersAsync(http);
 
         http.Response.Headers.CacheControl.ToString().Should().Be("public, max-age=3600");
-        http.Response.Headers["X-Cache"].ToString().Should().Contain("phase=calm");
+        http.Response.Headers["X-CacheOrchestrator"].ToString().Should().Contain("phase=calm");
     }
 
     [Fact]
@@ -478,7 +552,7 @@ public class DomainOutputCachePolicyTests
         await FlushHeadersAsync(http);
 
         http.Response.Headers.CacheControl.ToString().Should().Be("public, max-age=1800");
-        http.Response.Headers["X-Cache"].ToString().Should().Contain("phase=approaching");
+        http.Response.Headers["X-CacheOrchestrator"].ToString().Should().Contain("phase=approaching");
     }
 
     [Fact]
@@ -494,11 +568,11 @@ public class DomainOutputCachePolicyTests
         await FlushHeadersAsync(http);
 
         http.Response.Headers.CacheControl.ToString().Should().StartWith("private, max-age=");
-        http.Response.Headers["X-Cache"].ToString().Should().Contain("client=private");
+        http.Response.Headers["X-CacheOrchestrator"].ToString().Should().Contain("client=private");
     }
 
     [Fact]
-    public async Task OnStarting_WhenEmitDiagnosticsHeadersFalse_OmitsXCache()
+    public async Task OnStarting_WhenEmitDiagnosticsHeadersFalse_OmitsCacheOrchestratorHeader()
     {
         var policy = new DomainOutputCachePolicy("products");
         (OutputCacheContext? context, DefaultHttpContext? http) = CreateContext(
@@ -507,7 +581,7 @@ public class DomainOutputCachePolicyTests
         await policy.CacheRequestAsync(context, CancellationToken.None);
         await FlushHeadersAsync(http);
 
-        http.Response.Headers.ContainsKey("X-Cache").Should().BeFalse();
+        http.Response.Headers.ContainsKey("X-CacheOrchestrator").Should().BeFalse();
         http.Response.Headers.CacheControl.ToString().Should().Contain("max-age=");
     }
 
@@ -533,7 +607,8 @@ public class DomainOutputCachePolicyTests
         int clientTtlSeconds = 60,
         int clientTtlMinSeconds = 60,
         TimeProvider? timeProvider = null,
-        CacheOrchestratorHttpOptions? httpOptions = null)
+        CacheOrchestratorHttpOptions? httpOptions = null,
+        ICacheResponseContributor? contributor = null)
     {
         var http = new DefaultHttpContext();
         var responseFeature = new OnStartingResponseFeature();
@@ -565,6 +640,10 @@ public class DomainOutputCachePolicyTests
         services.AddSingleton<CacheVaryMaterializer>();
         services.AddSingleton(typeof(ILogger<DomainOutputCachePolicy>), NullLogger<DomainOutputCachePolicy>.Instance);
         services.AddSingleton(timeProvider ?? TimeProvider.System);
+        if (contributor is not null)
+        {
+            services.AddSingleton(contributor);
+        }
         IOptionsMonitor<CacheOrchestratorHttpOptions> monitor =
             new FixedOptionsMonitor<CacheOrchestratorHttpOptions>(
                 httpOptions ?? new CacheOrchestratorHttpOptions());

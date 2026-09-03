@@ -170,7 +170,7 @@ public class ClusterBusWithRedisBackplaneTests
 
         string baseUrl = $"http://127.0.0.1:{port}";
         HttpClient client = new() { BaseAddress = new Uri(baseUrl) };
-        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Cache-Admin-Key", "bus-redis-key");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("X-CacheOrchestrator-Admin-Key", "bus-redis-key");
 
         return new ClusterHost
         {

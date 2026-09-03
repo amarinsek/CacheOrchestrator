@@ -33,6 +33,7 @@ This page distinguishes supported application extension points from provider- an
 | Add a tenant, claim, header, or other vary dimension | `ICacheVaryContributor` | Application |
 | Replace the complete HTTP Data Cache key algorithm | `IDomainKeyGenerator` | Application, advanced |
 | Audit invalidations or send a webhook | `ICacheInvalidationObserver` | Application |
+| Add a tag-native edge cache or durable invalidation outbox | `IEdgeResponseProvider` / `IEdgeInvalidationProvider` / `IEdgeInvalidationQueue` | Edge provider or infrastructure package |
 | Add a readiness probe | `ICacheOrchestratorHealthProbe` | Application or provider |
 | Add an Output Cache store | `IOutputCacheBackendRegistrar` | Backend package |
 | Add FusionCache L2 or a backplane | `IFusionCacheBackendRegistrar` | Backend package |
@@ -161,7 +162,7 @@ public sealed class AuditInvalidationObserver : ICacheInvalidationObserver
         CacheInvalidationContext context,
         CancellationToken cancellationToken)
     {
-        // context.Kind, context.Scope, context.Tags
+        // context.Kind, context.Scope, context.Tags, context.Origin
         return ValueTask.CompletedTask;
     }
 
@@ -180,7 +181,11 @@ builder.Services.AddSingleton<ICacheInvalidationObserver, AuditInvalidationObser
 
 Each public invalidator call produces one observer pair. A multi-domain call uses `CacheInvalidationKind.Domains`; its after result exposes ordered per-domain `Parts`, including partial and cluster-publish failures.
 
+`CacheInvalidationContext.Origin` is `Local` for initiating and local-only operations, and `RemoteCluster` while a peer applies an HttpBus command. External side-effect observers can use it to avoid one duplicate action per node. The built-in edge observer does this automatically.
+
 Observers do not distribute invalidations. Use Redis backplane, HttpBus, or Admin Console App fan-out for peer processes. See [invalidation observers](invalidation.md#observers-audit--webhooks).
+
+Tag-native Edge packages implement `IEdgeResponseProvider` and `IEdgeInvalidationProvider` under the same configured provider name; the neutral layer handles projection, response contribution, coalescing, and retries. The split allows an application to replace the invalidation transport independently. Register a custom `IEdgeInvalidationQueue` before `AddCacheOrchestratorEdge` when invalidation jobs must enter a durable outbox; an enqueue-only replacement also owns its durable dispatcher. See the [minimal custom provider](../guide/edge.md#minimal-custom-provider) and the complete [Edge cache integration](../guide/edge.md).
 
 ## Health probe: `ICacheOrchestratorHealthProbe`
 
@@ -469,7 +474,7 @@ Replacing one of these contracts means taking responsibility for its caching, no
 
 ## Public utility types
 
-The packages also expose pure helpers and DTOs. `CacheOrchestrator.Core` owns HTTP-free types such as `DomainName`, `CacheTags`, `FactoryResultSize`, Admin DTOs, and cluster command records. `CacheOrchestrator.AspNetCore` owns `ClientCacheHeaderGenerator`, `CacheETagFactory`, and `XCacheHeaderFormatter`. They are documented on the reference page for the behavior they represent and in NuGet XML documentation. They are not service replacement points unless listed above.
+The packages also expose pure helpers and DTOs. `CacheOrchestrator.Core` owns HTTP-free types such as `DomainName`, `CacheTags`, `FactoryResultSize`, Admin DTOs, and cluster command records. `CacheOrchestrator.AspNetCore` owns `ClientCacheHeaderGenerator`, `CacheETagFactory`, and `CacheOrchestratorHeaderFormatter`. They are documented on the reference page for the behavior they represent and in NuGet XML documentation. They are not service replacement points unless listed above.
 
 ## Related
 

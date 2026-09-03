@@ -1,0 +1,69 @@
+# Stage 06 — Stage 02 with a Varnish edge in front of the playground
+#   docker compose -f samples/CacheOrchestrator.Sample/labs/compose/06-varnish-edge.yml up --build -d
+#
+# Playground http://localhost:5289
+# Admin http://localhost:5188  · Prometheus http://localhost:9090
+# Redis published on localhost:6379 (optional host tools)
+
+name: co-lab-06
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks: [lab]
+
+  origin:
+    build:
+      context: ../../../..
+      dockerfile: samples/CacheOrchestrator.Sample/Dockerfile
+    image: cacheorchestrator-playground:local
+    environment:
+      Cache__InstanceId: playground-1
+    volumes:
+      - ../config/06/playground.Production.json:/app/appsettings.Production.json:ro
+    depends_on:
+      - redis
+    networks: [lab]
+
+  playground:
+    image: varnish:9.0.3-5
+    ports:
+      - "5289:80"
+    volumes:
+      - ../config/06/default.vcl:/etc/varnish/default.vcl:ro
+    depends_on:
+      - origin
+    networks: [lab]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../config/06/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    networks: [lab]
+
+  admin:
+    build:
+      context: ../../../..
+      dockerfile: src/CacheOrchestrator.AdminConsole/Dockerfile
+    image: cacheorchestrator-admin-console:local
+    ports:
+      - "5188:8080"
+    environment:
+      AdminConsole__ApiKey: dev-admin-key
+    volumes:
+      - ../config/06/admin.Production.json:/app/appsettings.Production.json:ro
+    depends_on:
+      - origin
+      - prometheus
+    networks: [lab]
+
+networks:
+  lab:

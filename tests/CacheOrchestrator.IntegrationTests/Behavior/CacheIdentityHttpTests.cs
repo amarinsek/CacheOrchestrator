@@ -57,13 +57,13 @@ public class CacheIdentityHttpTests
 
         HttpResponseMessage first = await client.PostAsync("/graphql", content, TestContext.Current.CancellationToken);
         first.StatusCode.Should().Be(HttpStatusCode.OK);
-        first.Headers.TryGetValues("X-Cache", out IEnumerable<string>? x1).Should().BeTrue();
+        first.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? x1).Should().BeTrue();
         string.Join(',', x1!).Should().Contain("oc=miss");
 
         using StringContent content2 = new("{\"query\":\"{ ping }\"}", Encoding.UTF8, "application/json");
         HttpResponseMessage second = await client.PostAsync("/graphql", content2, TestContext.Current.CancellationToken);
         second.StatusCode.Should().Be(HttpStatusCode.OK);
-        second.Headers.TryGetValues("X-Cache", out IEnumerable<string>? x2).Should().BeTrue();
+        second.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? x2).Should().BeTrue();
         string.Join(',', x2!).Should().Contain("oc=hit");
 
         Volatile.Read(ref hits).Should().Be(1);

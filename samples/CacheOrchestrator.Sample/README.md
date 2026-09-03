@@ -22,7 +22,7 @@ The interactive companion to the [Minimal sample](../CacheOrchestrator.Minimal).
 | Path | Best for |
 |------|----------|
 | **A. Solo (host)** | Fastest loop; settings editor; single process. See below. |
-| **B. Topology labs (Docker)** | Learn **cache layouts** + Admin + Redis with one command. See [labs/README.md](labs/README.md). |
+| **B. Topology labs (Docker)** | Learn **cache layouts** + Admin + Redis + Varnish Edge with one command. See [labs/README.md](labs/README.md). |
 
 ---
 
@@ -55,17 +55,22 @@ Each playground tab keeps its own response history and request count. Switching 
 
 **Disable browser HTTP cache** is enabled by default and uses Fetch `cache: 'no-store'`. This bypasses browser cache only; it does not disable Output Cache or Data Cache on the server. Uncheck it to demonstrate client `max-age` and **BROWSER-CACHE**.
 
-The Playground sends a unique demo request ID with each request. The app echoes it on every real network response, including an Output Cache hit. If the returned ID is older, the response came from browser cache; the UI reports that the server was not contacted instead of repeating the cached response's old `X-Cache` value.
+The Playground sends a unique demo request ID with each request. The app echoes it on every real network response, including an Output Cache hit. If the returned ID is older, the response came from browser cache; the UI reports that the server was not contacted instead of repeating the cached response's old `X-CacheOrchestrator` value.
 
-Response badges summarize `X-Cache` fields (`oc=`, `dc=`, and `fa=`):
+Response badges summarize `X-CacheOrchestrator` fields (`oc=`, `dc=`, and `fa=`):
 
 - **BROWSER-CACHE** — client cache served the response (only when **Disable browser HTTP cache** is off)
+- **EDGE-HIT** — the edge served the response; shown in green
+- **EDGE-REFRESH** — the edge served cached content while stale/revalidation work involved the origin; shown in yellow-green between hit and miss
+- **EDGE-MISS** — the edge forwarded the request to the origin for the response; shown in the same orange style as **OC-MISS**, followed by the applicable origin badges
 - **OC-HIT** — Output Cache served the HTTP response (`oc=hit`; `dc`/`fa` omitted)
 - **OC-MISS FACTORY** — the app generated the response directly (`dc=n/a; fa=run`), as on the first promotions fetch
 - **OC-MISS DC-HIT** — handler ran; Data Cache had the object (`dc=hit`, no `fa`)
 - **OC-MISS DC-STALE FACTORY** — fail-safe stale from Data Cache (`dc=stale; fa=run`)
 - **OC-MISS DC-MISS FACTORY** — both layers missed; factory ran (`dc=miss; fa=run`)
 - **OC-OFF** / **DC-OFF** — that layer is disabled for the domain. **FACTORY** appears whenever `fa=run`.
+
+Cloudflare maps `HIT` to **EDGE-HIT**, `STALE` / `UPDATING` / `REVALIDATED` to **EDGE-REFRESH**, and other observed cache outcomes to **EDGE-MISS**. The documented Varnish VCL maps a fresh `hit`, stale grace delivery, and `fwd=...` to the same three categories. The exact provider status remains in the Edge badge tooltip.
 
 ## Getting started playground
 
@@ -103,6 +108,8 @@ Suggested UI flow: fetch twice → change `lang` → MISS → switch `Accept` to
 
 Open the **POST identity playground** tab. This panel demonstrates **read-only POST** Output Cache (and data-cache keys) via a named contract.
 
+In an Edge-enabled deployment such as Lab 06, these POST requests are still cached only at the origin. Edge storage is intentionally limited to `GET` and `HEAD`, so repeated search requests show only the applicable origin badges.
+
 | Control | Role |
 |---------|------|
 | `q`, `sort`, `page` | Part of cache identity (normalized by the contract) |
@@ -133,7 +140,7 @@ Minimal sample has a simpler content-hash demo: `POST /echo` in [CacheOrchestrat
 
 ## Next
 
-- [labs/README.md](labs/README.md) — topology labs 01–05 (main learning path for multi-instance cache)
+- [labs/README.md](labs/README.md) — topology labs 01–06 (including multi-instance caching and a Varnish edge)
 - [Guide](../../docs/guide/README.md) — concepts, topologies, operations
 - [Getting started](../../docs/guide/getting-started.md)
 - [Endpoint cache identity](../../docs/reference/cache-identity.md)

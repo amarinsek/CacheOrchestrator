@@ -93,14 +93,14 @@ public class AspNetCoreOnlyTests
             app.Services.GetRequiredService<IDataCacheProvider>().Name.Should().Be("Null");
 
             HttpResponseMessage r1 = await client.GetAsync("/x", TestContext.Current.CancellationToken);
-            string x1 = r1.Headers.TryGetValues("X-Cache", out IEnumerable<string>? v1)
+            string x1 = r1.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? v1)
                 ? string.Join(",", v1)
                 : "";
             (await r1.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be("oc-body");
             x1.Should().Contain("oc=miss");
 
             HttpResponseMessage r2 = await client.GetAsync("/x", TestContext.Current.CancellationToken);
-            string x2 = r2.Headers.TryGetValues("X-Cache", out IEnumerable<string>? v2)
+            string x2 = r2.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? v2)
                 ? string.Join(",", v2)
                 : "";
             (await r2.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be("oc-body");

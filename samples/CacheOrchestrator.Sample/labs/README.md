@@ -13,6 +13,7 @@ For a single process on your machine without Docker, use the [Playground sample]
 | **03** | [`compose/03-multi.yml`](compose/03-multi.yml) | **Two** playgrounds + shared Redis L2 |
 | **04** | [`compose/04-bus.yml`](compose/04-bus.yml) | Stage 03 + **HTTP cluster bus** |
 | **05** | [`compose/05-dual-redis-bus.yml`](compose/05-dual-redis-bus.yml) | **Two Redis** (OC store vs Fusion L2/backplane) + bus |
+| **06** | [`compose/06-varnish-edge.yml`](compose/06-varnish-edge.yml) | Stage 02 + **Varnish Edge** with `xkey` invalidation |
 
 ---
 
@@ -24,6 +25,7 @@ For a single process on your machine without Docker, use the [Playground sample]
 - [Stage 03 — Two playgrounds + shared Redis L2](#stage-03-two-playgrounds-shared-redis-l2)
 - [Stage 04 — Cluster bus](#stage-04-cluster-bus)
 - [Stage 05 — OC Redis + FC Redis + Cluster bus](#stage-05-oc-redis-fc-redis-cluster-bus)
+- [Stage 06 — Varnish Edge](#stage-06-varnish-edge)
 - [Lab vs production](#lab-vs-production)
 - [Troubleshooting](#troubleshooting)
 - [Where to read more](#where-to-read-more)
@@ -33,10 +35,10 @@ For a single process on your machine without Docker, use the [Playground sample]
 Each lab gives you a **running playground** (and Admin Console + Prometheus). Treat it as a sandpit:
 
 1. Open the **Playground** UI: follow the **Getting started** tab, then try the focused **Vary** and **POST identity** playgrounds.
-2. Click **Fetch** / **Search** more than once — watch badges and `X-Cache` (OC-HIT, DC-HIT, FACTORY, schedule phase, …).  
+2. Click **Fetch** / **Search** more than once — watch badges and `X-CacheOrchestrator` (OC-HIT, DC-HIT, FACTORY, schedule phase, …).
 3. Open **appsettings** in the UI, change a TTL, Version, or Client Cache Schedule value, save, then fetch again.  
 4. Open **Admin Console** — Overview, Domains, Hints, Metrics — and relate numbers to what you just did.  
-5. Move to the **next stage** when you want Redis, a second node, or the bus; the playground behaviour stays familiar, the **topology** changes.
+5. Move to the **next stage** when you want Redis, a second node, the bus, or a Varnish edge; the playground behaviour stays familiar, the **topology** changes.
 
 There is no single “correct” click path. Change settings, invalidate, compare two URLs, then look at Admin Console. That loop is how the domain model becomes concrete.
 
@@ -440,13 +442,91 @@ docker compose -f samples/CacheOrchestrator.Sample/labs/compose/05-dual-redis-bu
 
 ---
 
+## Stage 06 — Varnish Edge
+
+**Stack:** Stage 02 + `varnish`. Varnish Edge · OC InMemory · FC Redis L2/backplane.
+
+<img src="../../../docs/assets/lab-06.svg" height="370" />
+
+<br>
+
+**Edge config:**
+
+```json
+{
+  "Cache": {
+    "EdgeInstances": {
+      "varnish": {
+        "Provider": "Varnish",
+        "Varnish": {
+          "PurgeUrl": "http://playground/cache-orchestrator/purge",
+          "ApiKey": "dev-edge-key",
+          "ApiKeyHeaderName": "X-CacheOrchestrator-Key"
+        }
+      }
+    },
+    "DomainDefaults": {
+      "Edge": {
+        "Enabled": true,
+        "Instance": "varnish",
+        "TtlSeconds": 30,
+        "StaleWhileRevalidateSeconds": 10
+      }
+    }
+  }
+}
+```
+
+**Compose:** `compose/06-varnish-edge.yml`
+
+```bash
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/06-varnish-edge.yml up --build
+```
+
+| URL | |
+|-----|--|
+| Playground | http://localhost:5289 |
+| Admin Console | http://localhost:5188 |
+
+### In this stage
+
+Varnish stores only responses explicitly marked cacheable by `CacheOrchestrator.Edge.Varnish`. The origin supplies opaque `xkey` tags and edge-only TTL/grace headers; the mounted VCL consumes those headers, hides them from clients, and reports the result with standard `Cache-Status` values. Domain and entity invalidation use protected `PURGE` requests carrying `xkey-purge`.
+
+The badges show the request path from outermost to innermost cache. `EDGE-HIT` means a fresh cached response completed the request. `EDGE-REFRESH` means cached content was served through Varnish grace while the object was stale and refresh work involved the origin. `EDGE-MISS` is followed by the applicable origin badges, such as `OC-HIT` or `OC-MISS`. The exact Varnish status remains available in the badge tooltip.
+
+The origin application is internal to the Compose network. All browser traffic goes through the Playground service on `:5289`, which runs Varnish.
+
+→ [Edge cache guide](../../../docs/guide/edge.md) · [invalidation.md](../../../docs/reference/invalidation.md)
+
+### What to try
+
+1. Keep **Disable browser HTTP cache** enabled and open the Edge URL on `:5289`.
+2. Fetch promotions twice. The first response shows **EDGE-MISS** followed by the server cache path; the second shows **EDGE-HIT**.
+3. Use **Invalidate domain** for `promotions`, wait about a second for the edge queue, then fetch through `:5289`: expect a miss followed by another edge hit.
+4. Repeat the product update flow. Entity invalidation removes the tagged Varnish object as well as the server-side entries.
+5. Open **POST identity** and submit the same search twice. The second request can be an origin Output Cache hit, but no Edge badge is shown: Edge storage is limited to `GET` and `HEAD`.
+
+### Limits
+
+- Plain local HTTP, a lab-only API key, one Varnish process, and no TLS or hardened purge ACL.
+- The Varnish image and VCL are pinned for a reproducible exercise, not offered as a production deployment template.
+- The edge invalidation queue is in-memory and best-effort, as described in the Edge guide.
+
+### Clean Docker
+
+```bash
+docker compose -f samples/CacheOrchestrator.Sample/labs/compose/06-varnish-edge.yml down -v
+```
+
+---
+
 ## Lab vs production
 
 These stacks are **teaching environments**, not blueprints for a production edge. Real multi-instance setups usually look different around the apps:
 
 | In production (typical) | In these labs (on purpose) |
 |-------------------------|----------------------------|
-| Reverse proxy / load balancer (HAProxy, nginx, cloud LB) in front of several identical nodes | **No proxy** — each playground is published on its **own host port** |
+| Reverse proxy / load balancer (HAProxy, nginx, cloud LB) in front of several identical nodes | Stages **01–05** publish each playground directly; Stage **06** adds one Varnish edge in front of one origin |
 | One public URL; you rarely care which instance handled the request | Open **A** and **B** in separate browser tabs (`:5289` / `:5290`) so you can **see each instance alone** (hits, factory, local L1) |
 | TLS, auth at the edge, private networks | Plain HTTP on localhost |
 | Managed Redis, HA, monitoring as a platform concern | Single-container Redis (or two) for clarity |
@@ -474,7 +554,7 @@ Other simplifications exist for the same reason: **focus on cache behaviour** (O
 
 | Symptom | Check |
 |---------|--------|
-| `Bind for 0.0.0.0:9090` (or `5289` / `5290` / `5188` / `6379`) **failed: port is already allocated** | Another lab still holds the port. Run that stage’s **Clean Docker for next lab** (`down -v`) first. Only one lab stack at a time. |
+| `Bind for 0.0.0.0:9090` (or `5289` / `5290` / `5188` / `6379`) **failed: port is already allocated** | Another lab still holds the port. Run that stage’s **Clean Docker** command (`down -v`) first. Only one lab stack at a time. |
 | Admin instance Down | Playground healthy? ApiKey `dev-admin-key`? |
 | Metrics empty | Traffic generated? Wait ~5–10s scrape; Prometheus targets UP? |
 | Redis connection errors | Stage config uses service name `redis` / `redis-oc` / `redis-fc`, not `localhost` inside containers |
@@ -484,7 +564,8 @@ Other simplifications exist for the same reason: **focus on cache behaviour** (O
 | POST identity tab: unknown domain `product-search` / options miss | Stages **03–05** shared volume may predate that domain — `down -v` then `up --build` to re-seed. Stages **01–02**: rebuild playground image so baked `appsettings.json` includes `product-search`. |
 | `Error response from daemon: open /var/lib/docker/tmp/...` on `up --build` | Compose must mount `/shared` as a **directory** (file subpath mounts break on Docker Desktop); labs use a directory mount plus an entrypoint symlink. Run `down -v`, then `up --build -d`. |
 | Bus not distributing | Stages 04–05 only; peers use Docker DNS URLs in lab config |
-| No **BROWSER-CACHE**, or always server hits | Header toggle **Disable browser HTTP cache** is **on by default** (for server OC/FC demos). Uncheck only when you want client `max-age` / BROWSER-CACHE. The Playground uses a per-request echo to distinguish browser responses from cached responses whose old `X-Cache` header says `oc=hit`. |
+| No **BROWSER-CACHE**, or always server hits | Header toggle **Disable browser HTTP cache** is **on by default** (for server OC/FC demos). Uncheck only when you want client `max-age` / BROWSER-CACHE. The Playground uses a per-request echo to distinguish browser responses from cached responses whose old `X-CacheOrchestrator` header says `oc=hit`. |
+| No Edge status badge in Stage 06 | Fetch the same cacheable GET route twice through `http://localhost:5289`; inspect `Cache-Status`; check `docker compose ... logs playground origin`. |
 | OC-HIT then sudden MISS / FACTORY | Domain **TTL** expired — check `OutputCache.TtlSeconds` vs `DataCache.TtlSeconds` / `fusionCache.hardTtlSeconds` for that domain in `Cache:Domains` |
 | Always FACTORY, never hits | Domain disabled? Wrong endpoint/domain? Keys differ (query, host — multi-lab keys note in Stage 03)? |
 | Client headers not what you expect | `ClientCache.TtlSeconds` / schedule / **Disable browser HTTP cache** (Fetch uses `no-store` when on) |
@@ -508,6 +589,7 @@ Labs stay short on purpose: stages cover **topology**; use the sample README and
 | Product overview | [root README](../../../README.md) |
 | Deployment / multi-instance / Redis / bus | [deployment.md](../../../docs/reference/deployment.md), [cluster-bus.md](../../../docs/reference/cluster-bus.md) |
 | Admin API + Admin Console | [admin.md](../../../docs/reference/admin.md) · [Guide — operations](../../../docs/guide/operations.md) |
-| Observability (`X-Cache`, metrics) | [observability.md](../../../docs/reference/observability.md) |
+| Observability (`X-CacheOrchestrator`, metrics) | [observability.md](../../../docs/reference/observability.md) |
+| Edge cache, Varnish VCL, tag invalidation | [edge.md](../../../docs/guide/edge.md) |
 | Cache keys (host/port vary, query params) | [cache-keys.md](../../../docs/reference/cache-keys.md) |
 

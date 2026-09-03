@@ -12,7 +12,7 @@ Start with one response, move to aggregate telemetry, and use Admin mutations on
 
 ## Table of Contents
 
-- [Read one request with `X-Cache`](#read-one-request-with-x-cache)
+- [Read one request with `X-CacheOrchestrator`](#read-one-request-with-x-cacheorchestrator)
 - [Use metrics for trends](#use-metrics-for-trends)
 - [Use logs and traces for the reason](#use-logs-and-traces-for-the-reason)
 - [Probe backend health](#probe-backend-health)
@@ -22,12 +22,12 @@ Start with one response, move to aggregate telemetry, and use Admin mutations on
 - [Security checklist](#security-checklist)
 - [Use a short incident checklist](#use-a-short-incident-checklist)
 
-## Read one request with `X-Cache`
+## Read one request with `X-CacheOrchestrator`
 
-Domain endpoints emit `X-Cache` by default:
+Domain endpoints emit `X-CacheOrchestrator` by default:
 
 ```http
-X-Cache: domain=catalog; version=v1; client=public; phase=n/a; oc=miss; dc=miss; fa=run; ms=12
+X-CacheOrchestrator: domain=catalog; version=v1; client=public; phase=n/a; oc=miss; dc=miss; fa=run; ms=12
 ```
 
 | Token | Values | What it tells you |
@@ -56,7 +56,7 @@ Use `curl` or disable the browser cache while diagnosing. If a browser serves it
 
 Set `Cache:EmitDiagnosticsHeaders` to `false` when exposing domain names and cache state to public clients is undesirable. Metrics, traces, logs, `Cache-Control`, and ETags continue to work.
 
-Full field semantics: [Observability](../reference/observability.md#x-cache-response-header).
+Full field semantics: [Observability](../reference/observability.md#x-cacheorchestrator-response-header).
 
 ## Use metrics for trends
 
@@ -189,7 +189,7 @@ See [Topologies](topologies.md) and [Cluster bus](../reference/cluster-bus.md) f
 
 When cached output appears wrong:
 
-1. Reproduce with the browser cache disabled and capture `X-Cache`.
+1. Reproduce with the browser cache disabled and capture `X-CacheOrchestrator`.
 2. Confirm the resolved `domain`, client policy, and schedule phase.
 3. Decide whether the response came from Client Cache, Output Cache, Data Cache, or the factory.
 4. Check auth and vary inputs before assuming the stored value is wrong.

@@ -16,6 +16,7 @@ For “which package do I need?”, start with [packages](../guide/packages.md),
 - [Root properties and package ownership](#root-properties-and-package-ownership)
 - [Provider options (`OutputCache` / `DataCacheInstances` entry)](#provider-options-outputcache-datacacheinstances-entry)
 - [Redis connection (`CacheOrchestrator.Redis` package)](#redis-connection-cacheorchestratorredis-package)
+- [Edge cache (`CacheOrchestrator.Edge` package)](#edge-cache-cacheorchestrator-edge-package)
 - [Distributed resilience (`Cache:Distributed`)](#distributed-resilience-cachedistributed)
 - [Domain settings (`DomainDefaults` and each `Domains` entry)](#domain-settings-domaindefaults-and-each-domains-entry)
 - [Admin API (`Cache:Admin`)](#admin-api-cacheadmin)
@@ -38,6 +39,8 @@ For “which package do I need?”, start with [packages](../guide/packages.md),
     "DataCacheInstances": {
       "default": { "Provider": "InMemory" }
     },
+    "EdgeInstances": { },
+    "EdgeQueue": { },
     "DomainDefaults": {
       "DataCache": { "Enabled": true, "TtlSeconds": 3800 },
       "OutputCache": { "Enabled": true, "TtlSeconds": 3700 },
@@ -59,17 +62,19 @@ For “which package do I need?”, start with [packages](../guide/packages.md),
 |----------|-------|------|---------|-------------|
 | `Namespace` | `CacheOrchestrator.Core` + consuming adapters | string | `app-cache` | Global key prefix; isolates multi-app shared stores **and** cluster command isolation |
 | `InstanceId` | `CacheOrchestrator.Core` | string | machine name | Stable process id (management, cluster anti-echo, diagnostics) |
-| `EmitDiagnosticsHeaders` | `CacheOrchestrator.AspNetCore` | bool | `true` | When `true`, emit client-visible diagnostic headers (`X-Cache`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
+| `EmitDiagnosticsHeaders` | `CacheOrchestrator.AspNetCore` | bool | `true` | When `true`, emit client-visible diagnostic headers (`X-CacheOrchestrator`). Set `false` in production if you do not want hit/miss/domain details exposed to clients. Does **not** affect metrics, tracing, or logs. |
 | `Metrics` | `CacheOrchestrator.AspNetCore` | object | see below | HTTP meter label options (OpenTelemetry / Prometheus) |
 | `Distributed` | `CacheOrchestrator.Core` / Data Cache provider | object | soft 1s / hard 2s / circuit 5s | L2 resilience for **non-InMemory** Data Cache providers (Fusion Redis, …) |
 | `OutputCache` | `CacheOrchestrator.AspNetCore` | object | Provider `InMemory` | Output Cache provider + optional namespace |
 | `DataCacheInstances` | `CacheOrchestrator.Core` / Data Cache provider | map | `default` instance `InMemory` | Named Data Cache engines (Fusion L1±L2; Hybrid supports only `default`) |
+| `EdgeInstances` | `CacheOrchestrator.Edge` + provider packages | map | empty | Named tag-native edge providers |
+| `EdgeQueue` | `CacheOrchestrator.Edge` | object | see below | In-memory purge batching and retry policy |
 | `DomainDefaults` | `CacheOrchestrator.Core` + feature packages | object | — | Fallbacks for every domain; each package binds its owned nested settings |
 | `Domains` | `CacheOrchestrator.Core` + feature packages | map | — | Per-domain overrides (keys are domain names) |
 | `Admin` | `CacheOrchestrator.Core` + `CacheOrchestrator.AspNetCore` / `CacheOrchestrator.HttpBus` | object | disabled | Management policy plus Admin API route/auth settings (see [admin.md](admin.md)) |
 | `Cluster` | `CacheOrchestrator.Core` command handling + `CacheOrchestrator.HttpBus` transport | object | bus disabled | Cluster command and optional HttpBus settings (see below / [cluster-bus.md](cluster-bus.md)) |
 
-The JSON tree is stable even though no single public Core options type owns every row. `CacheOrchestrator.Core`, `CacheOrchestrator.AspNetCore`, `CacheOrchestrator.FusionCache`, and `CacheOrchestrator.HttpBus` bind package-specific projections from the same section.
+The JSON tree is stable even though no single public Core options type owns every row. Feature and provider packages bind package-specific projections from the same section.
 
 ### Metrics (`CacheOrchestrator.AspNetCore`)
 
@@ -97,6 +102,44 @@ Effective namespaces:
 | `Provider` | Must match a registered backend (`InMemory` always; `Redis` after `AddRedisBackend()`; custom via `AddOutputCacheBackend` or `AddFusionCacheBackend`) |
 | `Namespace` | Optional key prefix override |
 | `{Backend}.*` | Backend-specific block (read by the backend package, e.g. `Redis`, `SqlServer`) |
+
+## Edge cache (`CacheOrchestrator.Edge` package)
+
+Edge support is opt-in and requires a tag-native provider package. Register the providers referenced by configuration:
+
+```csharp
+services.AddCacheOrchestratorEdge(configuration, edge =>
+{
+    edge.AddCloudflare();
+    edge.AddVarnish();
+});
+```
+
+| Path | Type | Default | Description |
+|------|------|---------|-------------|
+| `EdgeInstances:{name}:Provider` | string | — | Registered provider name; v1 requires tag purge |
+| `EdgeInstances:{name}:Namespace` | string? | `{Cache:Namespace}-edge-{name}` | Isolation input for opaque edge tags |
+| `EdgeInstances:{name}:Cloudflare:ZoneId` | string | — | Cloudflare zone; required by the Cloudflare provider |
+| `EdgeInstances:{name}:Cloudflare:ApiToken` | string | — | Secret token with cache purge permission |
+| `EdgeInstances:{name}:Varnish:PurgeUrl` | absolute URL | — | Protected Varnish xkey invalidation endpoint |
+| `EdgeInstances:{name}:Varnish:ApiKey` | string? | null | Optional secret sent to the invalidation endpoint |
+| `EdgeInstances:{name}:Varnish:ApiKeyHeaderName` | string | `X-CacheOrchestrator-Key` | Header carrying the optional API key |
+| `EdgeQueue:Capacity` | int | `1024` | Pending in-memory jobs before producers apply backpressure |
+| `EdgeQueue:MaxAttempts` | int | `3` | Total attempts for a transient provider failure |
+| `EdgeQueue:FlushIntervalSeconds` | int | `1` | Coalescing window |
+| `EdgeQueue:RetryBaseDelaySeconds` | int | `1` | Exponential retry base when no `Retry-After` is supplied |
+
+`DomainDefaults:Edge` and `Domains:{name}:Edge` use the normal default/override merge:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | `false` | Emit provider metadata and coordinate purge for this domain |
+| `Instance` | empty | Named `EdgeInstances` entry; required when enabled |
+| `TtlSeconds` | `300` | Edge-only fresh lifetime |
+| `StaleWhileRevalidateSeconds` | null | Optional edge stale/revalidation window |
+| `StaleIfErrorSeconds` | null | Optional edge stale/error window |
+
+All durations are non-negative integer seconds. Queue capacity and attempts must be positive. Startup fails for an unknown provider, missing instance reference, missing provider settings, or a stale setting the selected provider cannot preserve. Cloudflare supports both stale settings; Varnish maps stale-while-revalidate to grace and rejects stale-if-error. See [Edge cache integration](../guide/edge.md) for response eligibility, VCL, limits, and delivery behavior.
 
 ## Redis connection (`CacheOrchestrator.Redis` package)
 
@@ -152,6 +195,7 @@ For one domain, the Core and ASP.NET Core options providers resolve values in th
 | `OutputCache` | `CacheOrchestrator.AspNetCore` | HTTP response cache TTL and Output Cache behavior |
 | `ClientCache` | `CacheOrchestrator.AspNetCore` | Browser / CDN `Cache-Control` (+ schedule) |
 | `FusionCache` | `CacheOrchestrator.FusionCache` only | Hard TTL, fail-safe, factory timeouts, jitter, … |
+| `Edge` | `CacheOrchestrator.Edge` | Edge-only TTL/stale policy and named provider routing |
 
 ### Feature flags and vary (domain root)
 
@@ -244,7 +288,7 @@ Details: [admin.md](admin.md). Map with `MapCacheOrchestratorAdmin()`.
 | Property | Default | Description |
 |----------|---------|-------------|
 | `Enabled` | `false` | When false, Null stats collector and no admin routes |
-| `ApiKey` | empty | `X-Cache-Admin-Key`; empty + Enabled = open (dev only) |
+| `ApiKey` | empty | `X-CacheOrchestrator-Admin-Key`; empty + Enabled = open (dev only) |
 | `RoutePrefix` | `/cache-admin/local` | Base path for Admin API (and cluster receive path prefix) |
 | `TrackEndpoints` | `true` | Per-route counters when Enabled |
 | `TrackLatency` | `false` | Sum/count factory latency on Admin `/stats` (extra cost) |
@@ -266,7 +310,7 @@ Without the package, core registers a Null bus (no peer traffic). Details: **[cl
 | `PeerTimeoutMs` | `2000` | Per-peer HTTP timeout (clamped **100–120_000** ms at publish) |
 | `MaxParallelism` | `32` | Max concurrent peer deliveries (clamped **1–64**) |
 | `DedupeWindowSeconds` | `330` | Receive-side `CommandId` window; must cover `CommandMaxAgeSeconds + ClockSkewSeconds` while HttpBus is enabled |
-| `ApiKey` | empty | `X-Cache-Admin-Key` for receive endpoints; falls back to `Admin:ApiKey`; required when enabled unless unauthenticated mode is explicitly allowed |
+| `ApiKey` | empty | `X-CacheOrchestrator-Admin-Key` for receive endpoints; falls back to `Admin:ApiKey`; required when enabled unless unauthenticated mode is explicitly allowed |
 | `AllowUnauthenticated` | `false` | Explicit opt-in for an open bus on an isolated development network |
 | `CommandMaxAgeSeconds` | `300` | Reject commands older than this receive-side freshness window |
 | `ClockSkewSeconds` | `30` | Maximum accepted future clock skew |
@@ -300,6 +344,7 @@ Package-owned validators run on start (`ValidateOnStart`). Core validates portab
 - Effective Fusion factory timeouts must be positive with soft &lt; hard; fail-safe must be disabled (`0`) or cover the effective Data Cache duration
 - Effective `ClientCache.TtlMinSeconds` must not exceed a positive `TtlSeconds`, including inherited default/domain combinations; it is ignored when `TtlSeconds` is `0`
 - An enabled HttpBus requires an API key unless unauthenticated mode is explicitly allowed; command freshness and clock-skew windows must be valid
+- edge-enabled domains must reference a registered tag-native instance; Cloudflare requires a zone ID/token and Varnish requires an absolute protected purge URL
 - Allowlists have max lengths (headers, cookies, query, claims, Accept lists)
 - `AuthBypassMode` must be a defined enum value  
 

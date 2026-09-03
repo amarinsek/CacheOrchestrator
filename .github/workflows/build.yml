@@ -9,8 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Integration suite pulls redis:7-alpine via Testcontainers (first run is slower).
-    # Two TFMs run Redis sequentially — allow extra time after the image is cached.
+    # Integration suite pulls Redis, nginx, and Varnish images via Testcontainers
+    # (the first run is slower). Two TFMs run the containers sequentially.
     timeout-minutes: 50
 
     steps:
@@ -73,6 +73,18 @@ jobs:
         fi
         echo "Packaged analyzer emitted COIDENTITY001 as expected."
 
+    # Catch package metadata and API compatibility failures before the release workflow.
+    - name: Edge package smoke
+      run: |
+        set -e
+        for proj in \
+          src/CacheOrchestrator.Edge/CacheOrchestrator.Edge.csproj \
+          src/CacheOrchestrator.Edge.Cloudflare/CacheOrchestrator.Edge.Cloudflare.csproj \
+          src/CacheOrchestrator.Edge.Varnish/CacheOrchestrator.Edge.Varnish.csproj
+        do
+          dotnet pack "$proj" --no-build --configuration Release --output .artifacts/package-smoke
+        done
+
     # Unit tests multi-target: execute against both packaged TFMs.
     - name: Unit tests (net8.0)
       run: |
@@ -82,6 +94,9 @@ jobs:
           tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj \
           tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.UnitTests/CacheOrchestrator.Edge.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.Cloudflare.UnitTests/CacheOrchestrator.Edge.Cloudflare.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.Varnish.UnitTests/CacheOrchestrator.Edge.Varnish.UnitTests.csproj \
           tests/CacheOrchestrator.Redis.Shared.UnitTests/CacheOrchestrator.Redis.Shared.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.Redis.UnitTests/CacheOrchestrator.AspNetCore.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.FusionCache.Redis.UnitTests/CacheOrchestrator.FusionCache.Redis.UnitTests.csproj \
@@ -101,6 +116,9 @@ jobs:
           tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj \
           tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.UnitTests/CacheOrchestrator.Edge.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.Cloudflare.UnitTests/CacheOrchestrator.Edge.Cloudflare.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.Varnish.UnitTests/CacheOrchestrator.Edge.Varnish.UnitTests.csproj \
           tests/CacheOrchestrator.Redis.Shared.UnitTests/CacheOrchestrator.Redis.Shared.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.Redis.UnitTests/CacheOrchestrator.AspNetCore.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.FusionCache.Redis.UnitTests/CacheOrchestrator.FusionCache.Redis.UnitTests.csproj \
@@ -118,15 +136,15 @@ jobs:
         --no-build --configuration Release --framework net10.0
         --verbosity normal
 
-    # GitHub-hosted runners include Docker — required for Testcontainers.Redis.
+    # GitHub-hosted runners include Docker — required for Redis and Varnish Testcontainers.
     - name: Verify Docker (Testcontainers)
       run: |
         docker version
         docker info
 
-    # Integration: both packaged TFMs. Redis tests start redis:7-alpine via Testcontainers
-    # (shared RedisFixture collection + multi-instance dual-container tests).
-    - name: Integration tests (net8.0 + Redis Testcontainers)
+    # Integration: both packaged TFMs. Redis and Varnish tests start their pinned
+    # containers through shared fixtures.
+    - name: Integration tests (net8.0 + Redis/Varnish Testcontainers)
       timeout-minutes: 20
       env:
         # Clearer logs if a container fails to start.
@@ -137,7 +155,7 @@ jobs:
         --verbosity normal
         --logger "console;verbosity=detailed"
 
-    - name: Integration tests (net10.0 + Redis Testcontainers)
+    - name: Integration tests (net10.0 + Redis/Varnish Testcontainers)
       timeout-minutes: 20
       env:
         TESTCONTAINERS_RYUK_DISABLED: "false"

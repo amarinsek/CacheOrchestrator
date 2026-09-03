@@ -1,14 +1,14 @@
 # Observability
 
-> **Reference** — `X-Cache`, metrics, traces, logs, and health checks.
+> **Reference** — `X-CacheOrchestrator`, metrics, traces, logs, and health checks.
 
-How to see what the cache is doing: the **`X-Cache`** response header, the **`CacheOrchestrator`** meter and activity source, logs, and health checks.
+How to see what the cache is doing: the **`X-CacheOrchestrator`** response header, the **`CacheOrchestrator`** meter and activity source, logs, and health checks.
 
 Operator dashboards and multi-instance actions: [admin](admin.md). Admin Console App **traffic** charts are **Prometheus-only** (point `AdminConsole:Metrics` at a scrape of the meter). Try Prometheus with the playground [topology labs](../../samples/CacheOrchestrator.Sample/labs/README.md) — sample Compose only, not a NuGet dependency.
 
 ## Table of Contents
 
-- [X-Cache response header](#x-cache-response-header)
+- [X-CacheOrchestrator response header](#x-cacheorchestrator-response-header)
 - [Metrics](#metrics)
 - [Activities (tracing)](#activities-tracing)
 - [Logging](#logging)
@@ -18,9 +18,9 @@ Operator dashboards and multi-instance actions: [admin](admin.md). Admin Console
 - [Health checks](#health-checks)
 - [Security checklist](#security-checklist)
 
-## X-Cache response header
+## X-CacheOrchestrator response header
 
-Written by `DomainOutputCachePolicy` on response start via `XCacheHeaderFormatter`, when
+Written by `DomainOutputCachePolicy` on response start via `CacheOrchestratorHeaderFormatter`, when
 **`Cache:EmitDiagnosticsHeaders`** is `true` (the default).
 
 ### Controlling emission
@@ -35,7 +35,7 @@ Written by `DomainOutputCachePolicy` on response start via `XCacheHeaderFormatte
 
 | Value | Behaviour |
 |-------|-----------|
-| `true` (default) | Clients receive `X-Cache` (and any future diagnostic response headers under this flag) |
+| `true` (default) | Clients receive `X-CacheOrchestrator` (and any future diagnostic response headers under this flag) |
 | `false` | No diagnostic response headers; **Cache-Control**, ETag, metrics, activities, and logs still work |
 
 Use `false` in production if you prefer not to expose domain names, hit/miss status, schedule phase, or timing to untrusted clients. Server-side observability (meter `CacheOrchestrator`, activity source `CacheOrchestrator`) is independent of this switch.
@@ -43,7 +43,7 @@ Use `false` in production if you prefer not to expose domain names, hit/miss sta
 Example when enabled:
 
 ```http
-X-Cache: domain=products; version=v1; client=public; phase=approaching; oc=miss; dc=hit; ms=12
+X-CacheOrchestrator: domain=products; version=v1; client=public; phase=approaching; oc=miss; dc=hit; ms=12
 ```
 
 | Token | Wire values | Presence / meaning |
@@ -61,7 +61,7 @@ A hard factory throw is recorded by factory failure telemetry (`result=fail` on 
 
 `dc=stale` has a deliberately narrow meaning: CacheOrchestrator observed a factory failure in this request and the provider returned its fail-safe value. `dc=hit` does not promise that provider-specific eager-refresh or timeout metadata says the value is fresh; the current provider contract does not expose a reliable stale signal for every background-refresh path.
 
-An empty or unconfigured **domain name template** / resolver result fails closed with `Cache-Control: no-store`. When diagnostics are enabled, `X-Cache` uses `domain=_; version=-; client=no-store; phase=n/a; oc=bypass; dc=n/a; fa=run` and never echoes the unresolved value.
+An empty or unconfigured **domain name template** / resolver result fails closed with `Cache-Control: no-store`. When diagnostics are enabled, `X-CacheOrchestrator` uses `domain=_; version=-; client=no-store; phase=n/a; oc=bypass; dc=n/a; fa=run` and never echoes the unresolved value.
 
 ## Metrics
 
@@ -86,7 +86,7 @@ Meter name: **`CacheOrchestrator`**
 
 **`route` tag** — when `Cache:Metrics:IncludeEndpointLabel` is `true` (default), Output Cache and Data Cache instruments add a stable endpoint key (`METHOD` + route template, the same shape as Admin Console App endpoint rows). It never uses raw paths with resource ids. Set `false` to drop the tag and lower cardinality. Keep the setting consistent across instances. Domain labels always remain.
 
-`phase` tag values match X-Cache: `calm`, `approaching`, `hold`, `n/a`.
+`phase` tag values match X-CacheOrchestrator: `calm`, `approaching`, `hold`, `n/a`.
 
 Cluster instruments are silent when the bus is Null / disabled (no meaningful counters without publish/receive).
 
@@ -104,11 +104,11 @@ Activity source name: **`CacheOrchestrator`**
 | `cache.oc.hit` | Output Cache hit |
 | `cache.invalidate` | Domain invalidation |
 
-Core activities tag `domain`, `provider`, and `cache.result`; the footprint activity distinguishes `hit` from `miss`. Wire names for the HTTP path use the same short layer ids as `X-Cache` and metrics (`dc`, `oc`). Data Cache activities tag `domain` and `cache.result` (including `unresolved`, `off`, and `bypass`), plus `entity_kind` / `resource_id` when set. Invalidation activities use `cache.scope`, `cache.kind`, `cache.tags`, `cache.dc.ok`, and `cache.oc.ok`, not `cache.result`. Failure events are `dc.invalidate.failed` and `oc.invalidate.failed`.
+Core activities tag `domain`, `provider`, and `cache.result`; the footprint activity distinguishes `hit` from `miss`. Wire names for the HTTP path use the same short layer ids as `X-CacheOrchestrator` and metrics (`dc`, `oc`). Data Cache activities tag `domain` and `cache.result` (including `unresolved`, `off`, and `bypass`), plus `entity_kind` / `resource_id` when set. Invalidation activities use `cache.scope`, `cache.kind`, `cache.tags`, `cache.dc.ok`, and `cache.oc.ok`, not `cache.result`. Failure events are `dc.invalidate.failed` and `oc.invalidate.failed`.
 
 ## Logging
 
-CacheOrchestrator uses `Microsoft.Extensions.Logging` only. Libraries do not register a logging provider; the host (console, Application Insights, Seq, …) decides sinks. Prefer **metrics** and **`X-Cache`** for steady-state ops; raise log detail for an incident window, then turn it down again ([operations](../guide/operations.md#use-logs-and-traces-for-the-reason)).
+CacheOrchestrator uses `Microsoft.Extensions.Logging` only. Libraries do not register a logging provider; the host (console, Application Insights, Seq, …) decides sinks. Prefer **metrics** and **`X-CacheOrchestrator`** for steady-state ops; raise log detail for an incident window, then turn it down again ([operations](../guide/operations.md#use-logs-and-traces-for-the-reason)).
 
 ### Levels by event
 
@@ -131,7 +131,7 @@ CacheOrchestrator uses `Microsoft.Extensions.Logging` only. Libraries do not reg
 | Cluster peer publish failure / bus AllowUnauthenticated | Warning |
 | Data Cache requested but no provider registered | Warning (once per process on first use) |
 
-There is **no** dedicated log line for every internal step (vary materialization, Output Cache store, physical key assembly). Those surfaces show up as metrics, activities, and `X-Cache`. Output Cache **MISS** is also silent in logs (only HIT is logged at Debug).
+There is **no** dedicated log line for every internal step (vary materialization, Output Cache store, physical key assembly). Those surfaces show up as metrics, activities, and `X-CacheOrchestrator`. Output Cache **MISS** is also silent in logs (only HIT is logged at Debug).
 
 ### Categories
 
@@ -234,9 +234,9 @@ Admin API `GET …/health` is a **separate** endpoint: it still returns HTTP 200
 > [!IMPORTANT]
 > Diagnostics are useful in production only when you decide what clients and operators may see:
 >
-> - [ ] Set `Cache:EmitDiagnosticsHeaders` to `false` if `X-Cache` (domain, hit/miss, phase, `ms`) must not reach untrusted clients
+> - [ ] Set `Cache:EmitDiagnosticsHeaders` to `false` if `X-CacheOrchestrator` (domain, hit/miss, phase, `ms`) must not reach untrusted clients
 > - [ ] Keep server-side meter / activity / logs enabled independently of that switch when you still need ops visibility
-> - [ ] Do not log raw `Authorization`, cookies, or other secrets — vary and key paths already avoid putting them in `X-Cache`
+> - [ ] Do not log raw `Authorization`, cookies, or other secrets — vary and key paths already avoid putting them in `X-CacheOrchestrator`
 > - [ ] Treat Admin `GET …/health` and process `/health` as internal endpoints; do not expose them anonymously on the public internet
 > - [ ] When scraping Prometheus (or compatible), scrape over a private network or authenticated path — metrics can include domain and route labels
 

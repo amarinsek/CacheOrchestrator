@@ -9,17 +9,19 @@
 
 **CacheOrchestrator is a multi-tier cache coordination and synchronized invalidation library for .NET.**
 
-**CacheOrchestrator** defines **Client Cache**, **Output Cache**, and **Data Cache** policies through a **single domain** model. Each cache keeps its own responsibility, while the domain coordinates lifetimes, cache identity, and server-side invalidation.
+**CacheOrchestrator** defines **Client Cache**, **Edge Cache**, **Output Cache**, and **Data Cache** policies through a **single domain** model. Each cache keeps its own responsibility, while the domain coordinates lifetimes, cache identity, and server-side invalidation.
 
-<img src="docs/assets/drawing-01.svg" height="350" alt="A request passing through Client Cache, Output Cache, and Data Cache" />
+<img src="docs/assets/drawing-01.svg" height="350" alt="A request passing through Client Cache, Edge Cache, Output Cache, and Data Cache" />
 
 A request can pass through the following cache layers:
 
-- **Client Cache (CC)** — prevents unnecessary requests from reaching the server.
-- **Output Cache (OC)** — serves the stored HTTP response so the endpoint need not run.
-- **Data Cache (L1/L2)** — serves the stored object so the factory (your database or service) need not run.
+* **Client Cache (CC)** — prevents unnecessary requests from leaving the client.
+* **Edge Cache (EC)** — serves the stored HTTP response from a edge node (a CDN or a reverse proxy) so the request never reaches your server.
+* **Output Cache (OC)** — serves the stored HTTP response so the server endpoint need not run.
+* **Data Cache (L1/L2)** — serves the stored object so the factory (your database or service) need not run.
 
-In real-world applications, caching layers are often fragmented. You might have an in-memory Output Cache on one end and a Redis-backed FusionCache on the other, each operating with different TTLs. When these isolated layers aren't synchronized, they easily work against each other. CacheOrchestrator unifies them under a **single domain** model to coordinate their lifecycles and policies. This is especially critical for cache **invalidation**: clearing the Data Cache is pointless if the Output Cache continues serving stale HTTP responses. By tying these layers together, CacheOrchestrator ensures that all corresponding server-side representations are invalidated simultaneously.
+
+In real-world applications, caching layers are often fragmented. You might have an in-memory Output Cache on one end, a Redis-backed Data Cache on the other, and optionally an Edge Cache—each operating with different TTLs. When these isolated layers aren't synchronized, they easily work against each other. CacheOrchestrator unifies them under a single domain model to coordinate their lifecycles and policies. This is especially critical for cache invalidation: clearing the Data Cache is pointless if the Output Cache or Edge Cache continues serving stale HTTP responses. By tying these layers together, CacheOrchestrator ensures that all corresponding server-side representations are invalidated simultaneously, with optional hooks to seamlessly push invalidation tags to your external edge infrastructure.
 
 ---
 
@@ -37,7 +39,7 @@ In real-world applications, caching layers are often fragmented. You might have 
 
 ## Why CacheOrchestrator
 
-- **One domain, three cache layers** — Define caching policy once per domain and coordinate Client Cache, Output Cache, and Data Cache with independent lifetimes.
+- **One domain, four cache layers** — Define caching policy once per domain and coordinate Client Cache, Edge Cache, Output Cache, and Data Cache with independent lifetimes.
 
 - **Synchronized invalidation** — Invalidate related cache layers together so stale data does not survive in one layer after another has been cleared.
 
@@ -68,7 +70,7 @@ curl -i http://localhost:5290/hello
 curl -i http://localhost:5290/hello
 ```
 
-The first response is an Output Cache miss (the sample waits about 200 ms). The second is a hit. Look at the `X-Cache` header: `oc=miss`, then `oc=hit`.
+The first response is an Output Cache miss (the sample waits about 200 ms). The second is a hit. Look at the `X-CacheOrchestrator` header: `oc=miss`, then `oc=hit`.
 
 Sample notes: [samples/CacheOrchestrator.Minimal](samples/CacheOrchestrator.Minimal/README.md)
 
@@ -209,13 +211,13 @@ Domains are the unit of configuration. Within a domain you can optionally use **
 
 ## Playground topology labs
 
-To try **multi-layer layouts** (Admin Console App, Prometheus, Redis L2, multiple instances, cluster bus) without wiring Docker yourself, use the playground **topology labs** — one Compose command per stage. 
+To try **multi-layer layouts** (Admin Console App, Prometheus, Redis L2, multiple instances, cluster bus, and Varnish Edge) without wiring Docker yourself, use the playground **topology labs** — one Compose command per stage.
 
 ```bash
 docker compose -f samples/CacheOrchestrator.Sample/labs/compose/01-observability.yml up --build
 ```
 
-Stages climb from a single in-memory playground to a dual Redis + HTTP bus architecture. 
+Stages climb from a single in-memory playground to a dual Redis + HTTP bus architecture, then add a focused Varnish Edge exercise.
 
 **Full guide & diagrams:** [samples/CacheOrchestrator.Sample/labs/README.md](samples/CacheOrchestrator.Sample/labs/README.md) — See what each stage teaches and how they evolve.
 
@@ -223,7 +225,7 @@ Stages climb from a single in-memory playground to a dual Redis + HTTP bus archi
 
 ## Packages and applications
 
-The library is **modular**. `CacheOrchestrator.Core` provides the foundational policies, `ICacheOrchestrator`, and the transport-independent Management API. From there, you can opt into specific packages to match your stack: `CacheOrchestrator.FusionCache` or `CacheOrchestrator.HybridCache` for Data Cache, `CacheOrchestrator.AspNetCore` for Output Cache and Client Cache, Redis packages, `CacheOrchestrator.HttpBus`, and `CacheOrchestrator.EFCore.Invalidation`. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
+The library is **modular**. `CacheOrchestrator.Core` provides the foundational policies, `ICacheOrchestrator`, and the transport-independent Management API. From there, you can opt into specific packages to match your stack: Data Cache providers, ASP.NET Core, Redis, HttpBus, EF invalidation, and tag-native Edge cache integration. See the [Packages and composition](docs/guide/packages.md) guide to learn how to wire them together.
 
 | Package | Purpose |
 |---------|---------|
@@ -237,6 +239,9 @@ The library is **modular**. `CacheOrchestrator.Core` provides the foundational p
 | [CacheOrchestrator.FusionCache.Redis](https://www.nuget.org/packages/CacheOrchestrator.FusionCache.Redis/3.0.0-beta.3) | Redis Fusion L2 / backplane only (`AddRedisFusionCacheBackend`). |
 | [CacheOrchestrator.HttpBus](https://www.nuget.org/packages/CacheOrchestrator.HttpBus/3.0.0-beta.3) | Syncs invalidations, versions, and settings across all instances via HTTP cluster bus. |
 | [CacheOrchestrator.EFCore.Invalidation](https://www.nuget.org/packages/CacheOrchestrator.EFCore.Invalidation/3.0.0-beta.3) | Automatic cache invalidation after a successful Entity Framework Core `SaveChanges`. |
+| `CacheOrchestrator.Edge` | Provider-neutral opaque response tags and queued edge invalidation contracts. - upcoming 3.0.0-beta.4 |
+| `CacheOrchestrator.Edge.Cloudflare` | Cloudflare `Cache-Tag`, edge cache-control, and purge API provider. - upcoming 3.0.0-beta.4 |
+| `CacheOrchestrator.Edge.Varnish` | Varnish `xkey`, edge TTL/grace metadata, and protected PURGE provider. - upcoming 3.0.0-beta.4 |
 
 
 | Application | Purpose |
@@ -260,7 +265,7 @@ The library is **modular**. `CacheOrchestrator.Core` provides the foundational p
 
 ## Documentation
 
-- [Getting started](docs/guide/getting-started.md) — first endpoint, `X-Cache`, what to read next
+- [Getting started](docs/guide/getting-started.md) — first endpoint, `X-CacheOrchestrator`, what to read next
 - [Guide](docs/guide/README.md) — concepts, topologies, operations
 - [Documentation index](docs/README.md) — configuration, keys, deployment, architecture
 - [FAQ](docs/guide/faq.md) — common mistakes and limits

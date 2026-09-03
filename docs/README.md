@@ -6,14 +6,15 @@ Start with the [root README](../README.md) for the product overview and quick st
 
 ## Guide
 
-1. [Getting started](guide/getting-started.md) — first endpoint and `X-Cache`
+1. [Getting started](guide/getting-started.md) — first endpoint and `X-CacheOrchestrator`
 2. [Concepts](guide/concepts.md) — domain, three layers, Version vs TTL vs tags
 3. [Domain profiles](guide/domain-profiles.md) — snapshot datasets vs changing records
 4. [Packages](guide/packages.md) — which NuGet to install
 5. [Topologies](guide/topologies.md) — InMemory, Redis, HttpBus, mixed
-6. [Client Cache Schedule](guide/client-cache-schedule.md) — client `max-age` before a cutover
-7. [Operations](guide/operations.md) — diagnostics map, Admin API vs Admin Console App
-8. [Comparison](guide/comparison.md) — hand-rolled stack vs this library  
+6. [Edge cache integration](guide/edge.md) — Cloudflare/Varnish edge TTL, opaque tags, and queued invalidation
+7. [Client Cache Schedule](guide/client-cache-schedule.md) — client `max-age` before a cutover
+8. [Operations](guide/operations.md) — diagnostics map, Admin API vs Admin Console App
+9. [Comparison](guide/comparison.md) — hand-rolled stack vs this library
    - [Worked example: one endpoint](guide/comparison-endpoint-example.md) — with CO first, then hand-rolled (vary, CCS, ETag, …)  
 9. [FAQ](guide/faq.md) — common mistakes
 
@@ -54,7 +55,7 @@ The reference describes exact configuration paths, API contracts, key material, 
 - [Extensibility](reference/extensibility.md) — application, provider, cluster, and host extension points
 - [Deployment](reference/deployment.md) — single-instance, Redis, InMemory clusters, and shared configuration
 - [Cluster command bus](reference/cluster-bus.md) — membership, commands, delivery, authentication, and partial failure
-- [Observability](reference/observability.md) — `X-Cache`, metrics, traces, logs, and health checks
+- [Observability](reference/observability.md) — `X-CacheOrchestrator`, metrics, traces, logs, and health checks
 - [Admin](reference/admin.md) — Admin API, Admin Console App, trust boundaries, and operational endpoints
 - [Admin Console App Docker](../deploy/admin/README.md) — image, volumes, and logs
 
@@ -65,6 +66,7 @@ The reference describes exact configuration paths, API contracts, key material, 
 | Explain why two requests share or do not share an entry | [Endpoint identity](reference/cache-identity.md) → [Vary](reference/vary.md) → [Cache keys](reference/cache-keys.md) |
 | Invalidate one changed record and every view that contains it | [Entity footprint](reference/entity-footprint.md) → [Invalidation](reference/invalidation.md) → [EF Core invalidation](reference/ef-core-invalidation.md) |
 | Design a multi-instance deployment | [Backends](reference/backends.md) → [Deployment](reference/deployment.md) → [Cluster bus](reference/cluster-bus.md) |
+| Extend entity invalidation to Cloudflare or Varnish | [Edge cache integration](guide/edge.md) → [Invalidation](reference/invalidation.md) → [Deployment](reference/deployment.md) |
 | Diagnose hit rate or factory load | [Observability](reference/observability.md) → [Admin](reference/admin.md) |
 | Integrate custom identity, storage, health, or command transport | [Extensibility](reference/extensibility.md) → the linked contract page |
 

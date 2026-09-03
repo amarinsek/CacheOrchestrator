@@ -34,7 +34,7 @@ dotnet add package CacheOrchestrator.HttpBus --prerelease
 }
 ```
 
-`Membership` may also be `ServiceDiscovery`. Peers authenticate `POST …/cluster/apply` with `X-Cache-Admin-Key` (`Cache:Cluster:Bus:ApiKey`, or `Cache:Admin:ApiKey` if empty). An enabled bus without either key fails startup unless `AllowUnauthenticated: true` is explicitly set for an isolated development network. Old or implausibly future-dated commands are rejected.
+`Membership` may also be `ServiceDiscovery`. Peers authenticate `POST …/cluster/apply` with `X-CacheOrchestrator-Admin-Key` (`Cache:Cluster:Bus:ApiKey`, or `Cache:Admin:ApiKey` if empty). An enabled bus without either key fails startup unless `AllowUnauthenticated: true` is explicitly set for an isolated development network. Old or implausibly future-dated commands are rejected.
 
 ## Usage
 

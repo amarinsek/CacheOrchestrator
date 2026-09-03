@@ -28,7 +28,7 @@ Use the **Management API** from application code or a custom transport. Use the 
 ```
 ┌─────────────────────┐    HTTP fan-out      ┌──────────────────────────┐
 │ Admin Console App   │ ──────────────────►  │ App instance A           │
-│ - AdminConsole:*    │  X-Cache-Admin-Key   │ MapCacheOrchestratorAdmin│
+│ - AdminConsole:*    │  X-CacheOrchestrator-Admin-Key   │ MapCacheOrchestratorAdmin│
 │ - /api/* + SPA      │                      │ /cache-admin/local/*     │
 │ (browser → open)    │ ──────────────────►  │ App instance B           │
 └─────────────────────┘                      └──────────────────────────┘
@@ -162,7 +162,7 @@ Deep dive (membership, commands, metrics, security): **[cluster-bus.md](cluster-
 When `ApiKey` is set, every Admin API call must send:
 
 ```http
-X-Cache-Admin-Key: <same-as-Cache:Admin:ApiKey>
+X-CacheOrchestrator-Admin-Key: <same-as-Cache:Admin:ApiKey>
 ```
 
 Comparison is fixed-time. Wrong/missing key ⇒ `401 Unauthorized`.
@@ -195,7 +195,7 @@ Invalidate a domain:
 ```http
 POST /cache-admin/local/invalidate
 Content-Type: application/json
-X-Cache-Admin-Key: <key>
+X-CacheOrchestrator-Admin-Key: <key>
 
 {
   "scope": "domain",
@@ -230,7 +230,7 @@ Patch settings with a sparse dictionary of catalog IDs:
 ```http
 PATCH /cache-admin/local/domains/catalog/settings
 Content-Type: application/json
-X-Cache-Admin-Key: <key>
+X-CacheOrchestrator-Admin-Key: <key>
 
 {
   "settings": {
@@ -343,7 +343,7 @@ Section: `AdminConsole` → `AdminConsoleOptions`.
 
 | Key | Description |
 |-----|-------------|
-| `ApiKey` | Sent as `X-Cache-Admin-Key` to every instance (**must match** each app’s `Cache:Admin:ApiKey`) |
+| `ApiKey` | Sent as `X-CacheOrchestrator-Admin-Key` to every instance (**must match** each app’s `Cache:Admin:ApiKey`) |
 | `RequestTimeoutMs` | Per-call timeout (1–120000) |
 | `Parallelism` | Max concurrent fan-out (1–64) |
 | `DownReprobeSeconds` | After an instance is Down, skip HTTP to it for this many seconds (5–300, default 15), then re-probe |
@@ -491,7 +491,7 @@ API key is the **intended** machine-to-machine credential for Admin API — not 
 
 | Path | Protected by? |
 |------|---------------------|
-| **Admin Console App → Admin API** on each app | Optional shared secret `X-Cache-Admin-Key` (required in production) |
+| **Admin Console App → Admin API** on each app | Optional shared secret `X-CacheOrchestrator-Admin-Key` (required in production) |
 | **Browser / user → Admin Console App** | **No built-in login** — network / reverse-proxy auth only |
 
 The key stops strangers from calling `/cache-admin/local` on your apps **if** they cannot reach Admin Console App *or* guess the key. It does **not** by itself decide which humans may open the dashboard.
@@ -512,7 +512,7 @@ The key stops strangers from calling `/cache-admin/local` on your apps **if** th
 
 - [Guide — operations](../guide/operations.md) — enabling Admin, health, and day-2 workflows  
 - [admin-hints.md](../contributor/admin-hints.md) — recommendation hints + customization  
-- [observability.md](observability.md) — metrics / `X-Cache` / health checks  
+- [observability.md](observability.md) — metrics / `X-CacheOrchestrator` / health checks
 - [invalidation.md](invalidation.md) — domain/entity invalidation model  
 - [configuration.md](configuration.md) — domain options binding and `Cache:Admin`  
 - [architecture.md](../contributor/architecture.md) — library layers  

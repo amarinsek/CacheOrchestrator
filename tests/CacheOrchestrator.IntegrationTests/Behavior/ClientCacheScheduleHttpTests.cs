@@ -72,11 +72,11 @@ public class ClientCacheScheduleHttpTests
         return (app.GetTestClient(), app, clock, reloadSource);
     }
 
-    private static async Task<(string XCache, string CacheControl)> GetHeadersAsync(HttpClient client)
+    private static async Task<(string CacheOrchestratorHeader, string CacheControl)> GetHeadersAsync(HttpClient client)
     {
         HttpResponseMessage res = await client.GetAsync("/x", TestContext.Current.CancellationToken);
         res.IsSuccessStatusCode.Should().BeTrue();
-        string xCache = res.Headers.TryGetValues("X-Cache", out IEnumerable<string>? xv)
+        string xCache = res.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? xv)
             ? string.Join(",", xv)
             : string.Empty;
         string cc = res.Headers.TryGetValues("Cache-Control", out IEnumerable<string>? cv)
@@ -223,7 +223,7 @@ public class ClientCacheScheduleHttpTests
     /// toward <c>ScheduledUpdateUtc</c> (Approaching), then sits at the min TTL in Hold.
     /// After the cutover, config sets <c>ScheduledUpdateUtc</c> to the <strong>next</strong> planned
     /// update (far in the future) so the domain returns to <strong>Calm</strong> with full client TTL.
-    /// Schedule affects only client <c>Cache-Control</c> / <c>X-Cache phase=</c> — not server OC/FC TTLs.
+    /// Schedule affects only client <c>Cache-Control</c> / <c>X-CacheOrchestrator phase=</c> — not server OC/FC TTLs.
     /// </para>
     /// <para>
     /// Script (fake clock + config reload; no real multi-hour wait):
@@ -327,7 +327,7 @@ public class ClientCacheScheduleHttpTests
 
     /// <summary>
     /// Moves the fake clock and waits past the short Output Cache TTL so the next GET
-    /// rebuilds <c>Cache-Control</c> / <c>X-Cache</c> from current schedule math.
+    /// rebuilds <c>Cache-Control</c> / <c>X-CacheOrchestrator</c> from current schedule math.
     /// </summary>
     private static async Task AdvancePastOutputCacheAsync(MutableTimeProvider clock, DateTimeOffset newUtcNow)
     {

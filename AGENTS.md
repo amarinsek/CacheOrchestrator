@@ -4,13 +4,14 @@ Context for AI coding agents working in this repository.
 
 ## What this project is
 
-**CacheOrchestrator** configures and coordinates three layers — Output Cache (OC), **data cache** (DC; FusionCache or HybridCache), and client Cache-Control (CC) — under one **domain** model. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, the data engine holds the object, and the browser or CDN still honours `Cache-Control`. Package composition: `docs/guide/packages.md` · `docs/how-to/composition.md`.
+**CacheOrchestrator** configures and coordinates three primary layers — Output Cache (OC), **data cache** (DC; FusionCache or HybridCache), and client Cache-Control (CC) — under one **domain** model, with optional tag-native **Edge Cache** integration. Define the rules once in configuration, then apply them on endpoints with a single attribute or extension. It does not replace those systems or own a store: ASP.NET still holds the HTTP response, the data engine holds the object, and browsers/edge services honour their response metadata. Package composition: `docs/guide/packages.md` · `docs/how-to/composition.md`.
 
 Internally it wires:
 
 1. **Output Cache** — full HTTP response caching (ASP.NET Core)  
 2. **Data cache** — application object caching via `IDataCacheProvider` (FusionCache L1/L2 ± backplane, or HybridCache)  
 3. **Client Cache-Control** — browser/CDN headers (+ optional Client Cache Schedule)
+4. **Edge Cache (optional)** — provider-specific edge freshness metadata and queued tag invalidation
 
 Domains are named groups of data that share TTLs, providers, client headers, and version stamps.
 
@@ -19,11 +20,12 @@ Domains are named groups of data that share TTLs, providers, client headers, and
 - Redis: meta `src/CacheOrchestrator.Redis` (`AddRedisBackend`); leaves `CacheOrchestrator.AspNetCore.Redis` / `CacheOrchestrator.FusionCache.Redis`; support `CacheOrchestrator.Redis.Shared` (transitive only)  
 - HttpBus package: `src/CacheOrchestrator.HttpBus` (`AddHttpClusterBus` / `MapCacheOrchestratorHttpBus`) — optional multi-instance command fan-out  
 - EF invalidation package: `src/CacheOrchestrator.EFCore.Invalidation` (`AddCacheOrchestratorEfCoreInvalidation` / `AddCacheOrchestratorInvalidation`)  
+- Edge packages: `src/CacheOrchestrator.Edge` (neutral contracts/worker), `src/CacheOrchestrator.Edge.Cloudflare`, `src/CacheOrchestrator.Edge.Varnish`
 - Admin Console App: `src/CacheOrchestrator.AdminConsole` (fan-out UI/API; not a NuGet package; **net10.0 only**)  
 - Target frameworks: libraries `net8.0` + `net10.0`; Admin Console App `net10.0` only; samples typically net10  
 - Version: **MinVer** from Git tags `v*` (do not hardcode `<Version>` in Directory.Build.props)  
 - Samples: `samples/CacheOrchestrator.Minimal` (1-minute InMemory), `samples/CacheOrchestrator.Sample` (playground; `CacheOrchestrator.Redis`)  
-- Tests: `tests/CacheOrchestrator.Core.UnitTests`, `tests/CacheOrchestrator.AspNetCore.UnitTests`, `tests/CacheOrchestrator.FusionCache.UnitTests`, `tests/CacheOrchestrator.HybridCache.UnitTests`, `tests/CacheOrchestrator.Redis.UnitTests`, `tests/CacheOrchestrator.HttpBus.UnitTests`, `tests/CacheOrchestrator.EFCore.Invalidation.UnitTests` (net8+net10), `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only), `IntegrationTests` (net8+net10 + Testcontainers Redis), `Benchmarks`
+- Tests: `tests/CacheOrchestrator.Core.UnitTests`, `tests/CacheOrchestrator.AspNetCore.UnitTests`, `tests/CacheOrchestrator.FusionCache.UnitTests`, `tests/CacheOrchestrator.HybridCache.UnitTests`, `tests/CacheOrchestrator.Redis.UnitTests`, `tests/CacheOrchestrator.HttpBus.UnitTests`, `tests/CacheOrchestrator.EFCore.Invalidation.UnitTests`, `tests/CacheOrchestrator.Edge.UnitTests`, `tests/CacheOrchestrator.Edge.Cloudflare.UnitTests`, `tests/CacheOrchestrator.Edge.Varnish.UnitTests` (net8+net10), `tests/CacheOrchestrator.AdminConsole.UnitTests` (net10 only), `IntegrationTests` (net8+net10 + Testcontainers Redis/Varnish), `Benchmarks`
 
 ## Non-goals
 
@@ -63,7 +65,7 @@ Pure logic: `ClientCacheHeaderGenerator` + `ClientCacheSchedulePhase`.
 
 - `ScheduledUpdateUtc` + `ClientTtlSeconds` / `ClientTtlMinSeconds` → long client `max-age` in **Calm**, linear ramp-down in **Approaching**, floor in **Hold**.  
 - Affects **client** `Cache-Control` only, not server Output/Fusion TTLs.  
-- Phase is exposed on **`X-Cache` (`phase=`)** and metrics **`cache_orchestrator.client.schedule`** (tags `domain`, `phase`).  
+- Phase is exposed on **`X-CacheOrchestrator` (`phase=`)** and metrics **`cache_orchestrator.client.schedule`** (tags `domain`, `phase`).
 - Human docs: `docs/guide/client-cache-schedule.md`, README section “Client Cache Schedule”.
 
 ## Public entry points (do not invent alternate names)
@@ -141,6 +143,9 @@ src/CacheOrchestrator.FusionCache.Redis/ Redis Fusion L2 + backplane
 src/CacheOrchestrator.Redis/        meta Redis (CacheOrchestrator.AspNetCore.Redis + CacheOrchestrator.FusionCache.Redis)
 src/CacheOrchestrator.HttpBus/      HTTP cluster command bus + membership
 src/CacheOrchestrator.EFCore.Invalidation/  SaveChanges → invalidator (Core only)
+src/CacheOrchestrator.Edge/         Provider-neutral edge policy, response metadata, and invalidation worker
+src/CacheOrchestrator.Edge.Cloudflare/ Cloudflare response tags and API invalidation
+src/CacheOrchestrator.Edge.Varnish/ Varnish xkey response tags, VCL metadata, and PURGE invalidation
 src/CacheOrchestrator.AdminConsole/ Admin Console App (not packable)
 tests/CacheOrchestrator.Core.UnitTests/
 tests/CacheOrchestrator.AspNetCore.UnitTests/
@@ -152,6 +157,9 @@ tests/CacheOrchestrator.FusionCache.Redis.UnitTests/
 tests/CacheOrchestrator.Redis.UnitTests/
 tests/CacheOrchestrator.HttpBus.UnitTests/
 tests/CacheOrchestrator.EFCore.Invalidation.UnitTests/
+tests/CacheOrchestrator.Edge.UnitTests/
+tests/CacheOrchestrator.Edge.Cloudflare.UnitTests/
+tests/CacheOrchestrator.Edge.Varnish.UnitTests/
 tests/CacheOrchestrator.AdminConsole.UnitTests/
 tests/CacheOrchestrator.IntegrationTests/
 tests/CacheOrchestrator.Benchmarks/
@@ -179,7 +187,7 @@ User-facing notes go in the worklog Changelog section. The maintainer assembles 
 ## Safe change checklist
 
 1. Build solution (`CacheOrchestrator.slnx`)  
-2. Run unit tests for touched packages (`Core` / `AspNetCore` / `FusionCache` / `HybridCache` / `Redis` / `HttpBus` / `EFCore.Invalidation`)  
+2. Run unit tests for touched packages (`Core` / `AspNetCore` / `FusionCache` / `HybridCache` / `Redis` / `HttpBus` / `EFCore.Invalidation` / `Edge` / providers)
 3. Update sample if public API or config surface changes  
 4. Avoid introducing `CacheOrchestrator.Abstractions` again  
 5. Avoid reintroducing Slovenian comments or `ct` as public parameter names  

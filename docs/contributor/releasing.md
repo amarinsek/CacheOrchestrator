@@ -50,6 +50,9 @@ dotnet build src/CacheOrchestrator/CacheOrchestrator.csproj -c Release -v:m
 | NuGet `CacheOrchestrator.AspNetCore` | [src/CacheOrchestrator.AspNetCore/README.md](../../src/CacheOrchestrator.AspNetCore/README.md) |
 | NuGet `CacheOrchestrator.FusionCache` | [src/CacheOrchestrator.FusionCache/README.md](../../src/CacheOrchestrator.FusionCache/README.md) |
 | NuGet `CacheOrchestrator.HybridCache` | [src/CacheOrchestrator.HybridCache/README.md](../../src/CacheOrchestrator.HybridCache/README.md) |
+| NuGet `CacheOrchestrator.Edge` | [src/CacheOrchestrator.Edge/README.md](../../src/CacheOrchestrator.Edge/README.md) |
+| NuGet `CacheOrchestrator.Edge.Cloudflare` | [src/CacheOrchestrator.Edge.Cloudflare/README.md](../../src/CacheOrchestrator.Edge.Cloudflare/README.md) |
+| NuGet `CacheOrchestrator.Edge.Varnish` | [src/CacheOrchestrator.Edge.Varnish/README.md](../../src/CacheOrchestrator.Edge.Varnish/README.md) |
 | NuGet `CacheOrchestrator.Redis` (meta) | [src/CacheOrchestrator.Redis/README.md](../../src/CacheOrchestrator.Redis/README.md) |
 | NuGet `CacheOrchestrator.AspNetCore.Redis` | [src/CacheOrchestrator.AspNetCore.Redis/README.md](../../src/CacheOrchestrator.AspNetCore.Redis/README.md) |
 | NuGet `CacheOrchestrator.FusionCache.Redis` | [src/CacheOrchestrator.FusionCache.Redis/README.md](../../src/CacheOrchestrator.FusionCache.Redis/README.md) |
@@ -122,6 +125,8 @@ Analyzer unit tests verify `COIDENTITY001` logic. The **Package analyzer consume
 
 The analyzer is physically packed once in `CacheOrchestrator.AspNetCore`; meta-package consumers receive it transitively. Do not also embed it in the meta package, because that executes the same analyzer twice and duplicates diagnostics.
 
+The adjacent **Edge package smoke** packs `CacheOrchestrator.Edge`, `CacheOrchestrator.Edge.Cloudflare`, and `CacheOrchestrator.Edge.Varnish` on every pull request and push to `main`. This runs their SDK package-validation checks before a release is created.
+
 The release publish workflow packs the final package set and therefore runs SDK package validation. It does not repeat the external analyzer consumer project; the release checklist requires the commit on `main` to pass **Build and Test** before tagging.
 
 ## Checklist
@@ -138,8 +143,8 @@ The release publish workflow packs the final package set and therefore runs SDK 
 
 5. Create a **GitHub Release** for that tag (**not** marked pre-release for a stable release).  
    This triggers [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml):
-   - unit tests (`Core` / `FusionCache` / `HybridCache` / `AspNetCore` / `Redis.Shared` / `AspNetCore.Redis` / `FusionCache.Redis` / Redis meta / `HttpBus` / EF) on net8 + net10; Admin Console App on net10
-   - integration tests on net8/net10 + Testcontainers Redis; Minimal sample smoke
+   - unit tests (`Core` / `FusionCache` / `HybridCache` / `AspNetCore` / `Edge` / `Edge.Cloudflare` / `Edge.Varnish` / `Redis.Shared` / `AspNetCore.Redis` / `FusionCache.Redis` / Redis meta / `HttpBus` / EF) on net8 + net10; Admin Console App on net10
+   - integration tests on net8/net10 + Redis and Varnish Testcontainers; Minimal sample smoke
    - `dotnet pack` for **all** packable NuGet libraries → `.nupkg` + `.snupkg` (includes Redis.Shared as support; see pack list in `publish.yml`); each pack runs SDK package validation
    - **NuGet Trusted Publishing** (OIDC via `NuGet/login@v1`)
    - **Admin Console App Docker image** → `ghcr.io/cacheorchestrator/cacheorchestrator-admin-console` (same version tags)
@@ -179,6 +184,9 @@ for proj in \
   src/CacheOrchestrator.AspNetCore/CacheOrchestrator.AspNetCore.csproj \
   src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj \
   src/CacheOrchestrator.HybridCache/CacheOrchestrator.HybridCache.csproj \
+  src/CacheOrchestrator.Edge/CacheOrchestrator.Edge.csproj \
+  src/CacheOrchestrator.Edge.Cloudflare/CacheOrchestrator.Edge.Cloudflare.csproj \
+  src/CacheOrchestrator.Edge.Varnish/CacheOrchestrator.Edge.Varnish.csproj \
   src/CacheOrchestrator/CacheOrchestrator.csproj \
   src/CacheOrchestrator.Redis.Shared/CacheOrchestrator.Redis.Shared.csproj \
   src/CacheOrchestrator.AspNetCore.Redis/CacheOrchestrator.AspNetCore.Redis.csproj \
@@ -192,7 +200,7 @@ done
 ls nupkg
 ```
 
-Expect 11 `.nupkg` and 11 `.snupkg` files. Any package-validation diagnostic fails the corresponding pack and must be reviewed before release.
+Expect 14 `.nupkg` and 14 `.snupkg` files. Any package-validation diagnostic fails the corresponding pack and must be reviewed before release.
 
 For the analyzer delivery smoke, use the generated package set as a local NuGet source and reproduce the consumer from `build.yml`. The consumer build is expected to fail; success is a smoke-test failure:
 

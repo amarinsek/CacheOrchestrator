@@ -79,7 +79,7 @@ public class AdminHealthHttpTests
 
         await app.StartAsync(TestContext.Current.CancellationToken);
         HttpClient client = app.GetTestClient();
-        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Cache-Admin-Key", "k");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("X-CacheOrchestrator-Admin-Key", "k");
         return (client, app);
     }
 

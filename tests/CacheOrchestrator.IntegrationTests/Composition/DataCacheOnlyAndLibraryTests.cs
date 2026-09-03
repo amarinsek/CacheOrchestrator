@@ -87,7 +87,7 @@ public class DataCacheOnlyAndLibraryTests
 
         try
         {
-            // No CacheOutputWithDomain → no X-Cache from OC policy; assert via factory + body.
+            // No CacheOutputWithDomain → no X-CacheOrchestrator from OC policy; assert via factory + body.
             HttpResponseMessage r1 = await client.GetAsync("/x", TestContext.Current.CancellationToken);
             (await r1.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be("dc-only");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
@@ -162,7 +162,7 @@ public class DataCacheOnlyAndLibraryTests
             (await r1.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be("lib-42");
 
             HttpResponseMessage r2 = await client.GetAsync("/products/42", TestContext.Current.CancellationToken);
-            string x2 = r2.Headers.TryGetValues("X-Cache", out IEnumerable<string>? values)
+            string x2 = r2.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? values)
                 ? string.Join(",", values)
                 : "";
             (await r2.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be("lib-42");

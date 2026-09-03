@@ -252,7 +252,7 @@ Base path = `Cache:Admin:RoutePrefix` (default `/cache-admin/local`), **even if 
 
 ### Auth
 
-Header **`X-Cache-Admin-Key`** (same as Admin API):
+Header **`X-CacheOrchestrator-Admin-Key`** (same as Admin API):
 
 1. `Cache:Cluster:Bus:ApiKey` if set  
 2. Else `Cache:Admin:ApiKey`  

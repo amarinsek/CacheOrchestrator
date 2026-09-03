@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke: start Minimal sample, GET /hello twice, expect X-Cache miss then hit.
+# Smoke: start Minimal sample, GET /hello twice, expect X-CacheOrchestrator miss then hit.
 # Usage (from repo root, after Release build):
 #   bash samples/CacheOrchestrator.Minimal/smoke.sh
 #   CONFIGURATION=Debug bash samples/CacheOrchestrator.Minimal/smoke.sh
@@ -54,12 +54,12 @@ fi
 
 echo "==> First /hello (expect MISS)"
 H1="$(curl -sD - -o /dev/null "${BASE}/hello")"
-echo "${H1}" | tr -d '\r' | grep -i '^x-cache:' || {
-  echo "Missing X-Cache on first response:"
+echo "${H1}" | tr -d '\r' | grep -i '^x-cacheorchestrator:' || {
+  echo "Missing X-CacheOrchestrator on first response:"
   echo "${H1}"
   exit 1
 }
-echo "${H1}" | tr -d '\r' | grep -iE 'x-cache:.*(oc=miss|fc=miss)' || {
+echo "${H1}" | tr -d '\r' | grep -iE 'x-cacheorchestrator:.*(oc=miss|fc=miss)' || {
   echo "First response should be a cache miss. Headers:"
   echo "${H1}"
   exit 1
@@ -67,12 +67,12 @@ echo "${H1}" | tr -d '\r' | grep -iE 'x-cache:.*(oc=miss|fc=miss)' || {
 
 echo "==> Second /hello (expect HIT)"
 H2="$(curl -sD - -o /dev/null "${BASE}/hello")"
-echo "${H2}" | tr -d '\r' | grep -i '^x-cache:' || {
-  echo "Missing X-Cache on second response:"
+echo "${H2}" | tr -d '\r' | grep -i '^x-cacheorchestrator:' || {
+  echo "Missing X-CacheOrchestrator on second response:"
   echo "${H2}"
   exit 1
 }
-echo "${H2}" | tr -d '\r' | grep -iE 'x-cache:.*oc=hit' || {
+echo "${H2}" | tr -d '\r' | grep -iE 'x-cacheorchestrator:.*oc=hit' || {
   echo "Second response should be oc=hit. Headers:"
   echo "${H2}"
   exit 1

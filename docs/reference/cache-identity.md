@@ -39,6 +39,8 @@ Contract   → reusable named extractor (DI); instance stored on endpoint metada
 
 > [!IMPORTANT]
 > **Caching POST.** HTTP POST is normally **not** cached: many POSTs mutate state, and a body-based identity is easy to get wrong. Enabling Output Cache on POST is an explicit choice — the handler must be a **read**, the identity strategy must match what makes two requests “the same”, and create / update / webhook routes under the same domain must stay **without** an identity binding.
+
+> **Edge boundary.** POST identity applies only to the server-side ASP.NET Core Output Cache and Data Cache key flow. `CacheOrchestrator.Edge` currently permits edge storage only for `GET` and `HEAD`, so a cacheable POST still reaches the origin even when its server response is an Output Cache hit.
 >
 > When that is clear, the feature set fits the case: named contracts for structured body fields, content-hash for opaque documents, or Url when path/query alone identify the read.
 >

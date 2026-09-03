@@ -62,7 +62,7 @@ app.MapGet("/", () => Results.Content(
     </head>
     <body>
       <h1>CacheOrchestrator · Minimal sample</h1>
-      <p>Call <a href="/hello"><code>/hello</code></a> twice and compare the <code>X-Cache</code> header.</p>
+      <p>Call <a href="/hello"><code>/hello</code></a> twice and compare the <code>X-CacheOrchestrator</code> header.</p>
       <ol>
         <li>First request → <code>oc=miss</code> (or <code>dc=miss; fa=run</code>) — factory runs (~200&nbsp;ms).</li>
         <li>Second request → <code>oc=hit</code> — served from Output Cache (fast).</li>
@@ -82,7 +82,7 @@ Console.WriteLine("  CacheOrchestrator Minimal sample");
 Console.WriteLine("  --------------------------------");
 Console.WriteLine($"  Open  {baseUrl}/");
 Console.WriteLine($"  Then  curl -i {baseUrl}/hello   (run twice)");
-Console.WriteLine("  Watch  X-Cache: ... oc=miss  then  oc=hit");
+Console.WriteLine("  Watch  X-CacheOrchestrator: ... oc=miss  then  oc=hit");
 Console.WriteLine($"  Optional POST identity: curl -i -X POST {baseUrl}/echo -d ping   (run twice)");
 Console.WriteLine();
 
