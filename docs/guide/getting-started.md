@@ -1,6 +1,6 @@
 # Getting started
 
-> **Guide** — first endpoint, domain binding, and reading `X-Cache`.
+> **Guide** — first endpoint, domain binding, and reading `X-CacheOrchestrator`.
 
 This page takes you from an empty ASP.NET Core project to a working cached endpoint.
 
@@ -131,16 +131,16 @@ curl -i http://localhost:5000/api/promotions
 
 On the first request, the endpoint runs and ASP.NET Core stores the response. On the second request, Output Cache can return the stored response without running the endpoint. The body proves it too: `GeneratedAtUtc` stays the same.
 
-Look at the `X-Cache` response header. The relevant part changes from:
+Look at the `X-CacheOrchestrator` response header. The relevant part changes from:
 
 ```http
-X-Cache: domain=promotions; ...; oc=miss; ...
+X-CacheOrchestrator: domain=promotions; ...; oc=miss; ...
 ```
 
 to:
 
 ```http
-X-Cache: domain=promotions; ...; oc=hit; ...
+X-CacheOrchestrator: domain=promotions; ...; oc=hit; ...
 ```
 
 Use `curl` while learning the flow. A browser may satisfy the second request from its own cache because the domain also emits a public `Cache-Control` header, in which case the request never reaches your application.
@@ -236,7 +236,7 @@ curl -i http://localhost:5000/api/products/42
 curl -i http://localhost:5000/api/products/42
 ```
 
-The first request reaches the endpoint and the Data Cache factory. Its `X-Cache` header typically includes `oc=miss`, `dc=miss`, and `fa=run`. The second request is served as an Output Cache hit, so the endpoint and Data Cache are not consulted.
+The first request reaches the endpoint and the Data Cache factory. Its `X-CacheOrchestrator` header typically includes `oc=miss`, `dc=miss`, and `fa=run`. The second request is served as an Output Cache hit, so the endpoint and Data Cache are not consulted.
 
 Now change the product price from `10.00` to `12.50`:
 
@@ -277,7 +277,7 @@ You have now used one domain definition to coordinate Client Cache, Output Cache
 | Choose policies for snapshots and CRUD data | [Domain profiles](domain-profiles.md) |
 | Use a real database and automatic EF Core invalidation | [EF Core invalidation](../reference/ef-core-invalidation.md) |
 | Move the cache stores to Redis | [Packages](packages.md) · [Composition](../how-to/composition.md) |
-| Inspect every `X-Cache` field and metric | [Observability](../reference/observability.md) |
+| Inspect every `X-CacheOrchestrator` field and metric | [Observability](../reference/observability.md) |
 | Troubleshoot common mistakes | [FAQ](faq.md) |
 
 The playground maps the same `/api/promotions` and generic `GET`/`PUT /api/products/{id}` flow in [GettingStartedEndpoints.cs](../../samples/CacheOrchestrator.Sample/Endpoints/GettingStartedEndpoints.cs), with shorter TTLs so cache expiry is quick to observe. It then adds Redis, scheduling, observability, and advanced endpoint examples; see [CacheOrchestrator.Sample](../../samples/CacheOrchestrator.Sample).

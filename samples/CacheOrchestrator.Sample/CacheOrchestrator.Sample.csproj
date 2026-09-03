@@ -9,7 +9,8 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
-    <ProjectReference Include="..\..\src\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
+		<ProjectReference Include="..\..\src\CacheOrchestrator.Edge.Varnish\CacheOrchestrator.Edge.Varnish.csproj" />
+		<ProjectReference Include="..\..\src\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
 		<ProjectReference Include="..\..\src\CacheOrchestrator.Redis\CacheOrchestrator.Redis.csproj" />
 		<ProjectReference Include="..\..\src\CacheOrchestrator.HttpBus\CacheOrchestrator.HttpBus.csproj" />
 	</ItemGroup>

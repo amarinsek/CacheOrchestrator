@@ -194,17 +194,17 @@ function phaseTag(phase) {
     return `<span class="tag ${cls}">${phase}</span>`;
 }
 
-function xcacheToken(xcache, name) {
-    const m = xcache.match(new RegExp('(?:^|[;\\s])' + name + '=([^;\\s]+)', 'i'));
+function cacheOrchestratorHeaderToken(cacheOrchestratorHeader, name) {
+    const m = cacheOrchestratorHeader.match(new RegExp('(?:^|[;\\s])' + name + '=([^;\\s]+)', 'i'));
     return m ? m[1].trim().toLowerCase() : '';
 }
 
-function cacheTag(xcache) {
-    if (!xcache) return '';
+function cacheTag(cacheOrchestratorHeader) {
+    if (!cacheOrchestratorHeader) return '';
 
-    const oc = xcacheToken(xcache, 'oc') || xcacheToken(xcache, 'output');
-    const dc = xcacheToken(xcache, 'dc') || xcacheToken(xcache, 'data') || xcacheToken(xcache, 'fc');
-    const faRun = xcacheToken(xcache, 'fa') === 'run'
+    const oc = cacheOrchestratorHeaderToken(cacheOrchestratorHeader, 'oc') || cacheOrchestratorHeaderToken(cacheOrchestratorHeader, 'output');
+    const dc = cacheOrchestratorHeaderToken(cacheOrchestratorHeader, 'dc') || cacheOrchestratorHeaderToken(cacheOrchestratorHeader, 'data') || cacheOrchestratorHeaderToken(cacheOrchestratorHeader, 'fc');
+    const faRun = cacheOrchestratorHeaderToken(cacheOrchestratorHeader, 'fa') === 'run'
         || (!!dc && dc !== 'hit');
 
     if (oc === 'hit') return `<span class="tag hit">OC-HIT</span>`;
@@ -238,6 +238,61 @@ function cacheTag(xcache) {
     return html;
 }
 
+function detectEdgeCache(headers) {
+    const cloudflareStatus = (headers.get('cf-cache-status') || '').trim().toUpperCase();
+    if (cloudflareStatus) {
+        const state = cloudflareStatus === 'HIT'
+            ? 'hit'
+            : ['STALE', 'UPDATING', 'REVALIDATED'].includes(cloudflareStatus)
+                ? 'refresh'
+                : 'miss';
+        return {
+            provider: 'Cloudflare',
+            status: cloudflareStatus,
+            state,
+            isCachedResponse: state !== 'miss',
+        };
+    }
+
+    const cacheStatus = headers.get('cache-status') || '';
+    for (const member of cacheStatus.split(',')) {
+        const parts = member.split(';').map(part => part.trim()).filter(Boolean);
+        if (parts.length < 2) continue;
+
+        const provider = parts[0].replace(/^"|"$/g, '') || 'Edge';
+        const isHit = parts.slice(1).some(part => /^hit(?:=\?1)?$/i.test(part));
+        const forwarded = parts.slice(1).find(part => /^fwd=/i.test(part));
+        const isRefresh = parts.slice(1).some(part =>
+            /^(?:detail=)?"?(?:stale|updating|revalidated)"?$/i.test(part))
+            || /^fwd=stale$/i.test(forwarded || '');
+        const state = isRefresh ? 'refresh' : (isHit ? 'hit' : 'miss');
+        return {
+            provider,
+            status: parts.slice(1).join('; ').toUpperCase() || 'MISS',
+            state,
+            isCachedResponse: state !== 'miss',
+        };
+    }
+
+    return null;
+}
+
+function edgeTag(edgeCache) {
+    if (!edgeCache) return '';
+
+    const cssClass = edgeCache.state === 'hit'
+        ? 'hit'
+        : edgeCache.state === 'refresh'
+            ? 'refresh'
+            : 'miss';
+    const label = edgeCache.state === 'hit'
+        ? 'EDGE-HIT'
+        : edgeCache.state === 'refresh'
+            ? 'EDGE-REFRESH'
+            : 'EDGE-MISS';
+    return `<span class="tag ${cssClass}" title="${escHtml(`${edgeCache.provider} ${edgeCache.status}`)}">${label}</span>`;
+}
+
 function escHtml(s) {
     return String(s ?? '')
         .replace(/&/g, '&amp;')
@@ -268,27 +323,41 @@ async function runRequest(url, init, responsePanel) {
     const body = await res.text();
 
     const echoedRequestId = res.headers.get(DEMO_REQUEST_ID_HEADER) || '';
-    let isBrowserCache = requestId !== '' && echoedRequestId !== requestId;
+    const edgeCache = detectEdgeCache(res.headers);
+    let isBrowserCache = false;
 
     // Keep Resource Timing as a fallback for environments that strip the demo
     // echo header. It is useful supporting evidence, but not reliable enough
     // to be the primary browser-cache signal on its own.
     await new Promise(r => requestAnimationFrame(() => r()));
     const pEntries = performance.getEntriesByName(res.url);
-    if (!isBrowserCache && echoedRequestId === '' && pEntries.length > 0) {
+    if (pEntries.length > 0) {
         const lastEntry = pEntries[pEntries.length - 1];
         if (lastEntry.transferSize === 0 && lastEntry.decodedBodySize > 0) {
             isBrowserCache = true;
         }
     }
 
-    const xcache = res.headers.get('x-cache') || '';
-    const phaseMatch = xcache.match(/phase=([^;]+)/i);
+    // An edge hit also returns the request ID stored with the cached origin
+    // response. Treat that mismatch as browser cache only when no edge cache
+    // reports a hit; Resource Timing above takes precedence for a browser-cached
+    // copy of an earlier edge hit.
+    if (!isBrowserCache
+        && requestId !== ''
+        && echoedRequestId !== requestId
+        && !edgeCache?.isCachedResponse) {
+        isBrowserCache = true;
+    }
+
+    const cacheOrchestratorHeader = res.headers.get('x-cacheorchestrator') || '';
+    const phaseMatch = cacheOrchestratorHeader.match(/phase=([^;]+)/i);
     const phase = phaseMatch ? phaseMatch[1].trim() : '';
 
     appendLog({
         isBrowserCache,
-        xcache,
+        edgeCache,
+        edgeCacheApplicable: method === 'GET' || method === 'HEAD',
+        cacheOrchestratorHeader,
         cc: res.headers.get('cache-control') || '',
         etag: res.headers.get('etag') || '',
         demoMs: res.headers.get('x-demo-elapsed-ms') || '',
@@ -335,7 +404,7 @@ function logInvalidateResult(title, body, responsePanel) {
     updateLogHint();
 }
 
-function appendLog({ isBrowserCache, xcache, cc, etag, demoMs, ms, url, body, phase, status, error }, responsePanel) {
+function appendLog({ isBrowserCache, edgeCache, edgeCacheApplicable, cacheOrchestratorHeader, cc, etag, demoMs, ms, url, body, phase, status, error }, responsePanel) {
     const log = responseLogs[responsePanel];
     const entry = document.createElement('div');
     entry.className = 'entry';
@@ -344,24 +413,29 @@ function appendLog({ isBrowserCache, xcache, cc, etag, demoMs, ms, url, body, ph
         entry.innerHTML = `<div class="meta"><span class="tag miss">ERROR</span> ${escHtml(url)}</div>
 <div class="headers">${escHtml(error)}</div>`;
     } else {
-        const sourceTag = isBrowserCache
+        const originTags = cacheTag(cacheOrchestratorHeader);
+        const applicableEdgeCache = edgeCacheApplicable ? edgeCache : null;
+        const edgeTags = edgeTag(applicableEdgeCache);
+        const sourceTags = isBrowserCache
             ? `<span class="tag browser">BROWSER-CACHE</span>`
-            : cacheTag(xcache);
-        const displayedXCache = isBrowserCache
+            : applicableEdgeCache && applicableEdgeCache.state !== 'miss'
+                ? edgeTags
+                : edgeTags + originTags;
+        const displayedCacheOrchestratorHeader = isBrowserCache
             ? '— (browser cache; server was not contacted)'
-            : (xcache || '—');
+            : (cacheOrchestratorHeader || '—');
         const displayedServerMs = isBrowserCache ? '' : demoMs;
 
         entry.innerHTML = `
 <div class="meta">
-  ${sourceTag}
+  ${sourceTags}
   ${phaseTag(isBrowserCache ? '' : phase)}
   ${status !== 200 ? `<strong>${status}</strong> ` : ''}<span class="url">${escHtml(url)}</span>
   · ${ms} ms client${displayedServerMs ? ` · ${displayedServerMs} ms server` : ''}
 </div>
 <div class="headers">cache-control: ${escHtml(cc || '—')}
 etag: ${escHtml(etag || '—')}
-x-cache: ${escHtml(displayedXCache)}
+x-cacheorchestrator: ${escHtml(displayedCacheOrchestratorHeader)}
 
 body: ${escHtml((body || '').slice(0, 600))}</div>`;
     }
@@ -426,7 +500,7 @@ async function saveSettings() {
         closeEditor();
         await loadEndpoints();
         const entry = appendLog({
-            error: null, xcache: '', cc: '', etag: '', demoMs: '', ms: 0,
+            error: null, edgeCache: null, cacheOrchestratorHeader: '', cc: '', etag: '', demoMs: '', ms: 0,
             url: 'appsettings.json', body: '', phase: '', status: 200,
             isBrowserCache: false,
         }, responsePanel);

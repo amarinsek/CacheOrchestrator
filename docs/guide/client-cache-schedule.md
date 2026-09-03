@@ -149,10 +149,10 @@ Avoid scheduling highly dynamic CRUD data simply to compensate for missing inval
 
 ## Observe the phase
 
-On domain responses, `X-Cache` includes:
+On domain responses, `X-CacheOrchestrator` includes:
 
 ```http
-X-Cache: domain=maps-satellite; ...; phase=approaching; ...
+X-CacheOrchestrator: domain=maps-satellite; ...; phase=approaching; ...
 ```
 
 The `cache_orchestrator.client.schedule` metric carries `domain` and `phase` tags. Use it to confirm the transition and anticipate the increase in requests as client TTLs shorten.

@@ -124,7 +124,7 @@ public class RedisMultiNodeTests
             (await r2.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be("shared-" + domain);
             hitsB.Count.Should().Be(0, "Output Cache entry in Redis must be shared across hosts");
 
-            string x2 = r2.Headers.TryGetValues("X-Cache", out IEnumerable<string>? xv)
+            string x2 = r2.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? xv)
                 ? string.Join(",", xv)
                 : "";
             x2.Should().Contain("oc=hit");

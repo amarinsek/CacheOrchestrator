@@ -528,13 +528,13 @@ public class EfSaveChangesInvalidationHttpTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
-    private static async Task<(HttpResponseMessage Res, string XCache, string Body)> GetAsync(
+    private static async Task<(HttpResponseMessage Res, string CacheOrchestratorHeader, string Body)> GetAsync(
         HttpClient client,
         string url)
     {
         HttpResponseMessage res = await client.GetAsync(url, TestContext.Current.CancellationToken);
         string body = await res.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        string xCache = res.Headers.TryGetValues("X-Cache", out IEnumerable<string>? values)
+        string xCache = res.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? values)
             ? string.Join(",", values)
             : string.Empty;
         return (res, xCache, body);

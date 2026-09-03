@@ -121,7 +121,7 @@ public class OutputCacheHttpLifecycleTests
         return d;
     }
 
-    private static async Task<(HttpResponseMessage Res, string XCache, string Body)> SendAsync(
+    private static async Task<(HttpResponseMessage Res, string CacheOrchestratorHeader, string Body)> SendAsync(
         HttpClient client,
         HttpMethod method,
         string url,
@@ -138,13 +138,13 @@ public class OutputCacheHttpLifecycleTests
         string body = method == HttpMethod.Head
             ? string.Empty
             : await res.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        string xCache = res.Headers.TryGetValues("X-Cache", out IEnumerable<string>? values)
+        string xCache = res.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? values)
             ? string.Join(",", values)
             : string.Empty;
         return (res, xCache, body);
     }
 
-    private static Task<(HttpResponseMessage Res, string XCache, string Body)> GetAsync(
+    private static Task<(HttpResponseMessage Res, string CacheOrchestratorHeader, string Body)> GetAsync(
         HttpClient client,
         string url,
         Dictionary<string, string>? headers = null)
@@ -602,7 +602,7 @@ public class OutputCacheHttpLifecycleTests
             p2.IsSuccessStatusCode.Should().BeTrue();
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(beforePut + 2,
                 "PUT must never be served from Output Cache");
-            // X-Cache may be empty when policy skips non-GET/HEAD before registering headers.
+            // X-CacheOrchestrator may be empty when policy skips non-GET/HEAD before registering headers.
             if (!string.IsNullOrEmpty(xp1))
                 xp1.Should().NotContain("oc=hit");
             if (!string.IsNullOrEmpty(xp2))

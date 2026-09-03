@@ -16,7 +16,7 @@ Filter examples:
 
 ```bash
 dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *DomainKey*
-dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *XCache*
+dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *CacheOrchestratorHeader*
 dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *ClientCache*
 dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *HttpHelper*
 dotnet run -c Release --project tests/CacheOrchestrator.Benchmarks -- --filter *Policy*
@@ -37,7 +37,7 @@ For a release decision, run the affected filter with a longer BenchmarkDotNet jo
 | `DomainKeyGeneratorBenchmarks` | Fusion key materialization (path, query, tracking, encoding, host, **resource id**, **route endpoint**) |
 | `HttpHelperBenchmarks` | Tracking query detection, `Cache-Control: no-store` scan, Accept-Encoding normalization |
 | `ClientCacheHeaderGeneratorBenchmarks` | Client Cache Schedule `Cache-Control` (Calm / Approaching / **Hold** / **must-revalidate** / NoStore / Private) |
-| `XCacheHeaderFormatterBenchmarks` | Diagnostic `X-Cache` formatting (Hit / Miss / **Stale** / **Bypass** / **Blocked** / Hold phase) |
+| `CacheOrchestratorHeaderFormatterBenchmarks` | Diagnostic `X-CacheOrchestrator` formatting (Hit / Miss / **Stale** / **Bypass** / **Blocked** / Hold phase) |
 | `NormalizeDomainBenchmarks` | `DomainName.Normalize` and **`NormalizeResourceId`** / **`NormalizeEntityKind`** |
 | `CacheETagFactoryBenchmarks` | Weak ETag from version and version+resource |
 | `FusionEntryOptionsBenchmarks` | `GetFusionEntryOptions` build/reuse per domain snapshot |
@@ -63,7 +63,7 @@ These are intentional hot-path choices in the library (not full BDN numbers):
 | Tracking query params | `HttpHelper.IsTrackingParameter` uses a fixed prefix array + manual loop (no LINQ/`HashSet` enumerator) |
 | `Cache-Control: no-store` | `HttpHelper.ContainsCacheDirective` scans `StringValues` without `ToString()` |
 | Domain templates | Parse plans cached per template; resolvers without custom providers are shared; **custom providers are never stored under the template-only key** (avoids provider poisoning) |
-| `X-Cache` header | `string.Create` single allocation |
+| `X-CacheOrchestrator` header | `string.Create` single allocation |
 | Output Cache query vary | Non-tracking keys collected without LINQ `Where` |
 
 ## Working with results (who publishes what)

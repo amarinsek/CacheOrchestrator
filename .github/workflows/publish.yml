@@ -44,6 +44,9 @@ jobs:
           tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj \
           tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.UnitTests/CacheOrchestrator.Edge.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.Cloudflare.UnitTests/CacheOrchestrator.Edge.Cloudflare.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.Varnish.UnitTests/CacheOrchestrator.Edge.Varnish.UnitTests.csproj \
           tests/CacheOrchestrator.Redis.Shared.UnitTests/CacheOrchestrator.Redis.Shared.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.Redis.UnitTests/CacheOrchestrator.AspNetCore.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.FusionCache.Redis.UnitTests/CacheOrchestrator.FusionCache.Redis.UnitTests.csproj \
@@ -63,6 +66,9 @@ jobs:
           tests/CacheOrchestrator.FusionCache.UnitTests/CacheOrchestrator.FusionCache.UnitTests.csproj \
           tests/CacheOrchestrator.HybridCache.UnitTests/CacheOrchestrator.HybridCache.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.UnitTests/CacheOrchestrator.AspNetCore.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.UnitTests/CacheOrchestrator.Edge.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.Cloudflare.UnitTests/CacheOrchestrator.Edge.Cloudflare.UnitTests.csproj \
+          tests/CacheOrchestrator.Edge.Varnish.UnitTests/CacheOrchestrator.Edge.Varnish.UnitTests.csproj \
           tests/CacheOrchestrator.Redis.Shared.UnitTests/CacheOrchestrator.Redis.Shared.UnitTests.csproj \
           tests/CacheOrchestrator.AspNetCore.Redis.UnitTests/CacheOrchestrator.AspNetCore.Redis.UnitTests.csproj \
           tests/CacheOrchestrator.FusionCache.Redis.UnitTests/CacheOrchestrator.FusionCache.Redis.UnitTests.csproj \
@@ -84,14 +90,14 @@ jobs:
         docker version
         docker info
 
-    - name: Integration tests (net8.0 + Redis Testcontainers)
+    - name: Integration tests (net8.0 + Redis/Varnish Testcontainers)
       timeout-minutes: 20
       run: >
         dotnet test tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj
         --no-build --configuration Release --framework net8.0
         --verbosity normal
 
-    - name: Integration tests (net10.0 + Redis Testcontainers)
+    - name: Integration tests (net10.0 + Redis/Varnish Testcontainers)
       timeout-minutes: 20
       run: >
         dotnet test tests/CacheOrchestrator.IntegrationTests/CacheOrchestrator.IntegrationTests.csproj
@@ -116,6 +122,9 @@ jobs:
           src/CacheOrchestrator.AspNetCore/CacheOrchestrator.AspNetCore.csproj \
           src/CacheOrchestrator.FusionCache/CacheOrchestrator.FusionCache.csproj \
           src/CacheOrchestrator.HybridCache/CacheOrchestrator.HybridCache.csproj \
+          src/CacheOrchestrator.Edge/CacheOrchestrator.Edge.csproj \
+          src/CacheOrchestrator.Edge.Cloudflare/CacheOrchestrator.Edge.Cloudflare.csproj \
+          src/CacheOrchestrator.Edge.Varnish/CacheOrchestrator.Edge.Varnish.csproj \
           src/CacheOrchestrator/CacheOrchestrator.csproj \
           src/CacheOrchestrator.Redis.Shared/CacheOrchestrator.Redis.Shared.csproj \
           src/CacheOrchestrator.AspNetCore.Redis/CacheOrchestrator.AspNetCore.Redis.csproj \
@@ -128,11 +137,11 @@ jobs:
         done
         ls -la ./nupkg
         echo "Packed with MinVer-derived version (see nupkg file names)."
-        # Expect 11 libraries (.nupkg) + 11 symbol packages (.snupkg).
+        # Expect 14 libraries (.nupkg) + 14 symbol packages (.snupkg).
         nupkg_count=$(ls -1 ./nupkg/*.nupkg | wc -l)
         snupkg_count=$(ls -1 ./nupkg/*.snupkg | wc -l)
-        test "$nupkg_count" -eq 11
-        test "$snupkg_count" -eq 11
+        test "$nupkg_count" -eq 14
+        test "$snupkg_count" -eq 14
 
     # NuGet Trusted Publishing: exchange GitHub OIDC token for a temporary API key.
     # Policy on nuget.org must match GitHub Repository Owner/Repo (CacheOrchestrator/CacheOrchestrator)

@@ -7,7 +7,7 @@ You do not need to understand the whole project before getting involved. Start w
 ## Ways to contribute
 
 - **Test v3** in an application or one of the playground labs and share what worked, what failed, or what was difficult to understand.
-- **Report a bug** with a small reproduction, configuration, logs, or relevant `X-Cache` headers.
+- **Report a bug** with a small reproduction, configuration, logs, or relevant `X-CacheOrchestrator` headers.
 - **Improve documentation** when an explanation, example, or link could be clearer.
 - **Propose a feature** by describing the use case before designing the API.
 - **Submit a code change** for a focused issue or improvement.
@@ -59,7 +59,7 @@ Use the [**v3 testing feedback** issue template](https://github.com/CacheOrchest
 - Data Cache and Output Cache backends;
 - a minimal configuration with secrets removed;
 - what you tried, what you expected, and what happened;
-- relevant logs, response headers such as `X-Cache`, or a small reproduction.
+- relevant logs, response headers such as `X-CacheOrchestrator`, or a small reproduction.
 
 Successful reports are welcome too. Knowing which compositions work in real environments helps establish confidence before the stable release.
 

@@ -334,6 +334,7 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 | Shared HTTP / object data across nodes | Redis (or other L2) — topologies above |
 | L1 memory after invalidation | Redis **backplane** (Fusion) |
 | Browser caches near a data cutover | [Client Cache Schedule](../guide/client-cache-schedule.md) |
+| Cloudflare or Varnish edge objects after entity/domain invalidation | [Edge cache integration](../guide/edge.md); one origin process queues the external invalidation |
 | One product row changed under same Version | [Entity invalidation](invalidation.md) / [domain profiles](../guide/domain-profiles.md) |
 
 ## Security checklist
@@ -346,6 +347,7 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 > - [ ] Put Redis (Output Cache / Fusion L2 / backplane) on a private network; use auth and TLS as your platform requires
 > - [ ] Use distinct namespaces (or Redis instances) when apps or environments must not share keyspace
 > - [ ] Prefer secret stores for Redis connection strings and Admin/Bus API keys — never commit production secrets
+> - [ ] Keep edge-provider credentials in secret configuration, protect Varnish PURGE with an internal ACL/authentication, and allow graceful shutdown time for the in-memory invalidation queue
 
 ## Related
 
@@ -354,7 +356,7 @@ During a **rolling deploy**, a short mixed window is normal (some nodes already 
 - [backends.md](backends.md) — `CacheOrchestrator.Redis` and custom registrars  
 - [Data Cache](data-cache.md) — providers, instances, and L2 behaviour  
 - [invalidation.md](invalidation.md) — purge strategies across instances  
-- [observability.md](observability.md) — metrics, `X-Cache`, health  
+- [observability.md](observability.md) — metrics, `X-CacheOrchestrator`, health
 - [cluster-bus.md](cluster-bus.md) — HTTP fan-out when Redis backplane is not enough  
 - [faq.md](../guide/faq.md) — multi-instance and InMemory limitations  
 - [comparison.md](../guide/comparison.md) — when Redis Output Cache alone is enough  

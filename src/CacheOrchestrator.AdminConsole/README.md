@@ -98,7 +98,7 @@ app.MapCacheOrchestratorAdmin();
 }
 ```
 
-- **ApiKey** is sent as `X-Cache-Admin-Key` (must match each instance).  
+- **ApiKey** is sent as `X-CacheOrchestrator-Admin-Key` (must match each instance).
 - **Instances[].url** is the application base URL only.  
 - **AdminApiPathPrefix** must match `Cache:Admin:RoutePrefix`.  
 - **Restart required** after changing `Instances`, `ApiKey`, timeouts, or `Metrics` (bound via `IOptions` snapshot). Hint packs (`Hints`) reload without restart.  

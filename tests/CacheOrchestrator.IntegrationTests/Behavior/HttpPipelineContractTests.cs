@@ -112,7 +112,7 @@ public class HttpPipelineContractTests
         return (app.GetTestClient(), app);
     }
 
-    private static async Task<(HttpResponseMessage Res, string XCache, string Body)> GetAsync(
+    private static async Task<(HttpResponseMessage Res, string CacheOrchestratorHeader, string Body)> GetAsync(
         HttpClient client,
         string url,
         Dictionary<string, string>? headers = null)
@@ -126,7 +126,7 @@ public class HttpPipelineContractTests
 
         HttpResponseMessage res = await client.SendAsync(req, TestContext.Current.CancellationToken);
         string body = await res.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        string xCache = res.Headers.TryGetValues("X-Cache", out IEnumerable<string>? values)
+        string xCache = res.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? values)
             ? string.Join(",", values)
             : string.Empty;
         return (res, xCache, body);
@@ -683,8 +683,8 @@ public class HttpPipelineContractTests
         {
             await GetAsync(client, "/a");
             await GetAsync(client, "/b");
-            (await GetAsync(client, "/a")).XCache.Should().Contain("oc=hit");
-            (await GetAsync(client, "/b")).XCache.Should().Contain("oc=hit");
+            (await GetAsync(client, "/a")).CacheOrchestratorHeader.Should().Contain("oc=hit");
+            (await GetAsync(client, "/b")).CacheOrchestratorHeader.Should().Contain("oc=hit");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
 
             CacheInvalidationResult result = await app.Services
@@ -703,8 +703,8 @@ public class HttpPipelineContractTests
                 observer.After.Should().Equal(CacheInvalidationKind.Domains);
             }
 
-            (await GetAsync(client, "/a")).XCache.Should().Contain("oc=miss");
-            (await GetAsync(client, "/b")).XCache.Should().Contain("oc=miss");
+            (await GetAsync(client, "/a")).CacheOrchestratorHeader.Should().Contain("oc=miss");
+            (await GetAsync(client, "/b")).CacheOrchestratorHeader.Should().Contain("oc=miss");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(4);
         }
         finally

@@ -81,6 +81,8 @@ Setting `"Provider": "Redis"` in configuration is not enough. The matching Redis
 |-----|---------|-------------------|
 | Send invalidation and runtime commands to peer instances | `CacheOrchestrator.HttpBus` | `AddHttpClusterBus`, `MapCacheOrchestratorHttpBus` |
 | Invalidate entities after successful EF Core `SaveChanges` | `CacheOrchestrator.EFCore.Invalidation` | `AddCacheOrchestratorEfCoreInvalidation`, `AddCacheOrchestratorInvalidation` |
+| Extend domain/entity invalidation to Cloudflare | `CacheOrchestrator.Edge.Cloudflare` (includes `CacheOrchestrator.Edge`) | `AddCacheOrchestratorEdge`, `AddCloudflare` |
+| Extend domain/entity invalidation to Varnish xkey | `CacheOrchestrator.Edge.Varnish` (includes `CacheOrchestrator.Edge`) | `AddCacheOrchestratorEdge`, `AddVarnish` |
 | Show a fan-out dashboard across applications | Admin Console App | Separate `net10.0` application or container; not a NuGet package |
 
 The HTTP bus does not store or share cache values. It distributes commands. Redis L2, a Redis Output Cache store, and the HTTP bus solve different problems; [Topologies](topologies.md) shows when each belongs in the same deployment.
@@ -97,6 +99,8 @@ The HTTP bus does not store or share cache values. It distributes commands. Redi
 | Core library hosted by a web app | `CacheOrchestrator.Core` in the library; host packages in the app | Library uses `ICacheOrchestrator`; host owns providers |
 | Core library hosted by a worker | `CacheOrchestrator.Core` in the library and host; `CacheOrchestrator.FusionCache` or `CacheOrchestrator.HybridCache` in the host | Worker calls `AddCacheOrchestratorCore` and one provider registration |
 | EF Core writes with automatic invalidation | Host composition + `CacheOrchestrator.EFCore.Invalidation` | Register the EF integration and interceptor |
+| Cloudflare edge caching and tag purge | Web host + `CacheOrchestrator.Edge.Cloudflare` | `AddCacheOrchestratorEdge(configuration, edge => edge.AddCloudflare())` |
+| Varnish edge caching and xkey invalidation | Web host + `CacheOrchestrator.Edge.Varnish` | `AddCacheOrchestratorEdge(configuration, edge => edge.AddVarnish())` |
 
 Exact commands, configuration, and complete code for each combination are in [Package composition](../how-to/composition.md).
 
@@ -110,6 +114,7 @@ Exact commands, configuration, and complete code for each combination are in [Pa
 | `Cache:Domains:*:FusionCache` | `CacheOrchestrator.FusionCache` | Engine-specific hard TTL, fail-safe, jitter, and factory timeouts |
 | `Cache:DataCacheInstances` | Provider packages | Named data engines and their providers |
 | `Cache:OutputCache` | `CacheOrchestrator.AspNetCore` backend registrars | Root Output Cache provider |
+| `Cache:EdgeInstances`, `Cache:EdgeQueue`, `Cache:Domains:*:Edge` | `CacheOrchestrator.Edge` + provider package | Edge TTL, named providers, and queued tag purge |
 
 All configuration durations use integer `*Seconds` fields. The complete schema and defaults are in [Configuration](../reference/configuration.md).
 

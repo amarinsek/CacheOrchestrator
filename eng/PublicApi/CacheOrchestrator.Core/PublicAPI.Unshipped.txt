@@ -12,6 +12,11 @@ CacheOrchestrator.Admin.AdminFactoryRecord.Failed.init -> void
 CacheOrchestrator.Admin.AdminFactoryRecord.ResultSizeBytes.get -> long?
 CacheOrchestrator.Admin.AdminFactoryRecord.ResultSizeBytes.init -> void
 CacheOrchestrator.Admin.IAdminStatsCollector.RecordFactory(CacheOrchestrator.Admin.AdminFactoryRecord! record) -> void
+CacheOrchestrator.Invalidation.CacheInvalidationContext.CacheInvalidationContext(CacheOrchestrator.Invalidation.CacheInvalidationKind kind, string! scope, System.Collections.Generic.IReadOnlyList<string!>! tags, CacheOrchestrator.Invalidation.CacheInvalidationOrigin origin) -> void
+CacheOrchestrator.Invalidation.CacheInvalidationContext.Origin.get -> CacheOrchestrator.Invalidation.CacheInvalidationOrigin
+CacheOrchestrator.Invalidation.CacheInvalidationOrigin
+CacheOrchestrator.Invalidation.CacheInvalidationOrigin.Local = 0 -> CacheOrchestrator.Invalidation.CacheInvalidationOrigin
+CacheOrchestrator.Invalidation.CacheInvalidationOrigin.RemoteCluster = 1 -> CacheOrchestrator.Invalidation.CacheInvalidationOrigin
 CacheOrchestrator.Orchestration.CacheOrchestratorEntityExtensions
 static CacheOrchestrator.Orchestration.CacheOrchestratorEntityExtensions.GetOrCreateEntityAsync<T>(this CacheOrchestrator.Orchestration.ICacheOrchestrator! cache, string! domain, string! logicalKey, CacheOrchestrator.Entity.EntityRef primary, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<CacheOrchestrator.Entity.EntityCache<T>!>>! factory) -> System.Threading.Tasks.ValueTask<T?>
 static CacheOrchestrator.Orchestration.CacheOrchestratorEntityExtensions.GetOrCreateEntityAsync<T>(this CacheOrchestrator.Orchestration.ICacheOrchestrator! cache, string! domain, string! logicalKey, CacheOrchestrator.Entity.EntityRef primary, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<CacheOrchestrator.Entity.EntityCache<T>!>>! factory, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<T?>

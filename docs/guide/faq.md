@@ -39,7 +39,7 @@ See [Output Cache](../reference/output-cache.md#base-policy-and-endpoints-withou
 3. endpoint metadata from `.CacheOutputWithDomain(...)` or `[CacheDomain]`;
 4. otherwise, it runs the factory uncached.
 
-The unresolved path produces a Warning, `result=unresolved` metrics, and typically `dc=unresolved` in `X-Cache`.
+The unresolved path produces a Warning, `result=unresolved` metrics, and typically `dc=unresolved` in `X-CacheOrchestrator`.
 
 For the normal HTTP path, put the domain on the endpoint. For a route that uses only Data Cache, pass the domain explicitly or call `EnsureDomainOptions`.
 
@@ -47,7 +47,7 @@ See [Concepts — resolved snapshot](concepts.md#one-request-uses-one-resolved-s
 
 ### Why do I not see a Data Cache hit on the second request?
 
-An Output Cache hit returns the complete HTTP response before the endpoint runs. The Data Cache is therefore not consulted, and `dc` is omitted from `X-Cache`.
+An Output Cache hit returns the complete HTTP response before the endpoint runs. The Data Cache is therefore not consulted, and `dc` is omitted from `X-CacheOrchestrator`.
 
 To inspect Data Cache behaviour, temporarily disable Output Cache for that domain, wait for its entry to expire, or make a request whose Output Cache identity misses while the Data Cache identity still matches.
 
@@ -69,15 +69,15 @@ First identify the layer:
 - a conditional request may receive `304 Not Modified` from a generation-bound ETag;
 - the write may have invalidated before the database transaction committed, allowing old data to refill the cache.
 
-Reproduce with Client Cache disabled, inspect `X-Cache`, and verify the topology and invalidation result. See [Operations](operations.md#use-a-short-incident-checklist) and [Invalidation](../reference/invalidation.md).
+Reproduce with Client Cache disabled, inspect `X-CacheOrchestrator`, and verify the topology and invalidation result. See [Operations](operations.md#use-a-short-incident-checklist) and [Invalidation](../reference/invalidation.md).
 
-### Should I expose `X-Cache` in production?
+### Should I expose `X-CacheOrchestrator` in production?
 
 It is useful in development and staging, but it exposes domain names, hit/miss state, schedule phase, and timing to clients.
 
 Set `Cache:EmitDiagnosticsHeaders` to `false` for public production endpoints when that information should remain internal. Metrics, traces, logs, `Cache-Control`, and ETags continue to work.
 
-See [Operations](operations.md#read-one-request-with-x-cache) and [Observability](../reference/observability.md).
+See [Operations](operations.md#read-one-request-with-x-cacheorchestrator) and [Observability](../reference/observability.md).
 
 ## Authentication and request variation
 

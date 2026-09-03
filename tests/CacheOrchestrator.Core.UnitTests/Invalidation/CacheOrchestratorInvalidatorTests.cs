@@ -1,3 +1,4 @@
+using CacheOrchestrator.Cluster;
 using CacheOrchestrator.Configuration;
 using CacheOrchestrator.Invalidation;
 using CacheOrchestrator.Orchestration;
@@ -366,6 +367,7 @@ public class CacheOrchestratorInvalidatorTests
             Arg.Is<CacheInvalidationContext>(c =>
                 c.Kind == CacheInvalidationKind.Domain
                 && c.Scope == "products"
+                && c.Origin == CacheInvalidationOrigin.Local
                 && c.Tags.SequenceEqual(new[] { "domain:products" })),
             Arg.Any<CancellationToken>());
 
@@ -375,6 +377,24 @@ public class CacheOrchestratorInvalidatorTests
             Arg.Any<CancellationToken>());
 
         result.Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task InvalidateDomainAsync_InRemoteClusterScope_ExposesRemoteOriginToObservers()
+    {
+        ICacheInvalidationObserver observer = Substitute.For<ICacheInvalidationObserver>();
+        _observers.Add(observer);
+
+        using (ClusterCommandScope.EnterRemote())
+        {
+            await _sut.InvalidateDomainAsync("products", TestContext.Current.CancellationToken);
+        }
+
+        await observer.Received(1).OnAfterInvalidateAsync(
+            Arg.Is<CacheInvalidationContext>(context =>
+                context.Origin == CacheInvalidationOrigin.RemoteCluster),
+            Arg.Any<CacheInvalidationResult>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -114,7 +114,8 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         CacheInvalidationContext batch = new(
             CacheInvalidationKind.Domains,
             string.Join(',', scopes),
-            tags);
+            tags,
+            ResolveInvalidationOrigin());
 
         await NotifyBeforeAsync(batch, cancellationToken).ConfigureAwait(false);
 
@@ -297,7 +298,7 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
         IReadOnlyList<string>? resourceIds = null,
         bool notifyObservers = true)
     {
-        CacheInvalidationContext observerContext = new(kind, scopeLabel, tags);
+        CacheInvalidationContext observerContext = new(kind, scopeLabel, tags, ResolveInvalidationOrigin());
 
         using Activity? activity = CacheOrchestratorActivitySource.Source.StartActivity("cache.invalidate");
         activity?.SetTag("cache.scope", scopeLabel);
@@ -543,6 +544,10 @@ internal sealed class CacheOrchestratorInvalidator : ICacheOrchestratorInvalidat
             }
         }
     }
+
+    private static CacheInvalidationOrigin ResolveInvalidationOrigin() => ClusterCommandScope.IsRemote
+        ? CacheInvalidationOrigin.RemoteCluster
+        : CacheInvalidationOrigin.Local;
 
     private async ValueTask NotifyAfterAsync(
         CacheInvalidationContext context,

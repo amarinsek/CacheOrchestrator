@@ -9,6 +9,9 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/CacheOrchestrator.Edge.Cloudflare/CacheOrchestrator.Edge.Cloudflare.csproj" />
+    <Project Path="src/CacheOrchestrator.Edge.Varnish/CacheOrchestrator.Edge.Varnish.csproj" />
+    <Project Path="src/CacheOrchestrator.Edge/CacheOrchestrator.Edge.csproj" />
     <Project Path="src/CacheOrchestrator.AdminConsole/CacheOrchestrator.AdminConsole.csproj" />
     <Project Path="src/CacheOrchestrator.HttpBus/CacheOrchestrator.HttpBus.csproj" />
     <Project Path="src/CacheOrchestrator.EFCore.Invalidation/CacheOrchestrator.EFCore.Invalidation.csproj" />
@@ -24,6 +27,9 @@
     <Project Path="src/CacheOrchestrator/CacheOrchestrator.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/CacheOrchestrator.Edge.Cloudflare.UnitTests/CacheOrchestrator.Edge.Cloudflare.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.Edge.UnitTests/CacheOrchestrator.Edge.UnitTests.csproj" />
+    <Project Path="tests/CacheOrchestrator.Edge.Varnish.UnitTests/CacheOrchestrator.Edge.Varnish.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.AdminConsole.UnitTests/CacheOrchestrator.AdminConsole.UnitTests.csproj" />
     <Project Path="tests/CacheOrchestrator.Benchmarks/CacheOrchestrator.Benchmarks.csproj" />
     <Project Path="tests/CacheOrchestrator.HttpBus.UnitTests/CacheOrchestrator.HttpBus.UnitTests.csproj" />

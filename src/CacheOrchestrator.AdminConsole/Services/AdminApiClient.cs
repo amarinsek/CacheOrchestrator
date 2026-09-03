@@ -139,7 +139,7 @@ public sealed class AdminApiClient : IAdminApiClient
         HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
         using HttpRequestMessage request = new(method, url);
         if (!string.IsNullOrEmpty(_options.ApiKey))
-            request.Headers.TryAddWithoutValidation("X-Cache-Admin-Key", _options.ApiKey);
+            request.Headers.TryAddWithoutValidation("X-CacheOrchestrator-Admin-Key", _options.ApiKey);
 
         if (body is not null && method != HttpMethod.Get)
             request.Content = JsonContent.Create(body, options: JsonOptions);

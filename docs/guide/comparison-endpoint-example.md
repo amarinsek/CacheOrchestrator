@@ -21,7 +21,7 @@ Read **with CacheOrchestrator first** (short), then **without** (the surface you
 | Authenticated callers | do not share the public Output Cache entry (auth bypass) |
 | Generation | `Version` `2026-08` in keys / validators |
 | ETag | weak validator from Version |
-| Diagnostics | `X-Cache` (domain, oc/dc, phase, ms) |
+| Diagnostics | `X-CacheOrchestrator` (domain, oc/dc, phase, ms) |
 
 ---
 
@@ -50,7 +50,7 @@ Almost all of the table is **domain configuration**. The endpoint names the doma
 }
 ```
 
-Default auth bypass keeps authenticated / `Authorization` traffic out of the shared Output Cache unless you opt into caching it. Vary and Accept normalization apply to **both** Output Cache and Data Cache keys. Client Cache Schedule drives `max-age` and `phase=` on `X-Cache`.
+Default auth bypass keeps authenticated / `Authorization` traffic out of the shared Output Cache unless you opt into caching it. Vary and Accept normalization apply to **both** Output Cache and Data Cache keys. Client Cache Schedule drives `max-age` and `phase=` on `X-CacheOrchestrator`.
 
 ### Endpoint
 
@@ -78,7 +78,7 @@ await invalidator.InvalidateDomainAsync("catalog", cancellationToken);
 // or bump Domains:catalog:Version in shared config
 ```
 
-`Cache-Control` (including schedule ramp), Output Cache policy, Data Cache TTL/Version/vary/fail-safe, ETag, tags, and `X-Cache` come from the domain snapshot — not from endpoint-local helpers.
+`Cache-Control` (including schedule ramp), Output Cache policy, Data Cache TTL/Version/vary/fail-safe, ETag, tags, and `X-CacheOrchestrator` come from the domain snapshot — not from endpoint-local helpers.
 
 ---
 
@@ -157,7 +157,7 @@ app.MapGet("/api/catalog/items", async (HttpContext http, IFusionCache fusion, C
 
     http.Response.Headers.CacheControl = $"public, max-age={maxAge}, must-revalidate";
     http.Response.Headers.ETag = $"W/\"{version}\"";
-    http.Response.Headers["X-Cache"] = $"domain=catalog; version={version}; /* oc/dc/phase/ms — build yourself */";
+    http.Response.Headers["X-CacheOrchestrator"] = $"domain=catalog; version={version}; /* oc/dc/phase/ms — build yourself */";
 
     return Results.Json(page);
 })
@@ -186,7 +186,7 @@ You still own copying this policy to the next catalogue endpoint without drift (
 | Client schedule ramp | `ScheduledUpdateUtc` + min TTL | custom `ClientMaxAgeSeconds` |
 | ETag from Version | `ETagMode` | manual `ETag` header |
 | Auth vs shared cache | domain defaults | endpoint / policy branch |
-| `X-Cache` + phase | built-in | hand-built header |
+| `X-CacheOrchestrator` + phase | built-in | hand-built header |
 | Purge OC + Data Cache | `InvalidateDomainAsync` | two tag APIs |
 | Endpoint body | `GetOrSetAsync` + `.CacheOutputWithDomain` | key + tags + headers + auth + diagnostics |
 

@@ -35,7 +35,7 @@ If you cannot pull the GHCR image, use a **local image name** instead (see [Loca
 | Setting | Purpose |
 |---------|---------|
 | **`AdminConsole:Instances`** | Base URLs of apps that expose `MapCacheOrchestratorAdmin` |
-| **`AdminConsole:ApiKey`** | Same value as **`Cache:Admin:ApiKey` on every application instance** (sent as `X-Cache-Admin-Key`) |
+| **`AdminConsole:ApiKey`** | Same value as **`Cache:Admin:ApiKey` on every application instance** (sent as `X-CacheOrchestrator-Admin-Key`) |
 | **`AdminConsole:Metrics`** | Optional Prometheus base URL for the Metrics UI |
 | **Custom hints** | Optional JSON packs under `data/rules/` |
 | **Disabled codes** | Settings UI → `data/disabled.local.json` (persists if `data/` is a volume) |
@@ -107,7 +107,7 @@ For your own environment, change **`ApiKey`** and **`Instances`** (and Metrics i
     // For your own environment: set ApiKey + Instances (+ Metrics) to your apps.
 
     // Must match Cache:Admin:ApiKey on every monitored application instance
-    // (sent as X-Cache-Admin-Key). Playground default: "dev-admin-key".
+    // (sent as X-CacheOrchestrator-Admin-Key). Playground default: "dev-admin-key".
     // Prefer env AdminConsole__ApiKey in real deploys.
     "ApiKey": "dev-admin-key",
 

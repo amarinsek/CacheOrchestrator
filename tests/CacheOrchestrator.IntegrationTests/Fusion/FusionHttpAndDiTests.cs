@@ -75,7 +75,7 @@ public class FusionHttpAndDiTests
         return (app.GetTestClient(), app);
     }
 
-    private static async Task<(HttpResponseMessage Res, string XCache, string Body)> GetAsync(
+    private static async Task<(HttpResponseMessage Res, string CacheOrchestratorHeader, string Body)> GetAsync(
         HttpClient client,
         string url,
         Dictionary<string, string>? headers = null)
@@ -89,7 +89,7 @@ public class FusionHttpAndDiTests
 
         HttpResponseMessage res = await client.SendAsync(req, TestContext.Current.CancellationToken);
         string body = await res.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        string xCache = res.Headers.TryGetValues("X-Cache", out IEnumerable<string>? values)
+        string xCache = res.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? values)
             ? string.Join(",", values)
             : string.Empty;
         return (res, xCache, body);
@@ -406,11 +406,11 @@ public class FusionHttpAndDiTests
     }
 
     // =========================================================================
-    // B18 — Fail-safe stale over HTTP + X-Cache dc=stale
+    // B18 — Fail-safe stale over HTTP + X-CacheOrchestrator dc=stale
     // =========================================================================
 
     [Fact]
-    public async Task FailSafe_AfterSoftExpiry_HttpReturnsStale_AndXCacheDataStale()
+    public async Task FailSafe_AfterSoftExpiry_HttpReturnsStale_AndCacheOrchestratorHeaderDataStale()
     {
         string domain = "fc-stale-" + Guid.NewGuid().ToString("N");
         int[] phase = [0];

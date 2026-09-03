@@ -65,7 +65,7 @@ internal sealed class HttpAdminDomainConfigProvider : IAdminDomainConfigProvider
             return null;
 
         ClientCacheHeaderGenerator.Result built = ClientCacheHeaderGenerator.Build(options, _time.GetUtcNow());
-        string phase = XCacheHeaderFormatter.PhaseToString(built.Phase);
+        string phase = CacheOrchestratorHeaderFormatter.PhaseToString(built.Phase);
         return phase == "n/a" ? null : phase;
     }
 }

@@ -26,7 +26,7 @@ A **domain** is a named group of data (`products`, `reports`, …) with its own 
 - **One domain model, package-owned snapshots** — HTTP policy wraps the Core snapshot instead of extending Core with ASP.NET concerns.
 - **Pluggable engines** — Core owns portable `DataCache` policy; Fusion / Hybrid packages supply `IDataCacheProvider`.
 - **Safe defaults** — fail-safe, stampede protection, and jitter come from Fusion (when that provider is registered) and the domain defaults.
-- **Observable** — `X-Cache` (when enabled), meter and activity source `CacheOrchestrator`.
+- **Observable** — `X-CacheOrchestrator` (when enabled), meter and activity source `CacheOrchestrator`.
 
 ## High-level diagram
 
@@ -113,7 +113,7 @@ Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features
 4. `EnsureDomainOptions` loads effective config (request L1 → process L2 → bind from options).  
 5. Policy enables/disables lookup/storage, sets vary rules, tags `domain:{name}`, TTL.  
 6. On hit → `ServeFromCacheAsync` marks disposition.  
-7. On response start → client `Cache-Control` + `X-Cache` headers.
+7. On response start → client `Cache-Control` + `X-CacheOrchestrator` headers.
 
 **Not cached:** methods without an identity binding when identity metadata is present (and non-GET/HEAD when identity metadata is absent), identity material null / content-hash oversize, `Cache-Control: no-store`, authenticated / `Authorization`, disabled domain, non-cacheable status codes, `Set-Cookie` responses. Opt-in non-GET via endpoint cache identity — [cache-identity.md](../reference/cache-identity.md).
 
@@ -125,7 +125,7 @@ Request state lives on **`ICacheOrchestratorFeature`** via `HttpContext.Features
 4. Key from `IDomainKeyGenerator` (HTTP) or caller-supplied key (orchestrator).  
 5. Domain config selects a named **`DataCacheInstances`** entry (`default` by default).  
 6. Registered `IDataCacheProvider` (Fusion: L1 → L2 → factory with soft/hard timeouts, fail-safe, jitter; Hybrid: expiration from `DataCache.TtlSeconds`).  
-7. Disposition (`Hit` / `Miss` / `Stale` / …) stored for `X-Cache` (`dc=`).  
+7. Disposition (`Hit` / `Miss` / `Stale` / …) stored for `X-CacheOrchestrator` (`dc=`).
 
 See [Data Cache](../reference/data-cache.md) for HTTP resolution order and entity identity.
 

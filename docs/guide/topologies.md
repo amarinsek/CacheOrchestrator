@@ -218,7 +218,7 @@ Two applications using the same Redis connection and the same namespace can coll
 
 ## Learn the layouts in the topology labs
 
-The playground includes five Docker Compose stages:
+The playground includes six Docker Compose stages:
 
 | Lab | Adds | Lesson |
 |-----|------|--------|
@@ -227,7 +227,8 @@ The playground includes five Docker Compose stages:
 | 03 | A second app instance | Expose the local Output Cache gap |
 | 04 | HttpBus | Send commands to every node |
 | 05 | Redis Output Cache + Fusion Redis + HttpBus | Inspect the complete shared layout |
+| 06 | Varnish in front of the Stage 02 origin | Observe edge hits and tag-native `xkey` invalidation |
 
-The labs are teaching environments, not production blueprints: they omit production load balancing, transport security, and Redis operations. Run them from the [Topology labs README](../../samples/CacheOrchestrator.Sample/labs/README.md), then use the [Deployment reference](../reference/deployment.md) for production details.
+The labs are teaching environments, not production blueprints: they omit production load balancing, transport security, and Redis operations. Lab 06 includes one local Varnish process specifically to demonstrate the Edge contract; it is not a hardened edge deployment. Run them from the [Topology labs README](../../samples/CacheOrchestrator.Sample/labs/README.md), then use the [Deployment reference](../reference/deployment.md) for production details.
 
 Next: learn how a snapshot domain prepares clients for a planned cutover with [Client Cache Schedule](client-cache-schedule.md).

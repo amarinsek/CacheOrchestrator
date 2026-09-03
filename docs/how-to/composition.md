@@ -18,6 +18,7 @@ Decision tables: [packages](../guide/packages.md) · [topologies](../guide/topol
 - [6. Class library + host](#scenario-6)
 - [7. EF invalidation in a web app](#scenario-7)
 - [8. EF in a library + web host](#scenario-8)
+- [9. Edge cache: Cloudflare or Varnish](#scenario-9)
 
 ---
 <a id="scenario-1"></a>
@@ -549,6 +550,87 @@ app.MapPut("/api/products/{id:int}", async (int id, UpdatePriceBody body, Catalo
     return Results.NoContent();
 });
 ```
+
+---
+
+<a id="scenario-9"></a>
+## 9. Edge cache: Cloudflare or Varnish
+
+**Layers:** your existing web composition plus Cloudflare edge freshness and tag invalidation.
+
+**Packages:** the normal web host package plus `CacheOrchestrator.Edge.Cloudflare` (which brings the neutral Edge package transitively).
+
+```bash
+dotnet add package CacheOrchestrator --prerelease
+dotnet add package CacheOrchestrator.Edge.Cloudflare --prerelease
+```
+
+**Registration**
+
+```csharp
+using CacheOrchestrator.Edge.Cloudflare;
+using CacheOrchestrator.Edge.DependencyInjection;
+
+builder.Services.AddCacheOrchestrator(builder.Configuration);
+builder.Services.AddCacheOrchestratorEdge(
+    builder.Configuration,
+    edge => edge.AddCloudflare());
+```
+
+**Config**
+
+```json
+{
+  "Cache": {
+    "Namespace": "my-app-production",
+    "EdgeInstances": {
+      "edge": {
+        "Provider": "Cloudflare",
+        "Cloudflare": {
+          "ZoneId": "from-secret-configuration",
+          "ApiToken": "from-secret-configuration"
+        }
+      }
+    },
+    "DomainDefaults": {
+      "Edge": { "Enabled": false, "Instance": "edge", "TtlSeconds": 300 }
+    },
+    "Domains": {
+      "catalog": {
+        "OutputCache": { "Enabled": true, "TtlSeconds": 60 },
+        "ClientCache": { "Cacheability": "Public", "TtlSeconds": 30 },
+        "Edge": {
+          "Enabled": true,
+          "TtlSeconds": 600,
+          "StaleWhileRevalidateSeconds": 30,
+          "StaleIfErrorSeconds": 300
+        }
+      }
+    }
+  }
+}
+```
+
+Endpoint identity, footprints, EF invalidation, and explicit `Invalidate*Async` calls automatically drive the edge tags and purge queue. Keep credentials in environment variables or a secret provider. Full behavior and delivery guarantees: [Edge cache integration](../guide/edge.md).
+
+For Varnish, install `CacheOrchestrator.Edge.Varnish`, call `edge.AddVarnish()`, and configure the protected xkey endpoint:
+
+```json
+{
+  "Cache": {
+    "EdgeInstances": {
+      "edge": {
+        "Provider": "Varnish",
+        "Varnish": {
+          "PurgeUrl": "http://varnish-internal/cache-orchestrator/purge"
+        }
+      }
+    }
+  }
+}
+```
+
+The required `xkey` VMOD and VCL are in the [Edge cache guide](../guide/edge.md#varnish-vcl-contract). Varnish supports `TtlSeconds` and `StaleWhileRevalidateSeconds`; use Cloudflare when the domain also requires the portable `StaleIfErrorSeconds` contract.
 
 ---
 

@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CacheOrchestrator.IntegrationTests.Behavior;
 
-public class XCacheHeaderTests
+public class CacheOrchestratorHeaderTests
 {
     private sealed class HitCounter
     {
@@ -108,13 +108,13 @@ public class XCacheHeaderTests
 
         HttpResponseMessage res = await client.SendAsync(req, TestContext.Current.CancellationToken);
         string body = await res.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        string xCache = res.Headers.TryGetValues("X-Cache", out IEnumerable<string>? values)
+        string xCache = res.Headers.TryGetValues("X-CacheOrchestrator", out IEnumerable<string>? values)
             ? string.Join(",", values)
             : "";
         return (res, xCache, body);
     }
 
-    private static void AssertXCache(
+    private static void AssertCacheOrchestratorHeader(
         string xCache,
         string domain,
         string client,
@@ -176,7 +176,7 @@ public class XCacheHeaderTests
             (HttpResponseMessage? res, string? xCache, string? body) = await GetAsync(client, "/x");
             res.IsSuccessStatusCode.Should().BeTrue();
             body.Should().Be("v1");
-            AssertXCache(xCache, domain, "public", "miss", "miss");
+            AssertCacheOrchestratorHeader(xCache, domain, "public", "miss", "miss");
             xCache.Should().Contain("ms=");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
         }
@@ -214,12 +214,12 @@ public class XCacheHeaderTests
         {
             (HttpResponseMessage? r1, string? x1, string _) = await GetAsync(client, "/x");
             r1.IsSuccessStatusCode.Should().BeTrue();
-            AssertXCache(x1, domain, "public", "miss", "miss");
+            AssertCacheOrchestratorHeader(x1, domain, "public", "miss", "miss");
 
             (HttpResponseMessage? r2, string? x2, string? body2) = await GetAsync(client, "/x");
             r2.IsSuccessStatusCode.Should().BeTrue();
             body2.Should().Be("v1");
-            AssertXCache(x2, domain, "public", "hit", data: null);
+            AssertCacheOrchestratorHeader(x2, domain, "public", "hit", data: null);
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
         }
         finally
@@ -261,7 +261,7 @@ public class XCacheHeaderTests
 
             (HttpResponseMessage? res, string? xCache, string _) = await GetAsync(client, "/x");
             res.IsSuccessStatusCode.Should().BeTrue();
-            AssertXCache(xCache, domain, "public", "miss", "miss");
+            AssertCacheOrchestratorHeader(xCache, domain, "public", "miss", "miss");
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
         }
         finally
@@ -272,7 +272,7 @@ public class XCacheHeaderTests
     }
 
     // =========================================================================
-    // 4) Output disabled, no OC policy ? endpoint+Fusion only (no X-Cache required)
+    // 4) Output disabled, no OC policy ? endpoint+Fusion only (no X-CacheOrchestrator required)
     // =========================================================================
 
     [Fact]
@@ -341,10 +341,10 @@ public class XCacheHeaderTests
         try
         {
             (HttpResponseMessage _, string? x1, string _) = await GetAsync(client, "/x");
-            AssertXCache(x1, domain, "public", "off", "miss");
+            AssertCacheOrchestratorHeader(x1, domain, "public", "off", "miss");
 
             (HttpResponseMessage _, string? x2, string _) = await GetAsync(client, "/x");
-            AssertXCache(x2, domain, "public", "off", "hit");
+            AssertCacheOrchestratorHeader(x2, domain, "public", "off", "hit");
 
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(2);
             Volatile.Read(ref fusionCalls[0]).Should().Be(1);
@@ -378,7 +378,7 @@ public class XCacheHeaderTests
             (HttpResponseMessage? res, string? xCache, string? body) = await GetAsync(client, "/x");
             res.IsSuccessStatusCode.Should().BeTrue();
             body.Should().Be("cookie-body");
-            AssertXCache(xCache, domain, "blocked", "miss", data: null);
+            AssertCacheOrchestratorHeader(xCache, domain, "blocked", "miss", data: null);
             string cc = res.Headers.TryGetValues("Cache-Control", out IEnumerable<string>? v) ? string.Join(",", v) : "";
             cc.Should().Contain("no-store");
         }
@@ -406,7 +406,7 @@ public class XCacheHeaderTests
         {
             (HttpResponseMessage? res, string? xCache, string _) = await GetAsync(client, "/x");
             res.IsSuccessStatusCode.Should().BeTrue();
-            AssertXCache(xCache, domain, "public", "miss", data: null);
+            AssertCacheOrchestratorHeader(xCache, domain, "public", "miss", data: null);
             string cc = res.Headers.TryGetValues("Cache-Control", out IEnumerable<string>? v) ? string.Join(",", v) : "";
             cc.Should().Contain("max-age=77");
             cc.Should().Contain("public");
@@ -444,12 +444,12 @@ public class XCacheHeaderTests
         {
             (HttpResponseMessage? r1, string? x1, string _) = await GetAsync(client, "/x?utm_source=google");
             r1.IsSuccessStatusCode.Should().BeTrue();
-            AssertXCache(x1, domain, "public", "miss", "miss");
+            AssertCacheOrchestratorHeader(x1, domain, "public", "miss", "miss");
 
             (HttpResponseMessage? r2, string? x2, string? body2) = await GetAsync(client, "/x");
             r2.IsSuccessStatusCode.Should().BeTrue();
             body2.Should().Be("same");
-            AssertXCache(x2, domain, "public", "hit", data: null);
+            AssertCacheOrchestratorHeader(x2, domain, "public", "hit", data: null);
             app.Services.GetRequiredService<HitCounter>().Count.Should().Be(1);
         }
         finally
@@ -527,11 +527,11 @@ public class XCacheHeaderTests
     }
 
     // =========================================================================
-    // 11) EmitDiagnosticsHeaders controls client-visible X-Cache
+    // 11) EmitDiagnosticsHeaders controls client-visible X-CacheOrchestrator
     // =========================================================================
 
     [Fact]
-    public async Task EmitDiagnosticsHeaders_False_OmitsXCache_StillSetsCacheControl()
+    public async Task EmitDiagnosticsHeaders_False_OmitsCacheOrchestratorHeader_StillSetsCacheControl()
     {
         string domain = "x-nodiag-" + Guid.NewGuid().ToString("N");
         Dictionary<string, string?> config = DomainConfig(domain, clientTtl: 55);
@@ -548,7 +548,7 @@ public class XCacheHeaderTests
             res.IsSuccessStatusCode.Should().BeTrue();
             body.Should().Be("ok");
             xCache.Should().BeEmpty();
-            res.Headers.Contains("X-Cache").Should().BeFalse();
+            res.Headers.Contains("X-CacheOrchestrator").Should().BeFalse();
 
             string cc = res.Headers.TryGetValues("Cache-Control", out IEnumerable<string>? v)
                 ? string.Join(",", v)
@@ -564,7 +564,7 @@ public class XCacheHeaderTests
     }
 
     [Fact]
-    public async Task EmitDiagnosticsHeaders_Default_EmitsXCache()
+    public async Task EmitDiagnosticsHeaders_Default_EmitsCacheOrchestratorHeader()
     {
         string domain = "x-diag-on-" + Guid.NewGuid().ToString("N");
         (HttpClient? client, WebApplication? app) = await StartAsync(DomainConfig(domain), app =>
@@ -576,8 +576,8 @@ public class XCacheHeaderTests
         {
             (HttpResponseMessage? res, string? xCache, string _) = await GetAsync(client, "/x");
             res.IsSuccessStatusCode.Should().BeTrue();
-            res.Headers.Contains("X-Cache").Should().BeTrue();
-            AssertXCache(xCache, domain, "public", "miss", data: null);
+            res.Headers.Contains("X-CacheOrchestrator").Should().BeTrue();
+            AssertCacheOrchestratorHeader(xCache, domain, "public", "miss", data: null);
         }
         finally
         {

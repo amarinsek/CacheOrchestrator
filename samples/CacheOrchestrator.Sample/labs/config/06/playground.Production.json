@@ -1,0 +1,32 @@
+{
+  "Cache": {
+    "OutputCache": { "Provider": "InMemory" },
+    "DataCacheInstances": {
+      "default": { "Provider": "Redis" }
+    },
+    "Redis": {
+      "Configuration": "redis:6379"
+    },
+    "EdgeInstances": {
+      "varnish": {
+        "Provider": "Varnish",
+        "Varnish": {
+          "PurgeUrl": "http://playground/cache-orchestrator/purge",
+          "ApiKey": "dev-edge-key",
+          "ApiKeyHeaderName": "X-CacheOrchestrator-Key"
+        }
+      }
+    },
+    "DomainDefaults": {
+      "Edge": {
+        "Enabled": true,
+        "Instance": "varnish",
+        "TtlSeconds": 30,
+        "StaleWhileRevalidateSeconds": 10
+      }
+    },
+    "Cluster": {
+      "Bus": { "Enabled": false }
+    }
+  }
+}

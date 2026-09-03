@@ -153,7 +153,7 @@ At the next release, changing `Version` moves new server requests and validators
 await invalidator.InvalidateDomainAsync("osm-tiles", cancellationToken);
 ```
 
-The Client Cache Schedule, auth defaults, tags, vary materialization, and `X-Cache` diagnostics come from the resolved domain rather than endpoint-specific code.
+The Client Cache Schedule, auth defaults, tags, vary materialization, and `X-CacheOrchestrator` diagnostics come from the resolved domain rather than endpoint-specific code.
 
 ## Compare dynamic entity invalidation
 
@@ -200,7 +200,7 @@ The invalidator removes matching Output Cache and Data Cache entries. Multi-inst
 | Coordinated server invalidation | Call every store correctly | `ICacheOrchestratorInvalidator` |
 | Snapshot generation | Add version material to every key and validator | Domain `Version` |
 | Data engine selection | Application DI and engine-specific calls | Provider packages behind stable APIs |
-| Request diagnostics | Build headers, meters, traces, and logs | Built-in `X-Cache` and telemetry |
+| Request diagnostics | Build headers, meters, traces, and logs | Built-in `X-CacheOrchestrator` and telemetry |
 | Multi-instance commands | Custom transport or direct fan-out | Optional HttpBus / Admin Console App fan-out |
 
 CacheOrchestrator reduces application-owned coordination. It does not remove the need to choose sensible TTLs, identities, topology, or security boundaries.
@@ -234,7 +234,7 @@ CacheOrchestrator is intentionally not a Redis operations layer, CDN control pla
 
 You do not need to enable every layer at once.
 
-1. Start with one Output Cache domain and inspect `X-Cache`.
+1. Start with one Output Cache domain and inspect `X-CacheOrchestrator`.
 2. Add `IDomainDataCache` where object creation is expensive.
 3. Declare entity identity for dynamic detail endpoints.
 4. Move writes to `ICacheOrchestratorInvalidator` or the EF integration.

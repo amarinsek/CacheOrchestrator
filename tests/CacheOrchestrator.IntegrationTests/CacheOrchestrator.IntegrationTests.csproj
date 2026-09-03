@@ -10,6 +10,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<None Update="Edge\Varnish\default.vcl" CopyToOutputDirectory="PreserveNewest" />
+		<None Update="Edge\Varnish\nginx.conf" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
 
@@ -48,6 +53,9 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\CacheOrchestrator\CacheOrchestrator.csproj" />
 		<ProjectReference Include="..\..\src\CacheOrchestrator.AspNetCore\CacheOrchestrator.AspNetCore.csproj" />
+		<ProjectReference Include="..\..\src\CacheOrchestrator.Edge\CacheOrchestrator.Edge.csproj" />
+		<ProjectReference Include="..\..\src\CacheOrchestrator.Edge.Cloudflare\CacheOrchestrator.Edge.Cloudflare.csproj" />
+		<ProjectReference Include="..\..\src\CacheOrchestrator.Edge.Varnish\CacheOrchestrator.Edge.Varnish.csproj" />
 		<ProjectReference Include="..\..\src\CacheOrchestrator.FusionCache\CacheOrchestrator.FusionCache.csproj" />
 		<ProjectReference Include="..\..\src\CacheOrchestrator.HybridCache\CacheOrchestrator.HybridCache.csproj" />
 		<ProjectReference Include="..\..\src\CacheOrchestrator.Redis\CacheOrchestrator.Redis.csproj" />

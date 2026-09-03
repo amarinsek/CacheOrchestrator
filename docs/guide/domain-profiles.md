@@ -106,7 +106,7 @@ For a planned September release:
 2. Prepare the new dataset without changing the current generation in place.
 3. At go-live, make the new data available and change `Version` to `"2030-09"`.
 4. Set the next scheduled update, or clear `ScheduledUpdateUtc` if no date is known.
-5. Watch `X-Cache`, metrics, and origin load while the new generation warms.
+5. Watch `X-CacheOrchestrator`, metrics, and origin load while the new generation warms.
 
 Requests use cache keys for the new Version stamp. Entries under the previous stamp are not selected and expire naturally; a domain purge is optional cleanup, not the freshness mechanism.
 

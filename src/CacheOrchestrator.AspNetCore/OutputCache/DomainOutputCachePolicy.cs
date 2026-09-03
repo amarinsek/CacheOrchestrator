@@ -21,7 +21,7 @@ namespace CacheOrchestrator.OutputCache;
 /// <summary>
 /// Output cache policy that resolves per-domain settings, tags entries with <c>domain:{name}</c>
 /// (and optional <c>entity:{domain}:{entityKind}:{id}</c>), and applies client <c>Cache-Control</c> / optional
-/// diagnostic <c>X-Cache</c> / ETag headers.
+/// diagnostic <c>X-CacheOrchestrator</c> / ETag headers.
 /// </summary>
 /// <remarks>
 /// Instances are created as endpoint metadata (not via DI). The logger and options are resolved from
@@ -31,6 +31,8 @@ namespace CacheOrchestrator.OutputCache;
 public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadata
 {
     private static readonly object LoggerItemsKey = new();
+    private static readonly object ResponseContributorsAppliedKey = new();
+    private static readonly object ResponseClientOverrideKey = new();
     private readonly Func<HttpContext, string> _domainProvider;
 
     /// <summary>
@@ -236,7 +238,7 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             CacheOrchestratorMetrics.RecordOutput("_", "unresolved");
             if (ShouldEmitDiagnosticsHeaders(http))
             {
-                http.Response.Headers["X-Cache"] = XCacheHeaderFormatter.Format(
+                http.Response.Headers["X-CacheOrchestrator"] = CacheOrchestratorHeaderFormatter.Format(
                     "_",
                     ClientCacheClass.NoStore,
                     OutputCacheResult.Bypass,
@@ -376,6 +378,8 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             context.Tags.Add(CacheTags.EntityKind(opts.Domain, entityKind));
         }
 
+        if (http.RequestServices.GetService<ICacheResponseContributor>() is not null)
+            CacheResponseTagStaging.Initialize(http);
         RegisterResponseHeaders(http, opts, OutputCacheResult.Miss);
     }
 
@@ -499,8 +503,8 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
     /// </summary>
     /// <param name="context">The output cache context for the current request.</param>
     /// <param name="cancellationToken">Cancellation token (unused; interface contract).</param>
-    /// <returns>A completed <see cref="ValueTask"/>.</returns>
-    public ValueTask ServeResponseAsync(OutputCacheContext context, CancellationToken cancellationToken)
+    /// <returns>A task that completes after response contributors have staged their metadata.</returns>
+    public async ValueTask ServeResponseAsync(OutputCacheContext context, CancellationToken cancellationToken)
     {
         HttpContext http = context.HttpContext;
         if (http.Features.Get<ICacheOrchestratorFeature>()?.DomainOptions is { } opts)
@@ -515,9 +519,17 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             {
                 MergePendingFootprintTags(context, opts.Domain);
             }
-        }
 
-        return ValueTask.CompletedTask;
+            if (!http.Items.ContainsKey(ResponseContributorsAppliedKey))
+            {
+                http.Items[ResponseContributorsAppliedKey] = true;
+                bool sharedCacheEligible = IsSharedCacheEligible(http, opts);
+                OutputCacheResult output = http.Features.Get<ICacheOrchestratorFeature>()?.Disposition?.Output
+                    ?? OutputCacheResult.Miss;
+                await ContributeResponseAsync(http, opts, sharedCacheEligible, output, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
     }
 
     private static void MergePendingFootprintTags(OutputCacheContext context, string domain)
@@ -555,16 +567,25 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
         return false;
     }
 
-    private static void RegisterResponseHeaders(HttpContext http, DomainHttpCacheOptions opts, OutputCacheResult defaultOutput, ClientCacheClass? forceClient = null) =>
+    private static void RegisterResponseHeaders(
+        HttpContext http,
+        DomainHttpCacheOptions opts,
+        OutputCacheResult defaultOutput,
+        ClientCacheClass? forceClient = null)
+    {
+        if (forceClient is not null)
+            http.Items[ResponseClientOverrideKey] = forceClient.Value;
         http.Response.OnStarting(ApplyHeadersAsync, (http, opts, defaultOutput, forceClient));
+    }
 
-    private static Task ApplyHeadersAsync(object state)
+    private static async Task ApplyHeadersAsync(object state)
     {
         (HttpContext? httpContext, DomainHttpCacheOptions? config, OutputCacheResult defOutput, ClientCacheClass? forcedClient) =
             ((HttpContext, DomainHttpCacheOptions, OutputCacheResult, ClientCacheClass?))state;
 
         HttpResponse response = httpContext.Response;
         int sc = response.StatusCode;
+        IReadOnlyList<string>? storedResponseTags = CacheResponseTagStaging.Take(httpContext);
 
         ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(httpContext);
         CacheDisposition disp;
@@ -659,13 +680,13 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
             client = ClientCacheClass.NoStore;
         }
 
-        string phaseWire = XCacheHeaderFormatter.PhaseToString(phase);
+        string phaseWire = CacheOrchestratorHeaderFormatter.PhaseToString(phase);
         CacheOrchestratorMetrics.RecordClientSchedule(config.Domain, phaseWire);
 
         // Metrics always; client-visible diagnostic headers are optional (Cache:EmitDiagnosticsHeaders).
         if (ShouldEmitDiagnosticsHeaders(httpContext))
         {
-            response.Headers["X-Cache"] = XCacheHeaderFormatter.Format(
+            response.Headers["X-CacheOrchestrator"] = CacheOrchestratorHeaderFormatter.Format(
                 config.Domain,
                 client,
                 output,
@@ -675,7 +696,71 @@ public sealed class DomainOutputCachePolicy : IOutputCachePolicy, IFilterMetadat
                 phase: phase);
         }
 
-        return Task.CompletedTask;
+        if (!httpContext.Items.ContainsKey(ResponseContributorsAppliedKey))
+        {
+            httpContext.Items[ResponseContributorsAppliedKey] = true;
+            await ContributeResponseAsync(
+                httpContext,
+                config,
+                IsSharedCacheEligible(httpContext, config),
+                output,
+                httpContext.RequestAborted,
+                storedResponseTags).ConfigureAwait(false);
+        }
+    }
+
+    private static bool IsSharedCacheEligible(HttpContext http, DomainHttpCacheOptions options)
+    {
+        HttpResponse response = http.Response;
+        if ((!IsCacheableStatusCode(response.StatusCode, options.CacheableStatusCodes)
+                && response.StatusCode != StatusCodes.Status304NotModified)
+            || response.Headers.ContainsKey(HeaderNames.SetCookie)
+            || response.Headers.ContainsKey(HeaderNames.Authorization)
+            || (http.Items.TryGetValue(ResponseClientOverrideKey, out object? forced)
+                && forced is ClientCacheClass.NoStore or ClientCacheClass.Blocked))
+        {
+            return false;
+        }
+
+        return options.ClientCacheability == ClientCacheability.Public
+            && (!options.ClientForcePrivateWhenAuthenticated
+                || http.User?.Identity?.IsAuthenticated != true);
+    }
+
+    private static async ValueTask ContributeResponseAsync(
+        HttpContext httpContext,
+        DomainHttpCacheOptions config,
+        bool sharedCacheEligible,
+        OutputCacheResult output,
+        CancellationToken cancellationToken,
+        IReadOnlyList<string>? tags = null)
+    {
+        ICacheOrchestratorFeature feature = CacheOrchestratorFeatureAccessor.GetOrCreate(httpContext);
+        IReadOnlyList<string> responseTags = tags ?? CacheResponseTagStaging.Collect(feature, config.Domain);
+        var contributionContext = new CacheResponseContext(
+            httpContext,
+            config,
+            sharedCacheEligible,
+            responseTags,
+            output);
+
+        foreach (ICacheResponseContributor contributor in
+                 httpContext.RequestServices.GetServices<ICacheResponseContributor>())
+        {
+            try
+            {
+                await contributor.ContributeAsync(contributionContext, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                GetLogger(httpContext).LogWarning(
+                    ex,
+                    "Cache response contributor failed ({Contributor}) for domain '{Domain}'",
+                    contributor.GetType().Name,
+                    config.Domain);
+            }
+        }
     }
 
     /// <summary>

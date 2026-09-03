@@ -6,13 +6,13 @@ using System.Text;
 namespace CacheOrchestrator.HttpBus;
 
 /// <summary>
-/// Validates <c>X-Cache-Admin-Key</c> for cluster receive endpoints using
+/// Validates <c>X-CacheOrchestrator-Admin-Key</c> for cluster receive endpoints using
 /// <c>Cache:Cluster:Bus:ApiKey</c> or fallback <c>Cache:Admin:ApiKey</c>.
 /// </summary>
 internal sealed class ClusterEndpointAuth : IEndpointFilter
 {
     /// <summary>Shared header name with Admin API.</summary>
-    public const string HeaderName = "X-Cache-Admin-Key";
+    public const string HeaderName = "X-CacheOrchestrator-Admin-Key";
 
     private readonly IOptionsMonitor<HttpBusOptions> _options;
 

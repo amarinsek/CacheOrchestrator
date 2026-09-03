@@ -222,6 +222,8 @@ List/index endpoints tagged only `domain:{name}` are not refreshed by row invali
 
 Without a distributed store, a backplane, or HttpBus, invalidation applies on the calling process only.
 
+When `CacheOrchestrator.Edge` is enabled for a domain, the initiating process also queues an external tag purge after local invalidation. HttpBus peers apply their local invalidation but do not enqueue duplicate edge requests. The built-in bounded queue coalesces and retries in memory; it is best-effort and can lose pending work on a crash. It drains during graceful host shutdown. See [Edge cache integration](../guide/edge.md).
+
 Cluster **configuration** management (shared `appsettings.cache.json`, ConfigMap, env) does **not** by itself purge L1/L2 on other nodes. It only keeps **policy** in sync (Version, TTLs). See [deployment.md — Shared configuration](deployment.md#shared-configuration-across-instances).
 
 ### Approaches
@@ -292,7 +294,7 @@ app.MapCacheOrchestratorHttpBus(); // independent of Admin
 
 Prefer Redis L2 and the backplane when instances share Fusion data. Use HttpBus when stores are in-memory and you still need commands on every node, including runtime Version and TTL overlays.
 
-`ICacheInvalidationObserver` is for **audit/webhooks only** — not a second cluster bus when HttpBus is registered.
+Application `ICacheInvalidationObserver` implementations are for **audit/webhooks only** — not a second cluster bus when HttpBus is registered. The Edge package's built-in observer is origin-aware and intentionally skips remote HttpBus application.
 
 ### Choosing an approach (multi-instance)
 

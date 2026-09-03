@@ -2,12 +2,12 @@ using CacheOrchestrator.Configuration;
 
 namespace CacheOrchestrator.AspNetCore.UnitTests.Configuration;
 
-public class XCacheHeaderFormatterTests
+public class CacheOrchestratorHeaderFormatterTests
 {
     [Fact]
     public void Format_OutputMissWithoutDataCache_ReportsNotApplicableAndFactoryRun()
     {
-        string header = XCacheHeaderFormatter.Format(
+        string header = CacheOrchestratorHeaderFormatter.Format(
             "promotions",
             ClientCacheClass.Public,
             OutputCacheResult.Miss,
@@ -24,7 +24,7 @@ public class XCacheHeaderFormatterTests
     [Fact]
     public void Format_IncludesPhase_AfterClient()
     {
-        string header = XCacheHeaderFormatter.Format(
+        string header = CacheOrchestratorHeaderFormatter.Format(
             "catalog",
             ClientCacheClass.Public,
             OutputCacheResult.Miss,
@@ -40,7 +40,7 @@ public class XCacheHeaderFormatterTests
     [Fact]
     public void Format_Hit_OmitsFcMsAndFa_StillIncludesPhase()
     {
-        string header = XCacheHeaderFormatter.Format(
+        string header = CacheOrchestratorHeaderFormatter.Format(
             "products",
             ClientCacheClass.Private,
             OutputCacheResult.Hit,
@@ -61,12 +61,12 @@ public class XCacheHeaderFormatterTests
     [InlineData(ClientCacheSchedulePhase.Hold, "hold")]
     [InlineData(ClientCacheSchedulePhase.NotApplicable, "n/a")]
     public void PhaseToString_MapsAllPhases(ClientCacheSchedulePhase phase, string expected) =>
-        XCacheHeaderFormatter.PhaseToString(phase).Should().Be(expected);
+        CacheOrchestratorHeaderFormatter.PhaseToString(phase).Should().Be(expected);
 
     [Fact]
     public void Format_DefaultPhase_IsNotApplicable()
     {
-        string header = XCacheHeaderFormatter.Format(
+        string header = CacheOrchestratorHeaderFormatter.Format(
             "x",
             ClientCacheClass.Public,
             OutputCacheResult.Bypass,
@@ -84,7 +84,7 @@ public class XCacheHeaderFormatterTests
     [Fact]
     public void Format_OutputOff_WritesOffToken()
     {
-        string header = XCacheHeaderFormatter.Format(
+        string header = CacheOrchestratorHeaderFormatter.Format(
             "catalog",
             ClientCacheClass.Public,
             OutputCacheResult.Off,
@@ -101,7 +101,7 @@ public class XCacheHeaderFormatterTests
     [Fact]
     public void Format_UnresolvedData_ShowsUnresolvedToken()
     {
-        string header = XCacheHeaderFormatter.Format(
+        string header = CacheOrchestratorHeaderFormatter.Format(
             "default",
             ClientCacheClass.Public,
             OutputCacheResult.Miss,
@@ -123,7 +123,7 @@ public class XCacheHeaderFormatterTests
     [InlineData(DataCacheResult.Unresolved, true)]
     public void Format_FaRun_WhenFcPresentAndNotHit(DataCacheResult data, bool expectFa)
     {
-        string header = XCacheHeaderFormatter.Format(
+        string header = CacheOrchestratorHeaderFormatter.Format(
             "catalog",
             ClientCacheClass.Public,
             OutputCacheResult.Miss,
@@ -132,14 +132,14 @@ public class XCacheHeaderFormatterTests
             "1");
 
         header.Should().Contain("oc=miss");
-        header.Should().Contain($"dc={XCacheDataToken(data)}");
+        header.Should().Contain($"dc={CacheOrchestratorHeaderDataToken(data)}");
         if (expectFa)
             header.Should().Contain("fa=run");
         else
             header.Should().NotContain("fa=");
     }
 
-    private static string XCacheDataToken(DataCacheResult data) => data switch
+    private static string CacheOrchestratorHeaderDataToken(DataCacheResult data) => data switch
     {
         DataCacheResult.Hit => "hit",
         DataCacheResult.Miss => "miss",

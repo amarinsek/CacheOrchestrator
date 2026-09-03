@@ -2,8 +2,8 @@ using System.Globalization;
 
 namespace CacheOrchestrator.Configuration;
 
-/// <summary>Builds the diagnostic <c>X-Cache</c> response header value.</summary>
-public static class XCacheHeaderFormatter
+/// <summary>Builds the diagnostic <c>X-CacheOrchestrator</c> response header value.</summary>
+public static class CacheOrchestratorHeaderFormatter
 {
     private const string PDomain = "domain=";
     private const string PVersion = "; version=";

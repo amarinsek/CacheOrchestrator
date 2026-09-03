@@ -19,8 +19,8 @@ public class AdminApiClientTests
         {
             req.Method.Should().Be(HttpMethod.Get);
             req.RequestUri!.ToString().Should().Be("http://app-1:8080/cache-admin/local/health");
-            req.Headers.Contains("X-Cache-Admin-Key").Should().BeTrue();
-            req.Headers.GetValues("X-Cache-Admin-Key").Should().ContainSingle("secret-key");
+            req.Headers.Contains("X-CacheOrchestrator-Admin-Key").Should().BeTrue();
+            req.Headers.GetValues("X-CacheOrchestrator-Admin-Key").Should().ContainSingle("secret-key");
 
             return JsonResponse("""{"healthy":true,"instanceId":"app-1","utcNow":"2026-01-01T00:00:00Z","adminEnabled":true}""");
         });
@@ -114,7 +114,7 @@ public class AdminApiClientTests
     {
         RecordingHandler handler = new((req, _) =>
         {
-            req.Headers.Contains("X-Cache-Admin-Key").Should().BeFalse();
+            req.Headers.Contains("X-CacheOrchestrator-Admin-Key").Should().BeFalse();
             return JsonResponse("""{"healthy":true,"instanceId":"a","utcNow":"2026-01-01T00:00:00Z","adminEnabled":true}""");
         });
 
